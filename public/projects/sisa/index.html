@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오늘의 시사 — 투명한 시사 계기판</title>
+<style>
+  :root{
+    --sans:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif;
+    --mono:'JetBrains Mono','SFMono-Regular',ui-monospace,Consolas,'D2Coding',monospace;
+    --sp-l:#9cc4f5; --sp-m:#4f8fe0; --sp-r:#2f63b8;
+    --radius:10px;
+  }
+  [data-theme="dark"]{
+    --bg:#0f0f12; --surface:#17171b; --surface-2:#1f1f25; --border:#2b2b32;
+    --t1:#f3f3f6; --t2:#c3c3cb; --t3:#8c8c96; --point:#5b7fff; --on-point:#0c0e18;
+    --glow:rgba(91,127,255,.12); --track:rgba(255,255,255,.08);
+    --ic-solid:#6b87ff; --ic-frost:rgba(107,135,255,.32);
+    --ok:#7fb88a; --warn:#d6a85a;
+  }
+  [data-theme="light"]{
+    --bg:#ffffff; --surface:#ffffff; --surface-2:#f5f6f9; --border:#e6e6ea;
+    --t1:#161619; --t2:#46464d; --t3:#76767d; --point:#2f4fe0; --on-point:#fff;
+    --glow:rgba(47,79,224,.07); --track:rgba(0,0,0,.08);
+    --ic-solid:#3554e6; --ic-frost:rgba(53,84,230,.20);
+    --ok:#3b7a48; --warn:#9a6b1a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--t1); font-family:var(--sans); line-height:1.6; -webkit-font-smoothing:antialiased; transition:background .3s,color .3s;}
+  .mono{font-family:var(--mono); letter-spacing:.1em; text-transform:uppercase;}
+  .ico{display:block;}
+
+  .hero{position:relative; padding:60px 24px 36px; overflow:hidden;
+    background:radial-gradient(120% 90% at 85% 110%, var(--glow), transparent 60%);}
+  .hero-in{max-width:780px; margin:0 auto;}
+  .hero-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:64px;}
+  .hero-top .mono{font-size:11px; color:var(--t3); line-height:1.8;}
+  .wordmark{text-align:center;}
+  .wordmark .eyebrow{font-size:12px; color:var(--point); margin-bottom:18px;}
+  .wordmark h1{font-size:66px; font-weight:600; letter-spacing:-.02em; line-height:.95;}
+  .wordmark .sub{margin-top:20px; font-size:14px; color:var(--t2);}
+
+  .statusbar{display:flex; align-items:center; gap:16px; max-width:780px; margin:0 auto;
+    border:.5px solid var(--border); background:var(--surface); border-radius:var(--radius); padding:11px 14px 11px 18px;}
+  .live{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--t2); white-space:nowrap;}
+  .live .dot{width:7px; height:7px; border-radius:50%; background:var(--point); box-shadow:0 0 0 3px var(--glow);}
+  .statusbar .rule{flex:1; height:1px; background:var(--border);}
+  .upd{display:flex; align-items:center; gap:7px; font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--on-point); background:var(--point); border:none; border-radius:8px; padding:9px 15px; cursor:pointer; transition:.15s; white-space:nowrap;}
+  .upd:hover{filter:brightness(1.08);}
+  .upd:active{transform:scale(.97);}
+  .upd .sp{display:inline-block; animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .toggle{font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--t3); background:none;
+    border:.5px solid var(--border); border-radius:999px; padding:7px 13px; cursor:pointer; transition:.15s;}
+  .toggle:hover{color:var(--t1); border-color:var(--t3);}
+
+  .console{max-width:780px; margin:28px auto 0; padding:0 24px 80px;}
+  .frame{position:relative; border:.5px solid var(--border); border-radius:14px; background:var(--surface); padding:10px 26px 26px;}
+  .frame::before,.frame::after,.cn-tl,.cn-tr{content:""; position:absolute; width:15px; height:15px; border:1.5px solid var(--point); opacity:.6;}
+  .frame::before{top:-1px; left:-1px; border-right:0; border-bottom:0; border-radius:14px 0 0 0;}
+  .frame::after{top:-1px; right:-1px; border-left:0; border-bottom:0; border-radius:0 14px 0 0;}
+  .cn-tl{bottom:-1px; left:-1px; border-right:0; border-top:0; border-radius:0 0 0 14px;}
+  .cn-tr{bottom:-1px; right:-1px; border-left:0; border-top:0; border-radius:0 0 14px 0;}
+
+  .tabs{display:flex; gap:6px; padding:14px 0 4px; border-bottom:.5px solid var(--border);}
+  .tab{display:flex; align-items:center; gap:9px; font-size:15px; font-weight:500; color:var(--t3); background:none; border:none;
+    cursor:pointer; padding:11px 18px; border-radius:9px; transition:.15s;}
+  .tab .ico{width:22px; height:22px; opacity:.6; transition:.15s;}
+  .tab:hover{color:var(--t2);}
+  .tab.on{color:var(--t1); background:var(--surface-2);}
+  .tab.on .ico{opacity:1;}
+
+  .sec-head{display:flex; align-items:center; gap:16px; padding:22px 2px 8px;}
+  .sec-head .ico{width:44px; height:44px; flex-shrink:0;}
+  .sec-name{font-size:24px; font-weight:600; letter-spacing:-.01em;}
+  .sec-meta{font-family:var(--mono); font-size:12px; letter-spacing:.06em; color:var(--t3); margin-top:3px; text-transform:uppercase;}
+
+  .issue-card{background:var(--surface); border:.5px solid var(--border); border-radius:14px; margin-bottom:11px; transition:border-color .2s, box-shadow .2s;}
+  .issue-card:hover{border-color:var(--t3);}
+  .issue-card.open{border-color:rgba(91,127,255,.4); box-shadow:0 0 0 1px rgba(91,127,255,.15);}
+  .row{display:flex; gap:22px; padding:24px; cursor:pointer;}
+  .rank{font-family:var(--mono); font-size:22px; font-weight:600; color:var(--t3); line-height:1; padding-top:5px; width:38px; flex-shrink:0;}
+  .row.open .rank{color:var(--point);}
+  .body{flex:1; min-width:0;}
+  .title{font-size:22px; font-weight:600; letter-spacing:-.015em; line-height:1.32; margin-bottom:18px;}
+  /* 핵심 지표 — '동시 보도 매체수'를 최우선 강조, 시간은 보조로 분리 */
+  .metrics{display:flex; flex-direction:column; gap:12px;}
+  .cov-metric{display:flex; align-items:center; gap:15px;}
+  .cov-bar{height:6px; width:148px; background:var(--track); border-radius:999px; overflow:hidden; flex-shrink:0;}
+  .cov-fill{height:100%; background:var(--point); border-radius:999px;}
+  .cov-num{display:flex; align-items:baseline; gap:6px; white-space:nowrap;}
+  .cov-num b{font-family:var(--mono); font-size:22px; font-weight:600; color:var(--t1); letter-spacing:.01em;}
+  .cov-num span{font-family:var(--mono); font-size:12px; letter-spacing:.03em; color:var(--t3);}
+  .time-metric{display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--t3);}
+  .time-metric b{color:var(--t2); font-weight:500;}
+  .time-metric .td{color:var(--border);}
+  .chev{flex-shrink:0; align-self:center; color:var(--t3); font-size:20px; transition:transform .18s; padding-right:4px;}
+  .row.open .chev{transform:rotate(90deg); color:var(--point);}
+  .srcline{font-size:12px; color:var(--t3); margin-top:15px; opacity:.75; line-height:1.5;}
+
+  .detail{max-height:0; overflow:hidden; transition:max-height .45s ease;}
+  .issue-card.open .detail{max-height:1300px;}
+  .detail-in{padding:18px 24px 22px; border-top:.5px solid var(--border);}
+  .detail-grid{display:grid; grid-template-columns:1fr 1fr; gap:13px; margin-bottom:13px;}
+  @media(max-width:680px){.detail-grid{grid-template-columns:1fr;}}
+  .panel{background:var(--surface-2); border:.5px solid var(--border); border-radius:12px; padding:17px 17px 15px;}
+  .panel-lbl{display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--t3); margin-bottom:15px;}
+  .panel-lbl .pl-no{color:var(--point); font-weight:600;}
+  .panel-lbl::after{content:""; flex:1; height:.5px; background:var(--border);}
+
+  .act-wrap{background:rgba(0,0,0,.18); border-radius:var(--radius); padding:14px 14px 10px;}
+  .act{display:flex; align-items:flex-end; gap:4px; height:56px;}
+  .act i{flex:1; background:var(--point); border-radius:2px 2px 0 0; opacity:.4; transition:.15s;}
+  .act i.peak{opacity:1;}
+  .act i.empty{background:var(--track); opacity:1;}
+  .act-axis{display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; letter-spacing:.05em; color:var(--t3); margin-top:8px;}
+  .act-sum{font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--t3); margin-top:12px;}
+  .act-sum b{color:var(--point); font-weight:500;}
+
+  .splabel{display:flex; gap:18px; margin-bottom:11px;}
+  .splabel span{font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--t3); display:flex; align-items:center; gap:6px;}
+  .sd{width:10px; height:10px; border-radius:2px;}
+  .spectrum{display:flex; height:12px; gap:3px; border-radius:999px; overflow:hidden; margin-bottom:12px;}
+  .spectrum>div{height:100%;}
+  .verdict{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
+  .breakdown{font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--t3);}
+  .vlabel{font-family:var(--mono); font-size:12px; letter-spacing:.05em; display:flex; align-items:center; gap:7px;}
+  .vlabel .vd{width:8px; height:8px; border-radius:50%;}
+
+  .links{margin-top:2px;}
+  .lk{display:flex; gap:16px; align-items:baseline; padding:13px 0; border-bottom:.5px solid var(--border); text-decoration:none; color:var(--t1); transition:.12s;}
+  .lk:hover{padding-left:6px;}
+  .lk:hover .lt{color:var(--point);}
+  .lsrc{font-size:13px; font-weight:500; color:var(--t2); width:88px; flex-shrink:0;}
+  .lt{font-size:15px; line-height:1.45;}
+  .lt .ext{font-family:var(--mono); font-size:10px; color:var(--t3); margin-left:8px; letter-spacing:.05em;}
+
+  footer{max-width:780px; margin:26px auto 0; padding:0 24px;}
+  .foot-in{font-family:var(--mono); font-size:11px; letter-spacing:.03em; line-height:2; color:var(--t3); border-top:.5px solid var(--border); padding-top:18px;}
+</style>
+</head>
+<body data-theme="dark">
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <filter id="gb" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.6"/></filter>
+</defs></svg>
+
+<section class="hero">
+  <div class="hero-in">
+    <div class="hero-top">
+      <div class="mono">투명한 시사 계기판<br>NO ALGORITHM · NO PERSONALIZATION</div>
+      <button class="toggle" id="toggle">◐ THEME</button>
+    </div>
+    <div class="wordmark">
+      <div class="eyebrow mono">2026 · 경제 / 정치 / 기술</div>
+      <h1>오늘의 시사</h1>
+      <div class="sub">여러 매체가 동시에 다루는 이슈만 모읍니다 · 14개 매체 집계</div>
+    </div>
+  </div>
+</section>
+
+<div class="statusbar">
+  <span class="live"><span class="dot"></span>집계됨</span>
+  <span class="rule"></span>
+  <span class="live" id="clock">— · 개인화 OFF</span>
+  <button class="upd" id="update"><span id="upd-ico">↻</span> 업데이트</button>
+</div>
+
+<div class="console">
+  <div class="frame">
+    <span class="cn-tl"></span><span class="cn-tr"></span>
+    <div class="tabs" id="tabs"></div>
+    <div id="sechead"></div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="foot-in">
+    집계 기준 — 14개 매체의 공개 헤드라인(RSS·검색 API)을 수집해, 여러 매체가 동시에 다룬 이슈일수록 상단 배치.<br>
+    한 매체의 반복 보도는 순위 미반영. 시간은 각 이슈의 최초·최근 보도 시각에서 산출. 진영 분류는 외부 미디어 지형 연구 인용.<br>
+    해석 없음 · 원문 링크로 위임 · 알고리즘은 빈도·시간뿐 (AI 미사용) · 프로토타입 데이터 예시
+  </div>
+</footer>
+
+<script>
+const ICONS={
+  econ:`<svg class="ico" viewBox="0 0 48 48"><circle cx="26" cy="26" r="14" fill="var(--ic-frost)" filter="url(#gb)"/><circle cx="22" cy="22" r="13" fill="none" stroke="var(--ic-solid)" stroke-width="3"/><text x="22" y="28" text-anchor="middle" font-family="var(--sans)" font-size="15" font-weight="600" fill="var(--ic-solid)">₩</text></svg>`,
+  pol:`<svg class="ico" viewBox="0 0 48 48"><rect x="11" y="19" width="28" height="20" rx="3" fill="var(--ic-frost)" filter="url(#gb)"/><path d="M22 7 L37 18 L7 18 Z" fill="var(--ic-solid)"/><rect x="10" y="22" width="3.5" height="12" rx="1" fill="var(--ic-solid)"/><rect x="20" y="22" width="3.5" height="12" rx="1" fill="var(--ic-solid)"/><rect x="30" y="22" width="3.5" height="12" rx="1" fill="var(--ic-solid)"/></svg>`,
+  tech:`<svg class="ico" viewBox="0 0 48 48"><rect x="14" y="16" width="24" height="24" rx="5" fill="var(--ic-frost)" filter="url(#gb)"/><rect x="11" y="13" width="20" height="20" rx="4" fill="none" stroke="var(--ic-solid)" stroke-width="3"/><rect x="17" y="19" width="8" height="8" rx="2" fill="var(--ic-solid)"/><rect x="14.5" y="7" width="2.6" height="6" rx="1" fill="var(--ic-solid)"/><rect x="24.5" y="7" width="2.6" height="6" rx="1" fill="var(--ic-solid)"/><rect x="33" y="16" width="6" height="2.6" rx="1" fill="var(--ic-solid)"/><rect x="33" y="26" width="6" height="2.6" rx="1" fill="var(--ic-solid)"/></svg>`,
+  link:`<svg class="ico" viewBox="0 0 48 48"><circle cx="26" cy="24" r="13" fill="var(--ic-frost)" filter="url(#gb)"/><path d="M19 22 a7 7 0 0 1 7-7 h4 a7 7 0 0 1 0 14 h-2" fill="none" stroke="var(--ic-solid)" stroke-width="3" stroke-linecap="round"/><path d="M27 26 a7 7 0 0 1 -7 7 h-4 a7 7 0 0 1 0-14 h2" fill="none" stroke="var(--ic-solid)" stroke-width="3" stroke-linecap="round"/></svg>`
+};
+const CATS={econ:"경제",pol:"정치",tech:"기술"};
+const TOTAL=14;
+const SP=["var(--sp-l)","var(--sp-m)","var(--sp-r)"];
+const DATA={
+  econ:[
+    {t:"기준금리 동결 결정",n:12,first:20,last:2,sp:[2,6,4],links:[["매일경제","한은, 기준금리 3.25% 동결…\"물가·환율 동시 고려\""],["한겨레","금리 동결에도 가계 부담 여전…전문가 진단"],["연합뉴스","금통위 만장일치 동결 결정"]]},
+    {t:"원/달러 환율 1,400원 돌파",n:11,first:30,last:4,sp:[3,4,4],links:[["한국경제","환율 1,400원 재돌파…수출기업 셈법 복잡"],["경향신문","\"고환율 장기화\" 우려…수입물가 자극"],["뉴스1","외환당국 구두개입 나서"]]},
+    {t:"미국, 한국산 철강 관세 인상",n:8,first:6,last:1,sp:[3,3,2],links:[["조선일보","美 철강 관세 인상…국내 업계 비상"],["오마이뉴스","통상 압박 본격화…정부 대응책은"],["연합뉴스","산업부 \"모든 카드 검토\""]]},
+    {t:"반도체 수출 3개월째 회복세",n:9,first:48,last:6,sp:[2,4,3],links:[["전자신문","반도체 수출 회복…AI 수요 견인"],["중앙일보","수출 반등에도 \"착시\" 경계론"]]},
+    {t:"가계부채 증가 속도 경고",n:6,first:14,last:9,sp:[3,2,1],links:[["동아일보","가계빚 또 사상최대…당국 긴장"],["한겨레","\"부채 주도 성장 한계\" 지적"]]}
+  ],
+  pol:[
+    {t:"국회 본회의 예산안 처리",n:9,first:24,last:1,sp:[3,4,4],links:[["연합뉴스","내년도 예산안 본회의 통과"],["한겨레","협상 막판 진통 끝 합의"],["동아일보","\"민생\" vs \"선심성\" 공방"]]},
+    {t:"노동시간 개편안 논의",n:7,first:36,last:3,sp:[5,2,1],links:[["경향신문","노동시간 개편안 반발 확산"],["오마이뉴스","\"과로 조장\" 노동계 반대"]]},
+    {t:"지방선거 D-100 여론조사",n:8,first:60,last:5,sp:[3,3,2],links:[["중앙일보","선거 100일 앞 판세 분석"],["조선일보","주요 격전지 표심 향방"]]},
+    {t:"연금개혁 특위 첫 회의",n:6,first:18,last:8,sp:[2,2,2],links:[["연합뉴스","연금개혁 특위 출범…쟁점 산적"],["한겨레","\"세대 형평\" 핵심 과제"]]}
+  ],
+  tech:[
+    {t:"온디바이스 AI 신제품 공개",n:10,first:10,last:3,sp:[2,5,3],links:[["전자신문","온디바이스 AI 탑재 신제품 출시"],["블로터","\"클라우드 없이 작동\"…개인정보 강점"],["중앙일보","AI 폰 경쟁 본격화"]]},
+    {t:"AI 저작권 가이드라인 발표",n:8,first:8,last:2,sp:[3,3,2],links:[["한겨레","생성형 AI 저작권 가이드라인 공개"],["연합뉴스","\"학습 데이터 출처 명시\" 권고"]]},
+    {t:"국산 파운드리 2나노 양산",n:7,first:30,last:6,sp:[1,4,2],links:[["전자신문","2나노 공정 양산 돌입"],["매일경제","첨단 반도체 주도권 경쟁"]]},
+    {t:"플랫폼 자율규제 협약 체결",n:5,first:20,last:10,sp:[2,2,1],links:[["블로터","주요 플랫폼 자율규제 협약"],["경향신문","\"실효성 의문\" 시민단체 반발"]]}
+  ]
+};
+
+const pad=n=>String(n).padStart(2,"0");
+function fmtAgo(h){ h=Math.round(h); return h<24 ? h+"시간 전" : Math.round(h/24)+"일 전"; }
+function fmtDur(h){ return h<24 ? h+"시간째" : (h/24).toFixed(1).replace(/\.0$/,"")+"일째"; }
+function genAct(first,last,seed){
+  const B=12, W=24;
+  const f=Math.min(first,W);
+  const p=0.3+((seed*0.17)%0.45);
+  const peakH=last+(f-last)*p;
+  const raw=[]; let max=0;
+  for(let b=0;b<B;b++){
+    const ha=(B-1-b)*(W/B)+1;
+    let v=0;
+    if(ha<=f+1 && ha>=last-1){
+      const span=Math.max(4,(f-last)*0.7);
+      v=Math.max(0,1-Math.abs(ha-peakH)/span); v=v*v;
+    }
+    raw.push({ha,v}); if(v>max)max=v;
+  }
+  return {raw,max:max||1,peakH};
+}
+function clockStr(){ const d=new Date(); return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} · ${pad(d.getHours())}:${pad(d.getMinutes())} · 개인화 OFF`; }
+
+let currentCat="econ";
+function renderTabs(){
+  document.getElementById("tabs").innerHTML=Object.keys(CATS).map(c=>
+    `<button class="tab ${c===currentCat?'on':''}" data-cat="${c}">${ICONS[c]}${CATS[c]}</button>`).join("");
+}
+function render(cat){
+  currentCat=cat;
+  renderTabs();
+  const items=DATA[cat];
+  document.getElementById("sechead").innerHTML=
+    `<div class="sec-head">${ICONS[cat]}<div><div class="sec-name">${CATS[cat]}</div>
+     <div class="sec-meta">${items.length}개 이슈 · ${TOTAL}개 매체 집계</div></div></div>`;
+  document.getElementById("list").innerHTML=items.map((it,i)=>{
+    const pct=Math.round(it.n/TOTAL*100);
+    const tot=it.sp[0]+it.sp[1]+it.sp[2];
+    const dur=it.first-it.last;
+    const balanced=it.sp.every(v=>v>0)&&(Math.max(...it.sp)-Math.min(...it.sp))<=2;
+    const verdict=balanced?"전 진영이 주목":(it.sp[0]>=it.sp[2]?"진보 매체 중심":"보수 매체 중심");
+    const vcol=balanced?"var(--ok)":"var(--warn)";
+    const segs=it.sp.map((v,k)=>v>0?`<div style="width:${(v/tot*100)}%;background:${SP[k]}"></div>`:"").join("");
+    const links=it.links.map(l=>`<a class="lk" href="#" onclick="return false"><span class="lsrc">${l[0]}</span><span class="lt">${l[1]}<span class="ext">↗ 원문</span></span></a>`).join("");
+    const act=genAct(it.first,it.last,i+1+cat.length);
+    const bars=act.raw.map(r=>{
+      const empty=r.v<=0.001;
+      const h=empty?3:Math.max(5,Math.round(r.v/act.max*50));
+      const peak=!empty&&Math.abs(r.v-act.max)<0.001;
+      return `<i class="${empty?'empty':''}${peak?' peak':''}" style="height:${h}px"></i>`;
+    }).join("");
+    return `<div class="issue-card" data-i="${i}">
+      <div class="row">
+      <div class="rank">${pad(i+1)}</div>
+      <div class="body">
+        <div class="title">${it.t}</div>
+        <div class="metrics">
+          <div class="cov-metric">
+            <div class="cov-bar"><div class="cov-fill" style="width:${pct}%"></div></div>
+            <div class="cov-num"><b>${it.n}</b><span>/ ${TOTAL} 매체가 동시 보도</span></div>
+          </div>
+          <div class="time-metric"><b>${fmtAgo(it.last)}</b> 최신<span class="td">·</span>${fmtDur(dur)} 지속</div>
+        </div>
+        <div class="srcline">${it.links.slice(0,3).map(l=>l[0]).join(" · ")} +${it.n-Math.min(3,it.links.length)}</div>
+      </div>
+      <div class="chev">›</div>
+      </div>
+      <div class="detail"><div class="detail-in">
+      <div class="detail-grid">
+      <div class="panel">
+        <div class="panel-lbl"><span class="pl-no">01</span> 보도 흐름 · 언제 활발했나</div>
+        <div class="act-wrap">
+          <div class="act">${bars}</div>
+          <div class="act-axis"><span>24시간 전</span><span>지금</span></div>
+        </div>
+        <div class="act-sum">${fmtAgo(it.first)} 시작 · <b>${fmtAgo(act.peakH)} 정점</b> · ${fmtAgo(it.last)} 최신</div>
+      </div>
+      <div class="panel">
+        <div class="panel-lbl"><span class="pl-no">02</span> 진영 분포 · 누가 다루나</div>
+        <div class="splabel">
+          <span><i class="sd" style="background:var(--sp-l)"></i>진보</span>
+          <span><i class="sd" style="background:var(--sp-m)"></i>중도·통신</span>
+          <span><i class="sd" style="background:var(--sp-r)"></i>보수</span>
+        </div>
+        <div class="spectrum">${segs}</div>
+        <div class="verdict">
+          <span class="breakdown">진보 ${it.sp[0]} · 중도 ${it.sp[1]} · 보수 ${it.sp[2]} · 총 ${tot}</span>
+          <span class="vlabel" style="color:${vcol}"><span class="vd" style="background:${vcol}"></span>${verdict}</span>
+        </div>
+      </div>
+      </div>
+      <div class="panel full">
+        <div class="panel-lbl"><span class="pl-no">03</span> 더 알아보기 · 매체별 원문</div>
+        <div class="links">${links}</div>
+      </div>
+    </div></div></div>`;
+  }).join("");
+  document.querySelectorAll(".issue-card").forEach(c=>c.querySelector(".row").addEventListener("click",()=>c.classList.toggle("open")));
+}
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest(".tab"); if(!b)return; render(b.dataset.cat);
+});
+const update=document.getElementById("update"), updIco=document.getElementById("upd-ico"), clock=document.getElementById("clock");
+update.addEventListener("click",()=>{
+  update.disabled=true; updIco.outerHTML='<span class="sp" id="upd-ico">↻</span>';
+  update.childNodes[1].textContent=" 갱신 중";
+  setTimeout(()=>{
+    clock.textContent=clockStr();
+    render(currentCat);
+    update.innerHTML='<span id="upd-ico">↻</span> 업데이트'; update.disabled=false;
+  },650);
+});
+const root=document.documentElement, saved=localStorage.getItem("theme");
+if(saved)root.setAttribute("data-theme",saved);
+document.getElementById("toggle").addEventListener("click",()=>{
+  const next=root.getAttribute("data-theme")==="dark"?"light":"dark";
+  root.setAttribute("data-theme",next); localStorage.setItem("theme",next);
+});
+clock.textContent=clockStr();
+render("econ");
+</script>
+</body>
+</html>
