@@ -1,11 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Vercel 서버 함수에서 public/projects 폴더 fs 스캔 가능하게 포함
-  // Next 14에선 experimental 하위 키 (Next 15부터 top-level로 승격)
-  experimental: {
-    outputFileTracingIncludes: {
-      '/': ['./public/projects/**/*'],
-    },
-  },
+  // 정적 추출 — out/ 폴더에 순수 정적 파일 생성 (서버 함수 X).
+  // 폴더 스캔(lib/scan.js)은 빌드 시점에 실행 → push마다 재빌드되며 신규 프로젝트 반영.
+  output: 'export',
+  images: { unoptimized: true },
 };
 export default nextConfig;

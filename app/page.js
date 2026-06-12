@@ -3,8 +3,7 @@
 import { scanProjects } from '../lib/scan';
 import PortalClient from './PortalClient';
 
-export const dynamic = 'force-dynamic';
-
+// 정적 추출 — 빌드 시점에 scanProjects() 실행해 프로젝트 목록을 정적으로 굽는다.
 export default function Page() {
   const projects = scanProjects();
   return <PortalClient projects={projects} />;
