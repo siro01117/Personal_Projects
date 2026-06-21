@@ -196,6 +196,17 @@
   .oxres{text-align:center;padding:24px 0}
   .oxscore{font-size:52px;font-weight:900;color:var(--ind);font-family:'JetBrains Mono',monospace;line-height:1}
   .oxscore span{font-size:22px;color:var(--mut)}
+  .oxchs{display:flex;flex-direction:column;gap:11px}
+  .oxch{display:flex;align-items:center;gap:14px;text-align:left;border:1.5px solid var(--line2);border-left:4px solid var(--ac);border-radius:13px;padding:16px 18px;background:var(--paper);cursor:pointer;transition:.16s}
+  .oxch:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 8px 20px color-mix(in srgb,var(--ac) 16%,transparent)}
+  .oxch-n{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:18px;color:var(--ac);flex:0 0 auto}
+  .oxch-t{font-weight:700;color:var(--ink);font-size:15px}.oxch-p{margin-left:auto;font-size:12px;color:var(--mut);font-family:'JetBrains Mono',monospace}
+  .oxnav{display:flex;gap:10px;margin-top:22px}
+  .oxnb{flex:1;height:48px;border-radius:12px;border:1.5px solid var(--line2);background:var(--paper);color:var(--body);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:.15s}
+  .oxnb:hover:not(:disabled){border-color:var(--ind);color:var(--ind-deep)}.oxnb:disabled{opacity:.35;cursor:not-allowed}
+  .oxnb.prim{background:var(--ind);border-color:var(--ind);color:#fff}.oxnb.prim:hover{background:var(--ind-deep)}
+  .oxnb svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .mrv.un{background:#f3f3f6;border-left:3px solid var(--line2)}
 
   .msets{display:flex;flex-direction:column;gap:12px}
   .mset{display:flex;align-items:center;gap:14px;text-align:left;border:1.5px solid var(--line2);border-radius:13px;padding:18px;background:var(--paper);cursor:pointer;transition:.16s}
@@ -643,7 +654,7 @@ ANIM.simpson=(el)=>{
 
 /* ===================== 상태 ===================== */
 const SAVE='inds_matrix_v2';
-let state=(()=>{try{const s=JSON.parse(localStorage.getItem(SAVE))||{};s.done=s.done||{};s.ox=s.ox||{i:0,score:0};return s;}catch(e){return{done:{},ox:{i:0,score:0}};}})();
+let state=(()=>{try{const s=JSON.parse(localStorage.getItem(SAVE))||{};s.done=s.done||{};s.ox=(s.ox&&typeof s.ox==='object'&&!('i' in s.ox))?s.ox:{};return s;}catch(e){return{done:{},ox:{}};}})();
 /* ── 계정 기반 진행도 동기화 (포털과 같은 출처의 localStorage 'rk_login' 사용) ── */
 const SUPA='https://ovnabmmofgujgefuamzn.supabase.co';
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92bmFibW1vZmd1amdlZnVhbXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NzY1NDMsImV4cCI6MjA5MDU1MjU0M30.IvgT7eE_PfxRplHVkf2kXGw_sqGy07WNausqit3qskk';
@@ -655,7 +666,7 @@ let saveT=null;
 function persist(){persistLocal();if(!ACC)return;clearTimeout(saveT);saveT=setTimeout(()=>rpc('guest_set_progress',{p_name:ACC,p_progress:{done:state.done,ox:state.ox}}),600);}
 async function loadProgress(){if(!ACC)return;const p=await rpc('guest_get_progress',{p_name:ACC});if(!p||typeof p!=='object')return;
   const md=Object.assign({},state.done||{});if(p.done)for(const k in p.done){if(p.done[k])md[k]=true;}state.done=md;
-  const po=p.ox||{};state.ox=state.ox||{i:0,score:0};state.ox.i=Math.max(state.ox.i||0,po.i||0);state.ox.score=Math.max(state.ox.score||0,po.score||0);
+  const po=p.ox||{};state.ox=state.ox||{};for(const ch in po){const loc=state.ox[ch]||[],rem=po[ch]||[],mg=[],n=Math.max(loc.length,rem.length);for(let i=0;i<n;i++)mg[i]=(loc[i]!=null?loc[i]:rem[i]);state.ox[ch]=mg;}
   persistLocal();updateTop();if($('#home')&&$('#home').style.display!=='none')renderHome();}
 const keyOf=(ci,si)=>MATRIX[ci].id+'-'+(si+1);
 const isDone=(ci,si)=>!!state.done[keyOf(ci,si)];
@@ -682,7 +693,7 @@ function renderHome(){
    <p class="lead">7장부터 11장까지, 한 칸씩 읽고 선지로 확인하는 기말 학습입니다.</p>
    <div class="entry">
      <button class="ent" id="entMock"><span class="ent-ic">${icSvg('<path d="M8 3h8a2 2 0 0 1 2 2v15l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2z"/><path d="M9 8h6M9 12h6"/>')}</span><span class="ent-t">모의고사</span><span class="ent-s">2세트 · 전체 클리어 후</span></button>
-     <button class="ent" id="entOX"><span class="ent-ic">${icSvg('<circle cx="8" cy="9" r="3.2"/><path d="M15 6.5l5 5M20 6.5l-5 5"/>')}</span><span class="ent-t">OX 퀴즈</span><span class="ent-s">100문항</span></button>
+     <button class="ent" id="entOX"><span class="ent-ic">${icSvg('<circle cx="8" cy="9" r="3.2"/><path d="M15 6.5l5 5M20 6.5l-5 5"/>')}</span><span class="ent-t">OX 퀴즈</span><span class="ent-s">장별 30문항</span></button>
      <button class="ent" id="entReview"><span class="ent-ic">${icSvg('<path d="M5 5h11M5 10h11M5 15h7"/><path d="M18.5 13l1.6 1.6L23.5 11.5"/>')}</span><span class="ent-t">복기 10선</span><span class="ent-s">시험 전 핵심 Q·A</span></button>
    </div>
    <div class="spine">
@@ -700,7 +711,7 @@ function renderHome(){
    <div class="hint">가로 = 장 번호 · 세로 = 단계 · 칸 색이 진할수록 깊은 단계</div>
    <div class="reset"><button id="resetBtn">진행 기록 초기화</button></div>`;
   $$('.cell',$('#home')).forEach(b=>b.onclick=()=>openCell(+b.dataset.c,+b.dataset.s));
-  $('#resetBtn').onclick=()=>{if(confirm('모든 진행 기록을 지울까요?')){state={done:{},ox:{i:0,score:0}};persist();renderHome();updateTop();}};
+  $('#resetBtn').onclick=()=>{if(confirm('모든 진행 기록을 지울까요?')){state={done:{},ox:{}};persist();renderHome();updateTop();}};
   $('#entMock').onclick=goMock;$('#entOX').onclick=goOX;$('#entReview').onclick=renderReview;
   $('#usageToggle').onclick=()=>{const ul=$('#usageList'),t=$('#usageToggle');ul.hidden=!ul.hidden;t.classList.toggle('open',!ul.hidden);};
   $('#home').style.display='block';$('#view').classList.remove('active');$('#crumb').textContent='기말 7~11장';
@@ -863,8 +874,64 @@ const OX=[
  {q:`편향은 평균·비율을 왜곡해 불리한 결정으로 이어질 수 있다.`,a:true,why:`그래서 점검이 필요.`,src:'11장 · 편향'},
  {q:`가중치 보정은 표본 비율을 모집단 비율에 맞추는 것이다.`,a:true,why:`대표성 회복.`,src:'11장 · 보정'},
  {q:`"한국 대학생은 A를 선호한다"처럼 포괄적으로 결론짓는 것이 옳다.`,a:false,why:`표본이 대표하는 범위로 한정해야 합니다.`,src:'11장 · 분석 5단계'},
- {q:`숫자가 정확한가보다 '어떻게 모였나·누가 빠졌나'를 먼저 물어야 한다.`,a:true,why:`편향 점검의 핵심 태도.`,src:'11장 · 편향'},
+ {q:`숫자가 정확한가보다 '어떻게 모였나·누가 빠졌나'를 먼저 물어야 한다.`,a:true,why:`편향 점검의 핵심 태도입니다. 데이터의 수집 과정과 누락을 따져 봐야 결과를 신뢰할 수 있습니다.`,src:'11장 · 편향'},
+
+ {q:`how='left'는 왼쪽 표 전체를 남기고, 매칭되는 오른쪽이 없으면 그 칸을 NaN으로 채운다.`,a:true,why:`left 조인은 df1(왼쪽)을 전부 유지합니다. 오른쪽에 짝이 없는 행은 오른쪽 컬럼이 NaN이 되며, '주문이 없는 고객'을 찾을 때 유용합니다.`,src:'7장 · 병합'},
+ {q:`how='right'는 오른쪽 표(df2)를 기준으로 모든 행을 남긴다.`,a:true,why:`right 조인은 오른쪽 전부 + 매칭되는 왼쪽을 남깁니다. 고객정보가 빠진 주문을 탐지할 때 등에 씁니다.`,src:'7장 · 병합'},
+ {q:`같은 두 표를 합칠 때 inner 결과는 보통 outer 결과보다 행 수가 적다.`,a:true,why:`inner는 양쪽에 모두 있는 행(교집합)만 남기고, outer는 양쪽 모든 행(합집합)에 빈칸을 NaN으로 채우므로 행이 더 많습니다.`,src:'7장 · 병합'},
+ {q:`중앙값은 데이터를 크기순으로 정렬했을 때 한가운데에 오는 값이다.`,a:true,why:`정렬 후 가운데 값이라 양 끝의 극단값(이상치)에 거의 영향을 받지 않습니다. 그래서 이상치 대체에 씁니다.`,src:'7장 · 이상치'},
+ {q:`과거 시스템의 결측 코드 -999를 그대로 두고 평균을 내도 결과에 문제가 없다.`,a:false,why:`-999가 합을 크게 끌어내려 평균을 왜곡합니다. 0~100 같은 정상 범위를 벗어난 값은 중앙값 등으로 바꾼 뒤 계산해야 합니다.`,src:'7장 · 이상치'},
+ {q:`'010-1234-5678'과 '01012345678'은 같은 번호지만 표기가 달라 병합 키로 쓰면 어긋난다.`,a:true,why:`형식 불일치 문제입니다. 하이픈 제거 등으로 형식을 통일해야 같은 값으로 매칭됩니다.`,src:'7장 · 정제'},
+ {q:`value_counts()는 가장 적게 나온 값을 맨 위에 보여 준다.`,a:false,why:`가장 많이 나온 값이 맨 위에 옵니다(내림차순 정렬).`,src:'7장 · 정제'},
+ {q:`데이터 정제는 분석 정확도와 무관하므로 생략해도 된다.`,a:false,why:`더러운 값 하나가 평균 같은 결과를 통째로 망칩니다. 그래서 정제가 분석의 토대이며 업무의 약 80%를 차지합니다.`,src:'7장 · 정제'},
+ {q:`pd.merge는 on에 지정한 공통 키가 같은 행끼리 두 표를 옆으로 이어 붙인다.`,a:true,why:`키를 기준으로 두 데이터프레임의 행을 한 줄로 결합합니다. 합치는 방식은 how로 정합니다.`,src:'7장 · 병합'},
+ {q:`성별이 'M','Male','1' 등으로 흩어져 있어도 매핑 딕셔너리로 한 번에 통일할 수 있다.`,a:true,why:`{'M':'남','Male':'남','1':'남'} 식으로 map하고, 매핑에 없는 값은 fillna로 원본을 유지합니다.`,src:'7장 · 정제'},
+
+ {q:`우리가 보는 웹 화면은 사실 HTML 코드가 그려 낸 결과물이다.`,a:true,why:`그래서 수집기는 화면이 아니라 그 뒤의 HTML 코드를 직접 읽어 원하는 데이터를 꺼냅니다.`,src:'8장 · HTML 구조'},
+ {q:`&lt;title&gt; 태그는 head 안에 들어가며 화면 본문에는 표시되지 않는다.`,a:true,why:`title은 탭 제목 등으로 쓰이는 head의 설정입니다. 실제로 보이는 글·이미지는 body 안에 있습니다.`,src:'8장 · HTML 구조'},
+ {q:`find('p')는 조건에 맞는 첫 번째 &lt;p&gt; 태그 하나만 반환한다.`,a:true,why:`find는 첫 하나, 모든 태그를 리스트로 받으려면 find_all을 씁니다.`,src:'8장 · 크롤링'},
+ {q:`requests.get 응답의 .text는 받아 온 HTML 문자열이다.`,a:true,why:`이 문자열을 BeautifulSoup(resp.text, 'html.parser')에 넘겨 파싱한 뒤 태그를 찾습니다.`,src:'8장 · 크롤링'},
+ {q:`헤더에 User-Agent를 'Mozilla/5.0'처럼 설정하는 것은 브라우저처럼 보이게 해 봇 차단을 피하려는 것이다.`,a:true,why:`User-Agent가 없으면 일부 서버가 자동 수집 봇으로 보고 막습니다.`,src:'8장 · 매너 크롤링'},
+ {q:`크롤링에서 요청 사이에 time.sleep을 두는 것은 수집 속도를 높이기 위해서다.`,a:false,why:`반대로 일부러 간격을 둬서 서버 부담을 줄이는 매너 크롤링입니다.`,src:'8장 · 매너 크롤링'},
+ {q:`정규표현식을 쓰면 '£51.77' 같은 문자열에서 숫자(가격)만 뽑아낼 수 있다.`,a:true,why:`re.search로 숫자·점 패턴을 찾아 51.77만 추출합니다.`,src:'8장 · 크롤링'},
+ {q:`url의 페이지 번호를 1, 2, 3…으로 바꿔 가며 반복 수집하는 것이 크롤링의 전형이다.`,a:true,why:`여러 페이지를 자동으로 도는 것이 크롤링, 한 곳에서 특정 데이터만 뽑는 것이 스크래핑입니다.`,src:'8장 · 수집'},
+ {q:`&lt;div&gt;는 블록 영역, &lt;span&gt;은 인라인 영역을 나타내는 태그다.`,a:true,why:`구조를 묶는 컨테이너로 자주 쓰이며, class·id로 구분합니다.`,src:'8장 · HTML 구조'},
+ {q:`동적 페이지는 정적 페이지보다 requests만으로 수집하기 쉽다.`,a:false,why:`동적 페이지는 JS가 나중에 내용을 채워 첫 HTML이 비어 있어서 오히려 더 어렵습니다.`,src:'8장 · 정적·동적'},
+
+ {q:`공공데이터는 정부·공공기관이 누구나 쓰도록 개방한 데이터다.`,a:true,why:`합법적이고 신뢰할 수 있어, 남의 웹을 긁는 크롤링보다 안전합니다.`,src:'9장 · 공공데이터'},
+ {q:`OPEN API를 사용하려면 보통 인증키(API key)를 발급받아야 한다.`,a:true,why:`인증키로 호출하며 하루 호출 횟수에 제한이 있습니다.`,src:'9장 · OPEN API'},
+ {q:`XML에서 실제 데이터를 담는 기본 단위는 &lt;태그&gt;내용&lt;/태그&gt; 형태의 요소다.`,a:true,why:`요소(Element)가 데이터 단위이고, 태그 안의 id="1" 같은 부가 정보는 속성(Attribute)입니다.`,src:'9장 · XML 구조'},
+ {q:`XML의 루트 요소는 문서 전체를 감싸며 단 하나만 존재한다.`,a:true,why:`모든 데이터를 감싸는 최상위 뼈대입니다. 여러 개일 수 없습니다.`,src:'9장 · XML 구조'},
+ {q:`CSV는 쉼표로 값을 구분한 간결한 표라 단순한 데이터에 적합하다.`,a:true,why:`복잡한 계층 구조에는 태그로 의미를 명확히 하는 XML이 더 낫습니다.`,src:'9장 · 형식'},
+ {q:`전체 25,418건짜리 데이터를 OPEN API로 한 번 호출하면 25,418건이 통째로 온다.`,a:false,why:`한 번에 최대 1,000건까지만 옵니다. 전체를 받으려면 시작·종료 위치를 바꿔 여러 번 호출합니다.`,src:'9장 · OPEN API'},
+ {q:`한글이 든 공공 CSV는 cp949로 저장된 경우가 많아 utf-8로 읽으면 깨질 수 있다.`,a:true,why:`utf-8로 실패하면 cp949로 다시 읽어 한글 깨짐을 막습니다.`,src:'9장 · 인코딩'},
+ {q:`ET.fromstring(xml_text)는 문자열 형태의 XML을 트리 객체로 바꾼다.`,a:true,why:`파일을 직접 읽을 때는 ET.parse를 쓰고, 문자열은 fromstring을 씁니다.`,src:'9장 · XML 파싱'},
+ {q:`JSON도 공공데이터의 한 형식이다.`,a:true,why:`CSV·JSON·XML 세 가지가 구조화된 공공데이터의 대표 형식입니다.`,src:'9장 · 형식'},
+ {q:`XML 선언부 &lt;?xml version="1.0" encoding="UTF-8"?&gt;는 맨 위에서 버전과 인코딩을 알려 준다.`,a:true,why:`파일 정보를 지정하는 부분이라 이름이 선언부(Declaration)입니다.`,src:'9장 · XML 구조'},
+
+ {q:`평균이 같아도 데이터의 분포(퍼진 모양)는 전혀 다를 수 있다.`,a:true,why:`평균은 한 숫자로 압축돼 분포를 숨깁니다. 그래서 시각화와 5수요약을 함께 봐야 합니다.`,src:'10장 · 평균의 함정'},
+ {q:`앤스콤의 사중주에서 네 데이터셋은 평균·분산·상관계수가 거의 같다.`,a:true,why:`그런데 산점도를 그리면 직선·곡선·이상치 등 모양이 완전히 달라, 시각화의 중요성을 보여 줍니다.`,src:'10장 · 앤스콤'},
+ {q:`IQR은 Q3에서 Q1을 뺀 값으로, 가운데 50% 데이터가 차지하는 폭이다.`,a:true,why:`이 폭의 1.5배를 벗어난 값을 이상치로 판단합니다.`,src:'10장 · IQR'},
+ {q:`IQR을 이용한 이상치 하한 경계는 Q1 − 1.5·IQR이다.`,a:true,why:`상한은 Q3 + 1.5·IQR이고, 이 범위 밖의 값을 이상치로 봅니다.`,src:'10장 · IQR'},
+ {q:`np.polyfit(x, y, 1)은 1차 직선을 적합해 (기울기, 절편) 순서로 돌려준다.`,a:true,why:`마지막 인자 1이 직선(1차) 회귀를 뜻합니다. 반환은 기울기가 먼저입니다.`,src:'10장 · 회귀'},
+ {q:`표준편차가 클수록 데이터가 평균 주변에 더 빽빽하게 모여 있다.`,a:false,why:`반대입니다. 표준편차가 클수록 데이터가 평균에서 더 넓게 퍼져 있습니다.`,src:'10장 · 산포'},
+ {q:`중앙값은 이상치가 있어도 크게 변하지 않아 평균을 보완한다.`,a:true,why:`극단값에 둔감하기 때문에, 이상치가 있을 때 대푯값으로 평균보다 안정적입니다.`,src:'10장 · 통계'},
+ {q:`5수 요약은 최솟값·Q1·중앙값·Q3·최댓값의 다섯 숫자다.`,a:true,why:`분포를 다섯 숫자로 요약하며, 상자도표(box plot)로 한눈에 봅니다.`,src:'10장 · 5수요약'},
+ {q:`심슨의 역설은 평균을 볼 때의 5대 오류 중 '집단구성(숨은 변수) 무시'에 해당한다.`,a:true,why:`하위집단을 합칠 때 숨은 변수 때문에 결론이 뒤집힙니다.`,src:'10장 · 5대오류'},
+ {q:`데이터가 많기만 하면 평균만 봐도 항상 올바른 결론을 낼 수 있다.`,a:false,why:`많아도 분포·이상치·집단구성을 무시하면 틀립니다. 반드시 그림으로 확인해야 합니다.`,src:'10장 · 평균의 함정'},
+
+ {q:`편향은 수집한 데이터가 모집단을 골고루 대표하지 못하고 치우친 상태다.`,a:true,why:`편향된 데이터로 낸 평균·비율은 현실과 어긋나 잘못된 결정으로 이어집니다.`,src:'11장 · 편향'},
+ {q:`편향된 데이터는 무조건 버리는 것이 아니라 원인을 찾아 보정해서 쓴다.`,a:true,why:`무작위·층화·가중치 보정 등으로 대표성을 회복시킵니다.`,src:'11장 · 편향'},
+ {q:`선택 편향은 특정 집단만 표본에 들어와 대표성을 잃는 것이다.`,a:true,why:`자발적 만족도 조사 등이 예이며, 무작위추출·층화표집·가중치로 완화합니다.`,src:'11장 · 선택 편향'},
+ {q:`심슨의 역설은 하위집단마다는 한쪽이 우세한데 전체로 합치면 결론이 뒤집히는 현상이다.`,a:true,why:`결과에 영향을 주는 숨은 변수가 두 집단에 불균등하게 배정돼 생깁니다.`,src:'11장 · 심슨'},
+ {q:`자발적 설문은 응답자만 보면 만족도가 실제보다 낮게(과소) 평가된다.`,a:false,why:`만족·불만 양극단이 과대표집돼 보통 만족도가 과대평가됩니다.`,src:'11장 · 응답 편향'},
+ {q:`측정 편향은 채점 기준이 사람마다 달라 점수가 왜곡되는 것으로, 공통 루브릭과 Z-score 표준화로 보정한다.`,a:true,why:`서로 다른 잣대를 같은 기준으로 맞추는 것이 핵심입니다.`,src:'11장 · 측정 편향'},
+ {q:`이상치를 삭제하는 것은 선택 편향을 해결하는 대표적인 방법이다.`,a:false,why:`선택 편향은 무작위추출·층화표집·가중치로 해결합니다. 이상치 삭제와는 관계가 없습니다.`,src:'11장 · 선택 편향'},
+ {q:`모집단은 알고 싶은 전체 대상이고, 표본은 그중 일부다.`,a:true,why:`표본이 모집단을 잘 대표해야 그 결론을 신뢰할 수 있습니다.`,src:'11장 · 편향'},
+ {q:`편향 데이터 분석의 마지막 단계는 데이터가 말할 수 있는 한계와 범위를 명시하는 것이다.`,a:true,why:`포괄적으로 일반화하지 않고 표본이 대표하는 범위로 결론을 한정합니다.`,src:'11장 · 분석 5단계'},
+ {q:`"이 표본에서는 A 선호 경향이 보인다"처럼 범위를 한정해 결론짓는 것이 옳다.`,a:true,why:`"한국 대학생은 A를 선호한다" 같은 과도한 일반화는 피해야 합니다.`,src:'11장 · 분석 5단계'},
 ];
+const OXC={};[7,8,9,10,11].forEach(ch=>OXC[ch]=OX.filter(o=>o.src.indexOf(ch+'장')===0));
 
 function renderReview(){
   screenStart();$('#crumb').textContent='복기 10선';
@@ -874,22 +941,37 @@ function renderReview(){
   $$('.rev',$('#view')).forEach(el=>{const t=el.querySelector('.revt'),a=el.querySelector('.reva');t.onclick=()=>{a.hidden=!a.hidden;t.textContent=a.hidden?'정답 보기':'접기';};});
 }
 
-let oxI=0,oxScore=0;
-function goOX(){oxI=Math.min(state.ox.i||0,OX.length);oxScore=state.ox.score||0;renderOX();}   /* 저장된 위치에서 이어풀기 */
-function renderOX(){
-  screenStart();$('#crumb').textContent='OX 퀴즈';
-  if(oxI>=OX.length){$('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈 완료</div></div><div class="oxres"><div class="oxscore">${oxScore} <span>/ ${OX.length}</span></div><button class="bigbtn" id="again">다시 풀기</button></div>`;$('#sb').onclick=renderHome;$('#again').onclick=()=>{state.ox={i:0,score:0};persist();oxI=0;oxScore=0;renderOX();};return;}
-  const q=OX[oxI];
-  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈</div><div class="ssub">${oxI+1} / ${OX.length} · 맞은 개수 ${oxScore}</div></div>
-    <div class="oxprog"><i style="width:${oxI/OX.length*100}%"></i></div>
+let oxCh=7,oxQ=0;
+function goOX(){renderOXHome();}
+function renderOXHome(){
+  screenStart();applyTheme(null);$('#crumb').textContent='OX 퀴즈';
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈</div><div class="ssub">장을 골라 30문항씩 풉니다. 이전·다음으로 오가고, 끝에서 전체 결과를 봅니다.</div></div>
+    <div class="oxchs">${[7,8,9,10,11].map(ch=>{const ans=state.ox[ch]||[],done=ans.filter(x=>x!=null).length,cor=ans.filter((x,i)=>x!=null&&OXC[ch][i]&&x===OXC[ch][i].a).length,c=MATRIX.find(m=>m.id===ch);return `<button class="oxch" data-ch="${ch}" style="--ac:${CHC[ch].ac}"><span class="oxch-n">${ch}장</span><span class="oxch-t">${c.title}</span><span class="oxch-p">${done}/${OXC[ch].length}${done?' · '+cor+'맞음':''}</span></button>`;}).join('')}</div>`;
+  $('#sb').onclick=renderHome;
+  $$('.oxch',$('#view')).forEach(b=>b.onclick=()=>{oxCh=+b.dataset.ch;const ans=state.ox[oxCh]||[];let f=-1;for(let i=0;i<OXC[oxCh].length;i++){if(ans[i]==null){f=i;break;}}oxQ=f<0?0:f;renderOXQ();});
+}
+function renderOXQ(){
+  screenStart();applyTheme(CHC[oxCh]);const list=OXC[oxCh],N=list.length,ans=state.ox[oxCh]=state.ox[oxCh]||[],q=list[oxQ],my=ans[oxQ],answered=my!=null;
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} OX 장 선택</button><div class="sttl">${oxCh}장 OX</div><div class="ssub">${oxQ+1} / ${N}</div></div>
+    <div class="oxprog"><i style="width:${(oxQ+1)/N*100}%"></i></div>
     <div class="oxq">${q.q}</div>
     <div class="oxbtns"><button class="oxb o" data-v="1">O</button><button class="oxb x" data-v="0">X</button></div>
-    <div class="oxfb" id="fb" hidden></div><button class="bigbtn" id="next" hidden>다음 →</button>`;
-  $('#sb').onclick=renderHome;
-  $$('.oxb',$('#view')).forEach(b=>b.onclick=()=>{const fb=$('#fb');if(fb.dataset.done)return;const v=b.dataset.v==='1',ok=v===q.a;if(ok)oxScore++;state.ox={i:oxI,score:oxScore};persist();
-    $$('.oxb',$('#view')).forEach(x=>x.disabled=true);b.classList.add(ok?'ok':'bad');
-    fb.dataset.done=1;fb.hidden=false;fb.className='oxfb '+(ok?'ok':'bad');fb.innerHTML=`<b>${ok?'정답':'오답'} · 답은 ${q.a?'O':'X'}.</b> ${q.why}<div class="src">출처 ${q.src}</div>`;$('#next').hidden=false;});
-  $('#next').onclick=()=>{oxI++;state.ox={i:oxI,score:oxScore};persist();renderOX();};
+    <div class="oxfb" id="fb" hidden></div>
+    <div class="oxnav"><button class="oxnb" id="prev" ${oxQ===0?'disabled':''}>${icSvg(CHV.l)} 이전</button><button class="oxnb prim" id="next">${oxQ===N-1?'전체 결과':'다음'}</button></div>`;
+  $('#sb').onclick=renderOXHome;
+  const show=(chosen)=>{const fb=$('#fb');$$('.oxb',$('#view')).forEach(x=>{x.disabled=true;const v=x.dataset.v==='1';if(v===q.a)x.classList.add('ok');else if(v===chosen&&chosen!==q.a)x.classList.add('bad');});const ok=chosen===q.a;fb.hidden=false;fb.className='oxfb '+(ok?'ok':'bad');fb.innerHTML=`<b>${ok?'정답':'오답'} · 답은 ${q.a?'O':'X'}.</b> ${q.why}<div class="src">출처 ${q.src}</div>`;};
+  if(answered)show(my);
+  $$('.oxb',$('#view')).forEach(b=>b.onclick=()=>{if(ans[oxQ]!=null)return;const v=b.dataset.v==='1';ans[oxQ]=v;persist();show(v);});
+  $('#prev').onclick=()=>{if(oxQ>0){oxQ--;renderOXQ();}};
+  $('#next').onclick=()=>{if(oxQ===N-1)renderOXReview();else{oxQ++;renderOXQ();}};
+}
+function renderOXReview(){
+  screenStart();applyTheme(CHC[oxCh]);const list=OXC[oxCh],ans=state.ox[oxCh]||[],cor=ans.filter((x,i)=>x!=null&&x===list[i].a).length;
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} OX 장 선택</button><div class="sttl">${oxCh}장 OX 결과</div><div class="ssub">맞은 개수와 전체 문항·해설을 확인하세요.</div></div>
+    <div class="oxres"><div class="oxscore">${cor} <span>/ ${list.length}</span></div></div>
+    <div class="mrev">${list.map((q,i)=>{const my=ans[i],un=my==null,ok=!un&&my===q.a;return `<div class="mrv ${un?'un':(ok?'ok':'bad')}"><div class="mrvq">${i+1}. ${q.q}</div><div class="mrva"><b>정답 ${q.a?'O':'X'}</b>${un?' · 미응답':(' · 내 답 '+(my?'O':'X')+(ok?' (정답)':' (오답)'))}. ${q.why}<div class="src">출처 ${q.src}</div></div></div>`;}).join('')}</div>
+    <div class="oxnav"><button class="oxnb" id="rback">${icSvg(CHV.l)} 장 선택</button><button class="oxnb prim" id="retry">이 장 다시 풀기</button></div>`;
+  $('#sb').onclick=renderOXHome;$('#rback').onclick=renderOXHome;$('#retry').onclick=()=>{state.ox[oxCh]=[];persist();oxQ=0;renderOXQ();};
 }
 
 let mockSet=0,mockI=0,mockAns=[];
