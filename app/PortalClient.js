@@ -15,37 +15,52 @@ const ICONS = {
   chart: '<path d="M3 21h18M6 21v-7M11 21V6M16 21v-10"/>',
   default: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>',
 };
-const Icon = ({ k }) => (
-  <svg className="ic" viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: ICONS[k] || ICONS.default }} />
-);
+const Icon = ({ k }) => (<svg className="ic" viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: ICONS[k] || ICONS.default }} />);
 const Chevron = () => (<svg className="ic" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7" /></svg>);
 const Arrow = () => (<svg className="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
 
-const MARQ = Array(40).fill('RA_KAN' + String.fromCharCode(160).repeat(4)).join('    ');
+const MARQ = Array(40).fill('RA_KAN' + String.fromCharCode(160).repeat(4)).join('');
 
 function clockStr() {
   const d = new Date(), p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+function fmtTime(s) {
+  s = Math.floor(s || 0);
+  if (s < 60) return `${s}초`;
+  if (s < 3600) return `${Math.floor(s / 60)}분`;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return m ? `${h}시간 ${m}분` : `${h}시간`;
+}
+function fmtAgo(iso) {
+  if (!iso) return '';
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return '방금';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 
-/* ---------- 게스트 ID(쿠키) + 이름(Supabase, 실패 시 localStorage 폴백) ---------- */
-function getGuestId() {
-  const m = document.cookie.match(/(?:^|; )rk_guest=([^;]+)/);
-  if (m) return m[1];
-  const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'g' + Date.now() + Math.random().toString(36).slice(2);
-  document.cookie = `rk_guest=${id}; path=/; max-age=${60 * 60 * 24 * 365 * 3}; samesite=lax`;
-  return id;
-}
-async function fetchName(id) {
-  try {
-    const { data } = await supabase.from('guests').select('name').eq('id', id).maybeSingle();
-    if (data && data.name) { localStorage.setItem('rk_guest_name', data.name); return data.name; }
-  } catch (e) {}
-  return localStorage.getItem('rk_guest_name') || null;
-}
-async function saveName(id, name) {
-  localStorage.setItem('rk_guest_name', name);
-  try { await supabase.from('guests').upsert({ id, name, updated_at: new Date().toISOString() }); } catch (e) {}
+/* 4자리 PIN 입력 */
+function PinInput({ value, onChange }) {
+  const refs = useRef([]);
+  const set = (i, ch) => {
+    ch = (ch || '').replace(/\D/g, '').slice(-1);
+    const arr = (value + '    ').slice(0, 4).split('');
+    arr[i] = ch || '';
+    const next = arr.join('').replace(/\s/g, '').slice(0, 4);
+    onChange(next);
+    if (ch && i < 3) refs.current[i + 1] && refs.current[i + 1].focus();
+  };
+  const onKey = (i, e) => { if (e.key === 'Backspace' && !value[i] && i > 0) refs.current[i - 1] && refs.current[i - 1].focus(); };
+  return (
+    <div className="pinwrap">
+      {[0, 1, 2, 3].map((i) => (
+        <input key={i} ref={(el) => (refs.current[i] = el)} className="pinbox" inputMode="numeric" maxLength={1}
+          value={value[i] || ''} onChange={(e) => set(i, e.target.value)} onKeyDown={(e) => onKey(i, e)} aria-label={`PIN ${i + 1}`} />
+      ))}
+    </div>
+  );
 }
 
 export default function PortalClient({ projects = [] }) {
@@ -53,15 +68,18 @@ export default function PortalClient({ projects = [] }) {
   const [mode, setMode] = useState(null);
   const [leaving, setLeaving] = useState(false);
   const [openId, setOpenId] = useState(null);
+  const [me, setMe] = useState(null);                 // 로그인 프로필
   const [guestName, setGuestName] = useState(null);
-  const [modal, setModal] = useState({ open: false, kind: '', value: '' });
-  const [welcome, setWelcome] = useState('');   // 타이핑되는 현재 텍스트
+  const [modal, setModal] = useState(null);           // {name, pin, err, busy} | null
+  const [welcome, setWelcome] = useState('');
   const [typing, setTyping] = useState(false);
+  const [stats, setStats] = useState(null);           // admin 통계
   const [toast, setToast] = useState('');
   const [clock, setClock] = useState('');
   const gridRef = useRef(null);
   const toastT = useRef(null);
   const typeT = useRef(null);
+  const sess = useRef({ name: null, last: 0, opened: 0 });
 
   useEffect(() => {
     setHydrated(true); setClock(clockStr());
@@ -69,14 +87,33 @@ export default function PortalClient({ projects = [] }) {
     return () => clearInterval(t);
   }, []);
 
-  // 카드 펼침: 열린 카드 높이를 내용에 맞춰 애니메이션 (옆 카드는 align-items:start 로 자리 양보)
+  // 체류시간 누적 flush (45초·숨김·이탈)
+  function flush(extraOpen = 0) {
+    const s = sess.current; if (!s.name) return;
+    const secs = Math.max(0, Math.floor((Date.now() - s.last) / 1000));
+    const op = s.opened + extraOpen;
+    if (secs <= 0 && op <= 0) return;
+    s.last = Date.now(); s.opened = 0;
+    try { supabase.rpc('guest_touch', { p_name: s.name, p_seconds: secs, p_opened: op }); } catch (e) {}
+  }
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    const onUnload = () => flush();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('beforeunload', onUnload);
+    const iv = setInterval(() => flush(), 45000);
+    return () => { document.removeEventListener('visibilitychange', onHide); window.removeEventListener('beforeunload', onUnload); clearInterval(iv); flush(); };
+  }, []);
+
+  // 카드 펼침 높이
   useEffect(() => {
     const grid = gridRef.current; if (!grid) return;
-    grid.querySelectorAll('.card').forEach((el) => {
-      if (el.dataset.id === openId) el.style.height = el.scrollHeight + 'px';
-      else el.style.height = '';
-    });
-  }, [openId, mode]);
+    grid.querySelectorAll('.card').forEach((el) => { el.style.height = el.dataset.id === openId ? el.scrollHeight + 'px' : ''; });
+  }, [openId, mode, stats]);
+
+  // admin 통계 로드
+  useEffect(() => { if (mode === 'admin') loadStats(); }, [mode]);
+  async function loadStats() { try { const { data } = await supabase.rpc('guest_stats'); setStats(data || []); } catch (e) { setStats([]); } }
 
   function showToast(m) { setToast(m); clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(''), 1700); }
 
@@ -88,13 +125,47 @@ export default function PortalClient({ projects = [] }) {
     setLeaving(true);
     setTimeout(() => { setLeaving(false); setMode(m); if (m === 'guest') resolveGuest(); }, 400);
   }
+
   async function resolveGuest() {
-    const id = getGuestId();
-    const name = await fetchName(id);
-    if (name) { setGuestName(name); typeWelcome(name); }
-    else setModal({ open: true, kind: 'setup', value: '' });
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('rk_login') || 'null'); } catch (e) {}
+    if (saved && saved.name && saved.pin) {
+      try {
+        const { data } = await supabase.rpc('guest_auth', { p_name: saved.name, p_pin: saved.pin });
+        const r = data && data[0];
+        if (r && r.status !== 'badpin') { onLogin(saved.name, saved.pin, r); return; }
+        localStorage.removeItem('rk_login');
+      } catch (e) { onLogin(saved.name, saved.pin, null); return; }  // 오프라인 폴백
+    }
+    setModal({ name: '', pin: '', err: '', busy: false });
   }
-  function backToGate() { setMode(null); setOpenId(null); setWelcome(''); setTyping(false); clearInterval(typeT.current); }
+
+  async function doLogin() {
+    const name = (modal.name || '').trim(), pin = modal.pin || '';
+    if (!name || pin.length !== 4) return;
+    setModal({ ...modal, busy: true, err: '' });
+    try {
+      const { data, error } = await supabase.rpc('guest_auth', { p_name: name, p_pin: pin });
+      const r = data && data[0];
+      if (error || !r) { setModal({ ...modal, busy: false, err: '연결 오류 — 잠시 후 다시' }); return; }
+      if (r.status === 'badpin') { setModal({ ...modal, busy: false, pin: '', err: 'PIN이 일치하지 않아요' }); return; }
+      onLogin(name, pin, r);
+    } catch (e) { setModal({ ...modal, busy: false, err: '연결 오류 — 잠시 후 다시' }); }
+  }
+
+  function onLogin(name, pin, r) {
+    try { localStorage.setItem('rk_login', JSON.stringify({ name, pin })); } catch (e) {}
+    setGuestName(name); setMe(r); setModal(null);
+    sess.current = { name, last: Date.now(), opened: 0 };
+    typeWelcome(name);
+  }
+  function logout() {
+    flush(); sess.current = { name: null, last: 0, opened: 0 };
+    try { localStorage.removeItem('rk_login'); } catch (e) {}
+    setMe(null); setGuestName(null); setWelcome(''); setTyping(false);
+    setMode(null); setOpenId(null);
+  }
+
   function typeWelcome(name) {
     const full = `${name}님, 환영합니다`;
     let i = 0; setWelcome(''); setTyping(true); clearInterval(typeT.current);
@@ -103,20 +174,14 @@ export default function PortalClient({ projects = [] }) {
       if (i >= full.length) { clearInterval(typeT.current); setTimeout(() => setTyping(false), 1200); }
     }, 70);
   }
-  function openChange() { setModal({ open: true, kind: 'change', value: guestName || '' }); }
-  async function submitName() {
-    const name = modal.value.trim(); if (!name) return;
-    const kind = modal.kind;
-    setGuestName(name); setModal({ open: false, kind: '', value: '' });
-    await saveName(getGuestId(), name);
-    if (kind === 'change') showToast('이름을 바꿨어요');
-  }
 
+  function backToGate() { flush(); setMode(null); setOpenId(null); setWelcome(''); setTyping(false); }
   function toggleCard(id) { setOpenId((p) => (p === id ? null : id)); }
   function openProject(p, e) {
     e.stopPropagation();
     if (!p.embedUrl) { showToast('아직 준비 중이에요'); return; }
-    window.location.href = p.embedUrl;   // 같은 탭에서 모듈로 통째 이동
+    flush(1);
+    setTimeout(() => { window.location.href = p.embedUrl; }, 130);
   }
 
   if (!hydrated) return null;
@@ -158,12 +223,12 @@ export default function PortalClient({ projects = [] }) {
         <div className="wrap">
           <div className="brand" onClick={backToGate}>Ra_<b>Kan</b></div>
           <div className="hr">
-            {mode === 'guest' && (
-              <span className="gname">{guestName || '게스트'}<button className="edit" onClick={openChange}>이름 변경</button></span>
+            {mode === 'guest' && guestName && (
+              <span className="gname">{guestName}<button className="edit" onClick={logout}>로그아웃</button></span>
             )}
             {mode && <span className={'tag' + (mode === 'admin' ? ' admin' : '')}>{mode}</span>}
             <span className="mono">{clock}</span>
-            {mode && <button className="back" onClick={backToGate}>← 포털</button>}
+            {mode && <button className="back" onClick={mode === 'guest' ? logout : backToGate}>← 포털</button>}
           </div>
         </div>
       </header>
@@ -180,11 +245,11 @@ export default function PortalClient({ projects = [] }) {
           <div className="modes">
             <button className="mode" style={{ '--mc': '#e9eaf0' }} onClick={() => enter('admin')}>
               <span className="mn">01</span><span className="mname">Admin</span>
-              <span className="mdesc">전체 프로젝트 (비공개 포함)</span><span className="marr">→</span>
+              <span className="mdesc">전체 프로젝트 · 게스트 통계</span><span className="marr">→</span>
             </button>
             <button className="mode" style={{ '--mc': '#e9eaf0' }} onClick={() => enter('guest')}>
               <span className="mn">02</span><span className="mname">Guest</span>
-              <span className="mdesc">공개 프로젝트만</span><span className="marr">→</span>
+              <span className="mdesc">이름·PIN으로 로그인 (기기 간 유지)</span><span className="marr">→</span>
             </button>
           </div>
         </section>
@@ -201,9 +266,30 @@ export default function PortalClient({ projects = [] }) {
               <div className="gsub">{visible.length}개 프로젝트 · {mode === 'admin' ? '전체' : '공개'} · 카드를 탭하면 펼쳐집니다</div>
             </div>
           </div>
-          {visible.length === 0 ? (
-            <div className="empty">표시할 프로젝트가 없어요</div>
-          ) : (
+
+          {mode === 'admin' && (
+            <div className="stats">
+              <div className="stats-h">게스트 통계</div>
+              {!stats ? <div className="stats-empty">불러오는 중…</div>
+                : stats.length === 0 ? <div className="stats-empty">아직 게스트 기록이 없어요</div>
+                  : (
+                    <div className="stats-list">
+                      <div className="srow shead"><span className="sname">이름</span><span>체류</span><span>방문</span><span>진입</span><span className="sseen">마지막</span></div>
+                      {stats.map((g) => (
+                        <div className="srow" key={g.name}>
+                          <span className="sname">{g.name}</span>
+                          <span><b>{fmtTime(g.total_seconds)}</b></span>
+                          <span>{g.visits}</span>
+                          <span>{g.opened}</span>
+                          <span className="sseen">{fmtAgo(g.last_seen)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+            </div>
+          )}
+
+          {visible.length === 0 ? <div className="empty">표시할 프로젝트가 없어요</div> : (
             <div className="grid" ref={gridRef}>
               {featured && card(featured, 0, true)}
               {rest.map((p, i) => card(p, i + 1, false))}
@@ -212,18 +298,21 @@ export default function PortalClient({ projects = [] }) {
         </section>
       )}
 
-      {modal.open && (
-        <div className="scrim" onClick={() => modal.kind === 'change' && setModal({ open: false, kind: '', value: '' })}>
+      {modal && (
+        <div className="scrim">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{modal.kind === 'setup' ? '환영합니다' : '이름 변경'}</h3>
-            <p>{modal.kind === 'setup' ? '게스트로 입장합니다. 표시할 이름을 정해주세요. 다음부턴 저장됩니다.' : '새로 쓸 이름을 입력하세요.'}</p>
-            <input autoFocus maxLength={20} placeholder="이름" value={modal.value}
-              onChange={(e) => setModal({ ...modal, value: e.target.value })}
-              onKeyDown={(e) => { if (e.key === 'Enter') submitName(); }} />
-            <div className="row">
-              {modal.kind === 'change' && <button className="btn-ghost" onClick={() => setModal({ open: false, kind: '', value: '' })}>취소</button>}
-              <button className="btn-fill" disabled={!modal.value.trim()} onClick={submitName}>{modal.kind === 'setup' ? '시작' : '저장'}</button>
-            </div>
+            <h3>게스트 로그인</h3>
+            <p>이름과 4자리 PIN으로 입장합니다. 처음이면 그대로 가입돼요. 같은 이름·PIN이면 다른 기기에서도 이어집니다.</p>
+            <label className="fld">이름</label>
+            <input className="ipt" autoFocus maxLength={16} placeholder="표시할 이름" value={modal.name}
+              onChange={(e) => setModal({ ...modal, name: e.target.value, err: '' })}
+              onKeyDown={(e) => { if (e.key === 'Enter' && modal.name.trim() && modal.pin.length === 4) doLogin(); }} />
+            <label className="fld">PIN · 4자리</label>
+            <PinInput value={modal.pin} onChange={(v) => setModal({ ...modal, pin: v, err: '' })} />
+            {modal.err && <div className="err">{modal.err}</div>}
+            <button className="btn-fill big" disabled={modal.busy || !modal.name.trim() || modal.pin.length !== 4} onClick={doLogin}>
+              {modal.busy ? '확인 중…' : '입장'}
+            </button>
           </div>
         </div>
       )}
