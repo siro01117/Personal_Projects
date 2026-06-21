@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ra_Kan 포털 — 리뉴얼 미리보기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#121318; --surface:#1a1c22; --surface2:#22242c; --fg:#e9eaf0; --mut:#90929d; --faint:#5b5d68;
+    --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
+    --brand:#8a7cf7;
+    --ease:cubic-bezier(.16,1,.3,1);
+    --disp:'Space Grotesk',sans-serif; --mono:'JetBrains Mono',monospace; --tick:'Inter',sans-serif;
+  }
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--fg);font-family:'Inter','Pretendard',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;padding-bottom:44px}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  svg.ic{stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(20px,4vw,48px)}
+  .hidden{display:none !important}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+
+  /* ===== HEADER ===== */
+  .head{position:sticky;top:0;z-index:8;background:rgba(18,19,24,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .head .wrap{height:62px;display:flex;align-items:center;justify-content:space-between}
+  .brand{font-family:var(--disp);font-weight:500;font-size:15px;letter-spacing:.02em;cursor:pointer}
+  .brand b{font-weight:700}
+  .hr{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--mut)}
+  .tag{font-family:var(--disp);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border:1px solid var(--line2);border-radius:6px;color:var(--mut)}
+  .tag.admin{color:var(--fg);border-color:var(--fg)}
+  .back{font-size:12.5px;color:var(--mut);padding:6px 10px;border-radius:7px;border:1px solid transparent;transition:.18s}
+  .back:hover{color:var(--fg);border-color:var(--line2)}
+
+  /* ===== GATE ===== */
+  .gate{min-height:calc(100vh - 62px);display:flex;flex-direction:column;justify-content:center;padding-bottom:30px}
+  .gate.out{animation:gout .4s var(--ease) forwards;pointer-events:none}
+  @keyframes gout{to{opacity:0;transform:translateY(-14px)}}
+  .gkick{font-size:11.5px;letter-spacing:.4em;text-transform:uppercase;color:var(--faint);margin-bottom:22px;opacity:0;animation:rise .8s .05s var(--ease) forwards}
+
+  /* RK → Ra_Kan 인트로 */
+  .mega{font-family:var(--disp);font-weight:500;font-size:clamp(56px,13vw,150px);line-height:.9;letter-spacing:-.03em;white-space:nowrap}
+  .mega .lt{display:inline-block;opacity:0;transform:translateY(34px);animation:rise .8s var(--ease) forwards}
+  .mega .rev{display:inline-block;max-width:0;overflow:hidden;clip-path:inset(0 100% 0 0);opacity:0;vertical-align:bottom;animation:wipe .75s var(--ease) forwards}
+  .mega .dim{color:#34353d}
+  @keyframes rise{to{opacity:1;transform:none}}
+  @keyframes wipe{to{max-width:2.6em;clip-path:inset(0 0 0 0);opacity:1}}
+
+  .modes{margin-top:clamp(38px,7vh,72px);display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px;opacity:0;animation:rise .8s 1.2s var(--ease) forwards}
+  .mode{position:relative;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:26px 22px;display:flex;flex-direction:column;gap:6px;transition:background .25s var(--ease)}
+  .mode:hover{background:var(--surface2)}
+  .mode .mn{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  /* 그라데이션 시머 — 텍스트에만 */
+  .mode .mname{font-family:var(--disp);font-weight:600;font-size:clamp(26px,4vw,38px);letter-spacing:-.02em;width:fit-content;
+    background:linear-gradient(110deg,var(--mut) 0%,var(--mut) 42%,#ffffff 50%,var(--mut) 58%,var(--mut) 100%);
+    background-size:280% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tshine 3.6s linear infinite}
+  @keyframes tshine{from{background-position:125% 0}to{background-position:-125% 0}}
+  .mode .mdesc{font-size:12.5px;color:var(--faint);transition:.3s var(--ease)}
+  .mode:hover .mdesc{color:var(--mut)}
+  .mode .marr{position:absolute;right:20px;top:24px;font-size:18px;color:var(--mc);opacity:0;transform:translateX(-6px);transition:.3s var(--ease)}
+  .mode:hover .marr{opacity:1;transform:none}
+  /* 4변 보더 드로우 (hover) */
+  .mode::before,.mode::after{content:"";position:absolute;width:0;height:0;pointer-events:none;transition:width .2s,height .2s}
+  .mode::before{top:0;left:0;border-top:2px solid var(--mc);border-right:2px solid var(--mc);border-top-right-radius:12px}
+  .mode::after{bottom:0;right:0;border-bottom:2px solid var(--mc);border-left:2px solid var(--mc);border-bottom-left-radius:12px}
+  .mode:hover::before{width:100%;height:100%;transition:width .2s linear,height .2s linear .2s}
+  .mode:hover::after{width:100%;height:100%;transition:width .2s linear .4s,height .2s linear .6s}
+
+  /* ===== DOCK ===== */
+  .dock{padding-bottom:40px}
+  .dock.in{animation:din .5s var(--ease) both}
+  @keyframes din{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .gtop{display:flex;align-items:flex-end;justify-content:space-between;padding:50px 0 14px}
+  /* DOCK 제목 = 마퀴 글꼴(Inter, 자간 넓힌 대문자) */
+  .gtitle{font-family:var(--tick);font-weight:800;font-size:clamp(36px,6.4vw,64px);line-height:1;letter-spacing:.16em;text-transform:uppercase}
+  .gsub{font-size:13px;color:var(--mut);margin-top:14px}
+
+  /* ===== 통합 그리드 (탭 토글 + 진입 버튼) ===== */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px;margin-top:18px;align-items:start}
+  .card{position:relative;overflow:hidden;height:86px;border:1px solid var(--line2);border-left:3px solid var(--c);border-radius:13px;background:var(--surface);cursor:pointer;
+    transition:height .34s var(--ease),background .24s var(--ease),box-shadow .24s var(--ease)}
+  .card:hover{background:var(--surface2)}
+  .card.open{background:var(--surface2);box-shadow:0 14px 28px -18px rgba(0,0,0,.7)}
+  .chead{display:flex;align-items:center;gap:13px;padding:20px;height:86px}
+  .ctile{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
+    background:color-mix(in srgb,var(--c) 15%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 38%,transparent);color:var(--c);transition:.24s var(--ease)}
+  .ctile svg{width:22px;height:22px}
+  .card.open .ctile{background:var(--c);color:#101116;border-color:var(--c)}
+  .cname{font-family:var(--disp);font-weight:600;font-size:18px;letter-spacing:-.01em;line-height:1.2;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .cexp{margin-left:auto;color:var(--faint);flex:0 0 auto;transition:.3s var(--ease)}
+  .cexp svg{width:18px;height:18px}
+  .card.open .cexp{transform:rotate(180deg);color:var(--c)}
+  .cnum{position:absolute;top:18px;right:46px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .cbody{padding:0 20px 18px}
+  .cdesc{font-size:12.5px;color:var(--mut);line-height:1.6}
+  .cchips{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .cchips span{font-size:10px;color:color-mix(in srgb,var(--c) 65%,var(--fg));border:1px solid color-mix(in srgb,var(--c) 30%,transparent);border-radius:5px;padding:2px 7px}
+  .enterbtn{margin-top:15px;margin-left:auto;width:fit-content;font-family:var(--disp);font-weight:600;font-size:13px;color:#101116;background:var(--c);border-radius:9px;
+    padding:10px 16px;display:flex;align-items:center;gap:7px;transition:.18s}
+  .enterbtn:hover{filter:brightness(1.08)}
+  .enterbtn svg{width:15px;height:15px;stroke-width:2.2}
+  .badge{font-family:var(--disp);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:5px;color:var(--faint);border:1px solid var(--line2)}
+  .badge.old{color:#b58a4d;border-color:rgba(181,138,77,.45)}
+  .badge.priv{color:#cf7d99;border-color:rgba(207,125,153,.45)}
+  .card.muted{opacity:.7}
+
+  /* featured */
+  .card.feat{grid-column:1/-1;border-left-width:4px;height:118px}
+  .card.feat .chead{height:118px;padding:28px 30px;gap:22px}
+  .card.feat .ctile{width:66px;height:66px;border-radius:15px}.card.feat .ctile svg{width:31px;height:31px}
+  .card.feat .cmeta{min-width:0;display:flex;flex-direction:column;gap:7px}
+  .fkick{display:inline-flex;align-items:center;gap:7px;font-family:var(--disp);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--c)}
+  .fkick .dot{width:6px;height:6px;border-radius:50%;background:var(--c)}
+  .card.feat .cname{font-size:clamp(23px,3vw,32px)}
+  .card.feat .cexp{align-self:center}
+  .card.feat .cbody{padding:0 30px 26px}
+  .card.feat .cdesc{font-size:13px;max-width:680px}
+  .card.feat .cchips span{font-size:11px;background:color-mix(in srgb,var(--c) 12%,transparent);padding:4px 9px;border-radius:6px}
+
+  .card.ghost{overflow:visible;border-style:dashed;border-left-style:dashed;border-left-color:var(--line2);cursor:default;display:grid;place-items:center;text-align:center;color:var(--faint);height:182px}
+  .card.ghost:hover{box-shadow:none;background:var(--surface)}
+  .card.ghost .gi{width:38px;height:38px;border-radius:11px;border:1px dashed var(--line2);display:grid;place-items:center;margin:0 auto 11px}
+
+  /* ===== 역방향 마퀴 ===== */
+  .marquee{position:fixed;left:0;right:0;bottom:0;height:44px;z-index:5;overflow:hidden;pointer-events:none;
+    border-top:1px solid var(--line);background:rgba(18,19,24,.62);backdrop-filter:blur(6px);display:flex;align-items:center}
+  .mtrack{display:inline-flex;white-space:nowrap;animation:rev 64s linear infinite;will-change:transform}
+  .mseg{font-family:var(--tick);font-weight:600;font-size:14px;line-height:1;letter-spacing:.42em;color:rgba(255,255,255,.78)}
+  @keyframes rev{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:60px;transform:translateX(-50%) translateY(14px);background:var(--fg);color:#101116;font-weight:600;font-size:13px;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.3s var(--ease);z-index:20}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:680px){
+    .card.feat .chead{flex-wrap:nowrap}
+    .modes{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header class="head">
+  <div class="wrap">
+    <div class="brand" onclick="toGate()">Ra_<b>Kan</b></div>
+    <div class="hr" id="hr"><span class="mono">2026.06.21 22:00</span></div>
+  </div>
+</header>
+
+<!-- ===== GATE ===== -->
+<section class="gate wrap" id="gate">
+  <div class="gkick">Personal Projects — Select Mode</div>
+  <div class="mega" aria-label="Ra_Kan"><span class="lt" style="animation-delay:.1s">R</span><span class="rev" style="animation-delay:.72s">a<span class="dim">_</span></span><span class="lt" style="animation-delay:.24s">K</span><span class="rev" style="animation-delay:1s">an</span></div>
+  <div class="modes">
+    <button class="mode" style="--mc:#e9eaf0" onclick="enter('admin')">
+      <span class="mn">01</span><span class="mname">Admin</span><span class="mdesc">전체 프로젝트 (비공개 포함)</span><span class="marr">→</span>
+    </button>
+    <button class="mode" style="--mc:#e9eaf0" onclick="enter('guest')">
+      <span class="mn">02</span><span class="mname">Guest</span><span class="mdesc">공개 프로젝트만</span><span class="marr">→</span>
+    </button>
+  </div>
+</section>
+
+<!-- ===== DOCK ===== -->
+<section class="dock wrap hidden" id="dock">
+  <div class="gtop"><div><div class="gtitle">Dock</div><div class="gsub" id="dsub">3개 프로젝트 · 공개 · 카드를 탭하면 펼쳐집니다</div></div></div>
+
+  <div class="grid">
+
+    <div class="card feat" style="--c:#8a7cf7" onclick="cardTap(this)">
+      <div class="chead">
+        <div class="ctile"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+        <div class="cmeta"><span class="fkick"><span class="dot"></span>현행 · 추천</span><div class="cname">인디사 시험 대비 [기말]</div></div>
+        <span class="cexp"><svg class="ic" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></svg></span>
+      </div>
+      <div class="cbody">
+        <div class="cdesc">인공지능과 디지털사고 기말(7~11장) 매트릭스 학습. 장×단계 격자에서 골라 읽고 선지로 확인. 장별 테마색·SVG 애니메이션.</div>
+        <div class="cchips"><span>매트릭스 학습</span><span>장별 테마색</span><span>선지 테스트</span><span>SVG 애니메이션</span></div>
+        <button class="enterbtn" onclick="event.stopPropagation(); enterMod(this)">진입 <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+
+    <div class="card muted" style="--c:#7c8794" onclick="cardTap(this)">
+      <span class="cnum">02</span>
+      <div class="chead"><div class="ctile"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></div><div class="cname">인디사 기말 스테이지 <span class="badge old">구</span></div><span class="cexp"><svg class="ic" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></svg></span></div>
+      <div class="cbody"><div class="cdesc">이전 버전. 선형 스테이지형 독학 모듈(7~11장). 후속은 ‘인디사 시험 대비 [기말]’.</div>
+        <button class="enterbtn" onclick="event.stopPropagation(); enterMod(this)">진입 <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </div>
+
+    <div class="card" style="--c:#2dd4bf" onclick="cardTap(this)">
+      <span class="cnum">03</span>
+      <div class="chead"><div class="ctile"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 3 2.6 15 0 18M12 3c-2.6 3-2.6 15 0 18"/></svg></div><div class="cname">예시 모듈 <span class="badge">sample</span></div><span class="cexp"><svg class="ic" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></svg></span></div>
+      <div class="cbody"><div class="cdesc">새 모듈을 추가하면 색·아이콘이 다르게 배정되어 카드가 구분됩니다.</div><div class="cchips"><span>color</span><span>icon</span></div>
+        <button class="enterbtn" onclick="event.stopPropagation(); enterMod(this)">진입 <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </div>
+
+    <div class="card priv-only hidden" style="--c:#ef7aa7" onclick="cardTap(this)">
+      <span class="cnum">04</span>
+      <div class="chead"><div class="ctile"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><div class="cname">비공개 작업 <span class="badge priv">private</span></div><span class="cexp"><svg class="ic" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7"/></svg></span></div>
+      <div class="cbody"><div class="cdesc">Admin 모드에서만 보입니다. Guest로 들어오면 숨겨집니다.</div>
+        <button class="enterbtn" onclick="event.stopPropagation(); enterMod(this)">진입 <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </div>
+
+    <div class="card ghost" style="--c:#5b5d68">
+      <div><div class="gi"><svg class="ic" viewBox="0 0 24 24" style="width:19px;height:19px"><path d="M12 5v14M5 12h14"/></svg></div><div>public/projects/ 에 폴더 추가</div></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===== 역방향 마퀴 ===== -->
+<div class="marquee"><div class="mtrack" id="mtrack"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+  (function buildMarquee(){
+    const gap='         ';
+    const sp=' '.repeat(8); let seg=''; for(let i=0;i<40;i++) seg+='RA_KAN'+String.fromCharCode(160).repeat(4);
+    $('#mtrack').innerHTML='<span class="mseg">'+seg+'</span><span class="mseg">'+seg+'</span>';
+  })();
+
+  function enter(mode){
+    const g=$('#gate'); g.classList.add('out');
+    setTimeout(()=>{
+      g.classList.add('hidden'); g.classList.remove('out');
+      const d=$('#dock'); d.classList.remove('hidden'); d.classList.add('in');
+      $('#hr').innerHTML = '<span class="tag'+(mode==='admin'?' admin':'')+'">'+mode+'</span><span class="mono">2026.06.21 22:00</span><button class="back" onclick="toGate()">← 포털</button>';
+      const admin = mode==='admin';
+      $$('.priv-only').forEach(el=>el.classList.toggle('hidden', !admin));
+      $('#dsub').textContent = (admin?'4개 프로젝트 · 전체':'3개 프로젝트 · 공개')+' · 카드를 탭하면 펼쳐집니다';
+      window.scrollTo(0,0);
+    }, 380);
+  }
+  function toGate(){
+    const d=$('#dock'); d.classList.add('hidden'); d.classList.remove('in');
+    if(openCard) collapse(openCard); openCard=null;
+    $('#hr').innerHTML = '<span class="mono">2026.06.21 22:00</span>';
+    $('#gate').classList.remove('hidden');
+    window.scrollTo(0,0);
+  }
+
+  // 카드 탭 = 열고/닫기 토글 (높이는 내용에 맞춰 자동)
+  let openCard=null;
+  function expand(el){ el.classList.add('open'); el.style.height = el.scrollHeight + 'px'; }
+  function collapse(el){ el.classList.remove('open'); el.style.height=''; }
+  function cardTap(el){
+    if(el.classList.contains('open')){ collapse(el); openCard=null; return; }
+    if(openCard && openCard!==el) collapse(openCard);
+    expand(el); openCard=el;
+  }
+  function enterMod(btn){
+    const card=btn.closest('.card');
+    const n=card.querySelector('.cname').childNodes[0].textContent.trim();
+    showToast('여는 중 · '+n);   // 실제 포털에선 iframe/새 탭 열기
+  }
+  let _tt;
+  function showToast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),1600);}
+</script>
+</body>
+</html>
