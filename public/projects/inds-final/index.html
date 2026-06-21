@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인디사 기말 · 7~11장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#16161f; --body:#33333d; --mut:#5c5c6a;   /* mut = 보조 텍스트 (대비 4.5:1+) */
+    --mute:#9aa0ab;                                   /* mute = 얇은 선·faint 아이콘 전용 */
+    --line:#ececf2; --line2:#dcdce5;
+    --ind:#5b5bd6; --ind-deep:#403bc0; --ind-soft:#eeeefb; --ind-soft2:#f6f6fd;
+    --ok:#15803d; --ok-soft:#eafaf0; --bad:#c0344a; --bad-soft:#fdeef1;
+    --warn:#8a5210; --warn-soft:#fff7ec;
+    --paper:#fff; --bg:#eaeaee; --code-bg:#f4f5f9; --hl:#fde68a;
+    --s:8px;
+  }
+  html,body{background:var(--bg);color:var(--body);font-family:'Noto Sans KR',sans-serif;
+    line-height:1.75;-webkit-font-smoothing:antialiased;font-size:15px;letter-spacing:-.003em;overscroll-behavior-y:contain}
+  body{display:flex;justify-content:center}
+  .app{width:100%;max-width:880px;min-height:100vh;background:var(--paper);box-shadow:0 0 70px rgba(20,20,40,.07);position:relative}
+  b{font-weight:700;color:var(--ink)} .ind{color:var(--ind);font-weight:700}
+  .hl{background:linear-gradient(180deg,transparent 58%,var(--hl) 58%);padding:0 3px;font-weight:700;color:var(--ink)}
+  code{font-family:'JetBrains Mono',monospace;font-size:.86em;background:var(--code-bg);color:#3a3a52;padding:2px 6px;border-radius:4px;border:1px solid #e7e7f0}
+  svg.ic{width:1em;height:1em;vertical-align:-.14em;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+  .top{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:13px 22px}
+  .top .hb{display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:700;color:var(--ink);font-size:14px;background:none;border:none}
+  .top .hb:hover{color:var(--ind)}
+  .top .crumb{font-size:12.5px;color:var(--mut);font-weight:500}
+  .top .bar{flex:1;height:5px;background:var(--line);border-radius:3px;overflow:hidden;max-width:160px;margin-left:auto}
+  .top .bar i{display:block;height:100%;background:var(--ind);width:0;transition:width .4s ease}
+  .top .pct{font-size:12px;color:var(--mut);font-family:'JetBrains Mono',monospace;min-width:42px;text-align:right}
+
+  /* ===== HOME ===== */
+  .home{padding:36px 26px 64px}
+  .home .kick{color:var(--ind);font-weight:700;font-size:12.5px;letter-spacing:.3px;margin-bottom:10px}
+  .home h1{font-size:34px;font-weight:900;color:var(--ink);line-height:1.18;letter-spacing:-1px;margin-bottom:14px}
+  .home .lead{font-size:14px;color:var(--mut);font-weight:500;line-height:1.85;margin-bottom:26px}
+  .spine{background:var(--ind-soft2);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:30px}
+  .spine .sl{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--ind);margin-bottom:12px;text-transform:uppercase}
+  .spine .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px;color:var(--body);font-weight:700}
+  .spine .flow .st{background:#fff;border:1px solid var(--line2);border-radius:8px;padding:7px 12px}
+  .spine .flow .ar{color:var(--ind);font-weight:900}
+  .spine .note{font-size:12px;color:var(--mut);margin-top:12px;line-height:1.6}
+  .spine .usage{list-style:none;margin:2px 0 0}
+  .spine .usage li{position:relative;padding:5px 0 5px 17px;font-size:12.8px;color:var(--mut);line-height:1.75}
+  .spine .usage li::before{content:"";position:absolute;left:2px;top:13px;width:5px;height:5px;border-radius:50%;background:var(--ind)}
+  .spine .usage li b{color:var(--ink)} .spine .usage .ar{color:var(--ind);font-weight:900}
+
+  .mx{width:100%;border-collapse:separate;border-spacing:10px;margin-top:6px}
+  .mx td.corner{width:1%}
+  .mx th{font-size:18px;font-weight:900;color:var(--ind);font-family:'JetBrains Mono',monospace;padding:0 2px 12px;text-align:center;vertical-align:bottom}
+  .mx td.rowlab{width:1%;padding:0 9px 0 2px;text-align:center;vertical-align:middle}
+  .mx td.rowlab .lvic{display:block;margin:0 auto 4px}.mx td.rowlab .lvic svg{width:20px;height:20px;stroke:var(--mut);stroke-width:1.8;fill:none}
+  .mx td.rowlab .ln{color:var(--body);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:900}
+  .cell{--ac:#5b5bd6;width:100%;height:56px;border:2px solid color-mix(in srgb,var(--ac) 34%,#fff);background:#fff;border-radius:9px;cursor:pointer;display:grid;place-items:center;transition:.16s;padding:0}
+  .cell.lvl1{background:color-mix(in srgb,var(--ac) 7%,#fff);border-color:color-mix(in srgb,var(--ac) 34%,#fff)}
+  .cell.lvl2{background:color-mix(in srgb,var(--ac) 13%,#fff);border-color:color-mix(in srgb,var(--ac) 44%,#fff)}
+  .cell.lvl3{background:color-mix(in srgb,var(--ac) 20%,#fff);border-color:color-mix(in srgb,var(--ac) 55%,#fff)}
+  .cell.lvl4{background:color-mix(in srgb,var(--ac) 30%,#fff);border-color:color-mix(in srgb,var(--ac) 67%,#fff)}
+  .cell.lvl5{background:color-mix(in srgb,var(--ac) 42%,#fff);border-color:color-mix(in srgb,var(--ac) 80%,#fff)}
+  .cell:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 6px 16px color-mix(in srgb,var(--ac) 26%,transparent)}
+  .cell .cdot svg{width:24px;height:24px;stroke:var(--ok);stroke-width:2.6;fill:none}
+  .cell.done{background:var(--ok-soft);border-color:var(--ok)}
+  .legend{display:flex;flex-wrap:wrap;gap:5px 14px;justify-content:center;margin-top:18px;font-size:11.5px;color:var(--mut)}
+  .legend b{color:var(--ink)} .legend span{white-space:nowrap}
+  .home .hint{font-size:12px;color:var(--mut);margin-top:22px;line-height:1.7;text-align:center}
+  .reset{margin-top:24px;text-align:center}
+  .reset button{background:none;border:none;color:var(--mute);font-size:12px;cursor:pointer;text-decoration:underline;font-family:inherit}
+  .reset button:hover{color:var(--bad)}
+
+  /* ===== CELL VIEW (읽기 열은 좁게 유지) ===== */
+  .view{display:none;max-width:760px;margin:0 auto;padding:30px 26px 80px}
+  .view.active{display:block}
+  .view.slin{animation:slin .28s ease}.view.slout{animation:slout .28s ease}.view.up{animation:up .3s ease}
+  @keyframes slin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+  @keyframes slout{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:none}}
+  @keyframes up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+  .vmeta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+  .vmeta .ch{color:var(--ind);font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+  .vmeta .ch svg{width:16px;height:16px;stroke:var(--ind);stroke-width:1.9;fill:none}
+  .vmeta .sp{font-size:11px;color:var(--mut);background:var(--ind-soft2);border:1px solid var(--line);border-radius:20px;padding:3px 11px}
+  .lvtag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.3px;padding:4px 11px;border-radius:7px;margin-bottom:12px}
+  .lvtag svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
+  .lv1{background:var(--ind-soft);color:var(--ind-deep)} .lv2{background:#e7f0fc;color:#2563eb}
+  .lv3{background:var(--ok-soft);color:var(--ok)} .lv4{background:var(--warn-soft);color:var(--warn)} .lv5{background:#f1f1f5;color:#4b4b57}
+  .vtitle{font-size:26px;font-weight:900;color:var(--ink);letter-spacing:-.6px;line-height:1.2;margin-bottom:22px}
+
+  .read{font-size:15.5px;color:var(--body);line-height:2.0}
+  .read p{margin:16px 0}.read p b{color:var(--ink)}
+  .flow2{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:6px 0 22px;padding:16px;background:var(--ind-soft2);border-radius:14px}
+  .flow2 .c{background:#fff;border:1px solid var(--line2);border-radius:9px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--ink);line-height:1.35}
+  .flow2 .a{display:inline-flex;color:var(--ind)}.flow2 .a svg{width:17px;height:17px;stroke:var(--ind);stroke-width:2.2;fill:none}
+  .read .ana{background:var(--ind-soft2);border-left:4px solid var(--ind);border-radius:0 10px 10px 0;padding:16px 18px;margin:18px 0;font-size:15px;line-height:1.95}
+  .read table{width:100%;border-collapse:separate;border-spacing:0;margin:18px 0;font-size:13.5px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .read th{text-align:left;padding:11px 14px;font-weight:700;color:var(--ink);font-size:12.5px;background:var(--ind-soft2);border-bottom:1px solid var(--line)}
+  .read td{padding:11px 14px;border-bottom:1px solid var(--line);color:var(--body);vertical-align:top;line-height:1.6}
+  .read tr:last-child td{border-bottom:none}.read td b{color:var(--ink)}
+
+  .anim{margin:22px 0;border:1px solid var(--line2);border-radius:14px;padding:18px;background:#fcfcff}
+  .anim .acap{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--ind);margin-bottom:13px;text-transform:uppercase}
+  .anim .ctrls{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0}
+  .anim .ctrls button{font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;border:1px solid var(--line2);background:#fff;color:var(--body);border-radius:8px;padding:8px 14px;transition:.15s}
+  .anim .ctrls button:hover{border-color:var(--ind);color:var(--ind-deep)} .anim .ctrls button.on{background:var(--ind);border-color:var(--ind);color:#fff}
+  .anim .rd{font-size:13.5px;color:var(--body);line-height:1.7;min-height:1.7em;margin-top:8px}.anim .rd b{color:var(--ind-deep)}
+  .anim svg{display:block;width:100%;height:auto} .anim .big{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:28px;color:var(--ink)}
+  .anim .big.bad{color:var(--bad)}.anim .big.ok{color:var(--ok)}
+  .anim pre{background:var(--code-bg);border:1px solid #e7e7f0;border-radius:8px;padding:13px 15px;font-family:'JetBrains Mono',monospace;font-size:12.6px;line-height:1.75;color:#33344a;overflow-x:auto}
+
+  .items{margin-top:30px}
+  .ihead{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:1px;color:var(--ink);border-top:2px solid var(--ink);padding-top:18px;margin-bottom:5px}
+  .ihead svg{width:15px;height:15px;stroke:var(--ind);stroke-width:2;fill:none}
+  .isub{font-size:12.5px;color:var(--mut);margin-bottom:22px;line-height:1.6}
+  .item{margin-bottom:28px}
+  .iq{font-size:15.5px;font-weight:700;color:var(--ink);line-height:1.65;margin-bottom:14px}
+  .iq .qn{color:var(--ind);font-family:'JetBrains Mono',monospace;margin-right:8px;font-size:13.5px}
+  .opts{display:flex;flex-direction:column;gap:10px}
+  .opt{text-align:left;font-family:inherit;font-size:14.5px;color:var(--body);cursor:pointer;background:#fff;border:1.5px solid var(--line2);border-radius:11px;padding:13px 16px;transition:.14s;display:flex;gap:12px;align-items:flex-start;line-height:1.6}
+  .opt:hover:not(:disabled){border-color:var(--ind);background:var(--ind-soft2)}
+  .opt .mk{flex:0 0 21px;height:21px;border-radius:50%;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--mut);margin-top:1px}
+  .opt.ok{border-color:var(--ok);background:var(--ok-soft);color:var(--ink)}.opt.ok .mk{border-color:var(--ok);background:var(--ok);color:#fff}
+  .opt.bad{border-color:var(--bad);background:var(--bad-soft);animation:shake .3s}.opt.bad .mk{border-color:var(--bad);background:var(--bad);color:#fff}
+  .opt:disabled{cursor:default}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  .why{margin-top:12px;font-size:13.5px;line-height:1.8;color:var(--body);background:var(--ind-soft2);border-left:4px solid var(--ind);border-radius:0 8px 8px 0;padding:12px 15px}.why b{color:var(--ink)}
+
+  .nav{display:flex;gap:10px;margin-top:34px;padding-top:20px;border-top:1px solid var(--line);align-items:center}
+  .nav button{font-family:inherit;font-weight:700;cursor:pointer;border-radius:11px;transition:.16s;border:1.5px solid var(--line2);background:#fff;color:var(--body);display:flex;align-items:center;justify-content:center;gap:6px}
+  .nav .side{width:48px;height:48px}.nav .side svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none}
+  .nav .side:hover:not(:disabled){border-color:var(--ind);color:var(--ind-deep)}
+  .nav .stg{flex:1;height:48px;font-size:14px}.nav .stg svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none}
+  .nav .stg.down{background:var(--ind);border-color:var(--ind);color:#fff}.nav .stg.down:hover:not(:disabled){background:var(--ind-deep)}
+  .nav .stg.up:hover:not(:disabled){border-color:var(--ind);color:var(--ind-deep)}
+  .nav button:disabled{opacity:.32;cursor:not-allowed}
+  .donehint{display:flex;align-items:center;justify-content:center;gap:6px;text-align:center;font-size:12.5px;color:var(--mut);margin-top:14px}
+  .donehint svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.4;fill:none}
+  .donehint.ok{color:var(--ok);font-weight:700}
+  .swipehint{text-align:center;font-size:11.5px;color:var(--mute);margin-top:9px;line-height:1.6}
+
+  .pullbar{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:760px;pointer-events:none;z-index:40;
+    display:flex;justify-content:center;align-items:center;gap:8px;height:0;overflow:hidden;font-size:13px;font-weight:700}
+  .pullbar svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.4;fill:none}
+  #pullbot{bottom:0;background:linear-gradient(0deg,var(--ind-soft),rgba(238,238,251,0));color:var(--ind-deep)}
+  #pulltop{top:0;background:linear-gradient(180deg,var(--ind-soft),rgba(238,238,251,0));color:var(--ind-deep)}
+  .pullbar.ready{color:#fff}
+  #pullbot.ready{background:linear-gradient(0deg,var(--ind),rgba(91,91,214,0))}
+  #pulltop.ready{background:linear-gradient(180deg,var(--ind),rgba(91,91,214,0))}
+
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;font-size:13.5px;font-weight:700;padding:12px 22px;border-radius:30px;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.35s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ===== 데스크탑 — 시원하게 ===== */
+  @media(min-width:920px){
+    .app{max-width:1080px}
+    .home{padding:48px 56px 80px}
+    .home h1{font-size:40px}
+    .mx{border-spacing:14px}
+    .cell{height:86px;border-radius:12px}
+    .cell .cdot svg{width:32px;height:32px}
+    .mx th{font-size:21px;padding-bottom:12px}
+    .mx td.rowlab .lvic svg{width:26px;height:26px} .mx td.rowlab .ln{font-size:18px}
+    .view{padding:46px 30px 90px}
+  }
+  @media(max-width:560px){
+    .home,.view{padding-left:16px;padding-right:16px}
+    .home h1{font-size:27px} .vtitle{font-size:21px}
+    .mx{border-spacing:6px} .mx th{font-size:13px}
+    .cell{height:46px;border-radius:8px} .cell .cdot svg{width:20px;height:20px}
+    .mx td.rowlab .lvic svg{width:16px;height:16px} .mx td.rowlab .ln{font-size:12px}
+    .legend{font-size:10.5px;gap:3px 9px}
+    .read{font-size:15px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <button class="hb" id="homeBtn">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v11h14V9"/></svg><span>홈</span>
+    </button>
+    <span class="crumb" id="crumb">기말 7~11장</span>
+    <div class="bar"><i id="topbar"></i></div>
+    <span class="pct" id="toppct">0/25</span>
+  </div>
+  <section class="home" id="home"></section>
+  <section class="view" id="view"></section>
+</div>
+<div class="pullbar" id="pulltop"></div>
+<div class="pullbar" id="pullbot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const LV=['관계적 원리','사실적 원리','기본 문제','어려운 문제','나머지 문제'];
+const LVDESC=['인과·원리를 이야기로.','용어를 인과에 묶어서.','출제확률 높고 쉬운 것.','출제확률 높지만 까다로운 것.','그 외 커버.'];
+
+const ICO={
+ ch:{
+  7:'<path d="M3 5h18l-7 8v6l-4 2v-8z"/>',
+  8:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 3 2.6 15 0 18M12 3c-2.6 3-2.6 15 0 18"/>',
+  9:'<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  10:'<path d="M3 21h18M6 21v-6M11 21V7M16 21v-9"/>',
+  11:'<path d="M12 4l8 15H4z"/><path d="M12 10v4M12 16.5v.4"/>'
+ },
+ lv:[
+  '<path d="M9.5 18h5M10 21h4M8.5 14a6 6 0 1 1 7 0c-.9.7-1.4 1.4-1.5 2.5h-4c-.1-1.1-.6-1.8-1.5-2.5z"/>',
+  '<path d="M5 4h12v16H6a1 1 0 0 1-1-1zM5 19a1 1 0 0 1 1-1h11"/>',
+  '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  '<path d="M12 3c2 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 .2 1.6 1 2.4 2 2.6-.8-2 .3-5 1-7.6z"/>',
+  '<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>'
+ ]
+};
+const CHV={l:'<path d="M15 5l-7 7 7 7"/>',r:'<path d="M9 5l7 7-7 7"/>',u:'<path d="M5 15l7-7 7 7"/>',d:'<path d="M5 9l7 7 7-7"/>'};
+const icSvg=(p,cls='ic')=>`<svg class="${cls}" viewBox="0 0 24 24">${p}</svg>`;
+/* 장별 테마색 (카테고리 1색) */
+const CHC={7:{ac:'#5b5bd6',deep:'#403bc0',soft:'#eeeefb',soft2:'#f6f6fd'},8:{ac:'#0d9488',deep:'#0f766e',soft:'#e3f5f2',soft2:'#f1fbf9'},9:{ac:'#c2710c',deep:'#955509',soft:'#fbefda',soft2:'#fdf7ee'},10:{ac:'#c43d6a',deep:'#a02651',soft:'#fbe8ef',soft2:'#fdf3f6'},11:{ac:'#7c3aed',deep:'#6020c4',soft:'#f1ebfd',soft2:'#f8f5fe'}};
+let TC={ac:'#5b5bd6',acs:'#eeeefb',acd:'#403bc0'};
+function applyTheme(c){const r=document.documentElement.style;if(c){r.setProperty('--ind',c.ac);r.setProperty('--ind-deep',c.deep);r.setProperty('--ind-soft',c.soft);r.setProperty('--ind-soft2',c.soft2);TC={ac:c.ac,acs:c.soft,acd:c.deep};}else{['--ind','--ind-deep','--ind-soft','--ind-soft2'].forEach(p=>r.removeProperty(p));TC={ac:'#5b5bd6',acs:'#eeeefb',acd:'#403bc0'};}}
+
+/* 전부 선지: {q,o:[4],ans,why}. read 셀은 flow(흐름 도식) + body. */
+const MATRIX=[
+{ id:7, title:'데이터 정제와 병합', spine:'다듬는다 · 합친다',
+ levels:[
+  { type:'read', anim:'mean', flow:['빈칸·이상값·제각각','정제 (중앙값 대체)','공통키로 병합'],
+    body:`<p>데이터를 모아 보면 빈칸도 있고, 말이 안 되는 값(예를 들어 점수 <code>-999</code>)도 섞여 있고, 같은 것을 다르게 적어 둔 경우도 많습니다. 이것을 그대로 평균 내면 <b>-999 하나 때문에 결과가 통째로 망가집니다.</b> 그래서 분석하기 전에 먼저 청소를 합니다.</p>
+    <div class="ana">이상한 값은 버리거나, <b>평균이 아니라 가운데 값인 중앙값</b>으로 바꿔 끼웁니다. 평균은 극단값에 크게 끌려가지만, 중앙값은 줄을 세웠을 때 한가운데에 있어서 잘 흔들리지 않기 때문입니다.</div>
+    <p>그리고 정보가 여기 표 저기 표 흩어져 있으면, <b>공통 기준(예를 들어 고객ID)</b>으로 두 표를 이어 붙입니다. 이것을 병합이라고 하며, 어디까지 남길지에 따라 결과가 달라집니다.</p>`,
+    items:[
+      {q:`이상치 대체에 평균이 아니라 중앙값을 쓰는 이유는?`,o:['중앙값이 계산이 더 빨라서','중앙값은 극단값에 잘 흔들리지 않아서','평균은 항상 틀려서','중앙값이 항상 더 커서'],ans:1,why:`중앙값은 줄 세운 가운데 값이라 이상치에 둔감합니다.`},
+      {q:`같은 두 표인데 inner와 outer 결과가 다른 이유는?`,o:['inner=합집합, outer=교집합','inner=공통만(교집합), outer=전부+빈칸 NaN(합집합)','둘은 완전히 같다','inner가 항상 행이 더 많다'],ans:1,why:`inner는 겹치는 행만 남기고, outer는 모든 행을 남겨서 빈칸에 NaN이 생깁니다.`},
+      {q:`점수 [85, 92, -999, 78]의 평균은?`,o:['85.0','63.0','-186.0','0.0'],ans:2,why:`(85+92−999+78)/4를 계산하면 −186.0이 됩니다.`}
+    ]},
+  { type:'read', anim:'venn',
+    body:`<p>원리에 용어를 얹어 봅니다. 외우려 하지 말고 "이래서 이런 이름이구나" 하고 연결하면 됩니다.</p>
+    <table><tr><th>용어</th><th>인과로 연결</th></tr>
+    <tr><td><b>4대 문제</b><br>(결-이-형-텍)</td><td>결측치·이상치·형식 불일치·텍스트 품질</td></tr>
+    <tr><td><b>pd.merge</b></td><td>병합 함수. 인자는 둘로, <code>on</code>(공통 키)과 <code>how</code>(방식)</td></tr>
+    <tr><td><b>4조인</b></td><td>inner(교집합)·outer(합집합)·left·right</td></tr>
+    <tr><td><b>dropna / value_counts</b></td><td>결측 행 제거 / 값별 개수 내림차순</td></tr></table>`,
+    items:[
+      {q:`데이터 품질 4대 문제가 아닌 것은?`,o:['결측치','이상치','형식 불일치','정규화'],ans:3,why:`4대 문제는 결·이·형·텍입니다. 정규화는 해당하지 않습니다.`},
+      {q:`pd.merge의 핵심 인자 두 개는?`,o:['on, how','left, right','key, type','axis, join'],ans:0,why:`on은 공통 키, how는 조인 방식입니다.`},
+      {q:`결측 행 제거 / 값별 개수 내림차순 함수 짝은?`,o:['fillna / sort','dropna / value_counts','drop / count','remove / group'],ans:1,why:`dropna로 행을 제거하고, value_counts로 값별 개수를 내림차순으로 셉니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`양쪽 표에 모두 있는 행만 남기는 조인은?`,o:['outer','left','inner','right'],ans:2,why:`inner는 교집합입니다.`},
+      {q:`점수 [85, 92, -999, 78]의 평균은?`,o:['85.0','-186.0','63.0','78.0'],ans:1,why:`−999가 평균을 끌어내려서 −186.0이 됩니다.`},
+      {q:`how=? 에 넣으면 양쪽 모든 행을 남기고 빈칸은 NaN이 되는 값은?`,o:["'inner'","'outer'","'left'","'right'"],ans:1,why:`outer는 합집합입니다.`},
+      {q:`'010-1234-5678'과 '01012345678'이 다른 값이 되는 문제는?`,o:['결측치','형식 불일치','이상치','텍스트 품질'],ans:1,why:`같은 정보를 다르게 표기한 경우라서 형식 불일치입니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`"조인하는 pandas 함수"와 how 값의 형태로 옳은 것은?`,o:['concat / 숫자','merge / 따옴표 붙은 문자열','join / 불린','merge / 리스트'],ans:1,why:`함수는 merge이고, how에는 'inner' 같은 따옴표 붙은 문자열을 넣습니다.`},
+      {q:`두 표를 merge하려는데 에러가 난다. 가장 흔한 원인은?`,o:['데이터가 너무 많아서','두 표에 공통 키 컬럼이 없거나 이름이 달라서','평균이 음수라서','컬럼 정렬이 안 돼서'],ans:1,why:`공통 키가 없으면 merge가 안 되므로, 미리 컬럼이 있는지 확인합니다.`},
+      {q:`같은 두 표를 inner와 outer로 합치면 행 수는?`,o:['inner가 더 많다','outer가 더 많고 NaN이 증가','같다','outer가 더 적다'],ans:1,why:`outer는 모든 행과 NaN을 포함하므로 행이 더 많아집니다.`},
+      {q:`주문 없는 고객까지 보려고 고객(왼쪽) 표 전체를 남기려면?`,o:["how='inner'","how='left'","how='right'","how='outer'"],ans:1,why:`left는 왼쪽 표 전부와, 매칭되는 오른쪽을 남깁니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`흩어진 성별 표기(M, Male, 1 …)를 한 번에 통일할 때 쓰는 것은?`,o:['리스트','매핑 딕셔너리','튜플','집합'],ans:1,why:`{'M':'남', ...} 형태의 매핑 딕셔너리로 map 합니다.`},
+      {q:`데이터 과학자가 정제에 쓰는 업무 비중은 대략?`,o:['약 20%','약 50%','약 80%','약 5%'],ans:2,why:`현실 데이터가 더러워서 업무의 약 80%를 정제에 씁니다.`},
+      {q:`텍스트 품질 문제의 예시는?`,o:['John Kim vs JOHN KIM','85 vs 92','빈칸(NaN)','-999'],ans:0,why:`대소문자나 공백 차이로 중복이 생기는 것이 텍스트 품질 문제입니다.`}
+    ]}
+ ]},
+{ id:8, title:'웹 기반 데이터 수집', spine:'모은다 (웹)',
+ levels:[
+  { type:'read', anim:'htmltree', flow:['화면 = HTML이 그린 결과','코드(body) 읽기','requests + BeautifulSoup'],
+    body:`<p>우리가 보는 웹 화면은 사실 <b>HTML이라는 설계도</b>가 그려 낸 그림입니다. 그래서 데이터를 가져올 때는 화면을 보는 것이 아니라, 그 뒤의 설계도(코드)를 직접 읽어서 원하는 부분만 오려 냅니다.</p>
+    <div class="ana">설계도는 상자 안에 상자가 든 구조인데, 실제로 <b>눈에 보이는 내용은 전부 body 상자 안</b>에 들어 있습니다. head는 제목이나 설정 같은 안 보이는 메모입니다.</div>
+    <p>가져오는 일꾼은 <b>requests</b>, 그중 원하는 부분만 골라 주는 일꾼은 <b>BeautifulSoup</b>이고, 둘이 한 팀입니다. 다만 어떤 페이지는 화면을 나중에 자바스크립트로 채우는데, 이런 곳은 처음 받은 설계도에 내용이 비어 있어서 그냥 긁으면 헛탕이 됩니다.</p>`,
+    items:[
+      {q:`수집할 때 화면이 아니라 HTML 코드(body)를 읽는 이유는?`,o:['코드가 더 예뻐서','데이터가 태그 구조 안에 있어 코드에서 골라야 정확해서','화면은 못 읽어서','법 때문에'],ans:1,why:`데이터는 태그 안에 있으므로, 코드를 읽어야 정확히 추출됩니다.`},
+      {q:`동적 페이지를 requests로 긁으면 데이터가 비는 이유는?`,o:['서버가 막아서','JS가 나중에 채워 첫 HTML엔 데이터가 없어서','인터넷이 느려서','태그가 없어서'],ans:1,why:`동적 페이지는 첫 HTML에 데이터가 아직 채워지지 않았기 때문입니다.`},
+      {q:`requests와 BeautifulSoup의 역할은?`,o:['둘 다 가져오기','가져오기 / 분석','분석 / 가져오기','둘 다 분석'],ans:1,why:`requests는 가져오고, BeautifulSoup은 분석(파싱)합니다.`}
+    ]},
+  { type:'read',
+    body:`<p>용어를 인과에 묶어서 기억합니다.</p>
+    <table><tr><th>용어</th><th>연결</th></tr>
+    <tr><td><b>body</b></td><td>실제 화면에 보이는 부분 ★ (head=안 보이는 설정)</td></tr>
+    <tr><td><b>스크래핑 / 크롤링</b></td><td>특정 데이터 추출 / 여러 페이지 자동 탐색</td></tr>
+    <tr><td><b>find_all / get_text</b></td><td>모든 태그 리스트 / 텍스트만(공백 제거)</td></tr>
+    <tr><td><b>id / class</b></td><td>고유 하나 / 묶음 그룹(중복 가능)</td></tr></table>`,
+    items:[
+      {q:`HTML에서 실제 화면에 보이는 부분 태그는?`,o:['head','body','title','meta'],ans:1,why:`보이는 콘텐츠는 전부 body 안에 있습니다.`},
+      {q:`모든 <p> 태그를 리스트로 가져오는 함수는?`,o:["find('p')","find_all('p')","get_text('p')","select_one('p')"],ans:1,why:`find_all은 모든 태그를 리스트로 가져옵니다. find는 첫 하나만 가져옵니다.`},
+      {q:`id와 class의 차이는?`,o:['id=그룹, class=고유','id=고유(하나), class=그룹(중복)','둘 다 고유','둘 다 그룹'],ans:1,why:`id는 페이지 내에 하나뿐이고, class는 묶음이라 중복될 수 있습니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`HTML에서 실제 화면에 보이는 부분 태그는? (★확정)`,o:['head','body','div','span'],ans:1,why:`정답은 body입니다.`},
+      {q:`<head> 안에 들어가는 것은?`,o:['본문 이미지','제목·스타일·메타(안 보이는 설정)','사용자에게 보이는 글','버튼'],ans:1,why:`head에는 설정이 들어가고, 보이는 것은 body입니다.`},
+      {q:`여러 페이지를 자동 탐색하며 수집하는 것은?`,o:['스크래핑','크롤링','파싱','렌더링'],ans:1,why:`크롤링은 여러 페이지를 자동으로 탐색하는 것입니다.`},
+      {q:`HTML을 가져오는(요청) 라이브러리는?`,o:['requests','BeautifulSoup','numpy','pandas'],ans:0,why:`가져오는 일은 requests가 합니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`크롤링 코드에 User-Agent 헤더·time.sleep을 넣는 이유는?`,o:['속도 향상','봇 차단 회피 + 서버 매너','디자인','정렬'],ans:1,why:`브라우저처럼 위장해 차단을 피하고, 서버 부담도 줄이기 위해서입니다.`},
+      {q:`동적 페이지를 requests로 긁었더니 데이터가 비었다. 이유는?`,o:['robots.txt 때문','JS 렌더 전 첫 HTML이라','인코딩 오류','태그 오타'],ans:1,why:`자바스크립트가 채우기 전의 첫 HTML이라 데이터가 없습니다.`},
+      {q:`get_text(strip=True)의 역할은?`,o:['태그 추가','텍스트만 뽑고 공백 제거','링크 추출','이미지 다운'],ans:1,why:`텍스트만 뽑고 앞뒤 공백을 제거합니다.`},
+      {q:`find_all('p')의 반환 형태는?`,o:['첫 태그 하나','모든 <p> 태그의 리스트','텍스트 문자열','딕셔너리'],ans:1,why:`조건에 맞는 모든 태그를 리스트로 돌려줍니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`크롤러의 수집 허용/금지 영역을 알려주는 파일은?`,o:['sitemap.xml','robots.txt','index.html','license.txt'],ans:1,why:`도메인 뒤에 /robots.txt로 확인합니다.`},
+      {q:`정적 페이지와 동적 페이지의 차이는?`,o:['정적=JS로 채움','동적=완성 HTML','정적=완성HTML(쉬움)·동적=JS로 채움(복잡)','차이 없음'],ans:2,why:`정적은 완성된 HTML을 그대로 주고, 동적은 자바스크립트로 나중에 채웁니다.`},
+      {q:`파싱(parsing)이란?`,o:['HTML 가져오기','문자열 HTML을 다루기 쉬운 객체로 바꿔 태그를 찾는 일','이미지 변환','서버 전송'],ans:1,why:`문자열 HTML을 다루기 쉬운 객체로 바꿔서 태그를 찾는 작업입니다.`}
+    ]}
+ ]},
+{ id:9, title:'공공데이터 수집과 활용', spine:'모은다 (공공)',
+ levels:[
+  { type:'read', flow:['크롤링 = 불안정·위험','기관 제공 묶음 (3형식)','OPEN API로 실시간'],
+    body:`<p>크롤링은 남의 웹에서 정보를 가져오는 일이라서, 사이트가 바뀌면 <b>오류가 나거나 법적으로 문제가</b> 될 수 있습니다. 반면 공공데이터는 기관이 가져가 쓰라고 직접 깔끔하게 정리해서 <b>묶음 상품(데이터 파일)</b>으로 내놓은 것이라, 안전하고 합법입니다.</p>
+    <div class="ana">이 묶음 상품의 포장 형식이 세 가지인데, 그것이 바로 <b>CSV · JSON · XML</b>입니다. 더 실시간으로 받고 싶으면 <b>OPEN API</b>라는 자판기에 인증키를 넣고 직접 뽑아 씁니다.</div>
+    <p>그리고 XML 같은 형식은 맨 윗줄에 이 파일이 어떤 버전이고 어떤 글자 코드인지를 적어 두는데, 그 안내문을 <b>선언부</b>라고 합니다.</p>`,
+    items:[
+      {q:`크롤링보다 공공데이터가 안전·신뢰되는 이유는?`,o:['더 빨라서','기관이 합법적으로, 정제된 형식으로 직접 제공해서','용량이 작아서','색이 예뻐서'],ans:1,why:`기관이 합법적으로 정제된 형식으로 직접 제공하므로 안정적입니다.`},
+      {q:`같은 한글 CSV가 어떤 코드에선 깨진다. 원인과 해결은?`,o:['파일 손상이라 다시 받는다','인코딩 차이라 utf-8 실패 시 cp949로 읽는다','바이러스라 백신을 돌린다','용량 초과라 나눈다'],ans:1,why:`공공 한글 파일은 cp949인 경우가 많아서, utf-8로 실패하면 cp949로 다시 읽습니다.`},
+      {q:`공공데이터의 세 가지 형식은?`,o:['HTML·CSS·JS','CSV·JSON·XML','TXT·PDF·HWP','MP3·MP4·AVI'],ans:1,why:`구조화된 데이터의 3대 형식입니다.`}
+    ]},
+  { type:'read', anim:'xml4',
+    body:`<p>XML은 데이터를 <b>태그로 감싸서</b> 부모와 자식으로 중첩한 트리(계층) 구조입니다. 구조는 네 부분으로 정해져 있습니다. 아래 버튼으로 위치를 확인해 봅니다.</p>`,
+    items:[
+      {q:`XML에서 버전·인코딩 등 파일 정보를 표시하는 부분은?`,o:['루트','선언부','속성','요소'],ans:1,why:`선언부는 맨 위의 <?xml ?> 부분입니다.`},
+      {q:`<이름>홍길동</이름> 처럼 데이터를 담는 기본 단위는?`,o:['선언부','요소','속성','루트'],ans:1,why:`데이터를 담는 기본 단위는 요소(Element)입니다.`},
+      {q:`태그 내부의 id="1" 같은 부가 정보는?`,o:['선언부','루트','속성','요소'],ans:2,why:`태그 내부의 부가 정보는 속성(Attribute)입니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`공공데이터의 세 가지 형식은? (★확정)`,o:['HTML·CSS·JS','CSV·JSON·XML','JPG·PNG·GIF','TXT·PDF·HWP'],ans:1,why:`CSV·JSON·XML입니다.`},
+      {q:`XML에서 파일 정보(버전·인코딩)를 표시하는 부분은? (★확정)`,o:['요소','선언부','속성','루트'],ans:1,why:`선언부입니다.`},
+      {q:`XML 문서를 이루는 4요소는?`,o:['head·body·title·meta','선언부·루트·요소·속성','CSV·JSON·XML·API','min·Q1·중앙·max'],ans:1,why:`선언부·루트·요소·속성입니다.`},
+      {q:`프로그램이 실시간으로 데이터를 호출하는 인터페이스는?`,o:['robots.txt','OPEN API','CSV','파싱'],ans:1,why:`OPEN API이고, 인증키가 필요합니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`문자열 XML을 트리 객체로 바꾸는 함수 ET.____는?`,o:['parse','fromstring','iter','findtext'],ans:1,why:`ET.fromstring으로 문자열을 트리로 만듭니다. 파일이면 parse를 씁니다.`},
+      {q:`OPEN API로 데이터를 수집하는 4단계 순서는?`,o:['호출→인증키→수신→URL','인증키→URL생성→호출→수신','URL→수신→인증키→호출','수신→호출→URL→인증키'],ans:1,why:`인증키 발급, URL 생성, 호출, 수신의 순서입니다.`},
+      {q:`전체 25,418건인 데이터를 OPEN API로 1회 호출하면?`,o:['전부 한 번에','최대 1,000건','100건','10건'],ans:1,why:`한 번에 최대 1,000건까지 받습니다.`},
+      {q:`CSV가 XML보다 더 적합한 경우는?`,o:['복잡한 계층 데이터','쉼표로 구분되는 간결한 표','이미지 저장','실시간 영상'],ans:1,why:`CSV는 간결한 표에 적합합니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`OPEN API의 인증키란?`,o:['파일 압축키','API를 쓰려 발급받는 고유 키','비밀번호 해제 코드','정렬 기준'],ans:1,why:`API를 쓰려고 발급받는 고유 키이고, 일일 트래픽 제한이 있습니다.`},
+      {q:`공공데이터 제공 방식 중 '시각화 자료'의 형태는?`,o:['CSV 파일','차트·지도·대시보드','XML 태그','API 키'],ans:1,why:`가공 없이 바로 보는 차트나 지도, 대시보드입니다.`},
+      {q:`XML이 복잡한 계층 데이터에 적합한 이유는?`,o:['용량이 작아서','태그로 부모-자식을 중첩해 의미·구조가 명확해서','색이 있어서','더 빨라서'],ans:1,why:`태그로 부모와 자식을 중첩해서 구조를 명확히 표현하기 때문입니다.`}
+    ]}
+ ]},
+{ id:10, title:'통계 활용', spine:'본다 (해석)',
+ levels:[
+  { type:'read', anim:'anscombe', flow:['평균은 분포를 숨김','시각화로 확인 (앤스콤)','5수요약·IQR'],
+    body:`<p>평균은 복잡한 데이터를 숫자 하나로 줄여 줘서 편하지만, 그만큼 많은 것을 숨깁니다. <b>평균이 같다고 해서 데이터가 같은 것은 결코 아닙니다.</b></p>
+    <div class="ana">실제로 앤스콤이라는 사람이 만든 네 묶음은 평균도 분산도 거의 똑같은데, 점으로 찍어 보면 모양이 완전히 다릅니다. 어떤 것은 직선이고, 어떤 것은 곡선이며, 어떤 것은 점 하나가 전체를 망칩니다. 그래서 <b>숫자만 믿지 말고 반드시 그림으로</b> 봐야 합니다.</div>
+    <p>데이터가 얼마나 퍼졌는지, 이상한 값이 있는지 보려고 다섯 개 숫자(최소·Q1·중앙·Q3·최대)로 요약하고, 상자 그림으로 한눈에 봅니다.</p>`,
+    items:[
+      {q:`평균만 보면 속을 수 있는 이유는?`,o:['평균이 항상 틀려서','평균이 분포·이상치·산포를 숨겨서','평균이 너무 커서','데이터가 적어서'],ans:1,why:`평균은 분포와 이상치, 산포를 숨기기 때문입니다.`},
+      {q:`앤스콤의 사중주가 주는 교훈은?`,o:['평균이 최고','통계가 같아도 시각화로 확인하라','데이터 많을수록 정확','상관계수 무시'],ans:1,why:`통계치가 같아도 반드시 시각화로 확인해야 합니다.`},
+      {q:`'평균이 같다'가 뜻하는 것은?`,o:['데이터가 같다','분포까지 같지는 않다','분산도 같다','이상치도 같다'],ans:1,why:`평균이 같다고 분포까지 같은 것은 아닙니다.`}
+    ]},
+  { type:'read', anim:'boxplot',
+    body:`<p>분포를 다섯 숫자로 요약하는 것을 <b>5수 요약</b>이라 하고, 사분위 범위로 이상치를 잡습니다.</p>
+    <table><tr><th>개념</th><th>뜻</th></tr>
+    <tr><td><b>5수 요약</b></td><td>최솟값·Q1·중앙값·Q3·최댓값</td></tr>
+    <tr><td><b>IQR</b></td><td>Q3 − Q1. 경계는 Q1−1.5·IQR 부터 Q3+1.5·IQR 까지</td></tr>
+    <tr><td><b>polyfit(x,y,1)</b></td><td>1차 회귀이고, (기울기, 절편)을 돌려줌</td></tr></table>`,
+    items:[
+      {q:`5수 요약을 이루는 다섯 값은?`,o:['평균·분산·표준편차·왜도·첨도','최소·Q1·중앙·Q3·최대','합·평균·개수·최대·최소','Q1·Q2·Q3·IQR·범위'],ans:1,why:`최소·Q1·중앙·Q3·최대입니다.`},
+      {q:`IQR의 정의는?`,o:['최대−최소','Q3−Q1','평균−중앙','Q1+Q3'],ans:1,why:`IQR은 Q3에서 Q1을 뺀 값입니다.`},
+      {q:`np.polyfit(x,y,1)의 반환 순서는?`,o:['(절편,기울기)','(기울기,절편)','(x,y)','(평균,분산)'],ans:1,why:`(기울기, 절편) 순서로 돌려줍니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`앤스콤의 사중주의 교훈은?`,o:['평균이 중요','시각화로 확인','데이터 많을수록 정확','상관계수 무시'],ans:1,why:`시각화로 확인해야 합니다.`},
+      {q:`5수 요약 다섯 값은?`,o:['평균·분산·…','최소·Q1·중앙·Q3·최대','합·평균·…','Q1~Q4'],ans:1,why:`최소·Q1·중앙·Q3·최대입니다.`},
+      {q:`전체로 합치면 결론이 뒤집히는 심슨의 역설은 어느 오류?`,o:['전형값 착각','이상치 왜곡','집단구성 무시','변동성 무시'],ans:2,why:`집단구성, 즉 숨은 변수를 무시해서 생깁니다.`},
+      {q:`이상치에 둔감해 평균을 보완하는 대푯값은?`,o:['평균','중앙값','최댓값','합계'],ans:1,why:`중앙값입니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`IQR을 이용한 이상치 상한 경계는?`,o:['Q3 + 1.5·IQR','Q1 − 1.5·IQR','Q2 + IQR','평균 + 2·표준편차'],ans:0,why:`상한은 Q3+1.5·IQR입니다.`},
+      {q:`np.polyfit(x,y,1)의 반환은?`,o:['(절편,기울기)','(기울기,절편)','(x,y)','(평균,분산)'],ans:1,why:`(기울기, 절편)입니다.`},
+      {q:`두 반 영어 평균이 둘 다 50인데 데이터가 다르다. 무슨 뜻일까?`,o:['데이터가 같음','분포(산포)가 다름','계산 오류','점수가 같음'],ans:1,why:`평균이 같아도 분포가 다르므로, 같은 데이터가 아닙니다.`},
+      {q:`groupby 후 Q1, Q3를 구하는 함수는?`,o:['mean()','quantile(0.25), quantile(0.75)','median()','std()'],ans:1,why:`quantile(0.25)이 Q1, quantile(0.75)가 Q3입니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`평균만 볼 때의 5대 오류에 없는 것은?`,o:['전형값 착각','이상치 왜곡','정규화 오류','집단구성 무시'],ans:2,why:`정규화 오류는 5대 오류에 없습니다.`},
+      {q:`표준편차·분산이 나타내는 것은?`,o:['평균값','평균에서 퍼진 정도(산포)','최댓값','데이터 개수'],ans:1,why:`평균에서 얼마나 퍼져 있는지인 산포를 나타냅니다.`},
+      {q:`왜도와 첨도는 각각 무엇인가?`,o:['크기와 순서','좌우 치우침과 뾰족/평평','평균과 분산','최대와 최소'],ans:1,why:`왜도는 좌우 치우침, 첨도는 뾰족하거나 평평한 정도입니다.`}
+    ]}
+ ]},
+{ id:11, title:'편향된 데이터', spine:'의심한다 (검증)',
+ levels:[
+  { type:'read', anim:'simpson', flow:['데이터가 치우침','어떻게 모였나 의심','원인 보정·범위 한정'],
+    body:`<p>데이터가 현실을 골고루 담지 못하고 한쪽으로 치우치면, 거기서 낸 평균이나 비율은 현실과 어긋나고 결국 <b>누군가에게 불리한 결정</b>으로 이어집니다. 그래서 숫자가 맞는지 따지기 전에 먼저 <b>이걸 어떻게 모았고 누가 빠졌는지</b>를 물어야 합니다.</p>
+    <div class="ana">특히 조심할 것이 <b>심슨의 역설</b>입니다. 조를 나눠 보면 모두 A가 이기는데, 전부 합치면 B가 이기는 황당한 뒤집힘입니다. 숨은 원인(예를 들어 난이도)이 두 집단에 한쪽으로 쏠려 있어서 생깁니다.</div>
+    <p>편향은 무조건 버리는 것이 아니라 <b>원인을 찾아 바로잡고</b>, 결론도 이 데이터가 대표하는 범위까지만 조심스럽게 냅니다.</p>`,
+    items:[
+      {q:`심슨의 역설이 생기는 이유는?`,o:['표본이 작아서','숨은 변수가 집단에 불균등하게 배정돼서','평균 계산 실수','이상치 때문'],ans:1,why:`숨은 변수가 두 집단에 불균등하게 배정되어서 생깁니다.`},
+      {q:`자발적 설문이 만족도를 과대평가하는 이유는?`,o:['응답자가 거짓말해서','응답자가 모집단과 달라(양극단 과대표집)','질문이 쉬워서','표본이 너무 커서'],ans:1,why:`응답자가 모집단과 달라서 만족도가 높게 나옵니다.`},
+      {q:`편향에 대한 올바른 태도는?`,o:['무조건 버린다','원인을 찾아 보정한다','평균을 다시 낸다','무시한다'],ans:1,why:`버리지 않고 원인을 찾아 보정합니다.`}
+    ]},
+  { type:'read',
+    body:`<p>원인을 알아야 보정할 수 있습니다.</p>
+    <table><tr><th>편향 4원인</th><th>예시 / 해결</th></tr>
+    <tr><td><b>① 선택</b></td><td>특정 집단만(자발적) → 무작위·층화·가중치</td></tr>
+    <tr><td><b>② 결측</b></td><td>일부 그룹 체계적 누락(민감 질문 회피)</td></tr>
+    <tr><td><b>③ 측정</b></td><td>도구·기준 차이(엄격/관대) → 공통 루브릭·Z-score</td></tr>
+    <tr><td><b>④ 수집과정</b></td><td>절차의 구조적 문제(별점 상위만)</td></tr></table>`,
+    items:[
+      {q:`편향의 4대 원인으로 묶인 것은?`,o:['선택·결측·측정·수집과정','head·body·title·meta','CSV·JSON·XML·API','Q1·Q2·Q3·IQR'],ans:0,why:`선택·결측·측정·수집과정입니다.`},
+      {q:`심슨의 역설의 정의로 옳은 것은?`,o:['전체와 부분이 같다','하위집단마다 우세한데 합치면 역전된다','평균이 큰 현상','이상치가 많은 현상'],ans:1,why:`하위집단마다 우세한데 합치면 결론이 역전되는 현상입니다.`},
+      {q:`편향 데이터 분석 5단계의 마지막은?`,o:['목표 정의','보정 적용','하위집단 분석','한계·범위 명시'],ans:3,why:`마지막은 데이터가 말할 수 있는 범위까지만 결론 내는 한계·범위 명시입니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`편향의 4대 원인이 아닌 것은?`,o:['선택','결측','측정','정규화'],ans:3,why:`4대 원인은 선택·결측·측정·수집과정입니다.`},
+      {q:`하위집단마다 우세한데 합치면 역전되는 현상은?`,o:['응답 편향','심슨의 역설','선택 편향','표준화'],ans:1,why:`심슨의 역설입니다.`},
+      {q:`자발적 응답자만 모여 만족도가 과대평가되는 편향은?`,o:['측정 편향','응답 편향','결측 편향','심슨의 역설'],ans:1,why:`응답 편향입니다.`},
+      {q:`편향된 데이터에 대한 올바른 태도는?`,o:['버린다','원인을 찾아 보정','평균 재계산','숨긴다'],ans:1,why:`원인을 찾아 보정합니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`A학과 남80·여90, B학과 남30·여35, 전체 남70·여46. 무슨 현상?`,o:['측정 편향','심슨의 역설','계산 오류','응답 편향'],ans:1,why:`학과별로는 여성이 높은데 합치면 역전되므로 심슨의 역설입니다.`},
+      {q:`채점자마다 엄격/관대해 점수가 왜곡되면 편향과 해결은?`,o:['선택 / 무작위','측정 / 공통 루브릭·Z-score','결측 / 대체','수집 / 기록'],ans:1,why:`측정 편향이고, 공통 루브릭과 Z-score 표준화로 보정합니다.`},
+      {q:`선택 편향(자발적 표본)의 해결책이 아닌 것은?`,o:['무작위 추출','층화 표집','가중치 보정','이상치 삭제'],ans:3,why:`이상치 삭제는 선택 편향과 관계가 없습니다.`},
+      {q:`편향 데이터로 결론을 쓸 때 올바른 방향은?`,o:['최대한 포괄적으로','데이터가 대표하는 범위로 한정','숫자만 크게','모집단 전체로 확대'],ans:1,why:`데이터가 대표하는 범위로 한정해서 결론을 냅니다.`}
+    ]},
+  { type:'quiz',
+    items:[
+      {q:`모집단과 표본의 차이는?`,o:['둘 다 전체','모집단=전체 대상, 표본=일부','표본=전체','모집단=일부'],ans:1,why:`모집단은 전체 대상이고, 표본은 그중 일부입니다.`},
+      {q:`혼란변수란?`,o:['보이는 변수','결과에 영향 주는 숨은 변수','평균값','이상치'],ans:1,why:`결과에 영향을 주는 숨은 변수이고, 심슨의 역설의 원인입니다.`},
+      {q:`편향 데이터 분석 5단계의 순서는?`,o:['보정→목표→출처→하위→한계','목표·모집단→출처점검→하위집단→보정→한계','출처→보정→목표→하위→한계','한계→목표→출처→보정→하위'],ans:1,why:`목표·모집단 정의, 출처 점검, 하위집단 분석, 보정, 한계 명시의 순서입니다.`}
+    ]}
+ ]}
+];
+
+/* ===================== 애니메이션 ===================== */
+const ANIM={};
+ANIM.mean=(el)=>{
+  el.innerHTML=`<div class="acap">이상치와 평균</div>
+   <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px" id="chips"></div>
+   <div style="margin:14px 0 4px"><span style="font-size:12px;color:var(--mut);font-weight:700">평균(mean)</span></div>
+   <div class="big" id="mval">85.0</div>
+   <div style="position:relative;height:30px;margin:14px 0 4px;background:linear-gradient(90deg,#fde0e6,#eee 50%,#dff0e6);border-radius:6px">
+     <div id="ndl" style="position:absolute;top:-6px;width:3px;height:42px;background:var(--ink);border-radius:2px;transition:left .5s cubic-bezier(.2,.8,.2,1);left:95%"></div></div>
+   <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut);font-family:'JetBrains Mono',monospace"><span>-200</span><span>0</span><span>+100</span></div>
+   <div class="ctrls"><button data-m="bad" class="on">이상치 -999 포함</button><button data-m="ok">중앙값(85)으로 대체</button></div>
+   <div class="rd" id="rd"></div>`;
+  const draw=(m)=>{const x=m==='bad'?-999:85;const vals=[85,92,x,78];const mean=vals.reduce((a,b)=>a+b,0)/4;
+    $('#chips',el).innerHTML=vals.map((v,i)=>{const o=i===2;const c=o?(m==='bad'?'var(--bad)':'var(--ok)'):'var(--line2)';const bg=o?(m==='bad'?'var(--bad-soft)':'var(--ok-soft)'):'#fff';const fg=o?(m==='bad'?'var(--bad)':'var(--ok)'):'var(--ink)';
+      return `<span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;padding:6px 11px;border-radius:7px;border:1.5px solid ${c};background:${bg};color:${fg}">${v}</span>`;}).join('');
+    const mv=$('#mval',el);mv.textContent=mean.toFixed(1);mv.className='big '+(mean<0?'bad':'ok');
+    $('#ndl',el).style.left=Math.max(0,Math.min(100,(mean+200)/300*100))+'%';
+    $('#rd',el).innerHTML=m==='bad'?'−999 하나가 평균을 <b>−186.0</b>으로 끌어내림.':'중앙값으로 대체 → 평균 <b>85.0</b> 복귀.';
+    $$('.ctrls button',el).forEach(b=>b.classList.toggle('on',b.dataset.m===m));};
+  $$('.ctrls button',el).forEach(b=>b.onclick=()=>draw(b.dataset.m));draw('bad');
+};
+ANIM.venn=(el)=>{
+  el.innerHTML=`<div class="acap">조인 4종 — 무엇이 남는가</div>
+   <svg viewBox="0 0 360 200"><defs><clipPath id="cbV"><circle cx="220" cy="100" r="74"/></clipPath></defs>
+   <circle id="cA" cx="140" cy="100" r="74" fill="#eef" stroke="#c9c9e8" stroke-width="2"/>
+   <circle id="cB" cx="220" cy="100" r="74" fill="#eef" stroke="#c9c9e8" stroke-width="2"/>
+   <g clip-path="url(#cbV)"><circle id="lens" cx="140" cy="100" r="74" fill="#eef"/></g>
+   <text x="92" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#6b6b8a">df1</text>
+   <text x="268" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#6b6b8a">df2</text></svg>
+   <div class="ctrls"><button data-j="inner" class="on">inner</button><button data-j="left">left</button><button data-j="right">right</button><button data-j="outer">outer</button></div>
+   <div class="rd" id="rd"></div>`;
+  const I=TC.ac,B=TC.acs,cA=$('#cA',el),cB=$('#cB',el),L=$('#lens',el);
+  const info={inner:['교집합 — 양쪽 모두 있는 행만',[B,B,I]],left:['왼쪽 전체 — df1 전부 + 매칭 df2',[I,B,I]],right:['오른쪽 전체 — df2 전부 + 매칭 df1',[B,I,I]],outer:['합집합 — 양쪽 모든 행(빈칸 NaN)',[I,I,I]]};
+  const set=(j)=>{const[t,[a,b,l]]=info[j];cA.setAttribute('fill',a);cB.setAttribute('fill',b);L.setAttribute('fill',l);
+    $('#rd',el).innerHTML="<b>how='"+j+"'</b> → "+t;$$('.ctrls button',el).forEach(x=>x.classList.toggle('on',x.dataset.j===j));};
+  $$('.ctrls button',el).forEach(x=>x.onclick=()=>set(x.dataset.j));set('inner');
+};
+ANIM.htmltree=(el)=>{
+  el.innerHTML=`<div class="acap">HTML 트리 — 무엇이 화면에 보이나</div>
+   <svg viewBox="0 0 360 210">
+    <line x1="180" y1="40" x2="100" y2="95" stroke="#c9c9e8" stroke-width="2"/><line x1="180" y1="40" x2="260" y2="95" stroke="#c9c9e8" stroke-width="2"/>
+    <line x1="260" y1="115" x2="210" y2="165" stroke="#c9c9e8" stroke-width="2"/><line x1="260" y1="115" x2="310" y2="165" stroke="#c9c9e8" stroke-width="2"/>
+    <g id="n_html"><rect x="142" y="20" width="76" height="34" rx="7"/><text x="180" y="42">html</text></g>
+    <g id="n_head"><rect x="64" y="78" width="72" height="34" rx="7"/><text x="100" y="100">head</text></g>
+    <g id="n_body"><rect x="222" y="78" width="76" height="34" rx="7"/><text x="260" y="100">body</text></g>
+    <g id="n_h1"><rect x="170" y="148" width="80" height="34" rx="7"/><text x="210" y="170">h1</text></g>
+    <g id="n_span"><rect x="276" y="148" width="74" height="34" rx="7"/><text x="313" y="170">span</text></g></svg>
+   <div class="ctrls"><button data-m="all" class="on">전체 구조</button><button data-m="show">화면에 보이는 부분</button></div>
+   <div class="rd" id="rd"></div>`;
+  const css=document.createElement('style');
+  css.textContent=`#${el.id} svg rect{fill:#fff;stroke:#c9c9e8;stroke-width:1.5;transition:.35s}#${el.id} svg text{text-anchor:middle;font-size:13px;font-weight:700;fill:#6b6b8a;font-family:'JetBrains Mono',monospace;transition:.35s}#${el.id} svg g.hi rect{fill:${TC.ac};stroke:${TC.ac}}#${el.id} svg g.hi text{fill:#fff}#${el.id} svg g.dim{opacity:.35}`;
+  el.appendChild(css);
+  const ids=['n_html','n_head','n_body','n_h1','n_span'];
+  const set=(m)=>{ids.forEach(i=>$('#'+i,el).classList.remove('hi','dim'));
+    if(m==='show'){['n_body','n_h1','n_span'].forEach(i=>$('#'+i,el).classList.add('hi'));['n_html','n_head'].forEach(i=>$('#'+i,el).classList.add('dim'));
+      $('#rd',el).innerHTML='화면에 보이는 건 <b>body</b>와 그 안(h1·span)뿐. head·html은 안 보임.';}
+    else $('#rd',el).innerHTML='html(껍데기) 아래 head(설정)·body(콘텐츠). 크롤링 대상은 <b>body</b>.';
+    $$('.ctrls button',el).forEach(b=>b.classList.toggle('on',b.dataset.m===m));};
+  $$('.ctrls button',el).forEach(b=>b.onclick=()=>set(b.dataset.m));set('all');
+};
+ANIM.xml4=(el)=>{
+  el.innerHTML=`<div class="acap">XML 4요소</div>
+   <pre style="margin:0 0 4px" id="xpre"><span class="x-decl">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="x-root">&lt;사용자목록&gt;</span>
+  &lt;사용자 <span class="x-attr">id="1"</span>&gt;
+    <span class="x-elem">&lt;이름&gt;홍길동&lt;/이름&gt;</span>
+    <span class="x-elem">&lt;나이&gt;30&lt;/나이&gt;</span>
+  &lt;/사용자&gt;
+<span class="x-root">&lt;/사용자목록&gt;</span></pre>
+   <div class="ctrls"><button data-p="decl">① 선언부</button><button data-p="root">② 루트</button><button data-p="elem">③ 요소</button><button data-p="attr">④ 속성</button></div>
+   <div class="rd" id="rd">버튼을 눌러 각 요소 위치 확인.</div>`;
+  const css=document.createElement('style');
+  css.textContent=`#${el.id} .x-decl,#${el.id} .x-root,#${el.id} .x-elem,#${el.id} .x-attr{border-radius:3px;transition:.2s;padding:0 2px}#${el.id} pre.on-decl .x-decl,#${el.id} pre.on-root .x-root,#${el.id} pre.on-elem .x-elem,#${el.id} pre.on-attr .x-attr{background:${TC.ac};color:#fff;font-weight:700}`;
+  el.appendChild(css);const pre=$('#xpre',el);
+  const t={decl:'<b>선언부</b> — 맨 위 &lt;?xml ?&gt;. 버전·인코딩 등 파일 정보.',root:'<b>루트 요소</b> — 전체를 감싸는 최상위(하나).',elem:'<b>요소</b> — &lt;태그&gt;내용&lt;/태그&gt;. 데이터 기본 단위.',attr:'<b>속성</b> — 태그 내부 부가정보. id="1".'};
+  $$('.ctrls button',el).forEach(b=>b.onclick=()=>{pre.className='';pre.classList.add('on-'+b.dataset.p);$('#rd',el).innerHTML=t[b.dataset.p];$$('.ctrls button',el).forEach(x=>x.classList.toggle('on',x===b));});
+};
+ANIM.anscombe=(el)=>{
+  el.innerHTML=`<div class="acap">앤스콤의 사중주 — 통계는 같다</div>
+   <canvas id="acv" width="640" height="480" style="width:100%;height:auto;border-radius:8px"></canvas>
+   <div class="rd">네 그래프 모두 평균·분산·상관계수·회귀선이 거의 같다. 모양만 다르다.</div>`;
+  const d=[{x:[10,8,13,9,11,14,6,4,12,7,5],y:[8.04,6.95,7.58,8.81,8.33,9.96,7.24,4.26,10.84,4.82,5.68],t:'I 직선'},
+    {x:[10,8,13,9,11,14,6,4,12,7,5],y:[9.14,8.14,8.74,8.77,9.26,8.10,6.13,3.10,9.13,7.26,4.74],t:'II 곡선'},
+    {x:[10,8,13,9,11,14,6,4,12,7,5],y:[7.46,6.77,12.74,7.11,7.81,8.84,6.08,5.39,8.15,6.42,5.73],t:'III 이상치'},
+    {x:[8,8,8,8,8,8,8,19,8,8,8],y:[6.58,5.76,7.71,8.84,8.47,7.04,5.25,12.50,5.56,7.91,6.89],t:'IV 한점의존'}];
+  const cv=$('#acv',el),ctx=cv.getContext('2d'),cw=cv.width/2,ch=cv.height/2,pad=34,xn=2,xx=20,yn=2,yx=14;
+  const plot=(D,ox,oy,p)=>{const mx=v=>ox+pad+(v-xn)/(xx-xn)*(cw-pad*1.4),my=v=>oy+ch-pad-(v-yn)/(yx-yn)*(ch-pad*1.6);
+    ctx.strokeStyle='#e1e1ee';ctx.lineWidth=1;ctx.strokeRect(ox+pad-6,oy+pad-12,cw-pad*1.4+12,ch-pad*1.6+18);
+    ctx.strokeStyle='#c9c9e8';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(mx(xn),my(3+0.5*xn));ctx.lineTo(mx(xx),my(3+0.5*xx));ctx.stroke();
+    ctx.fillStyle=TC.ac;const n=Math.floor(D.x.length*p);for(let i=0;i<n;i++){ctx.beginPath();ctx.arc(mx(D.x[i]),my(D.y[i]),4.5,0,7);ctx.fill();}
+    ctx.fillStyle='#1c1c28';ctx.font='700 14px JetBrains Mono, monospace';ctx.fillText(D.t,ox+pad-4,oy+pad+2);};
+  let p=0;const tick=()=>{ctx.clearRect(0,0,cv.width,cv.height);p=Math.min(1,p+0.04);plot(d[0],0,0,p);plot(d[1],cw,0,p);plot(d[2],0,ch,p);plot(d[3],cw,ch,p);if(p<1)requestAnimationFrame(tick);};tick();
+};
+ANIM.boxplot=(el)=>{
+  el.innerHTML=`<div class="acap">5수 요약 · 상자도표 · IQR</div><svg viewBox="0 0 360 150"></svg>
+   <div class="rd">상자 = Q1~Q3, 가운데선 = 중앙값. 점선(IQR 1.5배) 밖은 이상치.</div>`;
+  const svg=$('svg',el),mn=20,q1=60,med=72,q3=84,iqr=q3-q1,lo=q1-1.5*iqr,hi=q3+1.5*iqr,dn=10,dx=110,X=v=>30+(v-dn)/(dx-dn)*300,cy=70,ns='http://www.w3.org/2000/svg';
+  const add=(t,a)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);svg.appendChild(e);return e;};
+  add('line',{x1:30,y1:120,x2:330,y2:120,stroke:'#d6d6e0','stroke-width':1});
+  [20,40,60,80,100].forEach(v=>{add('line',{x1:X(v),y1:116,x2:X(v),y2:124,stroke:'#c9c9e8','stroke-width':1});const t=add('text',{x:X(v),y:138,'text-anchor':'middle','font-size':10,fill:'#9499a3'});t.textContent=v;});
+  add('line',{x1:X(lo),y1:48,x2:X(lo),y2:92,stroke:'#d9892b','stroke-width':1.5,'stroke-dasharray':'4 3'});
+  add('line',{x1:X(hi),y1:48,x2:X(hi),y2:92,stroke:'#d9892b','stroke-width':1.5,'stroke-dasharray':'4 3'});
+  add('line',{x1:X(q1),y1:cy,x2:X(lo),y2:cy,stroke:'#9499a3','stroke-width':1.5});add('line',{x1:X(q3),y1:cy,x2:X(hi),y2:cy,stroke:'#9499a3','stroke-width':1.5});
+  const box=add('rect',{x:X(q1),y:48,width:0,height:44,rx:5,fill:TC.acs,stroke:TC.ac,'stroke-width':2});
+  const mln=add('line',{x1:X(med),y1:48,x2:X(med),y2:92,stroke:TC.acd,'stroke-width':3,opacity:0});
+  const out=add('circle',{cx:X(mn),cy:cy,r:0,fill:'#c0344a'});
+  const lab=(v,tx,c,y)=>{const t=add('text',{x:X(v),y:y||40,'text-anchor':'middle','font-size':10,'font-weight':700,fill:c||TC.ac,opacity:0});t.textContent=tx;return t;};
+  const ls=[lab(q1,'Q1 60'),lab(med,'중앙 72',TC.acd),lab(q3,'Q3 84'),lab(hi,'+1.5·IQR','#d9892b',30),lab(mn,'이상치','#c0344a')];
+  let t=0;const a=()=>{t=Math.min(1,t+0.04);box.setAttribute('width',(X(q3)-X(q1))*t);if(t>0.6){mln.setAttribute('opacity',1);out.setAttribute('r',5);ls.forEach(l=>l.setAttribute('opacity',1));}if(t<1)requestAnimationFrame(a);};a();
+};
+ANIM.simpson=(el)=>{
+  el.innerHTML=`<div class="acap">심슨의 역설 — 합치면 뒤집힌다</div><svg viewBox="0 0 360 200"></svg>
+   <div class="ctrls"><button data-m="dept" class="on">학과별로 보기</button><button data-m="total">전체로 합치기</button></div><div class="rd" id="rd"></div>`;
+  const svg=$('svg',el),ns='http://www.w3.org/2000/svg',base=120;
+  const add=(t,a,tx)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);if(tx!=null)e.textContent=tx;svg.appendChild(e);return e;};
+  add('line',{x1:20,y1:base,x2:340,y2:base,stroke:'#d6d6e0','stroke-width':1});const H=v=>v/100*88;
+  const mk=(x,val,col,name)=>{const r=add('rect',{x:x,y:base,width:46,height:0,rx:4,fill:col});const pct=add('text',{x:x+23,y:base-4,'text-anchor':'middle','font-size':12,'font-weight':700,fill:'#1c1c28',opacity:0},val+'%');const nm=add('text',{x:x+23,y:base+16,'text-anchor':'middle','font-size':11,fill:'#6b6b8a'},name);return{r,pct,nm,val};};
+  const M='#9499a3',F=TC.ac;
+  const dept=[mk(40,80,M,'남'),mk(92,90,F,'여'),mk(200,30,M,'남'),mk(252,35,F,'여')];
+  const hd=(x,t)=>add('text',{x:x,y:24,'text-anchor':'middle','font-size':11,'font-weight':700,fill:'#1c1c28'},t);
+  const hA=hd(89,'A 학과 (쉬움)'),hB=hd(249,'B 학과 (어려움)');
+  const tot=[mk(96,70,M,'남 전체'),mk(196,46,F,'여 전체')];
+  const hT=add('text',{x:180,y:24,'text-anchor':'middle','font-size':11,'font-weight':700,fill:'#c0344a',opacity:0},'전체 합산');
+  tot.forEach(b=>{b.r.setAttribute('opacity',0);b.nm.setAttribute('opacity',0);});
+  const grow=(arr)=>arr.forEach(b=>{let t=0;const a=()=>{t=Math.min(1,t+0.06);const h=H(b.val)*t;b.r.setAttribute('height',h);b.r.setAttribute('y',base-h);b.pct.setAttribute('y',base-h-4);if(t>0.5)b.pct.setAttribute('opacity',1);if(t<1)requestAnimationFrame(a);};a();});
+  const dept_show=()=>{[hA,hB].forEach(h=>h.setAttribute('opacity',1));hT.setAttribute('opacity',0);dept.forEach(b=>{b.r.setAttribute('opacity',1);b.nm.setAttribute('opacity',1);});tot.forEach(b=>{b.r.setAttribute('opacity',0);b.pct.setAttribute('opacity',0);b.nm.setAttribute('opacity',0);b.r.setAttribute('height',0);b.r.setAttribute('y',base);});grow(dept);$('#rd',el).innerHTML='두 학과 <b>모두 여성 합격률이 높다</b> (90&gt;80, 35&gt;30).';};
+  const total_show=()=>{[hA,hB].forEach(h=>h.setAttribute('opacity',0));hT.setAttribute('opacity',1);dept.forEach(b=>{b.r.setAttribute('opacity',0);b.pct.setAttribute('opacity',0);b.nm.setAttribute('opacity',0);b.r.setAttribute('height',0);b.r.setAttribute('y',base);});tot.forEach(b=>{b.r.setAttribute('opacity',1);b.nm.setAttribute('opacity',1);});grow(tot);$('#rd',el).innerHTML='합치면 <b style="color:#c0344a">남(70%) &gt; 여(46%)</b> 역전. 여성이 어려운 B에 몰려서.';};
+  $$('.ctrls button',el).forEach(b=>b.onclick=()=>{$$('.ctrls button',el).forEach(x=>x.classList.toggle('on',x===b));b.dataset.m==='dept'?dept_show():total_show();});
+  dept_show();
+};
+
+/* ===================== 상태 ===================== */
+const SAVE='inds_matrix_v2';
+let state=(()=>{try{return JSON.parse(localStorage.getItem(SAVE))||{done:{}};}catch(e){return{done:{}};}})();
+const persist=()=>localStorage.setItem(SAVE,JSON.stringify(state));
+const keyOf=(ci,si)=>MATRIX[ci].id+'-'+(si+1);
+const isDone=(ci,si)=>!!state.done[keyOf(ci,si)];
+const doneCount=()=>Object.keys(state.done).filter(k=>state.done[k]).length;
+const updateTop=()=>{const d=doneCount(),t=MATRIX.length*5;$('#topbar').style.width=(d/t*100)+'%';$('#toppct').textContent=d+'/'+t;};
+
+/* ===================== 홈 ===================== */
+const CHK='<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+function renderHome(){
+  inView=false; snapBack(); applyTheme(null);
+  let head='<tr><td class="corner"></td>';
+  MATRIX.forEach(c=>head+=`<th style="color:${CHC[c.id].ac}">${c.id}장</th>`);
+  head+='</tr>';
+  let rows='';
+  for(let s=0;s<5;s++){
+    rows+=`<tr><td class="rowlab"><span class="lvic">${icSvg(ICO.lv[s])}</span><span class="ln">${s+1}</span></td>`;
+    MATRIX.forEach((c,ci)=>{const dn=isDone(ci,s);
+      rows+=`<td><button class="cell lvl${s+1} ${dn?'done':''}" style="--ac:${CHC[c.id].ac}" data-c="${ci}" data-s="${s}" title="${c.id}장 · ${LV[s]}"><span class="cdot">${dn?CHK:''}</span></button></td>`;});
+    rows+='</tr>';
+  }
+  $('#home').innerHTML=`
+   <div class="kick">2026-1학기 · 인공지능과 디지털 사고</div>
+   <h1>기말 · 7 ~ 11장</h1>
+   <p class="lead">7장부터 11장까지, 한 칸씩 읽고 선지로 확인하는 기말 학습입니다.</p>
+   <div class="spine">
+     <div class="sl">사용 방법</div>
+     <ul class="usage">
+       <li>가로는 <b>장(7~11장)</b>, 세로는 <b>단계(1~5)</b>입니다. 칸 하나가 한 장의 한 단계입니다.</li>
+       <li>칸을 누르면 그 단계의 설명과 선지 문제가 나오고, 보기를 다 맞히면 칸이 채워집니다.</li>
+       <li>잠금이 없어 아무 칸이나 바로 시작할 수 있습니다. 세로로 내려갈수록 색이 진해지고 더 깊은 단계입니다.</li>
+       <li>단계 화면에서 <b>아래로 당기면 다음 단계</b>, <b>위로 당기면 이전 단계</b>, 좌우로 밀면 옆 장으로 갑니다.</li>
+       <li>장 순서는 데이터 흐름과 이어집니다. 모은다(8·9) <span class="ar">→</span> 다듬고 합친다(7) <span class="ar">→</span> 본다(10) <span class="ar">→</span> 의심한다(11).</li>
+     </ul>
+   </div>
+   <table class="mx"><thead>${head}</thead><tbody>${rows}</tbody></table>
+   <div class="legend"><b>단계</b>${LV.map((n,i)=>`<span>${i+1} ${n}</span>`).join('')}</div>
+   <div class="hint">가로 = 장 번호 · 세로 = 단계 · 칸 색이 진할수록 깊은 단계</div>
+   <div class="reset"><button id="resetBtn">진행 기록 초기화</button></div>`;
+  $$('.cell',$('#home')).forEach(b=>b.onclick=()=>openCell(+b.dataset.c,+b.dataset.s));
+  $('#resetBtn').onclick=()=>{if(confirm('모든 진행 기록을 지울까요?')){state={done:{}};persist();renderHome();updateTop();}};
+  $('#home').style.display='block';$('#view').classList.remove('active');$('#crumb').textContent='기말 7~11장';
+  updateTop();
+}
+
+/* ===================== 칸 보기 ===================== */
+let cur={ci:0,si:0};
+function openCell(ci,si){cur={ci,si};renderCell('up');}
+function flowHtml(arr){return `<div class="flow2">`+arr.map((x,i)=>(i?`<span class="a">${icSvg(CHV.r)}</span>`:'')+`<span class="c">${x}</span>`).join('')+`</div>`;}
+function renderCell(anim){
+  inView=true; snapBack();
+  const c=MATRIX[cur.ci],cell=c.levels[cur.si],lv=cur.si+1,isRead=cell.type==='read';
+  applyTheme(CHC[c.id]);
+  const v=$('#view');
+  v.innerHTML=`
+   <div class="vmeta"><span class="ch">${icSvg(ICO.ch[c.id])} ${c.id}장 · ${c.title}</span><span class="sp">${c.spine}</span></div>
+   <div class="lvtag lv${lv}">${icSvg(ICO.lv[cur.si])} 단계 ${lv} · ${LV[cur.si]}</div>
+   <div class="vtitle">${LV[cur.si]}</div>
+   ${isRead?`<div class="read">${cell.flow?flowHtml(cell.flow):''}${cell.body||''}</div>`:''}
+   <div class="items">
+     <div class="ihead">${icSvg(ICO.lv[2])} ${isRead?'확인 · 선지 테스트':'문제 · 선지 테스트'}</div>
+     <div class="isub">${LVDESC[cur.si]} 보기에서 정답을 고르면 채워집니다.</div>
+     <div id="iwrap"></div>
+   </div>
+   <div class="nav">
+     <button class="side" id="leftBtn" title="이전 장">${icSvg(CHV.l)}</button>
+     <button class="stg up" id="upBtn">${icSvg(CHV.u)} 이전 단계</button>
+     <button class="stg down" id="downBtn">${icSvg(CHV.d)} 다음 단계</button>
+     <button class="side" id="rightBtn" title="다음 장">${icSvg(CHV.r)}</button>
+   </div>
+   <div class="donehint" id="dh"></div>
+   <div class="swipehint">모바일에서는 좌우로 밀어 장을 옮기고, 아래로 당기면 다음 단계, 위로 당기면 이전 단계로 갑니다.</div>`;
+  v.classList.remove('slin','slout','up');void v.offsetWidth;
+  v.classList.add('active', anim||'up');
+  $('#home').style.display='none';
+  $('#crumb').textContent=`${c.id}장 · 단계 ${lv}`;
+  if(isRead && cell.anim && ANIM[cell.anim]){const host=document.createElement('div');host.className='anim';host.id='anim_'+c.id+'_'+lv;
+    $('.read',v).appendChild(host);ANIM[cell.anim](host);}
+  renderItems(cell);
+  $('#leftBtn').disabled=cur.ci===0; $('#leftBtn').onclick=()=>chapterMove(-1);
+  $('#rightBtn').disabled=cur.ci===MATRIX.length-1; $('#rightBtn').onclick=()=>chapterMove(1);
+  $('#upBtn').disabled=cur.si===0; $('#upBtn').onclick=()=>stageMove(-1);
+  $('#downBtn').disabled=cur.si===4; $('#downBtn').onclick=()=>stageMove(1);
+  window.scrollTo(0,0);
+  refreshDone();
+}
+function chapterMove(d){const ni=cur.ci+d;if(ni<0||ni>=MATRIX.length)return;cur.ci=ni;cur.si=0;renderCell(d>0?'slin':'slout');toast((d>0?'다음 장 ':'이전 장 ')+MATRIX[ni].id+'장');}
+function stageMove(d){const ns=cur.si+d;if(ns<0||ns>=5)return;cur.si=ns;renderCell('up');}
+
+function renderItems(cell){
+  const wrap=$('#iwrap'),done=isDone(cur.ci,cur.si);
+  wrap.innerHTML=cell.items.map((it,i)=>`
+    <div class="item" data-i="${i}">
+      <div class="iq"><span class="qn">Q${i+1}</span>${it.q}</div>
+      <div class="opts">${it.o.map((o,oi)=>`<button class="opt" data-i="${i}" data-o="${oi}"><span class="mk">${'ABCD'[oi]}</span><span>${o}</span></button>`).join('')}</div>
+      <div class="why" hidden></div>
+    </div>`).join('');
+  const solved=new Set();
+  const reveal=(e,it)=>{const w=$('.why',e);w.innerHTML='<b>정답.</b> '+(it.why||'');w.hidden=false;};
+  if(done){cell.items.forEach((it,i)=>{const e=wrap.querySelector(`.item[data-i="${i}"]`);$$('.opt',e).forEach(b=>{b.disabled=true;if(+b.dataset.o===it.ans)b.classList.add('ok');});reveal(e,it);});}
+  $$('.opt',wrap).forEach(b=>b.onclick=()=>{const i=+b.dataset.i,o=+b.dataset.o,it=cell.items[i];if(solved.has(i))return;const e=wrap.querySelector(`.item[data-i="${i}"]`);
+    if(o===it.ans){b.classList.add('ok');$$('.opt',e).forEach(x=>x.disabled=true);reveal(e,it);solved.add(i);if(solved.size===cell.items.length)markDone();}
+    else{b.classList.add('bad');setTimeout(()=>b.classList.remove('bad'),350);}});
+}
+function markDone(){state.done[keyOf(cur.ci,cur.si)]=true;persist();updateTop();refreshDone();}
+function refreshDone(){const dh=$('#dh');if(!dh)return;if(isDone(cur.ci,cur.si)){dh.innerHTML=icSvg(CHV.d)+' 완료했습니다. 아래로 당기거나 다음 단계 버튼으로 넘어갑니다.';dh.className='donehint ok';}else{dh.textContent='보기를 다 맞히면 이 칸이 채워집니다.';dh.className='donehint';}}
+
+/* ===================== 제스처 (용수철) ===================== */
+let inView=false;
+const TRIG=115;                 /* 발동 임계 */
+let drag=0,gdir=0,wTimer=null,cool=false,tdir=0;
+let tsx=0,tsy=0,tact=false;
+function atBottom(){return window.innerHeight+window.scrollY>=document.body.scrollHeight-4;}
+function atTop(){return window.scrollY<=2;}
+function elastic(px){return 64*(1-Math.exp(-px/130));}   /* 고무줄 — 당길수록 저항 */
+function showPull(px,d){
+  const bar=d>0?$('#pullbot'):$('#pulltop'),other=d>0?$('#pulltop'):$('#pullbot');
+  other.style.height='0px';other.classList.remove('ready');
+  bar.style.transition='none';bar.style.height=elastic(px)+'px';
+  const ready=px>=TRIG;bar.classList.toggle('ready',ready);
+  const chev=d>0?CHV.d:CHV.u;
+  bar.innerHTML=icSvg(chev)+(ready?('놓으면 '+(d>0?'다음':'이전')+' 단계'):('더 당기면 '+(d>0?'다음':'이전')+' 단계'));
+}
+function snapBack(){['#pullbot','#pulltop'].forEach(s=>{const b=$(s);if(!b)return;b.style.transition='height .3s cubic-bezier(.2,.9,.3,1)';b.style.height='0px';b.classList.remove('ready');});drag=0;gdir=0;}
+function fire(d){if(cool){snapBack();return;}if((d>0&&cur.si>=4)||(d<0&&cur.si<=0)){snapBack();return;}cool=true;snapBack();stageMove(d>0?1:-1);setTimeout(()=>cool=false,650);}
+function onWheel(e){if(!inView||cool)return;
+  let d=0;
+  if(e.deltaY>0&&atBottom()&&cur.si<4)d=1;
+  else if(e.deltaY<0&&atTop()&&cur.si>0)d=-1;
+  if(d===0){if(drag>0)snapBack();return;}
+  e.preventDefault();
+  if(gdir!==d){drag=0;gdir=d;}
+  drag+=Math.abs(e.deltaY);
+  showPull(drag,d);
+  clearTimeout(wTimer);
+  wTimer=setTimeout(()=>{if(drag>=TRIG)fire(gdir);else snapBack();},150);  /* 멈췄을 때(놓듯) 판정 */
+}
+function onTS(e){if(!inView)return;const t=e.touches[0];tsx=t.clientX;tsy=t.clientY;tact=true;tdir=0;drag=0;}
+function onTM(e){if(!inView||!tact)return;const t=e.touches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
+  if(Math.abs(dx)>Math.abs(dy))return;
+  if(dy<0&&atBottom()&&cur.si<4){tdir=1;drag=-dy;e.preventDefault();showPull(drag,1);}
+  else if(dy>0&&atTop()&&cur.si>0){tdir=-1;drag=dy;e.preventDefault();showPull(drag,-1);}}
+function onTE(e){if(!inView||!tact)return;tact=false;const t=e.changedTouches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
+  if(tdir!==0){if(drag>=TRIG)fire(tdir);else snapBack();tdir=0;return;}
+  if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.4){if(dx<0)chapterMove(1);else chapterMove(-1);}}
+window.addEventListener('wheel',onWheel,{passive:false});
+window.addEventListener('touchstart',onTS,{passive:true});
+window.addEventListener('touchmove',onTM,{passive:false});
+window.addEventListener('touchend',onTE,{passive:true});
+
+let toastT=null;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1700);}
+$('#homeBtn').onclick=renderHome;
+renderHome();
+</script>
+</body>
+</html>
