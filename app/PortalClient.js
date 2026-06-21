@@ -83,6 +83,11 @@ export default function PortalClient({ projects = [] }) {
 
   useEffect(() => {
     setHydrated(true); setClock(clockStr());
+    // 모듈 갔다가 돌아와도 로그인 유지 — 게스트였으면 게이트 없이 dock 복원
+    try {
+      const saved = JSON.parse(localStorage.getItem('rk_login') || 'null');
+      if (localStorage.getItem('rk_mode') === 'guest' && saved && saved.name) { setMode('guest'); resolveGuest(true); }
+    } catch (e) {}
     const t = setInterval(() => setClock(clockStr()), 30000);
     return () => clearInterval(t);
   }, []);
@@ -123,21 +128,21 @@ export default function PortalClient({ projects = [] }) {
       if (pw !== ADMIN_PASS) { if (pw !== null) alert('비밀번호가 틀렸어요'); return; }
     }
     setLeaving(true);
-    setTimeout(() => { setLeaving(false); setMode(m); if (m === 'guest') resolveGuest(); }, 400);
+    setTimeout(() => { setLeaving(false); setMode(m); if (m === 'guest') resolveGuest(false); }, 400);
   }
 
-  async function resolveGuest() {
+  async function resolveGuest(silent) {
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem('rk_login') || 'null'); } catch (e) {}
     if (saved && saved.name && saved.pin) {
       try {
         const { data } = await supabase.rpc('guest_auth', { p_name: saved.name, p_pin: saved.pin });
         const r = data && data[0];
-        if (r && r.status !== 'badpin') { onLogin(saved.name, saved.pin, r); return; }
-        localStorage.removeItem('rk_login');
-      } catch (e) { onLogin(saved.name, saved.pin, null); return; }  // 오프라인 폴백
+        if (r && r.status !== 'badpin') { onLogin(saved.name, saved.pin, r, silent); return; }
+        localStorage.removeItem('rk_login'); localStorage.removeItem('rk_mode');
+      } catch (e) { onLogin(saved.name, saved.pin, null, silent); return; }  // 오프라인 폴백
     }
-    setModal({ name: '', pin: '', err: '', busy: false });
+    if (silent) setMode(null); else setModal({ name: '', pin: '', err: '', busy: false });
   }
 
   async function doLogin() {
@@ -153,15 +158,15 @@ export default function PortalClient({ projects = [] }) {
     } catch (e) { setModal({ ...modal, busy: false, err: '연결 오류 — 잠시 후 다시' }); }
   }
 
-  function onLogin(name, pin, r) {
-    try { localStorage.setItem('rk_login', JSON.stringify({ name, pin })); } catch (e) {}
+  function onLogin(name, pin, r, silent) {
+    try { localStorage.setItem('rk_login', JSON.stringify({ name, pin })); localStorage.setItem('rk_mode', 'guest'); } catch (e) {}
     setGuestName(name); setMe(r); setModal(null);
     sess.current = { name, last: Date.now(), opened: 0 };
-    typeWelcome(name);
+    if (!silent) typeWelcome(name);
   }
   function logout() {
     flush(); sess.current = { name: null, last: 0, opened: 0 };
-    try { localStorage.removeItem('rk_login'); } catch (e) {}
+    try { localStorage.removeItem('rk_login'); localStorage.removeItem('rk_mode'); } catch (e) {}
     setMe(null); setGuestName(null); setWelcome(''); setTyping(false);
     setMode(null); setOpenId(null);
   }

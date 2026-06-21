@@ -643,8 +643,20 @@ ANIM.simpson=(el)=>{
 
 /* ===================== 상태 ===================== */
 const SAVE='inds_matrix_v2';
-let state=(()=>{try{return JSON.parse(localStorage.getItem(SAVE))||{done:{}};}catch(e){return{done:{}};}})();
-const persist=()=>localStorage.setItem(SAVE,JSON.stringify(state));
+let state=(()=>{try{const s=JSON.parse(localStorage.getItem(SAVE))||{};s.done=s.done||{};s.ox=s.ox||{i:0,score:0};return s;}catch(e){return{done:{},ox:{i:0,score:0}};}})();
+/* ── 계정 기반 진행도 동기화 (포털과 같은 출처의 localStorage 'rk_login' 사용) ── */
+const SUPA='https://ovnabmmofgujgefuamzn.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92bmFibW1vZmd1amdlZnVhbXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NzY1NDMsImV4cCI6MjA5MDU1MjU0M30.IvgT7eE_PfxRplHVkf2kXGw_sqGy07WNausqit3qskk';
+function rkAccount(){try{const l=JSON.parse(localStorage.getItem('rk_login')||'null');return l&&l.name?l.name:null;}catch(e){return null;}}
+const ACC=rkAccount();
+function rpc(fn,body){return fetch(SUPA+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.ok?r.json():null).catch(()=>null);}
+const persistLocal=()=>localStorage.setItem(SAVE,JSON.stringify(state));
+let saveT=null;
+function persist(){persistLocal();if(!ACC)return;clearTimeout(saveT);saveT=setTimeout(()=>rpc('guest_set_progress',{p_name:ACC,p_progress:{done:state.done,ox:state.ox}}),600);}
+async function loadProgress(){if(!ACC)return;const p=await rpc('guest_get_progress',{p_name:ACC});if(!p||typeof p!=='object')return;
+  const md=Object.assign({},state.done||{});if(p.done)for(const k in p.done){if(p.done[k])md[k]=true;}state.done=md;
+  const po=p.ox||{};state.ox=state.ox||{i:0,score:0};state.ox.i=Math.max(state.ox.i||0,po.i||0);state.ox.score=Math.max(state.ox.score||0,po.score||0);
+  persistLocal();updateTop();if($('#home')&&$('#home').style.display!=='none')renderHome();}
 const keyOf=(ci,si)=>MATRIX[ci].id+'-'+(si+1);
 const isDone=(ci,si)=>!!state.done[keyOf(ci,si)];
 const doneCount=()=>Object.keys(state.done).filter(k=>state.done[k]).length;
@@ -688,7 +700,7 @@ function renderHome(){
    <div class="hint">가로 = 장 번호 · 세로 = 단계 · 칸 색이 진할수록 깊은 단계</div>
    <div class="reset"><button id="resetBtn">진행 기록 초기화</button></div>`;
   $$('.cell',$('#home')).forEach(b=>b.onclick=()=>openCell(+b.dataset.c,+b.dataset.s));
-  $('#resetBtn').onclick=()=>{if(confirm('모든 진행 기록을 지울까요?')){state={done:{}};persist();renderHome();updateTop();}};
+  $('#resetBtn').onclick=()=>{if(confirm('모든 진행 기록을 지울까요?')){state={done:{},ox:{i:0,score:0}};persist();renderHome();updateTop();}};
   $('#entMock').onclick=goMock;$('#entOX').onclick=goOX;$('#entReview').onclick=renderReview;
   $('#usageToggle').onclick=()=>{const ul=$('#usageList'),t=$('#usageToggle');ul.hidden=!ul.hidden;t.classList.toggle('open',!ul.hidden);};
   $('#home').style.display='block';$('#view').classList.remove('active');$('#crumb').textContent='기말 7~11장';
@@ -863,10 +875,10 @@ function renderReview(){
 }
 
 let oxI=0,oxScore=0;
-function goOX(){oxI=0;oxScore=0;renderOX();}
+function goOX(){oxI=Math.min(state.ox.i||0,OX.length);oxScore=state.ox.score||0;renderOX();}   /* 저장된 위치에서 이어풀기 */
 function renderOX(){
   screenStart();$('#crumb').textContent='OX 퀴즈';
-  if(oxI>=OX.length){$('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈 완료</div></div><div class="oxres"><div class="oxscore">${oxScore} <span>/ ${OX.length}</span></div><button class="bigbtn" id="again">다시 풀기</button></div>`;$('#sb').onclick=renderHome;$('#again').onclick=goOX;return;}
+  if(oxI>=OX.length){$('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈 완료</div></div><div class="oxres"><div class="oxscore">${oxScore} <span>/ ${OX.length}</span></div><button class="bigbtn" id="again">다시 풀기</button></div>`;$('#sb').onclick=renderHome;$('#again').onclick=()=>{state.ox={i:0,score:0};persist();oxI=0;oxScore=0;renderOX();};return;}
   const q=OX[oxI];
   $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈</div><div class="ssub">${oxI+1} / ${OX.length} · 맞은 개수 ${oxScore}</div></div>
     <div class="oxprog"><i style="width:${oxI/OX.length*100}%"></i></div>
@@ -874,16 +886,16 @@ function renderOX(){
     <div class="oxbtns"><button class="oxb o" data-v="1">O</button><button class="oxb x" data-v="0">X</button></div>
     <div class="oxfb" id="fb" hidden></div><button class="bigbtn" id="next" hidden>다음 →</button>`;
   $('#sb').onclick=renderHome;
-  $$('.oxb',$('#view')).forEach(b=>b.onclick=()=>{const fb=$('#fb');if(fb.dataset.done)return;const v=b.dataset.v==='1',ok=v===q.a;if(ok)oxScore++;
+  $$('.oxb',$('#view')).forEach(b=>b.onclick=()=>{const fb=$('#fb');if(fb.dataset.done)return;const v=b.dataset.v==='1',ok=v===q.a;if(ok)oxScore++;state.ox={i:oxI,score:oxScore};persist();
     $$('.oxb',$('#view')).forEach(x=>x.disabled=true);b.classList.add(ok?'ok':'bad');
     fb.dataset.done=1;fb.hidden=false;fb.className='oxfb '+(ok?'ok':'bad');fb.innerHTML=`<b>${ok?'정답':'오답'} · 답은 ${q.a?'O':'X'}.</b> ${q.why}<div class="src">출처 ${q.src}</div>`;$('#next').hidden=false;});
-  $('#next').onclick=()=>{oxI++;renderOX();};
+  $('#next').onclick=()=>{oxI++;state.ox={i:oxI,score:oxScore};persist();renderOX();};
 }
 
 let mockSet=0,mockI=0,mockAns=[];
 function goMock(){renderMockHome();}
 function renderMockHome(){
-  screenStart();$('#crumb').textContent='모의고사';const locked=!allDone();
+  screenStart();$('#crumb').textContent='모의고사';const locked=false;   /* 잠금 해제 — 항상 열림 */
   $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">모의고사</div><div class="ssub">${locked?'모든 칸(25개)을 클리어하면 열립니다. 현재 '+doneCount()+'/25.':'세트를 골라 시작하세요. 각 '+MOCK[0].q.length+'문항.'}</div></div>
     <div class="msets">${MOCK.map((m,i)=>`<button class="mset${locked?' locked':''}" data-i="${i}" ${locked?'disabled':''}><span class="msn">SET ${String.fromCharCode(65+i)}</span><span class="mst">${m.title}</span><span class="msc">${m.q.length}문항</span></button>`).join('')}</div>`;
   $('#sb').onclick=renderHome;
@@ -1034,6 +1046,7 @@ function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');cl
 $('#homeBtn').onclick=renderHome;
 $('#navL').onclick=()=>chapterMove(-1);$('#navR').onclick=()=>chapterMove(1);
 renderHome();
+loadProgress();
 </script>
 </body>
 </html>
