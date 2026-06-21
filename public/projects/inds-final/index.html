@@ -21,7 +21,7 @@
   }
   html,body{background:var(--bg);color:var(--body);font-family:'Noto Sans KR',sans-serif;
     line-height:1.75;-webkit-font-smoothing:antialiased;font-size:15px;letter-spacing:-.003em;overscroll-behavior-y:contain}
-  body{display:flex;justify-content:center}
+  body{display:flex;justify-content:center;overflow-x:clip}
   .app{width:100%;max-width:880px;min-height:100vh;background:var(--paper);box-shadow:0 0 70px rgba(20,20,40,.07);position:relative}
   b{font-weight:700;color:var(--ink)} .ind{color:var(--ind);font-weight:700}
   .hl{background:linear-gradient(180deg,transparent 58%,var(--hl) 58%);padding:0 3px;font-weight:700;color:var(--ink)}
@@ -150,6 +150,7 @@
   .chapnav:hover:not(:disabled){border-color:var(--ind);color:var(--ind-deep);transform:translateY(-50%) scale(1.08)}
   .chapnav:disabled{opacity:.18;pointer-events:none}
   .chapnav svg{width:22px;height:22px;stroke:currentColor;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .chapnav.ready{background:var(--ind);color:#fff;border-color:var(--ind);transform:translateY(-50%) scale(1.14)}
 
   .pullbar{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:760px;pointer-events:none;z-index:40;
     display:flex;justify-content:center;align-items:center;gap:8px;height:0;overflow:hidden;font-size:13px;font-weight:700}
@@ -716,14 +717,34 @@ function onWheel(e){if(!inView||cool)return;
   clearTimeout(wTimer);
   wTimer=setTimeout(()=>{if(drag>=TRIG)fire(gdir);else snapBack();},150);  /* 멈췄을 때(놓듯) 판정 */
 }
-function onTS(e){if(!inView)return;const t=e.touches[0];tsx=t.clientX;tsy=t.clientY;tact=true;tdir=0;drag=0;}
+let hmode=0; const HTRIG=85;   /* hmode: 0 미정 · 1 가로(장) · 2 세로(단계) */
+function viewSnap(){const v=$('#view');v.style.transition='transform .28s cubic-bezier(.2,.9,.3,1)';v.style.transform='';setTimeout(()=>{v.style.transition='';},300);}
+function onTS(e){if(!inView)return;const t=e.touches[0];tsx=t.clientX;tsy=t.clientY;tact=true;tdir=0;drag=0;hmode=0;}
 function onTM(e){if(!inView||!tact)return;const t=e.touches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
-  if(Math.abs(dx)>Math.abs(dy))return;
-  if(dy<0&&atBottom()&&cur.si<4){tdir=1;drag=-dy;e.preventDefault();showPull(drag,1);}
-  else if(dy>0&&atTop()&&cur.si>0){tdir=-1;drag=dy;e.preventDefault();showPull(drag,-1);}}
-function onTE(e){if(!inView||!tact)return;tact=false;const t=e.changedTouches[0],dx=t.clientX-tsx,dy=t.clientY-tsy;
-  if(tdir!==0){if(drag>=TRIG)fire(tdir);else snapBack();tdir=0;return;}
-  if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.4){if(dx<0)chapterMove(1);else chapterMove(-1);}}
+  if(hmode===0&&(Math.abs(dx)>10||Math.abs(dy)>10)) hmode=Math.abs(dx)>Math.abs(dy)?1:2;
+  if(hmode===1){                                  /* 가로 = 장 이동 (화면이 손가락 따라 이동) */
+    const canN=cur.ci<MATRIX.length-1,canP=cur.ci>0,ok=dx<0?canN:canP;
+    e.preventDefault();
+    const v=$('#view');v.style.transition='none';v.style.transform='translateX('+(dx*(ok?0.55:0.16))+'px)';
+    const ready=ok&&Math.abs(dx)>=HTRIG;
+    $('#navR').classList.toggle('ready',ready&&dx<0);$('#navL').classList.toggle('ready',ready&&dx>0);
+    return;
+  }
+  if(hmode===2){                                  /* 세로 = 단계 (기존 풀) */
+    if(dy<0&&atBottom()&&cur.si<4){tdir=1;drag=-dy;e.preventDefault();showPull(drag,1);}
+    else if(dy>0&&atTop()&&cur.si>0){tdir=-1;drag=dy;e.preventDefault();showPull(drag,-1);}
+  }
+}
+function onTE(e){if(!inView||!tact)return;tact=false;const t=e.changedTouches[0],dx=t.clientX-tsx;
+  $('#navL').classList.remove('ready');$('#navR').classList.remove('ready');
+  if(hmode===1){const canN=cur.ci<MATRIX.length-1,canP=cur.ci>0,v=$('#view');
+    if(dx<=-HTRIG&&canN){v.style.transition='';v.style.transform='';chapterMove(1);}
+    else if(dx>=HTRIG&&canP){v.style.transition='';v.style.transform='';chapterMove(-1);}
+    else viewSnap();                              /* 임계 미달·역방향 → 제자리 복귀(취소) */
+    hmode=0;return;}
+  if(tdir!==0){if(drag>=TRIG)fire(tdir);else snapBack();tdir=0;}
+  hmode=0;
+}
 window.addEventListener('wheel',onWheel,{passive:false});
 window.addEventListener('touchstart',onTS,{passive:true});
 window.addEventListener('touchmove',onTM,{passive:false});
