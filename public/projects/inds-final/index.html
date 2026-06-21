@@ -152,6 +152,63 @@
   .chapnav svg{width:22px;height:22px;stroke:currentColor;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
   .chapnav.ready{background:var(--ind);color:#fff;border-color:var(--ind);transform:translateY(-50%) scale(1.14)}
 
+  /* ===== 추가 모드 UI ===== */
+  .entry{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 16px}
+  .ent{display:flex;flex-direction:column;align-items:flex-start;gap:7px;text-align:left;background:var(--paper);border:1.5px solid var(--line2);border-radius:13px;padding:15px 14px;cursor:pointer;transition:.16s}
+  .ent:hover{border-color:var(--ind);transform:translateY(-2px);box-shadow:0 8px 20px rgba(91,91,214,.1)}
+  .ent-ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:var(--ind-soft);color:var(--ind-deep)}
+  .ent-ic svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .ent-t{font-weight:700;color:var(--ink);font-size:14px}
+  .ent-s{font-size:11px;color:var(--mut);line-height:1.4}
+  @media(max-width:560px){.entry{grid-template-columns:1fr;gap:8px}.ent{flex-direction:row;align-items:center;gap:11px}.ent-s{margin-left:auto;text-align:right}}
+  .sl-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--ind);text-transform:uppercase;padding:0}
+  .sl-toggle svg{width:16px;height:16px;stroke:var(--ind);stroke-width:2;fill:none;transition:.2s}
+  .sl-toggle.open svg{transform:rotate(180deg)}
+  .usage[hidden]{display:none}
+  .usage{margin-top:12px}
+
+  .scrh{margin-bottom:18px}
+  .sback{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--mut);background:none;border:none;cursor:pointer;padding:0;margin-bottom:14px}
+  .sback:hover{color:var(--ind)}.sback svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .sttl{font-size:24px;font-weight:900;color:var(--ink);letter-spacing:-.5px}
+  .ssub{font-size:13px;color:var(--mut);margin-top:8px;line-height:1.6}
+  .src{display:block;margin-top:8px;font-size:11px;color:var(--mut);font-weight:600}
+
+  .revs{display:flex;flex-direction:column;gap:12px}
+  .rev{border:1px solid var(--line2);border-radius:12px;padding:16px;background:var(--paper)}
+  .revq{font-size:15px;font-weight:700;color:var(--ink);line-height:1.55;display:flex;gap:9px}
+  .revn{flex:0 0 auto;width:23px;height:23px;border-radius:50%;background:var(--ind-soft);color:var(--ind-deep);display:grid;place-items:center;font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace}
+  .reva{margin-top:12px;font-size:14px;line-height:1.75;color:var(--body);background:var(--ind-soft2);border-left:3px solid var(--ind);border-radius:0 7px 7px 0;padding:12px 14px}.reva b{color:var(--ink)}
+  .revt{margin-top:11px;font-size:12.5px;font-weight:700;color:var(--ind-deep);background:none;border:1px solid var(--line2);border-radius:8px;padding:7px 14px;cursor:pointer}
+  .revt:hover{border-color:var(--ind)}
+
+  .oxprog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:22px}.oxprog i{display:block;height:100%;background:var(--ind);transition:width .3s}
+  .oxq{font-size:18px;font-weight:700;color:var(--ink);line-height:1.6;min-height:2.6em;margin-bottom:20px}
+  .oxbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .oxb{height:88px;border-radius:14px;border:2px solid var(--line2);background:var(--paper);font-size:32px;font-weight:900;cursor:pointer;transition:.15s;color:var(--mute);font-family:'JetBrains Mono',monospace}
+  .oxb.o:hover:not(:disabled){border-color:var(--ok);color:var(--ok)}.oxb.x:hover:not(:disabled){border-color:var(--bad);color:var(--bad)}
+  .oxb.ok{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}.oxb.bad{border-color:var(--bad);background:var(--bad-soft);color:var(--bad)}
+  .oxb:disabled{cursor:default}
+  .oxfb{margin-top:18px;font-size:14px;line-height:1.75;border-radius:10px;padding:13px 15px;color:var(--body)}
+  .oxfb.ok{background:var(--ok-soft);border-left:3px solid var(--ok)}.oxfb.bad{background:var(--bad-soft);border-left:3px solid var(--bad)}.oxfb b{color:var(--ink)}
+  .bigbtn{width:100%;margin-top:20px;height:50px;border-radius:12px;background:var(--ind);color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;transition:.15s}
+  .bigbtn:hover{background:var(--ind-deep)}
+  .oxres{text-align:center;padding:24px 0}
+  .oxscore{font-size:52px;font-weight:900;color:var(--ind);font-family:'JetBrains Mono',monospace;line-height:1}
+  .oxscore span{font-size:22px;color:var(--mut)}
+
+  .msets{display:flex;flex-direction:column;gap:12px}
+  .mset{display:flex;align-items:center;gap:14px;text-align:left;border:1.5px solid var(--line2);border-radius:13px;padding:18px;background:var(--paper);cursor:pointer;transition:.16s}
+  .mset:hover:not(.locked){border-color:var(--ind);transform:translateY(-2px);box-shadow:0 8px 20px rgba(91,91,214,.1)}
+  .mset.locked{opacity:.5;cursor:not-allowed}
+  .msn{font-family:'JetBrains Mono',monospace;font-weight:900;font-size:18px;color:var(--ind);flex:0 0 auto}
+  .mst{font-weight:700;color:var(--ink);font-size:15px}.msc{margin-left:auto;font-size:12px;color:var(--mut)}
+  .mockq{font-size:16px;font-weight:700;color:var(--ink);line-height:1.6;margin-bottom:16px}.mockq .qn{color:var(--ind);font-family:'JetBrains Mono',monospace;margin-right:7px}
+  .mrev{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .mrv{border-radius:10px;padding:13px 15px;font-size:13px;line-height:1.65}
+  .mrv.ok{background:var(--ok-soft);border-left:3px solid var(--ok)}.mrv.bad{background:var(--bad-soft);border-left:3px solid var(--bad)}
+  .mrvq{font-weight:700;color:var(--ink);margin-bottom:5px}.mrva{color:var(--body)}.mrva b{color:var(--ink)}
+
   .pullbar{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:760px;pointer-events:none;z-index:40;
     display:flex;justify-content:center;align-items:center;gap:8px;height:0;overflow:hidden;font-size:13px;font-weight:700}
   .pullbar svg{width:16px;height:16px;stroke:currentColor;stroke-width:2.4;fill:none}
@@ -611,13 +668,18 @@ function renderHome(){
    <div class="kick">2026-1학기 · 인공지능과 디지털 사고</div>
    <h1>기말 · 7 ~ 11장</h1>
    <p class="lead">7장부터 11장까지, 한 칸씩 읽고 선지로 확인하는 기말 학습입니다.</p>
+   <div class="entry">
+     <button class="ent" id="entMock"><span class="ent-ic">${icSvg('<path d="M8 3h8a2 2 0 0 1 2 2v15l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2z"/><path d="M9 8h6M9 12h6"/>')}</span><span class="ent-t">모의고사</span><span class="ent-s">2세트 · 전체 클리어 후</span></button>
+     <button class="ent" id="entOX"><span class="ent-ic">${icSvg('<circle cx="8" cy="9" r="3.2"/><path d="M15 6.5l5 5M20 6.5l-5 5"/>')}</span><span class="ent-t">OX 퀴즈</span><span class="ent-s">100문항</span></button>
+     <button class="ent" id="entReview"><span class="ent-ic">${icSvg('<path d="M5 5h11M5 10h11M5 15h7"/><path d="M18.5 13l1.6 1.6L23.5 11.5"/>')}</span><span class="ent-t">복기 10선</span><span class="ent-s">시험 전 핵심 Q·A</span></button>
+   </div>
    <div class="spine">
-     <div class="sl">사용 방법</div>
-     <ul class="usage">
+     <button class="sl-toggle" id="usageToggle"><span>사용 방법</span>${icSvg(CHV.d)}</button>
+     <ul class="usage" id="usageList" hidden>
        <li>가로는 <b>장(7~11장)</b>, 세로는 <b>단계(1~5)</b>입니다. 칸 하나가 한 장의 한 단계입니다.</li>
        <li>칸을 누르면 그 단계의 설명과 선지 문제가 나오고, 보기를 다 맞히면 칸이 채워집니다.</li>
        <li>잠금이 없어 아무 칸이나 바로 시작할 수 있습니다. 세로로 내려갈수록 색이 진해지고 더 깊은 단계입니다.</li>
-       <li>단계 화면에서 <b>아래로 당기면 다음 단계</b>, <b>위로 당기면 이전 단계</b>, 좌우로 밀면 옆 장으로 갑니다.</li>
+       <li>단계 화면에서 스크롤을 끝까지 내리면 다음 단계, 올리면 이전 단계, 좌우 화살표/스와이프로 장을 이동합니다.</li>
        <li>장 순서는 데이터 흐름과 이어집니다. 모은다(8·9) <span class="ar">→</span> 다듬고 합친다(7) <span class="ar">→</span> 본다(10) <span class="ar">→</span> 의심한다(11).</li>
      </ul>
    </div>
@@ -627,8 +689,225 @@ function renderHome(){
    <div class="reset"><button id="resetBtn">진행 기록 초기화</button></div>`;
   $$('.cell',$('#home')).forEach(b=>b.onclick=()=>openCell(+b.dataset.c,+b.dataset.s));
   $('#resetBtn').onclick=()=>{if(confirm('모든 진행 기록을 지울까요?')){state={done:{}};persist();renderHome();updateTop();}};
+  $('#entMock').onclick=goMock;$('#entOX').onclick=goOX;$('#entReview').onclick=renderReview;
+  $('#usageToggle').onclick=()=>{const ul=$('#usageList'),t=$('#usageToggle');ul.hidden=!ul.hidden;t.classList.toggle('open',!ul.hidden);};
   $('#home').style.display='block';$('#view').classList.remove('active');$('#crumb').textContent='기말 7~11장';
   updateTop();
+}
+
+/* ===================== 추가 모드 (모의고사 · OX · 복기) ===================== */
+const allDone=()=>doneCount()>=MATRIX.length*5;
+function screenStart(){inView=false;snapBack();applyTheme(null);updateChapNav();
+  $('#home').style.display='none';const v=$('#view');v.classList.remove('slin','slout','up');void v.offsetWidth;v.classList.add('active','up');window.scrollTo(0,0);}
+
+/* 복기 질문 10선 */
+const REVIEW=[
+ {q:'HTML에서 실제 화면에 보이는 부분의 태그는?',a:'<b>&lt;body&gt;</b> (head는 제목·스타일 같은 안 보이는 설정)',src:'8장 · HTML 구조'},
+ {q:'공공데이터의 세 가지 형식은?',a:'<b>CSV · JSON · XML</b>',src:'9장 · 공공데이터 형식'},
+ {q:'XML에서 버전·인코딩 등 파일 정보를 적는 부분의 이름은?',a:'<b>선언부(Declaration)</b> — 맨 위 &lt;?xml … ?&gt;',src:'9장 · XML 구조'},
+ {q:'두 표를 공통 키로 합치는 pandas 함수와 두 인자는?',a:'<b>pd.merge(df1, df2, on=키, how=방식)</b>',src:'7장 · 병합'},
+ {q:'조인 4종과 각 의미는?',a:'<b>inner</b>=교집합, <b>outer</b>=합집합(빈칸 NaN), <b>left</b>=왼쪽 전체, <b>right</b>=오른쪽 전체',src:'7장 · 병합'},
+ {q:'이상치 대체에 평균이 아니라 중앙값을 쓰는 이유는?',a:'평균은 극단값에 크게 끌려가지만 <b>중앙값은 둔감</b>하기 때문',src:'7장 · 이상치 / 10장 · 통계'},
+ {q:'앤스콤의 사중주가 주는 교훈은?',a:'통계치가 같아도 분포는 다르니 <b>반드시 시각화로 확인</b>',src:'10장 · 앤스콤'},
+ {q:'5수 요약 다섯 값과 IQR 이상치 경계는?',a:'<b>최소·Q1·중앙·Q3·최대</b> / 경계 <b>Q1−1.5·IQR ~ Q3+1.5·IQR</b>',src:'10장 · 5수요약·IQR'},
+ {q:'심슨의 역설이란? 원인은?',a:'<b>하위집단마다 우세한데 합치면 역전</b>되는 현상. 원인은 <b>숨은 변수의 불균등 배정</b>',src:'11장 · 심슨의 역설'},
+ {q:'편향 4대 원인과 분석 5단계의 마지막은?',a:'원인 <b>선택·결측·측정·수집과정</b> / 마지막 단계 <b>한계·범위 명시</b>',src:'11장 · 편향'},
+];
+
+/* 모의고사 2세트 (각 12문항) */
+const MOCK=[
+ {title:'7~11장 종합 A', q:[
+  {q:'HTML에서 실제 화면에 보이는 부분의 태그는?',o:['head','body','title','meta'],ans:1,why:'보이는 콘텐츠는 전부 body 안에 있습니다.',src:'8장 · HTML 구조'},
+  {q:'공공데이터의 세 가지 형식은?',o:['HTML·CSS·JS','CSV·JSON·XML','TXT·PDF·HWP','JPG·PNG·GIF'],ans:1,why:'구조화된 데이터 3대 형식입니다.',src:'9장 · 공공데이터 형식'},
+  {q:'점수 [85, 92, -999, 78]의 평균은?',o:['85.0','-186.0','63.0','78.0'],ans:1,why:'(85+92−999+78)/4 = −186.0. 이상치 하나가 평균을 끌어내립니다.',src:'7장 · 이상치'},
+  {q:'how=? 에 넣으면 양쪽 모든 행을 남기고 빈칸이 NaN이 되는 값은?',o:["'inner'","'outer'","'left'","'right'"],ans:1,why:'outer는 합집합입니다.',src:'7장 · 병합'},
+  {q:'df[\'성별\'].value_counts() 의 결과는?',o:['컬럼 삭제','값별 개수를 내림차순으로 반환','평균 계산','중복 제거'],ans:1,why:'각 값의 개수를 세서 내림차순으로 돌려줍니다.',src:'7장 · 정제'},
+  {q:'동적 페이지를 requests로 긁었더니 데이터가 비었다. 이유는?',o:['서버가 막아서','JS가 나중에 채워 첫 HTML엔 데이터가 없어서','인코딩 오류','태그 오타'],ans:1,why:'자바스크립트 렌더 전의 첫 HTML이라 데이터가 없습니다.',src:'8장 · 정적·동적'},
+  {q:'XML에서 파일 정보(버전·인코딩)를 표시하는 부분은?',o:['루트','선언부','속성','요소'],ans:1,why:'선언부 = 맨 위 &lt;?xml ?&gt;.',src:'9장 · XML 구조'},
+  {q:'한글 공공 CSV가 utf-8로 안 열릴 때 보통 재시도하는 인코딩은?',o:['ascii','cp949','base64','binary'],ans:1,why:'공공 한글 파일은 cp949가 많습니다.',src:'9장 · 인코딩 예외처리'},
+  {q:'np.polyfit(x, y, 1)의 반환값 순서는?',o:['(절편, 기울기)','(기울기, 절편)','(x, y)','(평균, 분산)'],ans:1,why:'1차 회귀 → (기울기, 절편).',src:'10장 · 회귀'},
+  {q:'IQR을 이용한 이상치 상한 경계는?',o:['Q3 + 1.5·IQR','Q1 − 1.5·IQR','Q2 + IQR','평균 + 2·표준편차'],ans:0,why:'상한 = Q3 + 1.5·IQR.',src:'10장 · IQR'},
+  {q:'두 표를 merge하려는데 에러가 난다. 가장 흔한 원인은?',o:['데이터가 너무 많아서','두 표에 공통 키 컬럼이 없거나 이름이 달라서','평균이 음수라서','정렬이 안 돼서'],ans:1,why:'공통 키가 없으면 merge가 안 됩니다. 미리 컬럼 존재를 확인합니다.',src:'7장 · 병합 예외'},
+  {q:'전체로 합치면 결론이 뒤집히는 심슨의 역설은 어느 오류인가?',o:['전형값 착각','이상치 왜곡','집단구성 무시','변동성 무시'],ans:2,why:'숨은 변수(집단구성)를 무시해서 생깁니다.',src:'10장·11장 · 심슨'},
+ ]},
+ {title:'7~11장 종합 B', q:[
+  {q:'모든 <p> 태그를 리스트로 가져오는 함수는?',o:["find('p')","find_all('p')","get_text('p')","select_one('p')"],ans:1,why:'find_all은 모든 태그를 리스트로 돌려줍니다.',src:'8장 · 크롤링'},
+  {q:'get_text(strip=True)의 역할은?',o:['태그 추가','텍스트만 뽑고 앞뒤 공백 제거','링크만 추출','이미지 다운'],ans:1,why:'텍스트만 뽑고 공백을 제거합니다.',src:'8장 · 크롤링'},
+  {q:'속성 id와 class의 차이는?',o:['id는 그룹, class는 고유','id는 고유(하나), class는 그룹(중복)','둘 다 고유','둘 다 그룹'],ans:1,why:'id는 페이지 내 하나, class는 묶음(중복 가능)입니다.',src:'8장 · HTML 속성'},
+  {q:'문자열 XML을 트리 객체로 바꾸는 함수 ET.____는?',o:['parse','fromstring','iter','findtext'],ans:1,why:'ET.fromstring(문자열). 파일이면 parse.',src:'9장 · XML 파싱'},
+  {q:'OPEN API로 1회 호출 시 받는 최대 건수(강의 예시)는?',o:['10','100','1,000','무제한'],ans:2,why:'한 번에 최대 1,000건까지 받습니다.',src:'9장 · OPEN API'},
+  {q:'결측치가 든 행을 통째로 제거하는 함수는?',o:['fillna()','dropna()','drop_duplicates()','reset_index()'],ans:1,why:'dropna()가 결측 행/열을 제거합니다.',src:'7장 · 정제'},
+  {q:'코드 결과 — [3, 5, 1000, 4]의 평균은 어디로 끌려가나?',o:['작은 값 쪽','큰 이상치 1000 쪽','중앙값과 같음','변화 없음'],ans:1,why:'평균은 큰 이상치에 끌려 올라갑니다. 그래서 중앙값을 함께 봅니다.',src:'7장·10장 · 이상치'},
+  {q:'자발적 설문에서 응답자만 보면 만족도는?',o:['과소평가','과대평가','정확','평균=중앙'],ans:1,why:'양극단이 과대표집돼 만족도가 높게 나옵니다(응답 편향).',src:'11장 · 응답 편향'},
+  {q:'채점자마다 엄격/관대해 점수가 왜곡되는 편향과 해결은?',o:['선택 / 무작위','측정 / 공통 루브릭·Z-score','결측 / 대체','수집 / 기록'],ans:1,why:'측정 편향 → Z-score 표준화로 보정.',src:'11장 · 측정 편향'},
+  {q:'정적 페이지와 동적 페이지의 차이는?',o:['정적=JS로 채움','동적=완성 HTML','정적=완성 HTML(쉬움)·동적=JS로 채움(복잡)','차이 없음'],ans:2,why:'정적은 그대로, 동적은 나중에 채웁니다.',src:'8장 · 정적·동적'},
+  {q:'크롤링 코드에 User-Agent·time.sleep을 넣는 이유는?',o:['속도 향상','봇 차단 회피 + 서버 매너','디자인','정렬'],ans:1,why:'브라우저처럼 위장해 차단을 피하고 서버 부담을 줄입니다.',src:'8장 · 매너 크롤링'},
+  {q:'편향 데이터 분석 5단계의 마지막은?',o:['목표·모집단 정의','보정 적용','하위집단 분석','한계·범위 명시'],ans:3,why:'데이터가 말할 수 있는 범위까지만 결론을 냅니다.',src:'11장 · 분석 5단계'},
+ ]},
+];
+
+/* OX 100 — {q, a:true(O)/false(X), why, src} */
+const OX=[
+ {q:`결측치는 값이 비어 있는 칸이며 NaN(Not a Number)으로 표시된다.`,a:true,why:`응답 누락 등으로 생긴 빈칸입니다.`,src:'7장 · 정제'},
+ {q:`이상치 대체에는 평균을 쓰는 것이 가장 안전하다.`,a:false,why:`평균은 극단값에 흔들리므로 중앙값을 씁니다.`,src:'7장 · 이상치'},
+ {q:`pd.merge의 on 인자는 합칠 기준이 되는 공통 키를 지정한다.`,a:true,why:`on=공통 키, how=조인 방식.`,src:'7장 · 병합'},
+ {q:`how='inner'는 양쪽 표에 모두 있는 행만 남긴다.`,a:true,why:`inner = 교집합.`,src:'7장 · 병합'},
+ {q:`how='outer'는 교집합만 남긴다.`,a:false,why:`outer는 합집합(양쪽 모든 행 + NaN).`,src:'7장 · 병합'},
+ {q:`점수 [85, 92, -999, 78]의 평균은 약 85이다.`,a:false,why:`−186.0입니다. 이상치가 평균을 끌어내립니다.`,src:'7장 · 이상치'},
+ {q:`dropna()는 결측이 든 행이나 열을 제거한다.`,a:true,why:`결측 제거. 채우기는 fillna.`,src:'7장 · 정제'},
+ {q:`value_counts()는 값별 개수를 오름차순으로 반환한다.`,a:false,why:`내림차순(가장 많은 값이 위)입니다.`,src:'7장 · 정제'},
+ {q:`형식 불일치는 같은 정보를 다르게 표기해 병합이 실패하는 문제다.`,a:true,why:`예: 010-1234-5678 vs 01012345678.`,src:'7장 · 정제'},
+ {q:`데이터 과학자는 업무의 약 80%를 정제에 쓴다.`,a:true,why:`현실 데이터가 더럽기 때문입니다.`,src:'7장 · 정제'},
+ {q:`두 표에 공통 키 컬럼이 없어도 merge는 항상 성공한다.`,a:false,why:`키가 없으면 에러. 사전에 컬럼을 확인합니다.`,src:'7장 · 병합 예외'},
+ {q:`left 조인은 오른쪽 표 전체를 남긴다.`,a:false,why:`left는 왼쪽 전체 + 매칭되는 오른쪽.`,src:'7장 · 병합'},
+ {q:`중앙값은 크기순 가운데 값이라 극단값에 둔감하다.`,a:true,why:`그래서 이상치 대체에 씁니다.`,src:'7장·10장 · 통계'},
+ {q:`텍스트 품질 문제는 대소문자·공백 차이로 중복이 생기는 것이다.`,a:true,why:`John Kim vs JOHN KIM.`,src:'7장 · 정제'},
+ {q:`흩어진 표기를 한 번에 통일할 때 매핑 딕셔너리를 쓴다.`,a:true,why:`{'M':'남', ...} 로 map.`,src:'7장 · 정제'},
+ {q:`merge의 how 값은 따옴표 없는 변수 이름으로 넣는다.`,a:false,why:`'inner' 같은 따옴표 붙은 문자열입니다.`,src:'7장 · 병합'},
+ {q:`데이터 품질 4대 문제는 결측·이상·형식·텍스트다.`,a:true,why:`결-이-형-텍.`,src:'7장 · 정제'},
+ {q:`outer 조인 결과에는 짝 없는 칸이 NaN으로 채워진다.`,a:true,why:`합집합이라 빈칸이 생깁니다.`,src:'7장 · 병합'},
+ {q:`df[df['등급']=='VIP']['주문금액'].mean() 은 VIP만의 평균을 낸다.`,a:true,why:`조건 필터 후 평균입니다.`,src:'7장 · 정제(코드)'},
+ {q:`이상치를 중앙값으로 바꾸면 평균이 더 극단으로 간다.`,a:false,why:`오히려 평균이 정상으로 돌아옵니다.`,src:'7장 · 이상치'},
+
+ {q:`HTML에서 화면에 보이는 콘텐츠는 body 안에 들어 있다.`,a:true,why:`head는 안 보이는 설정.`,src:'8장 · HTML 구조'},
+ {q:`head 태그 안의 내용은 화면에 그대로 표시된다.`,a:false,why:`head는 제목·스타일 같은 안 보이는 설정입니다.`,src:'8장 · HTML 구조'},
+ {q:`requests는 HTML을 가져오고 BeautifulSoup은 분석한다.`,a:true,why:`가져오기 + 분석 한 쌍.`,src:'8장 · 크롤링'},
+ {q:`find_all('p')는 첫 번째 p 태그 하나만 반환한다.`,a:false,why:`모든 p를 리스트로. 하나는 find.`,src:'8장 · 크롤링'},
+ {q:`get_text(strip=True)는 텍스트만 뽑고 앞뒤 공백을 제거한다.`,a:true,why:`태그는 버리고 텍스트만.`,src:'8장 · 크롤링'},
+ {q:`스크래핑은 여러 페이지를 자동 탐색하고, 크롤링은 특정 데이터만 추출한다.`,a:false,why:`반대입니다. 크롤링=여러 페이지, 스크래핑=특정 추출.`,src:'8장 · 수집'},
+ {q:`id는 페이지 내에 하나뿐인 고유 식별자다.`,a:true,why:`class는 묶음(중복 가능).`,src:'8장 · 속성'},
+ {q:`class는 중복될 수 없는 고유 속성이다.`,a:false,why:`class는 여러 요소를 묶는 그룹(중복 가능).`,src:'8장 · 속성'},
+ {q:`동적 페이지는 JS로 나중에 채워 첫 HTML엔 데이터가 없을 수 있다.`,a:true,why:`그래서 그냥 긁으면 빕니다.`,src:'8장 · 동적'},
+ {q:`robots.txt는 크롤러의 수집 허용/금지 영역을 안내한다.`,a:true,why:`도메인 뒤 /robots.txt.`,src:'8장 · 매너'},
+ {q:`User-Agent 헤더는 브라우저처럼 위장해 봇 차단을 피하려는 것이다.`,a:true,why:`Mozilla/5.0 등.`,src:'8장 · 매너'},
+ {q:`time.sleep으로 간격을 두는 것은 서버 부담을 줄이는 매너다.`,a:true,why:`매너 크롤링.`,src:'8장 · 매너'},
+ {q:`정적 페이지는 완성된 HTML을 그대로 보내 수집이 쉽다.`,a:true,why:`위키백과 등.`,src:'8장 · 정적'},
+ {q:`HTML은 부모-자식 관계가 없는 평면 구조다.`,a:false,why:`태그로 된 트리(나무) 구조입니다.`,src:'8장 · HTML 구조'},
+ {q:`파싱은 문자열 HTML을 다루기 쉬운 객체로 바꾸는 분석이다.`,a:true,why:`특정 태그를 찾기 위함.`,src:'8장 · 크롤링'},
+ {q:`<a> 태그의 href 속성은 이미지 경로를 가리킨다.`,a:false,why:`href는 링크 주소. 이미지는 src.`,src:'8장 · 속성'},
+ {q:`find_all의 반환은 리스트라 반복문으로 순회할 수 있다.`,a:true,why:`[t.get_text() for t in tags] 처럼.`,src:'8장 · 크롤링(코드)'},
+ {q:`동적 페이지를 requests로 긁으면 항상 완전한 데이터가 온다.`,a:false,why:`JS 렌더 전이라 빌 수 있습니다.`,src:'8장 · 동적'},
+ {q:`<h1>은 가장 큰 제목 태그다.`,a:true,why:`h1~h6 중 h1이 최대.`,src:'8장 · HTML 구조'},
+ {q:`requests.get에 timeout을 안 주면 무한 대기에 빠질 수 있다.`,a:true,why:`timeout으로 무한대기 방지.`,src:'8장 · 예외처리'},
+
+ {q:`공공데이터의 세 가지 형식은 CSV·JSON·XML이다.`,a:true,why:`구조화 데이터 3대 형식.`,src:'9장 · 형식'},
+ {q:`크롤링은 공공데이터보다 항상 안정적이고 합법적이다.`,a:false,why:`공공데이터가 합법·안정적입니다.`,src:'9장 · 공공데이터'},
+ {q:`XML의 선언부는 버전·인코딩 같은 파일 정보를 담는다.`,a:true,why:`맨 위 <?xml … ?>.`,src:'9장 · XML 구조'},
+ {q:`XML의 루트 요소는 여러 개일 수 있다.`,a:false,why:`전체를 감싸는 루트는 딱 하나입니다.`,src:'9장 · XML 구조'},
+ {q:`<이름>홍길동</이름> 은 XML의 요소(Element)다.`,a:true,why:`데이터를 담는 기본 단위.`,src:'9장 · XML 구조'},
+ {q:`태그 내부의 id="1" 같은 부가 정보는 속성(Attribute)이다.`,a:true,why:`Attribute입니다.`,src:'9장 · XML 구조'},
+ {q:`OPEN API는 인증키 없이 누구나 무제한으로 호출할 수 있다.`,a:false,why:`인증키 필요, 일일 트래픽 제한.`,src:'9장 · OPEN API'},
+ {q:`ET.fromstring은 문자열 XML을 트리 객체로 바꾼다.`,a:true,why:`파일이면 ET.parse.`,src:'9장 · 파싱'},
+ {q:`한글 공공 CSV가 utf-8로 실패하면 cp949로 재시도한다.`,a:true,why:`공공 한글 파일은 cp949가 많습니다.`,src:'9장 · 인코딩'},
+ {q:`CSV는 복잡한 계층 데이터에 XML보다 적합하다.`,a:false,why:`CSV는 간결한 표, XML이 계층에 적합.`,src:'9장 · 형식'},
+ {q:`XML 4요소는 선언부·루트·요소·속성이다.`,a:true,why:`네 부분으로 정해져 있습니다.`,src:'9장 · XML 구조'},
+ {q:`OPEN API 수집은 인증키 발급 → URL 생성 → 호출 → 수신 순서다.`,a:true,why:`4단계.`,src:'9장 · OPEN API'},
+ {q:`OPEN API 1회 호출로 보통 전체 25,418건이 한 번에 온다.`,a:false,why:`한 번에 최대 1,000건입니다.`,src:'9장 · OPEN API'},
+ {q:`인코딩은 문자를 저장하는 방식이다.`,a:true,why:`utf-8, cp949 등.`,src:'9장 · 인코딩'},
+ {q:`공공데이터의 시각화 자료는 차트·지도·대시보드 형태다.`,a:true,why:`가공 없이 즉시 확인.`,src:'9장 · 형식'},
+ {q:`XML은 태그로 부모-자식을 중첩한 트리 구조다.`,a:true,why:`계층 구조.`,src:'9장 · XML 구조'},
+ {q:`CSV는 쉼표로 값을 구분하는 간결한 표다.`,a:true,why:`읽고 쓰기 쉬움.`,src:'9장 · 형식'},
+ {q:`XML의 선언부는 문서의 맨 아래에 온다.`,a:false,why:`맨 위에 옵니다.`,src:'9장 · XML 구조'},
+ {q:`OPEN API는 실시간 자동 수집에 적합하다.`,a:true,why:`프로그램이 직접 호출.`,src:'9장 · OPEN API'},
+ {q:`인증키에는 호출 횟수 제한이 전혀 없다.`,a:false,why:`일일 트래픽 제한이 있습니다.`,src:'9장 · OPEN API'},
+
+ {q:`평균이 같으면 분포도 항상 같다.`,a:false,why:`평균 같다 ≠ 데이터 같다.`,src:'10장 · 평균의 함정'},
+ {q:`앤스콤의 사중주는 통계치가 같아도 모양이 다름을 보여준다.`,a:true,why:`시각화로 확인하라는 교훈.`,src:'10장 · 앤스콤'},
+ {q:`5수 요약은 최솟값·Q1·중앙값·Q3·최댓값이다.`,a:true,why:`분포를 다섯 숫자로.`,src:'10장 · 5수요약'},
+ {q:`IQR은 Q3에서 Q1을 뺀 값이다.`,a:true,why:`사분위 범위.`,src:'10장 · IQR'},
+ {q:`IQR 이상치 상한 경계는 Q1 − 1.5·IQR이다.`,a:false,why:`상한은 Q3 + 1.5·IQR. 그건 하한.`,src:'10장 · IQR'},
+ {q:`np.polyfit(x, y, 1)은 (기울기, 절편)을 반환한다.`,a:true,why:`1차 회귀.`,src:'10장 · 회귀'},
+ {q:`중앙값은 이상치에 둔감해 평균을 보완한다.`,a:true,why:`크기순 가운데 값.`,src:'10장 · 통계'},
+ {q:`심슨의 역설은 변동성 무시 오류에 해당한다.`,a:false,why:`집단구성(숨은 변수) 무시입니다.`,src:'10장 · 5대오류'},
+ {q:`표준편차는 데이터가 평균에서 퍼진 정도를 나타낸다.`,a:true,why:`산포.`,src:'10장 · 산포'},
+ {q:`왜도는 분포의 좌우 치우침, 첨도는 뾰족/평평한 정도다.`,a:true,why:`분포 모양 지표.`,src:'10장 · 분포'},
+ {q:`평균만 봐도 이상치 유무를 정확히 알 수 있다.`,a:false,why:`평균은 이상치를 숨깁니다.`,src:'10장 · 평균의 함정'},
+ {q:`quantile(0.25)는 Q1, quantile(0.75)는 Q3를 구한다.`,a:true,why:`사분위.`,src:'10장 · 코드'},
+ {q:`표본 크기가 다른데 단순평균을 내면 가중치 무시 오류가 생긴다.`,a:true,why:`가중평균이 필요.`,src:'10장 · 5대오류'},
+ {q:`앤스콤 4셋의 회귀식은 서로 완전히 다르다.`,a:false,why:`회귀식·평균·분산이 거의 같습니다.`,src:'10장 · 앤스콤'},
+ {q:`평균은 극단값(이상치)에 크게 흔들린다.`,a:true,why:`그래서 중앙값을 함께 봅니다.`,src:'10장 · 통계'},
+ {q:`데이터사우루스 더즌도 통계는 같고 모양은 다른 사례다.`,a:true,why:`앤스콤과 비슷한 사례.`,src:'10장 · 앤스콤'},
+ {q:`두 회사 평균연봉이 같으면 표준편차도 반드시 같다.`,a:false,why:`산포는 다를 수 있습니다.`,src:'10장 · 산포'},
+ {q:`groupby로 그룹별 사분위를 구할 수 있다.`,a:true,why:`반별 Q1·Q3 등.`,src:'10장 · 코드'},
+ {q:`5수 요약은 평균이 못 보여주는 격차를 드러낸다.`,a:true,why:`분포 요약.`,src:'10장 · 5수요약'},
+ {q:`평균만 볼 때의 5대 오류에 '정규화 오류'가 포함된다.`,a:false,why:`전형값·이상치·변동성·가중치·집단구성입니다.`,src:'10장 · 5대오류'},
+
+ {q:`편향은 수집 데이터가 모집단을 치우치게 담은 상태다.`,a:true,why:`현실을 제대로 대표 못함.`,src:'11장 · 편향'},
+ {q:`편향된 데이터는 무조건 버려야 한다.`,a:false,why:`원인을 찾아 보정합니다.`,src:'11장 · 편향'},
+ {q:`편향 4대 원인은 선택·결측·측정·수집과정이다.`,a:true,why:`네 갈래.`,src:'11장 · 편향'},
+ {q:`심슨의 역설은 하위집단마다 우세한데 합치면 역전되는 현상이다.`,a:true,why:`합산 시 결론 뒤집힘.`,src:'11장 · 심슨'},
+ {q:`심슨의 역설의 원인은 숨은 변수가 불균등하게 배정된 것이다.`,a:true,why:`예: 난이도.`,src:'11장 · 심슨'},
+ {q:`자발적 설문은 응답자만 보면 만족도가 과소평가된다.`,a:false,why:`과대평가됩니다(응답 편향).`,src:'11장 · 응답 편향'},
+ {q:`측정 편향은 공통 루브릭과 Z-score 표준화로 보정한다.`,a:true,why:`기준 차이 보정.`,src:'11장 · 측정'},
+ {q:`선택 편향 해결책으로 무작위추출·층화표집·가중치가 있다.`,a:true,why:`대표성 회복.`,src:'11장 · 선택'},
+ {q:`이상치 삭제는 선택 편향의 대표적 해결책이다.`,a:false,why:`선택 편향과 관계 없습니다.`,src:'11장 · 선택'},
+ {q:`혼란변수는 결과에 영향을 주는 숨은 변수다.`,a:true,why:`심슨의 원인.`,src:'11장 · 편향'},
+ {q:`모집단은 알고 싶은 전체 대상, 표본은 그중 일부다.`,a:true,why:`기본 정의.`,src:'11장 · 편향'},
+ {q:`결측 편향은 일부 그룹이 체계적으로 누락되는 것이다.`,a:true,why:`민감 질문 회피 등.`,src:'11장 · 결측'},
+ {q:`편향 데이터 분석 5단계의 마지막은 보정 적용이다.`,a:false,why:`마지막은 한계·범위 명시입니다.`,src:'11장 · 분석 5단계'},
+ {q:`결론은 데이터가 대표하는 범위로 한정해야 한다.`,a:true,why:`포괄적 일반화 금지.`,src:'11장 · 분석 5단계'},
+ {q:`학과별로는 여성 합격률이 높은데 전체로는 남성이 높다면 심슨의 역설이다.`,a:true,why:`난이도라는 숨은 변수.`,src:'11장 · 심슨'},
+ {q:`응답 편향은 선택 편향의 한 종류다.`,a:true,why:`자발적 응답자만 모임.`,src:'11장 · 응답 편향'},
+ {q:`편향은 평균·비율을 왜곡해 불리한 결정으로 이어질 수 있다.`,a:true,why:`그래서 점검이 필요.`,src:'11장 · 편향'},
+ {q:`가중치 보정은 표본 비율을 모집단 비율에 맞추는 것이다.`,a:true,why:`대표성 회복.`,src:'11장 · 보정'},
+ {q:`"한국 대학생은 A를 선호한다"처럼 포괄적으로 결론짓는 것이 옳다.`,a:false,why:`표본이 대표하는 범위로 한정해야 합니다.`,src:'11장 · 분석 5단계'},
+ {q:`숫자가 정확한가보다 '어떻게 모였나·누가 빠졌나'를 먼저 물어야 한다.`,a:true,why:`편향 점검의 핵심 태도.`,src:'11장 · 편향'},
+];
+
+function renderReview(){
+  screenStart();$('#crumb').textContent='복기 10선';
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">시험 전 복기 질문 10선</div><div class="ssub">질문을 먼저 떠올려 답하고, 눌러서 정답을 확인하세요.</div></div>
+    <div class="revs">${REVIEW.map((r,i)=>`<div class="rev"><div class="revq"><span class="revn">${i+1}</span>${r.q}</div><div class="reva" hidden><b>답.</b> ${r.a}<div class="src">출처 ${r.src}</div></div><button class="revt">정답 보기</button></div>`).join('')}</div>`;
+  $('#sb').onclick=renderHome;
+  $$('.rev',$('#view')).forEach(el=>{const t=el.querySelector('.revt'),a=el.querySelector('.reva');t.onclick=()=>{a.hidden=!a.hidden;t.textContent=a.hidden?'정답 보기':'접기';};});
+}
+
+let oxI=0,oxScore=0;
+function goOX(){oxI=0;oxScore=0;renderOX();}
+function renderOX(){
+  screenStart();$('#crumb').textContent='OX 퀴즈';
+  if(oxI>=OX.length){$('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈 완료</div></div><div class="oxres"><div class="oxscore">${oxScore} <span>/ ${OX.length}</span></div><button class="bigbtn" id="again">다시 풀기</button></div>`;$('#sb').onclick=renderHome;$('#again').onclick=goOX;return;}
+  const q=OX[oxI];
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">OX 퀴즈</div><div class="ssub">${oxI+1} / ${OX.length} · 맞은 개수 ${oxScore}</div></div>
+    <div class="oxprog"><i style="width:${oxI/OX.length*100}%"></i></div>
+    <div class="oxq">${q.q}</div>
+    <div class="oxbtns"><button class="oxb o" data-v="1">O</button><button class="oxb x" data-v="0">X</button></div>
+    <div class="oxfb" id="fb" hidden></div><button class="bigbtn" id="next" hidden>다음 →</button>`;
+  $('#sb').onclick=renderHome;
+  $$('.oxb',$('#view')).forEach(b=>b.onclick=()=>{const fb=$('#fb');if(fb.dataset.done)return;const v=b.dataset.v==='1',ok=v===q.a;if(ok)oxScore++;
+    $$('.oxb',$('#view')).forEach(x=>x.disabled=true);b.classList.add(ok?'ok':'bad');
+    fb.dataset.done=1;fb.hidden=false;fb.className='oxfb '+(ok?'ok':'bad');fb.innerHTML=`<b>${ok?'정답':'오답'} · 답은 ${q.a?'O':'X'}.</b> ${q.why}<div class="src">출처 ${q.src}</div>`;$('#next').hidden=false;});
+  $('#next').onclick=()=>{oxI++;renderOX();};
+}
+
+let mockSet=0,mockI=0,mockAns=[];
+function goMock(){renderMockHome();}
+function renderMockHome(){
+  screenStart();$('#crumb').textContent='모의고사';const locked=!allDone();
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">모의고사</div><div class="ssub">${locked?'모든 칸(25개)을 클리어하면 열립니다. 현재 '+doneCount()+'/25.':'세트를 골라 시작하세요. 각 '+MOCK[0].q.length+'문항.'}</div></div>
+    <div class="msets">${MOCK.map((m,i)=>`<button class="mset${locked?' locked':''}" data-i="${i}" ${locked?'disabled':''}><span class="msn">SET ${String.fromCharCode(65+i)}</span><span class="mst">${m.title}</span><span class="msc">${m.q.length}문항</span></button>`).join('')}</div>`;
+  $('#sb').onclick=renderHome;
+  if(!locked)$$('.mset',$('#view')).forEach(b=>b.onclick=()=>{mockSet=+b.dataset.i;mockI=0;mockAns=[];renderMockQ();});
+}
+function renderMockQ(){
+  screenStart();const set=MOCK[mockSet],L=String.fromCharCode(65+mockSet);
+  if(mockI>=set.q.length){const correct=mockAns.filter((a,i)=>a===set.q[i].ans).length;
+    $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">SET ${L} 결과</div></div>
+      <div class="oxres"><div class="oxscore">${correct} <span>/ ${set.q.length}</span></div></div>
+      <div class="mrev">${set.q.map((q,i)=>{const ok=mockAns[i]===q.ans;return `<div class="mrv ${ok?'ok':'bad'}"><div class="mrvq">${i+1}. ${q.q}</div><div class="mrva"><b>${ok?'정답':'오답'}</b> · 답: ${q.o[q.ans]}. ${q.why}<div class="src">출처 ${q.src}</div></div></div>`;}).join('')}</div>
+      <button class="bigbtn" id="retry">다시 풀기</button>`;
+    $('#sb').onclick=renderHome;$('#retry').onclick=()=>{mockI=0;mockAns=[];renderMockQ();};return;}
+  const q=set.q[mockI];
+  $('#view').innerHTML=`<div class="scrh"><button class="sback" id="sb">${icSvg(CHV.l)} 홈</button><div class="sttl">SET ${L}</div><div class="ssub">${mockI+1} / ${set.q.length}</div></div>
+    <div class="oxprog"><i style="width:${mockI/set.q.length*100}%"></i></div>
+    <div class="mockq"><span class="qn">Q${mockI+1}</span>${q.q}</div>
+    <div class="opts">${q.o.map((o,oi)=>`<button class="opt" data-o="${oi}"><span class="mk">${'ABCD'[oi]}</span><span>${o}</span></button>`).join('')}</div>
+    <div class="why" id="why" hidden></div><button class="bigbtn" id="next" hidden>다음 →</button>`;
+  $('#sb').onclick=renderHome;
+  $$('.opt',$('#view')).forEach(b=>b.onclick=()=>{if(mockAns[mockI]!==undefined)return;const oi=+b.dataset.o;mockAns[mockI]=oi;
+    $$('.opt',$('#view')).forEach((x,xi)=>{x.disabled=true;if(xi===q.ans)x.classList.add('ok');});if(oi!==q.ans)b.classList.add('bad');
+    const w=$('#why');w.hidden=false;w.innerHTML=`<b>정답: ${q.o[q.ans]}.</b> ${q.why}<div class="src">출처 ${q.src}</div>`;$('#next').hidden=false;});
+  $('#next').onclick=()=>{mockI++;renderMockQ();};
 }
 
 /* ===================== 칸 보기 ===================== */
