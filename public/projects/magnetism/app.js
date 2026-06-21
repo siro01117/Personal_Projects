@@ -24,14 +24,16 @@
     try { localStorage.setItem(KEY_THEME, next); } catch (er) {}
   });
 
-  /* ---- 활성 내비 ---- */
-  var here = (location.pathname.split("/").pop() || "index.html").toLowerCase();
-  if (here === "" ) here = "index.html";
+  /* ---- 활성 내비 (절대경로 → basename 비교) ---- */
+  function pageKey(s) {
+    s = (s || "").toLowerCase().split("?")[0].split("#")[0];
+    s = s.split("/").pop();
+    s = s.replace(/\.html$/, "");
+    return s || "index";
+  }
+  var here = pageKey(location.pathname);
   document.querySelectorAll(".nav a").forEach(function (a) {
-    var href = (a.getAttribute("href") || "").toLowerCase();
-    if (href === here || (here === "index.html" && (href === "./" || href === "index.html"))) {
-      a.classList.add("active");
-    }
+    if (pageKey(a.getAttribute("href")) === here) a.classList.add("active");
   });
 
   /* ---- 스크롤 리빌 ---- */
