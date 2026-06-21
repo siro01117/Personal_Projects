@@ -389,3 +389,36 @@ a { color: inherit; text-decoration: none; }
   .foot { margin-top: 44px; padding-bottom: 40px; }
   .pager { margin-top: 36px; }
 }
+
+/* ===== 원리별 아이콘 ===== */
+.p-num { display: flex; flex-direction: column; align-items: flex-start; gap: 11px; padding-top: 1px; }
+.p-num::after { display: none; }
+.p-ic {
+  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  color: var(--cat); background: var(--cat-ghost);
+}
+.p-ic svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 560px) {
+  .p-num { flex-direction: row; align-items: center; gap: 10px; }
+  .p-ic { width: 27px; height: 27px; }
+  .p-ic svg { width: 15px; height: 15px; }
+}
+
+/* ===== 헤드라인 개념 다이어그램 ===== */
+.figure {
+  margin: 6px 0 30px; padding: 20px 20px 15px;
+  border: 1px solid var(--border-soft); border-radius: 16px; background: var(--surface);
+}
+.figure svg { width: 100%; height: auto; display: block; overflow: visible; }
+.figure figcaption { margin-top: 13px; font-size: 12.5px; color: var(--text-3); line-height: 1.65; }
+.figure figcaption b { color: var(--cat); font-weight: 600; }
+.fig-axis { stroke: var(--text-3); stroke-width: 1.1; opacity: .5; fill: none; }
+.fig-key { stroke: var(--cat); stroke-width: 2.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fig-ghost { stroke: var(--text-3); stroke-width: 1.6; stroke-dasharray: 4 4; fill: none; opacity: .6; stroke-linecap: round; }
+.fig-dot { fill: var(--cat); }
+.fig-label { fill: var(--text-3); font-size: 11px; }
+.fig-key-label { fill: var(--cat); font-size: 11px; font-weight: 600; }
+@media (max-width: 560px) {
+  .figure { padding: 16px 14px 12px; }
+  .fig-label, .fig-key-label { font-size: 12px; }
+}
