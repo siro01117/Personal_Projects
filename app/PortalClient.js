@@ -55,11 +55,13 @@ export default function PortalClient({ projects = [] }) {
   const [openId, setOpenId] = useState(null);
   const [guestName, setGuestName] = useState(null);
   const [modal, setModal] = useState({ open: false, kind: '', value: '' });
-  const [welcome, setWelcome] = useState(null);
+  const [welcome, setWelcome] = useState('');   // 타이핑되는 현재 텍스트
+  const [typing, setTyping] = useState(false);
   const [toast, setToast] = useState('');
   const [clock, setClock] = useState('');
   const gridRef = useRef(null);
   const toastT = useRef(null);
+  const typeT = useRef(null);
 
   useEffect(() => {
     setHydrated(true); setClock(clockStr());
@@ -89,10 +91,18 @@ export default function PortalClient({ projects = [] }) {
   async function resolveGuest() {
     const id = getGuestId();
     const name = await fetchName(id);
-    if (name) { setGuestName(name); setWelcome(name); setTimeout(() => setWelcome(null), 2700); }
+    if (name) { setGuestName(name); typeWelcome(name); }
     else setModal({ open: true, kind: 'setup', value: '' });
   }
-  function backToGate() { setMode(null); setOpenId(null); }
+  function backToGate() { setMode(null); setOpenId(null); setWelcome(''); setTyping(false); clearInterval(typeT.current); }
+  function typeWelcome(name) {
+    const full = `${name}님, 환영합니다`;
+    let i = 0; setWelcome(''); setTyping(true); clearInterval(typeT.current);
+    typeT.current = setInterval(() => {
+      i++; setWelcome(full.slice(0, i));
+      if (i >= full.length) { clearInterval(typeT.current); setTimeout(() => setTyping(false), 1200); }
+    }, 70);
+  }
   function openChange() { setModal({ open: true, kind: 'change', value: guestName || '' }); }
   async function submitName() {
     const name = modal.value.trim(); if (!name) return;
@@ -184,7 +194,10 @@ export default function PortalClient({ projects = [] }) {
         <section className="dock wrap in">
           <div className="gtop">
             <div>
-              <div className="gtitle">Dock</div>
+              <div className="trow">
+                <div className="gtitle">Dock</div>
+                {welcome && <span className="wtype">{welcome}{typing && <i className="cw" />}</span>}
+              </div>
               <div className="gsub">{visible.length}개 프로젝트 · {mode === 'admin' ? '전체' : '공개'} · 카드를 탭하면 펼쳐집니다</div>
             </div>
           </div>
@@ -213,10 +226,6 @@ export default function PortalClient({ projects = [] }) {
             </div>
           </div>
         </div>
-      )}
-
-      {welcome && (
-        <div className="welcome"><div className="wcard"><b>{welcome}</b>님, 환영합니다</div></div>
       )}
 
       <div className="marquee"><div className="mtrack">
