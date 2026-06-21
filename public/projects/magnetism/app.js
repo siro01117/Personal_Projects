@@ -32,7 +32,7 @@
     return s || "index";
   }
   var here = pageKey(location.pathname);
-  document.querySelectorAll(".nav a").forEach(function (a) {
+  document.querySelectorAll(".nav a, .tab").forEach(function (a) {
     if (pageKey(a.getAttribute("href")) === here) a.classList.add("active");
   });
 
@@ -56,6 +56,7 @@
     try { state = JSON.parse(localStorage.getItem(KEY_CHECK) || "{}") || {}; } catch (e) { state = {}; }
     var items = Array.prototype.slice.call(list.querySelectorAll(".check-item"));
     var progEl = document.querySelector("[data-check-prog]");
+    var ringFg = document.querySelector("[data-ring-fg]");
 
     function save() { try { localStorage.setItem(KEY_CHECK, JSON.stringify(state)); } catch (e) {} }
     function paint() {
@@ -67,6 +68,10 @@
         if (on) done++;
       });
       if (progEl) progEl.innerHTML = "<b>" + done + "</b> / " + items.length;
+      if (ringFg) {
+        var pct = items.length ? Math.round((done / items.length) * 100) : 0;
+        ringFg.setAttribute("stroke-dasharray", pct + " 100");
+      }
     }
     items.forEach(function (it) {
       it.setAttribute("role", "checkbox"); it.setAttribute("tabindex", "0");
