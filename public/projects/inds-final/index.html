@@ -142,6 +142,14 @@
   .donehint svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.4;fill:none}
   .donehint.ok{color:var(--ok);font-weight:700}
   .swipehint{text-align:center;font-size:11.5px;color:var(--mute);margin-top:9px;line-height:1.6}
+  .chapnav{position:fixed;top:50%;transform:translateY(-50%);z-index:25;width:42px;height:42px;border-radius:50%;
+    display:grid;place-items:center;cursor:pointer;border:1.5px solid var(--line2);background:#fff;color:var(--ink);
+    box-shadow:0 6px 18px rgba(20,20,40,.13);transition:.18s;opacity:0;pointer-events:none}
+  .chapnav.left{left:16px}.chapnav.right{right:16px}
+  .chapnav.show{opacity:1;pointer-events:auto}
+  .chapnav:hover:not(:disabled){border-color:var(--ind);color:var(--ind-deep);transform:translateY(-50%) scale(1.08)}
+  .chapnav:disabled{opacity:.18;pointer-events:none}
+  .chapnav svg{width:22px;height:22px;stroke:currentColor;stroke-width:2.3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 
   .pullbar{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:760px;pointer-events:none;z-index:40;
     display:flex;justify-content:center;align-items:center;gap:8px;height:0;overflow:hidden;font-size:13px;font-weight:700}
@@ -193,6 +201,8 @@
 </div>
 <div class="pullbar" id="pulltop"></div>
 <div class="pullbar" id="pullbot"></div>
+<button class="chapnav left" id="navL" title="이전 장"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+<button class="chapnav right" id="navR" title="다음 장"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -585,7 +595,7 @@ const updateTop=()=>{const d=doneCount(),t=MATRIX.length*5;$('#topbar').style.wi
 /* ===================== 홈 ===================== */
 const CHK='<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
 function renderHome(){
-  inView=false; snapBack(); applyTheme(null);
+  inView=false; snapBack(); applyTheme(null); updateChapNav();
   let head='<tr><td class="corner"></td>';
   MATRIX.forEach(c=>head+=`<th style="color:${CHC[c.id].ac}">${c.id}장</th>`);
   head+='</tr>';
@@ -639,14 +649,8 @@ function renderCell(anim){
      <div class="isub">${LVDESC[cur.si]} 보기에서 정답을 고르면 채워집니다.</div>
      <div id="iwrap"></div>
    </div>
-   <div class="nav">
-     <button class="side" id="leftBtn" title="이전 장">${icSvg(CHV.l)}</button>
-     <button class="stg up" id="upBtn">${icSvg(CHV.u)} 이전 단계</button>
-     <button class="stg down" id="downBtn">${icSvg(CHV.d)} 다음 단계</button>
-     <button class="side" id="rightBtn" title="다음 장">${icSvg(CHV.r)}</button>
-   </div>
    <div class="donehint" id="dh"></div>
-   <div class="swipehint">모바일에서는 좌우로 밀어 장을 옮기고, 아래로 당기면 다음 단계, 위로 당기면 이전 단계로 갑니다.</div>`;
+   <div class="swipehint">화면을 끝까지 스크롤하면 단계가 넘어갑니다. 좌우 화살표(모바일은 좌우 스와이프)로 장을 이동합니다.</div>`;
   v.classList.remove('slin','slout','up');void v.offsetWidth;
   v.classList.add('active', anim||'up');
   $('#home').style.display='none';
@@ -654,15 +658,15 @@ function renderCell(anim){
   if(isRead && cell.anim && ANIM[cell.anim]){const host=document.createElement('div');host.className='anim';host.id='anim_'+c.id+'_'+lv;
     $('.read',v).appendChild(host);ANIM[cell.anim](host);}
   renderItems(cell);
-  $('#leftBtn').disabled=cur.ci===0; $('#leftBtn').onclick=()=>chapterMove(-1);
-  $('#rightBtn').disabled=cur.ci===MATRIX.length-1; $('#rightBtn').onclick=()=>chapterMove(1);
-  $('#upBtn').disabled=cur.si===0; $('#upBtn').onclick=()=>stageMove(-1);
-  $('#downBtn').disabled=cur.si===4; $('#downBtn').onclick=()=>stageMove(1);
+  chapLastStage[cur.ci]=cur.si;
+  updateChapNav();
   window.scrollTo(0,0);
   refreshDone();
 }
-function chapterMove(d){const ni=cur.ci+d;if(ni<0||ni>=MATRIX.length)return;cur.ci=ni;cur.si=0;renderCell(d>0?'slin':'slout');toast((d>0?'다음 장 ':'이전 장 ')+MATRIX[ni].id+'장');}
+let chapLastStage={};
+function chapterMove(d){const ni=cur.ci+d;if(ni<0||ni>=MATRIX.length)return;chapLastStage[cur.ci]=cur.si;cur.ci=ni;cur.si=(ni in chapLastStage)?chapLastStage[ni]:0;renderCell(d>0?'slin':'slout');toast((d>0?'다음 장 ':'이전 장 ')+MATRIX[ni].id+'장 · 단계 '+(cur.si+1));}
 function stageMove(d){const ns=cur.si+d;if(ns<0||ns>=5)return;cur.si=ns;renderCell('up');}
+function updateChapNav(){const L=$('#navL'),R=$('#navR');if(!L||!R)return;if(!inView){L.classList.remove('show');R.classList.remove('show');return;}L.classList.add('show');R.classList.add('show');L.disabled=cur.ci===0;R.disabled=cur.ci===MATRIX.length-1;}
 
 function renderItems(cell){
   const wrap=$('#iwrap'),done=isDone(cur.ci,cur.si);
@@ -684,7 +688,7 @@ function refreshDone(){const dh=$('#dh');if(!dh)return;if(isDone(cur.ci,cur.si))
 
 /* ===================== 제스처 (용수철) ===================== */
 let inView=false;
-const TRIG=115;                 /* 발동 임계 */
+const TRIG=340;                 /* 발동 임계 (높여서 오발동 방지) */
 let drag=0,gdir=0,wTimer=null,cool=false,tdir=0;
 let tsx=0,tsy=0,tact=false;
 function atBottom(){return window.innerHeight+window.scrollY>=document.body.scrollHeight-4;}
@@ -704,7 +708,7 @@ function onWheel(e){if(!inView||cool)return;
   let d=0;
   if(e.deltaY>0&&atBottom()&&cur.si<4)d=1;
   else if(e.deltaY<0&&atTop()&&cur.si>0)d=-1;
-  if(d===0){if(drag>0)snapBack();return;}
+  if(d===0){clearTimeout(wTimer);if(drag>0)snapBack();return;}   /* 역방향/이탈 시 누적 취소 */
   e.preventDefault();
   if(gdir!==d){drag=0;gdir=d;}
   drag+=Math.abs(e.deltaY);
@@ -728,6 +732,7 @@ window.addEventListener('touchend',onTE,{passive:true});
 let toastT=null;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),1700);}
 $('#homeBtn').onclick=renderHome;
+$('#navL').onclick=()=>chapterMove(-1);$('#navR').onclick=()=>chapterMove(1);
 renderHome();
 </script>
 </body>
