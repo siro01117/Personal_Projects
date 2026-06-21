@@ -52,7 +52,6 @@ export default function PortalClient({ projects = [] }) {
   const [hydrated, setHydrated] = useState(false);
   const [mode, setMode] = useState(null);
   const [leaving, setLeaving] = useState(false);
-  const [viewer, setViewer] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [guestName, setGuestName] = useState(null);
   const [modal, setModal] = useState({ open: false, kind: '', value: '' });
@@ -107,7 +106,7 @@ export default function PortalClient({ projects = [] }) {
   function openProject(p, e) {
     e.stopPropagation();
     if (!p.embedUrl) { showToast('아직 준비 중이에요'); return; }
-    setViewer(p);
+    window.location.href = p.embedUrl;   // 같은 탭에서 모듈로 통째 이동
   }
 
   if (!hydrated) return null;
@@ -198,19 +197,6 @@ export default function PortalClient({ projects = [] }) {
             </div>
           )}
         </section>
-      )}
-
-      {viewer && (
-        <div className="viewer">
-          <div className="viewer-bar">
-            <span className="vt"><span className="dotc" style={{ background: viewer.color || PALETTE[0] }} />{viewer.name}</span>
-            <div className="vr">
-              <a className="vnew" href={viewer.embedUrl} target="_blank" rel="noopener noreferrer">새 탭 ↗</a>
-              <button className="vx" onClick={() => setViewer(null)}>✕</button>
-            </div>
-          </div>
-          <iframe src={viewer.embedUrl} title={viewer.name} />
-        </div>
       )}
 
       {modal.open && (
