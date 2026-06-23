@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>모션 그래픽 · 애니메이션 컴포넌트 갤러리</title>
+<title>디자인 사전 — 모션 · 구성 · 레이아웃 명칭 갤러리</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
 <style>
@@ -185,16 +185,62 @@
   footer a{ color:var(--txt-faint); text-decoration:underline; text-underline-offset:2px }
   footer a:hover{ color:var(--acc-2) }
   .divider{ max-width:1240px; margin:0 auto; border-top:1px solid var(--line) }
+
+  /* ---------- 탭바 (디자인 사전 허브) ---------- */
+  .tabbar{
+    max-width:1240px; margin:0 auto; padding:6px 28px 0;
+    display:flex; gap:4px; flex-wrap:wrap; align-items:flex-end;
+    border-bottom:1px solid var(--line);
+  }
+  .tab{
+    border:1px solid transparent; border-bottom:none; background:none;
+    color:var(--txt-dim); font-family:inherit; cursor:pointer;
+    padding:10px 18px 11px; border-radius:11px 11px 0 0; text-align:left;
+    transition:color .15s ease, background .15s ease; position:relative; bottom:-1px;
+  }
+  .tab b{ font-size:14.5px; font-weight:700; display:block }
+  .tab small{ font-size:11px; font-weight:600; color:var(--txt-faint); display:block; margin-top:1px }
+  .tab:hover{ color:var(--txt) }
+  .tab.active{ color:var(--txt); background:var(--surface); border-color:var(--line); }
+  .tab.active small{ color:var(--acc-2) }
+
+  /* ---------- 명칭 사전 카드 (다이어그램형) ---------- */
+  .card.term .stage{
+    min-height:170px; background:var(--surface-2);
+    background-image:none; padding:18px;
+  }
+  .term-en{ font-size:12px; color:var(--txt-faint); font-weight:600; margin:2px 0 7px; letter-spacing:.01em }
+  .use{ margin:11px 0 0; font-size:12px; color:var(--txt-dim); display:flex; gap:8px; align-items:flex-start; line-height:1.5 }
+  .use b{ color:var(--acc-2); flex-shrink:0; font-weight:700; white-space:nowrap }
+
+  /* 와이어프레임 다이어그램 유틸 */
+  .dgm{ width:100%; max-width:252px }
+  .dgm .frame{ border:1px solid var(--line); border-radius:8px; background:var(--surface); padding:7px; display:flex; flex-direction:column; gap:5px }
+  .dgm .row{ display:flex; gap:5px }
+  .dgm .col{ display:flex; flex-direction:column; gap:5px }
+  .dgm .b{ background:var(--bg); border:1px solid var(--line); border-radius:3px; min-height:14px; flex:1 }
+  .dgm .soft{ background:var(--surface-2) }
+  .dgm .acc{ background:color-mix(in srgb,var(--acc) 28%, transparent); border-color:color-mix(in srgb,var(--acc) 55%, var(--line)) }
+  .dgm .dash{ background:transparent; border-style:dashed }
+  .dgm .t{ display:flex; align-items:center; justify-content:center; font-size:8.5px; font-weight:700; color:var(--txt-faint); letter-spacing:.02em; text-align:center; padding:1px 2px; line-height:1.2 }
+  .dgm .tl{ justify-content:flex-start }
+  .dgm .center{ display:flex; align-items:center; justify-content:center }
 </style>
 </head>
 <body>
 
 <header class="hero">
-  <p class="eyebrow">Motion Gallery · 2026</p>
-  <h1>모션 그래픽 · 애니메이션<br>컴포넌트 갤러리</h1>
-  <p>발표 슬라이드부터 웹 화려함까지 — 30종의 라이브 애니메이션을 미리 보고, 쓸 것만 골라 코드를 가져가세요.</p>
-  <p class="hint">각 카드: <b>★ 선택</b> · <b>↻ 리플레이</b> · <b>&lt;/&gt; 코드</b>. 선택 항목은 자동 저장되며 상단에서 한 번에 복사할 수 있습니다.</p>
+  <p class="eyebrow">Design Dictionary · 2026</p>
+  <h1>디자인 사전</h1>
+  <p>전공자가 아니어도 — 눈으로 보고 고르고, 이름을 알아내는 카탈로그. <b>모션</b>은 라이브로 미리 보고 코드를 가져가고, <b>구성·레이아웃 명칭</b>은 "이거 뭐라고 부르지?"를 도식으로 찾습니다.</p>
+  <p class="hint">탭으로 갈아끼우세요. 모션 카드: <b>★ 선택</b> · <b>↻ 리플레이</b> · <b>&lt;/&gt; 코드</b> — 선택 항목은 자동 저장 + 한 번에 복사.</p>
 </header>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab active" data-tab="motion"><b>모션</b><small>라이브 애니메이션</small></button>
+  <button class="tab" data-tab="naming"><b>구성 · 레이아웃 명칭</b><small>섹션 · 배치 · 용어</small></button>
+  <button class="tab" data-tab="fun"><b>기타</b><small>글리치 · 레트로</small></button>
+</nav>
 
 <div class="toolbar">
   <div class="toolbar-inner">
@@ -249,7 +295,170 @@ var CATS = {
   ui:'버튼·인터랙션', card:'카드', '3d':'3D·트랜스폼', data:'데이터·차트', fun:'글리치·레트로'
 };
 
-var COMPONENTS = JSON.parse(document.getElementById("cmp-data").textContent);
+/* ====================== 보강 — 기본형 모션 (스크롤·내비·오버레이·폼) ======================
+   기존 cmp-data 블록은 손대지 않고 여기에 concat 으로 합칩니다. */
+var EXTRA_MOTION=[
+{id:'x-scroll-reveal',cat:'entrance',name:'스크롤 진입 리빌 (Scroll Reveal)',desc:'뷰포트에 들어올 때 아래에서 페이드업. 가장 흔한 스크롤 등장.',tags:['CSS','발표적합'],code:`<div style="display:flex;flex-direction:column;gap:11px;width:172px">
+  <div class="srv-i"></div><div class="srv-i"></div><div class="srv-i"></div>
+</div>
+<style>
+.srv-i{height:22px;border-radius:7px;background:var(--acc,#6366f1);opacity:.85;animation:srvUp 2.8s ease-in-out infinite}
+.srv-i:nth-child(2){animation-delay:.16s;opacity:.6}
+.srv-i:nth-child(3){animation-delay:.32s;opacity:.4}
+@keyframes srvUp{0%,12%{opacity:0;transform:translateY(18px)}32%,68%{opacity:1;transform:none}88%,100%{opacity:0;transform:translateY(-10px)}}
+</style>`},
+{id:'x-scroll-progress',cat:'scroll',name:'스크롤 진행 바 (Scroll Progress)',desc:'페이지 상단에서 읽은 비율만큼 채워지는 막대.',tags:['JS'],code:`<div class="spg-wrap">
+  <div class="spg-bar"></div>
+  <div class="spg-lines"><span></span><span></span><span></span><span></span><span></span></div>
+</div>
+<style>
+.spg-wrap{width:182px;border:1px solid var(--line,#2a2e3a);border-radius:9px;overflow:hidden;background:var(--surface,#16181f)}
+.spg-bar{height:5px;background:var(--acc,#6366f1);width:8%;animation:spgFill 3.2s ease-in-out infinite}
+.spg-lines{padding:13px;display:flex;flex-direction:column;gap:8px}
+.spg-lines span{height:8px;border-radius:4px;background:var(--surface-2,#1d2029)}
+.spg-lines span:nth-child(odd){width:92%}.spg-lines span:nth-child(even){width:68%}
+@keyframes spgFill{0%{width:6%}88%{width:100%}100%{width:100%}}
+</style>`},
+{id:'x-sticky-shrink',cat:'ui',name:'스티키 축소 헤더 (Sticky Shrink Nav)',desc:'스크롤하면 상단 바가 얇아지는 고정 헤더.',tags:['CSS'],code:`<div class="ssk-page">
+  <div class="ssk-head"><b>LOGO</b><span>메뉴</span></div>
+  <div class="ssk-body"><i></i><i></i><i></i></div>
+</div>
+<style>
+.ssk-page{width:180px;border:1px solid var(--line,#2a2e3a);border-radius:9px;overflow:hidden;background:var(--surface,#16181f)}
+.ssk-head{display:flex;justify-content:space-between;align-items:center;padding:0 13px;color:#fff;background:var(--acc,#6366f1);font-weight:700;height:38px;font-size:11px;animation:sskShrink 3s ease-in-out infinite}
+.ssk-head span{font-weight:600;opacity:.85}
+.ssk-body{padding:11px;display:flex;flex-direction:column;gap:7px}
+.ssk-body i{height:9px;border-radius:4px;background:var(--surface-2,#1d2029)}
+@keyframes sskShrink{0%,22%{height:38px;font-size:11px}48%,100%{height:23px;font-size:9px}}
+</style>`},
+{id:'x-drawer',cat:'ui',name:'사이드 드로어 (Side Drawer)',desc:'옆에서 밀려 들어오는 메뉴 패널 + 스크림. 모바일 표준.',tags:['CSS'],code:`<div class="drw-vp">
+  <div class="drw-panel"><i></i><i></i><i></i></div>
+  <div class="drw-scrim"></div>
+</div>
+<style>
+.drw-vp{position:relative;width:184px;height:124px;border:1px solid var(--line,#2a2e3a);border-radius:9px;overflow:hidden;background:var(--surface-2,#1d2029)}
+.drw-scrim{position:absolute;inset:0;background:rgba(0,0,0,.42);opacity:0;animation:drwScrim 3.4s ease-in-out infinite}
+.drw-panel{position:absolute;top:0;left:0;height:100%;width:64%;background:var(--surface,#16181f);border-right:1px solid var(--line,#2a2e3a);transform:translateX(-100%);animation:drwIn 3.4s ease-in-out infinite;padding:13px;display:flex;flex-direction:column;gap:9px;z-index:2}
+.drw-panel i{height:11px;border-radius:5px;background:var(--acc,#6366f1);opacity:.85}
+.drw-panel i:nth-child(2){width:74%}.drw-panel i:nth-child(3){width:54%}
+@keyframes drwIn{0%,10%{transform:translateX(-100%)}30%,70%{transform:none}90%,100%{transform:translateX(-100%)}}
+@keyframes drwScrim{0%,10%{opacity:0}30%,70%{opacity:1}90%,100%{opacity:0}}
+</style>`},
+{id:'x-modal',cat:'ui',name:'모달 다이얼로그 (Modal)',desc:'버튼 클릭 → 스크림 위로 팝업이 스케일인. 클릭해 보세요.',tags:['JS'],code:`<div class="mdl-root">
+  <button class="mdl-open">열기</button>
+  <div class="mdl-scrim"><div class="mdl-box"><b>제목</b><p>모달 내용이 여기에 들어갑니다.</p><span class="mdl-x">×</span></div></div>
+</div>
+<style>
+.mdl-root{position:relative;width:190px;height:132px;border:1px solid var(--line,#2a2e3a);border-radius:9px;background:var(--surface-2,#1d2029);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.mdl-open{background:var(--acc,#6366f1);color:#fff;border:none;border-radius:9px;padding:9px 17px;font:inherit;font-weight:700;font-size:12px;cursor:pointer}
+.mdl-scrim{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.mdl-scrim.on{opacity:1;pointer-events:auto}
+.mdl-box{background:var(--surface,#16181f);border:1px solid var(--line,#2a2e3a);border-radius:11px;padding:15px 16px;width:124px;position:relative;transform:scale(.88);transition:transform .26s cubic-bezier(.2,.9,.3,1.4);color:var(--txt,#e7e9ee)}
+.mdl-scrim.on .mdl-box{transform:scale(1)}
+.mdl-box b{font-size:12.5px}.mdl-box p{margin:6px 0 0;font-size:11px;color:var(--txt-dim,#9aa0ad);line-height:1.4}
+.mdl-x{position:absolute;top:6px;right:10px;cursor:pointer;color:var(--txt-dim,#9aa0ad);font-size:16px;line-height:1}
+</style>
+<script>(function(){var r=document.currentScript.parentNode;var s=r.querySelector('.mdl-scrim');r.querySelector('.mdl-open').onclick=function(){s.classList.add('on')};r.querySelector('.mdl-x').onclick=function(){s.classList.remove('on')};s.onclick=function(e){if(e.target===s)s.classList.remove('on')};})();<\/script>`},
+{id:'x-bottom-sheet',cat:'ui',name:'바텀시트 (Bottom Sheet)',desc:'아래에서 올라오는 시트. 모바일 상세·옵션 표준.',tags:['JS'],code:`<div class="bsh-vp">
+  <button class="bsh-open">▲ 시트 열기</button>
+  <div class="bsh-scrim"></div>
+  <div class="bsh-sheet"><div class="bsh-grab"></div><i></i><i></i></div>
+</div>
+<style>
+.bsh-vp{position:relative;width:164px;height:132px;border:1px solid var(--line,#2a2e3a);border-radius:9px;overflow:hidden;background:var(--surface-2,#1d2029);display:flex;align-items:center;justify-content:center}
+.bsh-open{background:var(--acc,#6366f1);color:#fff;border:none;border-radius:9px;padding:8px 13px;font:inherit;font-weight:700;font-size:11px;cursor:pointer}
+.bsh-scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .3s}
+.bsh-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface,#16181f);border-top:1px solid var(--line,#2a2e3a);border-radius:13px 13px 0 0;padding:9px 13px 15px;transform:translateY(100%);transition:transform .33s cubic-bezier(.2,.9,.3,1);z-index:2}
+.bsh-vp.on .bsh-scrim{opacity:1;pointer-events:auto}
+.bsh-vp.on .bsh-sheet{transform:none}
+.bsh-grab{width:36px;height:4px;border-radius:3px;background:var(--txt-faint,#6b7280);margin:0 auto 10px}
+.bsh-sheet i{display:block;height:10px;border-radius:5px;background:var(--surface-2,#1d2029);margin-bottom:7px}
+.bsh-sheet i:nth-child(3){width:68%}
+</style>
+<script>(function(){var r=document.currentScript.parentNode;var vp=r.querySelector('.bsh-vp');r.querySelector('.bsh-open').onclick=function(){vp.classList.add('on')};r.querySelector('.bsh-scrim').onclick=function(){vp.classList.remove('on')};})();<\/script>`},
+{id:'x-accordion',cat:'ui',name:'아코디언 (Accordion)',desc:'헤더 클릭 → 내용이 부드럽게 펼쳐짐. FAQ 표준.',tags:['JS'],code:`<div style="width:188px">
+  <div class="acd-item"><div class="acd-h">질문 1<span>＋</span></div><div class="acd-c">펼쳐진 답변 내용이 여기에 표시됩니다.</div></div>
+  <div class="acd-item"><div class="acd-h">질문 2<span>＋</span></div><div class="acd-c">두 번째 항목의 답변.</div></div>
+</div>
+<style>
+.acd-item{border:1px solid var(--line,#2a2e3a);border-radius:8px;margin-bottom:7px;overflow:hidden;background:var(--surface,#16181f)}
+.acd-h{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;font-size:11.5px;font-weight:700;color:var(--txt,#e7e9ee);cursor:pointer}
+.acd-h span{color:var(--acc,#6366f1);transition:transform .25s;font-size:13px}
+.acd-c{max-height:0;overflow:hidden;transition:max-height .3s ease;padding:0 12px;font-size:10.5px;color:var(--txt-dim,#9aa0ad);line-height:1.4}
+.acd-item.on .acd-c{max-height:64px;padding:0 12px 10px}
+.acd-item.on .acd-h span{transform:rotate(45deg)}
+</style>
+<script>(function(){var r=document.currentScript.parentNode;[].forEach.call(r.querySelectorAll('.acd-item'),function(it){it.querySelector('.acd-h').onclick=function(){it.classList.toggle('on')}})})();<\/script>`},
+{id:'x-tooltip',cat:'feedback',name:'툴팁 (Tooltip)',desc:'호버하면 위로 떠오르는 말풍선. 위에 마우스를 올려보세요.',tags:['CSS'],code:`<div style="display:flex;align-items:center;justify-content:center;height:120px">
+  <span class="tip">호버<span class="tip-b">설명이 여기에 뜹니다</span></span>
+</div>
+<style>
+.tip{position:relative;background:var(--acc,#6366f1);color:#fff;font-size:12px;font-weight:700;padding:9px 15px;border-radius:9px;cursor:pointer}
+.tip-b{position:absolute;bottom:132%;left:50%;transform:translateX(-50%) translateY(5px);background:var(--surface,#16181f);color:var(--txt,#e7e9ee);border:1px solid var(--line,#2a2e3a);font-size:10.5px;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .2s}
+.tip:hover .tip-b{opacity:1;transform:translateX(-50%)}
+.tip-b:after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--surface,#16181f)}
+</style>`},
+{id:'x-floating-label',cat:'feedback',name:'플로팅 라벨 입력 (Floating Label)',desc:'입력하면 라벨이 위로 올라가는 폼 필드. 클릭해 입력해 보세요.',tags:['CSS'],code:`<div style="display:flex;align-items:center;justify-content:center;height:120px">
+  <label class="fl"><input class="fl-i" placeholder=" "><span class="fl-t">이메일</span></label>
+</div>
+<style>
+.fl{position:relative;display:block;width:152px}
+.fl-i{width:100%;padding:16px 12px 7px;background:var(--surface,#16181f);border:1px solid var(--line,#2a2e3a);border-radius:9px;color:var(--txt,#e7e9ee);font:inherit;font-size:12px;outline:none}
+.fl-i:focus{border-color:var(--acc,#6366f1)}
+.fl-t{position:absolute;left:12px;top:13px;font-size:12px;color:var(--txt-faint,#6b7280);pointer-events:none;transition:all .18s}
+.fl-i:focus+.fl-t,.fl-i:not(:placeholder-shown)+.fl-t{top:5px;font-size:9px;color:var(--acc,#6366f1)}
+</style>`},
+{id:'x-tab-underline',cat:'ui',name:'탭 인디케이터 슬라이드 (Tab Indicator)',desc:'탭을 누르면 밑줄이 미끄러져 따라옴. 눌러보세요.',tags:['JS','발표적합'],code:`<div style="width:188px">
+  <div class="tbu-row"><button class="tbu-b on">홈</button><button class="tbu-b">소개</button><button class="tbu-b">문의</button><div class="tbu-ink"></div></div>
+</div>
+<style>
+.tbu-row{position:relative;display:flex;border-bottom:1px solid var(--line,#2a2e3a)}
+.tbu-b{flex:1;background:none;border:none;color:var(--txt-dim,#9aa0ad);font:inherit;font-size:12px;font-weight:700;padding:10px 0;cursor:pointer}
+.tbu-b.on{color:var(--acc,#6366f1)}
+.tbu-ink{position:absolute;bottom:-1px;left:0;width:33.33%;height:2px;background:var(--acc,#6366f1);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+</style>
+<script>(function(){var r=document.currentScript.parentNode;var bs=r.querySelectorAll('.tbu-b');var ink=r.querySelector('.tbu-ink');[].forEach.call(bs,function(b,i){b.onclick=function(){[].forEach.call(bs,function(x){x.classList.remove('on')});b.classList.add('on');ink.style.transform='translateX('+(i*100)+'%)'}})})();<\/script>`}
+];
+
+/* ====================== 명칭 사전 — 섹션 · 배치 · 용어 ======================
+   라이브 코드가 아니라 도식(dgm)으로 "뭐라고 부르는지" 찾는 카탈로그. */
+var TERM_CATS={ section:'섹션', layout:'배치·레이아웃', term:'구조·용어' };
+var TERMS=[
+/* --- 섹션 --- */
+{id:'t-hero',cat:'section',name:'히어로',en:'Hero / Above-the-fold',desc:'첫 화면 최상단의 대형 영역. 헤드라인 + 핵심 메시지 + CTA 버튼.',use:'첫인상·핵심 메시지를 0.5초 안에 전달할 때',dgm:`<div class="dgm"><div class="frame"><div class="row"><div class="b soft t tl" style="flex:2">LOGO</div><div class="b soft" style="flex:.5"></div><div class="b soft" style="flex:.5"></div></div><div class="b acc t" style="min-height:56px">헤드라인 + CTA</div></div></div>`},
+{id:'t-navbar',cat:'section',name:'내비게이션 바 / GNB',en:'Navbar / Global Nav',desc:'페이지 상단의 전역 메뉴 줄. 로고 + 주요 링크 + 액션.',use:'어느 화면에서도 사이트 전체를 이동할 때',dgm:`<div class="dgm"><div class="frame"><div class="row acc" style="padding:6px;border-radius:6px;align-items:center"><div class="t tl" style="flex:2;color:var(--txt)">LOGO</div><div class="t">메뉴</div><div class="t">메뉴</div><div class="t">메뉴</div></div><div class="b soft" style="min-height:44px"></div></div></div>`},
+{id:'t-drawer',cat:'section',name:'햄버거 · 드로어 메뉴',en:'Hamburger / Drawer',desc:'≡ 아이콘을 누르면 옆에서 밀려나오는 접이식 메뉴. 모바일 표준.',use:'좁은 화면에서 메뉴를 숨겨둘 때',dgm:`<div class="dgm"><div class="frame"><div class="row" style="align-items:center"><div class="t tl" style="flex:1;color:var(--txt)">≡   LOGO</div></div><div class="row" style="gap:5px"><div class="acc col" style="width:46%;padding:7px;gap:5px;border-radius:5px"><div class="b" style="background:rgba(255,255,255,.55);border:none;min-height:9px"></div><div class="b" style="background:rgba(255,255,255,.5);border:none;min-height:9px;width:72%"></div><div class="b" style="background:rgba(255,255,255,.45);border:none;min-height:9px;width:55%"></div></div><div class="b soft" style="flex:1;min-height:52px"></div></div></div></div>`},
+{id:'t-footer',cat:'section',name:'푸터',en:'Footer',desc:'페이지 맨 아래 정보 구획. 링크 묶음 · 연락처 · 저작권.',use:'보조 링크·법적 정보·사이트맵을 모을 때',dgm:`<div class="dgm"><div class="frame"><div class="b soft" style="min-height:28px"></div><div class="row" style="background:var(--surface-2);border-radius:5px;padding:7px"><div class="col" style="flex:1;gap:3px"><div class="b" style="min-height:7px"></div><div class="b" style="min-height:7px;width:70%"></div></div><div class="col" style="flex:1;gap:3px"><div class="b" style="min-height:7px"></div><div class="b" style="min-height:7px;width:70%"></div></div><div class="col" style="flex:1;gap:3px"><div class="b" style="min-height:7px"></div><div class="b" style="min-height:7px;width:70%"></div></div></div><div class="t">© 2026 · 하단 정보</div></div></div>`},
+{id:'t-cta',cat:'section',name:'CTA 섹션',en:'Call To Action',desc:'행동을 유도하는 강조 띠. 한 줄 카피 + 큰 버튼.',use:'스크롤 끝/중간에서 가입·구매를 밀어붙일 때',dgm:`<div class="dgm"><div class="frame"><div class="b soft" style="min-height:20px"></div><div class="acc center col" style="min-height:48px;gap:7px;border-radius:7px;padding:7px"><div class="t" style="color:var(--txt)">지금 시작하세요</div><div class="b" style="background:var(--acc);border:none;max-width:56px;min-height:13px;border-radius:6px"></div></div><div class="b soft" style="min-height:18px"></div></div></div>`},
+{id:'t-feature',cat:'section',name:'피처 그리드',en:'Feature Grid',desc:'기능·장점을 아이콘+제목+설명 3~4칸으로 나란히.',use:'제품의 핵심 기능을 한눈에 비교시킬 때',dgm:`<div class="dgm"><div class="frame"><div class="t tl">기능 소개</div><div class="row"><div class="col" style="flex:1;gap:4px"><div class="b acc" style="min-height:16px"></div><div class="b soft" style="min-height:7px"></div></div><div class="col" style="flex:1;gap:4px"><div class="b acc" style="min-height:16px"></div><div class="b soft" style="min-height:7px"></div></div><div class="col" style="flex:1;gap:4px"><div class="b acc" style="min-height:16px"></div><div class="b soft" style="min-height:7px"></div></div></div></div></div>`},
+{id:'t-testimonial',cat:'section',name:'후기 · 증언',en:'Testimonial',desc:'사용자 인용문 + 이름·소속. 신뢰를 빌려오는 구획.',use:'사회적 증거(다른 사람도 쓴다)를 보여줄 때',dgm:`<div class="dgm"><div class="frame center" style="min-height:96px"><div class="col center" style="gap:7px"><div class="t" style="font-size:20px;color:var(--acc)">"</div><div class="b soft" style="min-height:8px;width:120px"></div><div class="b soft" style="min-height:8px;width:88px"></div><div class="row center" style="gap:6px;margin-top:3px"><div class="b acc" style="width:16px;height:16px;border-radius:50%;flex:none;min-height:0"></div><div class="t">— 사용자</div></div></div></div></div>`},
+{id:'t-pricing',cat:'section',name:'가격표',en:'Pricing Table',desc:'요금제를 칸으로 비교. 보통 가운데 추천안을 강조.',use:'플랜 선택을 유도할 때',dgm:`<div class="dgm"><div class="frame"><div class="row" style="align-items:flex-end"><div class="col soft" style="flex:1;border-radius:5px;padding:5px;gap:4px;min-height:58px"><div class="t">Basic</div><div class="b" style="min-height:6px"></div><div class="b" style="min-height:6px"></div></div><div class="col acc" style="flex:1;border-radius:5px;padding:5px;gap:4px;min-height:74px"><div class="t" style="color:var(--txt)">Pro</div><div class="b" style="min-height:6px;background:rgba(255,255,255,.5);border:none"></div><div class="b" style="min-height:6px;background:rgba(255,255,255,.45);border:none"></div></div><div class="col soft" style="flex:1;border-radius:5px;padding:5px;gap:4px;min-height:58px"><div class="t">Max</div><div class="b" style="min-height:6px"></div><div class="b" style="min-height:6px"></div></div></div></div></div>`},
+{id:'t-faq',cat:'section',name:'FAQ 아코디언',en:'FAQ Accordion',desc:'자주 묻는 질문을 접이식으로. 클릭하면 답이 펼쳐짐.',use:'반복 질문을 공간 적게 정리할 때',dgm:`<div class="dgm"><div class="frame"><div class="row soft" style="border-radius:5px;padding:7px 9px;align-items:center"><div class="t tl" style="flex:1;color:var(--txt)">질문이 들어갑니다</div><div class="t" style="color:var(--acc)">＋</div></div><div class="col acc" style="border-radius:5px;padding:8px;gap:4px"><div class="row" style="align-items:center"><div class="t tl" style="flex:1;color:var(--txt)">펼쳐진 질문</div><div class="t" style="color:#fff">×</div></div><div class="b" style="min-height:7px;background:rgba(255,255,255,.4);border:none"></div></div><div class="row soft" style="border-radius:5px;padding:7px 9px;align-items:center"><div class="t tl" style="flex:1;color:var(--txt)">또 다른 질문</div><div class="t" style="color:var(--acc)">＋</div></div></div></div>`},
+{id:'t-stats',cat:'section',name:'통계 밴드',en:'Stats Band',desc:'큰 숫자 지표를 가로로 나열한 띠. 98% · 12K · 4.9 식.',use:'성과·규모를 숫자로 각인시킬 때',dgm:`<div class="dgm"><div class="frame acc center" style="min-height:80px;border-radius:7px"><div class="row center" style="gap:14px"><div class="col center" style="gap:3px"><div class="t" style="font-size:15px;color:var(--txt)">98%</div><div class="t">만족도</div></div><div class="col center" style="gap:3px"><div class="t" style="font-size:15px;color:var(--txt)">12K</div><div class="t">사용자</div></div><div class="col center" style="gap:3px"><div class="t" style="font-size:15px;color:var(--txt)">4.9</div><div class="t">평점</div></div></div></div></div>`},
+{id:'t-logocloud',cat:'section',name:'로고 클라우드',en:'Logo Cloud',desc:'협력사·고객사 로고를 흐릿하게 줄세운 띠.',use:'"이런 곳들이 씁니다"로 신뢰를 줄 때',dgm:`<div class="dgm"><div class="frame"><div class="t tl">신뢰하는 파트너</div><div class="row" style="flex-wrap:wrap;gap:6px"><div class="b soft" style="min-height:18px;flex:1 1 28%"></div><div class="b soft" style="min-height:18px;flex:1 1 28%"></div><div class="b soft" style="min-height:18px;flex:1 1 28%"></div><div class="b soft" style="min-height:18px;flex:1 1 28%"></div><div class="b soft" style="min-height:18px;flex:1 1 28%"></div><div class="b soft" style="min-height:18px;flex:1 1 28%"></div></div></div></div>`},
+{id:'t-bento',cat:'section',name:'벤토 그리드',en:'Bento Grid',desc:'크기가 다른 카드를 도시락처럼 모자이크로 배치. 2024~ 유행.',use:'정보 묶음마다 비중을 다르게 보여줄 때',dgm:`<div class="dgm"><div class="frame"><div class="row"><div class="b acc" style="flex:2;min-height:40px"></div><div class="col" style="flex:1;gap:5px"><div class="b soft" style="min-height:17px"></div><div class="b soft" style="min-height:17px"></div></div></div><div class="row"><div class="b soft" style="flex:1;min-height:22px"></div><div class="b acc" style="flex:1;min-height:22px"></div><div class="b soft" style="flex:1;min-height:22px"></div></div></div></div>`},
+/* --- 배치·레이아웃 --- */
+{id:'t-single',cat:'layout',name:'싱글 컬럼',en:'Single Column',desc:'콘텐츠를 한 줄기로 세로로만 쌓는 배치. 모바일·블로그 기본.',use:'읽기 흐름이 명확해야 할 때 / 모바일 우선',dgm:`<div class="dgm"><div class="frame center"><div class="col" style="width:62%;gap:5px"><div class="b acc" style="min-height:20px"></div><div class="b soft" style="min-height:10px"></div><div class="b soft" style="min-height:10px"></div><div class="b soft" style="min-height:10px"></div></div></div></div>`},
+{id:'t-split',cat:'layout',name:'스플릿 스크린',en:'Split Screen',desc:'화면을 좌우 반반으로 나눔. 한쪽 이미지 + 한쪽 텍스트.',use:'시각물과 설명을 동등하게 대비시킬 때',dgm:`<div class="dgm"><div class="frame"><div class="row" style="min-height:80px"><div class="b acc" style="flex:1"></div><div class="col" style="flex:1;gap:5px"><div class="b soft" style="min-height:10px;margin-top:6px"></div><div class="b soft" style="min-height:10px;width:80%"></div><div class="b" style="min-height:13px;width:46%;background:var(--acc);border:none;border-radius:4px"></div></div></div></div></div>`},
+{id:'t-holygrail',cat:'layout',name:'홀리 그레일',en:'Holy Grail',desc:'헤더 / 좌-본문-우 3단 / 푸터의 고전 골격.',use:'대시보드·문서처럼 사방 영역이 다 필요할 때',dgm:`<div class="dgm"><div class="frame"><div class="b soft" style="min-height:13px"></div><div class="row" style="min-height:48px"><div class="b soft" style="flex:.5"></div><div class="b acc" style="flex:2"></div><div class="b soft" style="flex:.5"></div></div><div class="b soft" style="min-height:13px"></div></div></div>`},
+{id:'t-zpattern',cat:'layout',name:'Z 패턴',en:'Z-Pattern',desc:'시선이 좌상→우상→좌하→우하로 Z를 그리는 배치.',use:'요소가 적은 랜딩에서 시선을 유도할 때',dgm:`<div class="dgm"><div class="frame" style="position:relative;min-height:84px"><div class="row" style="justify-content:space-between"><div class="b acc" style="flex:none;width:36px;min-height:18px"></div><div class="b soft" style="flex:none;width:36px;min-height:18px"></div></div><div class="t" style="position:absolute;inset:0;font-size:34px;color:color-mix(in srgb,var(--acc) 34%,transparent)">Z</div><div class="row" style="justify-content:space-between;margin-top:40px"><div class="b soft" style="flex:none;width:36px;min-height:18px"></div><div class="b acc" style="flex:none;width:36px;min-height:18px"></div></div></div></div>`},
+{id:'t-fpattern',cat:'layout',name:'F 패턴',en:'F-Pattern',desc:'사용자가 왼쪽 위주로 F자로 훑어 읽는 경향. 텍스트 많은 페이지.',use:'글·목록 위주 페이지에서 중요한 걸 왼쪽·위에 둘 때',dgm:`<div class="dgm"><div class="frame" style="position:relative"><div class="b acc" style="min-height:12px"></div><div class="b acc" style="min-height:10px;width:74%"></div><div class="b soft" style="min-height:9px;width:54%"></div><div class="b soft" style="min-height:9px;width:40%"></div><div class="t" style="position:absolute;right:9px;top:9px;font-size:30px;color:color-mix(in srgb,var(--acc) 30%,transparent)">F</div></div></div>`},
+{id:'t-cardgrid',cat:'layout',name:'카드 그리드',en:'Card Grid',desc:'같은 크기 카드를 격자로 정렬. 목록·갤러리의 기본.',use:'동질적 항목(상품·글)을 여러 개 늘어놓을 때',dgm:`<div class="dgm"><div class="frame"><div class="row"><div class="b soft" style="min-height:30px"></div><div class="b soft" style="min-height:30px"></div><div class="b soft" style="min-height:30px"></div></div><div class="row"><div class="b soft" style="min-height:30px"></div><div class="b soft" style="min-height:30px"></div><div class="b soft" style="min-height:30px"></div></div></div></div>`},
+{id:'t-masonry',cat:'layout',name:'매스너리',en:'Masonry',desc:'높이가 제각각인 카드를 벽돌처럼 빈틈없이. 핀터레스트식.',use:'이미지 비율이 다양할 때',dgm:`<div class="dgm"><div class="frame"><div class="row" style="align-items:flex-start"><div class="col" style="flex:1;gap:5px"><div class="b soft" style="min-height:34px"></div><div class="b soft" style="min-height:20px"></div></div><div class="col" style="flex:1;gap:5px"><div class="b soft" style="min-height:20px"></div><div class="b soft" style="min-height:34px"></div></div><div class="col" style="flex:1;gap:5px"><div class="b soft" style="min-height:28px"></div><div class="b soft" style="min-height:26px"></div></div></div></div></div>`},
+{id:'t-stickyside',cat:'layout',name:'스티키 사이드바',en:'Sticky Sidebar',desc:'본문은 스크롤돼도 측면 메뉴/목차는 화면에 고정.',use:'긴 문서에서 목차·필터를 항상 보이게 할 때',dgm:`<div class="dgm"><div class="frame"><div class="row" style="min-height:76px"><div class="b dash" style="flex:.6;border-color:var(--acc)"></div><div class="col" style="flex:2;gap:5px"><div class="b soft" style="min-height:10px"></div><div class="b soft" style="min-height:10px"></div><div class="b soft" style="min-height:10px"></div><div class="b soft" style="min-height:10px"></div><div class="b soft" style="min-height:10px"></div></div></div><div class="t tl">← 측면 고정</div></div></div>`},
+{id:'t-grid12',cat:'layout',name:'12 컬럼 그리드',en:'12-Column Grid',desc:'화면을 12칸으로 쪼개 그 위에 요소를 얹는 설계 격자.',use:'반응형 레이아웃을 일관되게 맞출 때(디자인 시스템 기본)',dgm:`<div class="dgm"><div class="frame"><div class="row" style="gap:3px"><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div><div class="b acc" style="min-height:46px;border-radius:2px"></div></div><div class="t tl" style="margin-top:5px">12 컬럼 · 사이=거터</div></div></div>`},
+/* --- 구조·용어 --- */
+{id:'t-container',cat:'term',name:'컨테이너',en:'Container',desc:'콘텐츠의 최대 폭을 잡아 가운데 정렬하는 보이지 않는 틀.',use:'넓은 모니터에서 글줄이 너무 길어지지 않게 할 때',dgm:`<div class="dgm"><div class="frame center" style="min-height:80px;background:var(--surface-2)"><div class="col" style="width:64%;gap:5px;background:var(--surface);border:1px dashed var(--acc);border-radius:6px;padding:8px"><div class="b acc" style="min-height:12px"></div><div class="b soft" style="min-height:9px"></div><div class="b soft" style="min-height:9px;width:70%"></div></div></div></div>`},
+{id:'t-gutter',cat:'term',name:'거터',en:'Gutter',desc:'컬럼과 컬럼 사이의 간격(고랑). 그리드의 숨 쉴 틈.',use:'카드·칸이 서로 붙어 답답할 때 조절',dgm:`<div class="dgm"><div class="frame"><div class="row" style="gap:13px"><div class="b acc" style="min-height:50px"></div><div class="b acc" style="min-height:50px"></div><div class="b acc" style="min-height:50px"></div></div><div class="t" style="margin-top:6px">↔ 칸 사이 간격 = 거터</div></div></div>`},
+{id:'t-marginpadding',cat:'term',name:'마진 / 패딩',en:'Margin / Padding',desc:'마진=요소 바깥 여백, 패딩=테두리 안쪽 여백. 가장 헷갈리는 한 쌍.',use:'요소끼리 띄울지(마진), 내용과 테두리를 띄울지(패딩) 구분할 때',dgm:`<div class="dgm"><div class="frame center" style="min-height:84px"><div class="center" style="border:1px dashed var(--acc);border-radius:7px;padding:14px;background:color-mix(in srgb,var(--acc) 10%,transparent)"><div class="b soft t center" style="min-height:30px;width:86px;border-radius:5px">패딩(안)·마진(밖)</div></div></div></div>`},
+{id:'t-atf',cat:'term',name:'어버브 더 폴드',en:'Above the Fold',desc:'스크롤하기 전 첫 화면에 보이는 영역. "폴드 위".',use:'가장 중요한 메시지·CTA를 어디까지 넣을지 정할 때',dgm:`<div class="dgm"><div class="frame" style="min-height:90px;padding:0;overflow:hidden"><div class="col acc" style="min-height:50px;border-radius:7px 7px 0 0;padding:8px;gap:5px"><div class="b" style="background:rgba(255,255,255,.55);border:none;min-height:11px;width:70%"></div><div class="b" style="background:rgba(255,255,255,.4);border:none;min-height:8px;width:50%"></div></div><div class="t" style="border-top:2px dashed var(--acc);color:var(--acc);padding:3px">— — 스크롤 경계(fold) — —</div><div class="b soft" style="min-height:18px;border-radius:0 0 7px 7px"></div></div></div>`},
+{id:'t-whitespace',cat:'term',name:'화이트스페이스 / 여백',en:'Whitespace',desc:'요소 사이 빈 공간. 비어 있는 게 아니라 "정리"를 만드는 재료.',use:'복잡해 보일 때 — 채우지 말고 비울 때',dgm:`<div class="dgm"><div class="frame center" style="min-height:84px"><div class="col center" style="gap:12px"><div class="b acc" style="width:72px;min-height:13px;flex:none"></div><div class="b soft" style="width:112px;min-height:9px;flex:none"></div><div class="b soft" style="width:90px;min-height:9px;flex:none"></div></div></div></div>`},
+{id:'t-hierarchy',cat:'term',name:'시각적 위계',en:'Visual Hierarchy',desc:'크기·굵기·색으로 "먼저 볼 것"의 순서를 만드는 것.',use:'무엇부터 읽을지 사용자에게 알려줄 때',dgm:`<div class="dgm"><div class="frame center"><div class="col" style="gap:7px;width:72%"><div class="b acc" style="min-height:20px"></div><div class="b soft" style="min-height:11px;width:80%"></div><div class="b soft" style="min-height:8px;width:60%"></div><div class="b soft" style="min-height:6px;width:45%"></div></div></div></div>`},
+{id:'t-alignment',cat:'term',name:'정렬',en:'Alignment',desc:'요소들의 가장자리/중심을 공통 기준선에 맞추는 것. 정돈감의 핵심.',use:'화면이 어수선할 때 — 보이지 않는 선에 맞출 때',dgm:`<div class="dgm"><div class="frame"><div class="col" style="gap:6px;border-left:2px solid var(--acc);padding-left:9px"><div class="b soft" style="min-height:11px;width:92%"></div><div class="b soft" style="min-height:11px;width:70%"></div><div class="b soft" style="min-height:11px;width:82%"></div></div><div class="t tl" style="margin-top:7px">↑ 공통 기준선 정렬</div></div></div>`},
+{id:'t-breakpoint',cat:'term',name:'반응형 브레이크포인트',en:'Breakpoint',desc:'화면 폭이 특정 값을 넘으면 배치를 바꾸는 분기점.',use:'모바일↔데스크톱에서 칸 수·배치를 전환할 때',dgm:`<div class="dgm"><div class="frame"><div class="row"><div class="col" style="flex:1;gap:4px"><div class="t">모바일</div><div class="b acc" style="min-height:14px"></div><div class="b acc" style="min-height:14px"></div></div><div class="col" style="flex:1.6;gap:4px"><div class="t">데스크톱</div><div class="row"><div class="b acc" style="min-height:14px"></div><div class="b acc" style="min-height:14px"></div></div><div class="b soft" style="min-height:10px"></div></div></div><div class="t tl" style="margin-top:5px">폭에 따라 배치 전환</div></div></div>`}
+];
+
+var COMPONENTS = JSON.parse(document.getElementById("cmp-data").textContent).concat(EXTRA_MOTION);
 
 /* ====================== 렌더링 & 인터랙션 ====================== */
 var grid=document.getElementById('grid');
@@ -263,6 +472,7 @@ var toast=document.getElementById('toast');
 var STORE='gallerySelected.v1';
 var selected=new Set(JSON.parse(localStorage.getItem(STORE)||'[]'));
 var activeCat='all', onlySelected=false, query='';
+var activeTab='motion';
 var mvScheduled=false;
 
 /* 화면에 들어온 카드만 라이브 마운트 (189개 동시 애니메이션 방지) */
@@ -283,19 +493,41 @@ function scheduleMountVisible(){
 window.addEventListener('scroll',scheduleMountVisible,{passive:true});
 window.addEventListener('resize',scheduleMountVisible);
 
-/* 카테고리 칩 */
-var catList=[['all','전체']].concat(Object.keys(CATS).map(function(k){return [k,CATS[k]];}));
-catList.forEach(function(pair){
-  var b=document.createElement('button');
-  b.className='chip'+(pair[0]==='all'?' active':'');
-  b.textContent=pair[1]; b.dataset.cat=pair[0];
-  b.onclick=function(){
-    activeCat=pair[0];
-    [].forEach.call(chipsBox.children,function(c){c.classList.toggle('active',c.dataset.cat===activeCat);});
-    render();
-  };
-  chipsBox.appendChild(b);
-});
+/* 카테고리 칩 (탭별 재생성) */
+function buildChips(){
+  chipsBox.innerHTML='';
+  if(activeTab==='fun')return;                      /* 기타 탭: 단일 카테고리 → 칩 없음 */
+  var map;
+  if(activeTab==='naming'){ map=TERM_CATS; }
+  else { map={}; Object.keys(CATS).forEach(function(k){ if(k!=='fun') map[k]=CATS[k]; }); }
+  var catList=[['all','전체']].concat(Object.keys(map).map(function(k){return [k,map[k]];}));
+  catList.forEach(function(pair){
+    var b=document.createElement('button');
+    b.className='chip'+(pair[0]===activeCat?' active':'');
+    b.textContent=pair[1]; b.dataset.cat=pair[0];
+    b.onclick=function(){
+      activeCat=pair[0];
+      [].forEach.call(chipsBox.children,function(c){c.classList.toggle('active',c.dataset.cat===activeCat);});
+      render();
+    };
+    chipsBox.appendChild(b);
+  });
+}
+
+/* 탭 전환 */
+function switchTab(t){
+  activeTab=t; activeCat='all'; onlySelected=false; query='';
+  [].forEach.call(document.querySelectorAll('.tab'),function(el){el.classList.toggle('active',el.dataset.tab===t);});
+  var hide=(t==='naming');                            /* 명칭 탭엔 선택/복사 도구 숨김 */
+  document.querySelector('.selcount').style.display=hide?'none':'';
+  onlyBtn.style.display=hide?'none':''; copyBtn.style.display=hide?'none':'';
+  onlyBtn.classList.remove('active'); onlyBtn.style.background=''; onlyBtn.style.color=''; onlyBtn.style.borderColor='';
+  searchEl.value='';
+  searchEl.placeholder = (t==='naming') ? '명칭 검색 (섹션·배치·용어)…' : '컴포넌트 검색…';
+  buildChips(); render(); window.scrollTo(0,0);
+}
+[].forEach.call(document.querySelectorAll('.tab'),function(el){ el.onclick=function(){switchTab(el.dataset.tab);}; });
+buildChips();
 
 function tagHtml(t){
   var cls=t==='CSS'?'css':t==='JS'?'js':t==='발표적합'?'pres':'deco';
@@ -306,7 +538,9 @@ function starSVG(filled){
 }
 
 function render(){
+  if(activeTab==='naming'){ renderTerms(); return; }
   var list=COMPONENTS.filter(function(c){
+    if(activeTab==='fun'){ if(c.cat!=='fun')return false; } else { if(c.cat==='fun')return false; }
     if(activeCat!=='all'&&c.cat!==activeCat)return false;
     if(onlySelected&&!selected.has(c.id))return false;
     if(query){
@@ -364,6 +598,34 @@ function render(){
   });
   updateBar();
   requestAnimationFrame(mountVisible);
+}
+
+/* 명칭 사전 렌더 (도식 카드) */
+function renderTerms(){
+  var list=TERMS.filter(function(t){
+    if(activeCat!=='all'&&t.cat!==activeCat)return false;
+    if(query){
+      var hay=(t.name+' '+t.en+' '+t.desc+' '+t.use+' '+TERM_CATS[t.cat]).toLowerCase();
+      if(hay.indexOf(query)===-1)return false;
+    }
+    return true;
+  });
+  grid.innerHTML='';
+  if(!list.length){ grid.innerHTML='<div class="empty">조건에 맞는 항목이 없습니다.</div>'; return; }
+  list.forEach(function(t){
+    var card=document.createElement('div');
+    card.className='card term';
+    card.innerHTML=
+      '<div class="stage">'+t.dgm+'</div>'+
+      '<div class="meta">'+
+        '<h3>'+t.name+'</h3>'+
+        '<p class="term-en">'+t.en+'</p>'+
+        '<p class="desc">'+t.desc+'</p>'+
+        '<p class="use"><b>쓸 때</b><span>'+t.use+'</span></p>'+
+        '<div class="tags"><span class="tag">'+TERM_CATS[t.cat]+'</span></div>'+
+      '</div>';
+    grid.appendChild(card);
+  });
 }
 
 /* code 를 라이브로 주입 + <script> 재실행 */
