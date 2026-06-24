@@ -4,6 +4,6 @@
   "stack": ["모델 사이트", "레이아웃·위계", "주석 x-ray"],
   "public": true,
   "order": 2,
-  "color": "#e0a356",
+  "color": "#2f7bff",
   "icon": "layout"
 }

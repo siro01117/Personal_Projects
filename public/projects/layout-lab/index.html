@@ -6,20 +6,20 @@
 <title>레이아웃 모델하우스</title>
 <style>
 :root{
-  --bg:#0f1014; --surface:#16181f; --surface2:#1e2129;
-  --fg:#e8e9ef; --mut:#9a9eac; --faint:#646876;
-  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.15);
-  --acc:#e0a356; --acc-soft:rgba(224,163,86,.15); --acc-deep:#c98a3f;
-  --ok:#3fb37f; --warn:#e0a23b; --bad:#e25563; --info:#5b8def;
+  --bg:#15171c; --surface:#1c1f26; --surface2:#262a33;
+  --fg:#f1f2f5; --mut:#9a9ea9; --faint:#6b6f7a;
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --acc:#2f7bff; --acc-soft:rgba(47,123,255,.14); --acc-deep:#1f63e0;
+  --ok:#34c08a; --warn:#d2a03f; --bad:#e2576a; --info:#2f7bff;
   --xray:#ff5d8f; --xray-soft:rgba(255,93,143,.16);
   --radius:12px; --mono:ui-monospace,'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
   --kfont:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
 }
 html[data-theme="light"]{
-  --bg:#f6f7f9; --surface:#ffffff; --surface2:#eef0f4;
-  --fg:#1a1c22; --mut:#5a5f6b; --faint:#969ca8;
-  --line:rgba(0,0,0,.09); --line2:rgba(0,0,0,.16);
-  --acc:#b9772a; --acc-soft:rgba(185,119,42,.12); --acc-deep:#9c6322;
+  --bg:#fbfbfc; --surface:#ffffff; --surface2:#f0f2f5;
+  --fg:#15171c; --mut:#565b66; --faint:#878c96;
+  --line:rgba(0,0,0,.09); --line2:rgba(0,0,0,.15);
+  --acc:#2563eb; --acc-soft:rgba(37,99,235,.10); --acc-deep:#1d4ed8;
   --xray:#e0356f; --xray-soft:rgba(224,53,111,.12);
 }
 *{box-sizing:border-box}
@@ -109,391 +109,416 @@ body.xray .site.show [data-region].rg-active::before{
 
 /* ===== model site styles ===== */
 /* ===== site-landing ===== */
-#site-landing { display:block; }
-#site-landing a { text-decoration:none; color:inherit; }
-#site-landing .landing-h1 { font-size:46px; line-height:1.08; font-weight:700; letter-spacing:-0.02em; margin:0 0 18px; color:var(--fg); }
-#site-landing .landing-h2 { font-size:30px; line-height:1.15; font-weight:600; letter-spacing:-0.015em; margin:0; color:var(--fg); }
+#site-landing { --lp-max: 1080px; color: var(--fg); }
+#site-landing .landing-main, #site-landing .landing-nav, #site-landing .landing-footer { font-size: 15px; }
 
-#site-landing .landing-btn-solid,
-#site-landing .landing-btn-line,
-#site-landing .landing-btn-ghost,
-#site-landing .landing-btn-invert,
-#site-landing .landing-btn-onacc { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; padding:9px 16px; border-radius:var(--radius); border:1px solid transparent; transition:all .15s; cursor:pointer; }
-#site-landing .landing-btn-solid { background:var(--acc); color:#fff; }
-#site-landing .landing-btn-solid:hover { background:var(--acc-deep); }
-#site-landing .landing-btn-line { border-color:var(--line2); color:var(--fg); background:transparent; }
-#site-landing .landing-btn-line:hover { border-color:var(--acc); color:var(--acc); }
-#site-landing .landing-btn-ghost { color:var(--mut); padding:9px 12px; }
-#site-landing .landing-btn-ghost:hover { color:var(--fg); }
-#site-landing .landing-btn-lg { font-size:15px; padding:13px 24px; }
-#site-landing .landing-btn-invert { background:#fff; color:var(--acc-deep); }
-#site-landing .landing-btn-invert:hover { background:var(--surface); }
-#site-landing .landing-btn-onacc { border-color:rgba(255,255,255,.55); color:#fff; }
-#site-landing .landing-btn-onacc:hover { background:rgba(255,255,255,.12); }
+#site-landing .landing-nav { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+#site-landing .landing-nav-inner { max-width: var(--lp-max); margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
+#site-landing .landing-brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+#site-landing .landing-logo-mark { display: inline-flex; color: var(--acc); }
+#site-landing .landing-menu { display: flex; gap: 22px; margin-left: 8px; }
+#site-landing .landing-menu-link { color: var(--mut); text-decoration: none; font-size: 14px; }
+#site-landing .landing-menu-link:hover { color: var(--fg); }
+#site-landing .landing-menu-link.is-active { color: var(--acc); }
+#site-landing .landing-nav-cta { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
-#site-landing .landing-nav { position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
-#site-landing .landing-nav-inner { max-width:1120px; margin:0 auto; padding:14px 28px; display:flex; align-items:center; gap:28px; }
-#site-landing .landing-brand { display:flex; align-items:center; gap:9px; font-weight:700; font-size:17px; color:var(--fg); }
-#site-landing .landing-logo { display:inline-flex; color:var(--acc); }
-#site-landing .landing-menu { display:flex; gap:24px; margin-left:8px; }
-#site-landing .landing-menu a { font-size:14.5px; color:var(--mut); font-weight:500; }
-#site-landing .landing-menu a:hover { color:var(--fg); }
-#site-landing .landing-nav-cta { margin-left:auto; display:flex; align-items:center; gap:6px; }
+#site-landing .landing-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; border-radius: 8px; text-decoration: none; cursor: pointer; border: 1px solid transparent; padding: 8px 16px; white-space: nowrap; }
+#site-landing .landing-btn-text { color: var(--mut); padding: 8px 6px; }
+#site-landing .landing-btn-text:hover { color: var(--fg); }
+#site-landing .landing-btn-solid { background: var(--acc); color: #fff; border-color: var(--acc); }
+#site-landing .landing-btn-solid:hover { background: var(--acc-deep); border-color: var(--acc-deep); }
+#site-landing .landing-btn-line { color: var(--fg); border-color: var(--line2); background: transparent; }
+#site-landing .landing-btn-line:hover { background: var(--surface2); }
+#site-landing .landing-btn-lg { padding: 12px 22px; font-size: 15px; }
+#site-landing .landing-btn-block { width: 100%; margin-top: auto; }
 
-#site-landing .landing-hero { border-bottom:1px solid var(--line); }
-#site-landing .landing-hero-inner { max-width:1120px; margin:0 auto; padding:80px 28px 72px; display:grid; grid-template-columns:1fr 1fr; gap:56px; align-items:center; }
-#site-landing .landing-eyebrow { display:inline-block; font-size:12.5px; font-weight:600; color:var(--acc-deep); background:var(--acc-soft); padding:6px 12px; border-radius:999px; margin-bottom:22px; }
-#site-landing .landing-sub { font-size:18px; line-height:1.6; color:var(--mut); margin:0 0 28px; max-width:480px; }
-#site-landing .landing-hero-cta { display:flex; gap:12px; flex-wrap:wrap; }
-#site-landing .landing-microcopy { font-size:13px; color:var(--faint); margin:18px 0 0; }
+#site-landing .landing-hero { border-bottom: 1px solid var(--line); }
+#site-landing .landing-hero-inner { max-width: var(--lp-max); margin: 0 auto; padding: 72px 24px 64px; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
+#site-landing .landing-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--mut); background: var(--surface); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; }
+#site-landing .landing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); display: inline-block; }
+#site-landing .landing-headline { font-size: 48px; line-height: 1.12; font-weight: 700; letter-spacing: -0.02em; margin: 20px 0 0; color: var(--fg); }
+#site-landing .landing-subhead { font-size: 17px; line-height: 1.6; color: var(--mut); margin: 20px 0 0; max-width: 30em; }
+#site-landing .landing-hero-cta { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
+#site-landing .landing-hero-note { font-size: 12.5px; color: var(--faint); margin: 16px 0 0; }
 
-#site-landing .landing-mockup { background:var(--surface); border:1px solid var(--line2); border-radius:14px; overflow:hidden; box-shadow:0 24px 60px -28px rgba(0,0,0,.4); }
-#site-landing .landing-mockup-bar { display:flex; align-items:center; gap:7px; padding:11px 14px; background:var(--surface2); border-bottom:1px solid var(--line); }
-#site-landing .landing-dot { width:10px; height:10px; border-radius:50%; background:var(--line2); }
-#site-landing .landing-mockup-url { margin-left:10px; font-family:var(--mono); font-size:12px; color:var(--faint); }
-#site-landing .landing-mockup-body { display:grid; grid-template-columns:118px 1fr; min-height:230px; }
-#site-landing .landing-mockup-side { padding:16px 12px; border-right:1px solid var(--line); display:flex; flex-direction:column; gap:4px; }
-#site-landing .landing-mockup-navitem { font-size:13px; color:var(--mut); padding:7px 10px; border-radius:8px; }
-#site-landing .landing-mockup-navitem.landing-on { background:var(--acc-soft); color:var(--acc-deep); font-weight:600; }
-#site-landing .landing-mockup-main { padding:18px 18px; display:flex; flex-direction:column; gap:12px; }
-#site-landing .landing-mockup-row { display:flex; align-items:center; gap:10px; }
-#site-landing .landing-chip { font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
-#site-landing .landing-chip-ok { background:color-mix(in srgb,var(--ok) 18%,transparent); color:var(--ok); }
-#site-landing .landing-chip-info { background:color-mix(in srgb,var(--info) 18%,transparent); color:var(--info); }
-#site-landing .landing-chip-warn { background:color-mix(in srgb,var(--warn) 20%,transparent); color:var(--warn); }
-#site-landing .landing-bar { height:10px; border-radius:999px; background:linear-gradient(90deg,var(--acc),var(--acc-deep)); flex:1; }
-#site-landing .landing-mockup-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; }
-#site-landing .landing-mini { background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:11px 12px; display:flex; flex-direction:column; gap:3px; }
-#site-landing .landing-mini-k { font-size:11px; color:var(--faint); }
-#site-landing .landing-mini-v { font-size:18px; font-weight:700; color:var(--fg); }
+#site-landing .landing-mock-window { border: 1px solid var(--line2); border-radius: 12px; background: var(--surface); overflow: hidden; }
+#site-landing .landing-mock-bar { display: flex; gap: 6px; padding: 11px 14px; border-bottom: 1px solid var(--line); background: var(--surface2); }
+#site-landing .landing-mock-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line2); }
+#site-landing .landing-mock-body { display: grid; grid-template-columns: 92px 1fr; min-height: 248px; }
+#site-landing .landing-mock-side { border-right: 1px solid var(--line); padding: 16px 12px; display: flex; flex-direction: column; gap: 12px; }
+#site-landing .landing-mock-content { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+#site-landing .landing-mock-line { height: 8px; border-radius: 4px; background: var(--surface2); display: block; }
+#site-landing .landing-mock-line.w70 { width: 70%; } #site-landing .landing-mock-line.w60 { width: 60%; }
+#site-landing .landing-mock-line.w50 { width: 50%; } #site-landing .landing-mock-line.w40 { width: 40%; }
+#site-landing .landing-mock-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+#site-landing .landing-mock-kpi { background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 9px; }
+#site-landing .landing-mock-num { font-size: 17px; font-weight: 600; color: var(--fg); }
+#site-landing .landing-mock-chart { flex: 1; border: 1px solid var(--line); border-radius: 8px; background: var(--surface2); padding: 14px; color: var(--acc); min-height: 110px; }
 
-#site-landing .landing-logos { max-width:1120px; margin:0 auto; padding:40px 28px 44px; text-align:center; border-bottom:1px solid var(--line); }
-#site-landing .landing-logos-cap { font-size:13px; color:var(--faint); margin:0 0 22px; letter-spacing:.01em; }
-#site-landing .landing-logos-row { display:flex; flex-wrap:wrap; justify-content:center; gap:40px; }
-#site-landing .landing-logoitem { font-size:19px; font-weight:700; color:var(--mut); opacity:.7; letter-spacing:-.01em; }
+#site-landing .landing-logos { border-bottom: 1px solid var(--line); }
+#site-landing .landing-logos { max-width: var(--lp-max); margin: 0 auto; padding: 36px 24px 40px; text-align: center; }
+#site-landing .landing-logos-label { font-size: 13px; color: var(--faint); margin: 0 0 22px; }
+#site-landing .landing-logos-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 40px; }
+#site-landing .landing-logo-chip { font-size: 18px; font-weight: 600; color: var(--faint); letter-spacing: -0.01em; opacity: 0.75; }
 
-#site-landing .landing-section-head { max-width:680px; margin:0 auto 44px; text-align:center; }
-#site-landing .landing-kicker { display:inline-block; font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--acc); margin-bottom:14px; }
-#site-landing .landing-section-sub { font-size:16px; color:var(--mut); margin:14px 0 0; line-height:1.55; }
+#site-landing .landing-features, #site-landing .landing-steps, #site-landing .landing-testimonials, #site-landing .landing-pricing { max-width: var(--lp-max); margin: 0 auto; padding: 80px 24px; }
+#site-landing .landing-sec-head { text-align: center; max-width: 38em; margin: 0 auto 48px; }
+#site-landing .landing-overline { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mut); }
+#site-landing .landing-sec-title { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin: 12px 0 0; color: var(--fg); }
+#site-landing .landing-sec-sub { font-size: 16px; line-height: 1.6; color: var(--mut); margin: 14px 0 0; }
 
-#site-landing .landing-features { max-width:1120px; margin:0 auto; padding:84px 28px; border-bottom:1px solid var(--line); }
-#site-landing .landing-feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-#site-landing .landing-feat-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:26px 24px; transition:border-color .15s,transform .15s; }
-#site-landing .landing-feat-card:hover { border-color:var(--acc); transform:translateY(-3px); }
-#site-landing .landing-feat-ic { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:11px; background:var(--acc-soft); color:var(--acc-deep); margin-bottom:16px; }
-#site-landing .landing-feat-t { font-size:17px; font-weight:600; margin:0 0 8px; color:var(--fg); }
-#site-landing .landing-feat-d { font-size:14.5px; line-height:1.6; color:var(--mut); margin:0; }
+#site-landing .landing-feature-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+#site-landing .landing-feature-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 24px; }
+#site-landing .landing-feat-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9px; background: var(--surface2); border: 1px solid var(--line); color: var(--acc); }
+#site-landing .landing-feat-title { font-size: 17px; font-weight: 600; margin: 16px 0 0; color: var(--fg); }
+#site-landing .landing-feat-desc { font-size: 14.5px; line-height: 1.6; color: var(--mut); margin: 8px 0 0; }
 
-#site-landing .landing-how { max-width:1120px; margin:0 auto; padding:84px 28px; border-bottom:1px solid var(--line); }
-#site-landing .landing-steps { display:flex; align-items:stretch; gap:8px; }
-#site-landing .landing-step { flex:1; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:30px 26px; }
-#site-landing .landing-stepnum { display:block; font-family:var(--mono); font-size:30px; font-weight:700; color:var(--acc); margin-bottom:14px; }
-#site-landing .landing-step-arrow { display:flex; align-items:center; color:var(--faint); }
+#site-landing .landing-step-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; list-style: none; padding: 0; margin: 0; }
+#site-landing .landing-step { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 26px 24px; }
+#site-landing .landing-step-num { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--acc-soft); color: var(--acc-deep); font-weight: 700; font-size: 15px; }
+#site-landing .landing-step-title { font-size: 17px; font-weight: 600; margin: 16px 0 0; color: var(--fg); }
+#site-landing .landing-step-desc { font-size: 14.5px; line-height: 1.6; color: var(--mut); margin: 8px 0 0; }
 
-#site-landing .landing-stats { background:var(--acc-deep); }
-#site-landing .landing-stats-grid { max-width:1120px; margin:0 auto; padding:56px 28px; display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
-#site-landing .landing-stat { text-align:center; color:#fff; }
-#site-landing .landing-stat-v { display:block; font-size:42px; font-weight:700; letter-spacing:-.02em; line-height:1; }
-#site-landing .landing-stat-k { display:block; font-size:14px; color:rgba(255,255,255,.78); margin-top:10px; }
+#site-landing .landing-stats { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); }
+#site-landing .landing-stats-inner { max-width: var(--lp-max); margin: 0 auto; padding: 48px 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+#site-landing .landing-stat { text-align: center; display: flex; flex-direction: column; gap: 8px; }
+#site-landing .landing-stat-num { font-size: 38px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg); }
+#site-landing .landing-stat-label { font-size: 13.5px; color: var(--mut); }
 
-#site-landing .landing-testi { max-width:1120px; margin:0 auto; padding:84px 28px; border-bottom:1px solid var(--line); }
-#site-landing .landing-testi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
-#site-landing .landing-quote { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:26px 24px; margin:0; display:flex; flex-direction:column; gap:20px; }
-#site-landing .landing-quote-text { font-size:16px; line-height:1.6; color:var(--fg); margin:0; font-weight:500; }
-#site-landing .landing-quote-who { display:flex; align-items:center; gap:12px; }
-#site-landing .landing-avatar { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; background:color-mix(in srgb,var(--a) 20%,transparent); color:var(--a); font-size:13px; font-weight:700; flex-shrink:0; }
-#site-landing .landing-quote-name { display:block; font-size:14px; font-weight:600; color:var(--fg); }
-#site-landing .landing-quote-role { display:block; font-size:12.5px; color:var(--faint); }
+#site-landing .landing-quote-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+#site-landing .landing-quote-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 26px 24px; margin: 0; display: flex; flex-direction: column; }
+#site-landing .landing-quote-text { font-size: 15.5px; line-height: 1.62; color: var(--fg); margin: 0 0 22px; flex: 1; }
+#site-landing .landing-quote-author { display: flex; align-items: center; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+#site-landing .landing-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--mut); }
+#site-landing .landing-author-meta { display: flex; flex-direction: column; }
+#site-landing .landing-author-name { font-size: 14px; font-weight: 600; color: var(--fg); }
+#site-landing .landing-author-role { font-size: 12.5px; color: var(--faint); }
 
-#site-landing .landing-pricing { max-width:1120px; margin:0 auto; padding:84px 28px; border-bottom:1px solid var(--line); }
-#site-landing .landing-plans { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start; }
-#site-landing .landing-plan { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:30px 26px; display:flex; flex-direction:column; gap:8px; }
-#site-landing .landing-plan-feat { border:2px solid var(--acc); background:var(--surface2); }
-#site-landing .landing-plan-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--acc); color:#fff; font-size:12px; font-weight:600; padding:5px 14px; border-radius:999px; }
-#site-landing .landing-plan-name { font-size:15px; font-weight:600; color:var(--mut); }
-#site-landing .landing-plan-price { display:flex; align-items:baseline; gap:5px; margin:6px 0 2px; }
-#site-landing .landing-plan-num { font-size:36px; font-weight:700; color:var(--fg); letter-spacing:-.02em; }
-#site-landing .landing-plan-per { font-size:15px; color:var(--faint); }
-#site-landing .landing-plan-note { font-size:13.5px; color:var(--mut); margin:0 0 8px; }
-#site-landing .landing-plan-list { list-style:none; padding:0; margin:6px 0 20px; display:flex; flex-direction:column; gap:11px; flex:1; }
-#site-landing .landing-plan-list li { font-size:14px; color:var(--fg); padding-left:24px; position:relative; }
-#site-landing .landing-plan-list li::before { content:""; position:absolute; left:0; top:6px; width:14px; height:8px; border-left:2px solid var(--acc); border-bottom:2px solid var(--acc); transform:rotate(-45deg); }
-#site-landing .landing-plan-cta { justify-content:center; width:100%; }
+#site-landing .landing-plan-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: stretch; }
+#site-landing .landing-plan { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 28px 24px; display: flex; flex-direction: column; position: relative; }
+#site-landing .landing-plan.is-featured { border-color: var(--acc); border-width: 1.5px; }
+#site-landing .landing-plan-badge { position: absolute; top: -11px; left: 24px; background: var(--acc); color: #fff; font-size: 11.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px; }
+#site-landing .landing-plan-name { font-size: 16px; font-weight: 600; margin: 0; color: var(--fg); }
+#site-landing .landing-plan-price { margin: 14px 0 0; display: flex; align-items: baseline; gap: 6px; }
+#site-landing .landing-plan-amt { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg); }
+#site-landing .landing-plan-per { font-size: 13px; color: var(--faint); }
+#site-landing .landing-plan-note { font-size: 13.5px; color: var(--mut); margin: 8px 0 0; }
+#site-landing .landing-plan-feats { list-style: none; padding: 0; margin: 22px 0 26px; display: flex; flex-direction: column; gap: 11px; }
+#site-landing .landing-plan-feats li { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--fg); }
+#site-landing .landing-plan-feats li svg { color: var(--acc); flex-shrink: 0; }
 
-#site-landing .landing-cta { background:var(--acc); }
-#site-landing .landing-cta-inner { max-width:760px; margin:0 auto; padding:76px 28px; text-align:center; }
-#site-landing .landing-cta-h { font-size:34px; font-weight:700; color:#fff; margin:0 0 14px; letter-spacing:-.015em; }
-#site-landing .landing-cta-sub { font-size:17px; color:rgba(255,255,255,.85); margin:0 0 28px; }
-#site-landing .landing-cta-actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+#site-landing .landing-cta-band { border-top: 1px solid var(--line); background: var(--surface); }
+#site-landing .landing-cta-inner { max-width: var(--lp-max); margin: 0 auto; padding: 72px 24px; text-align: center; }
+#site-landing .landing-cta-title { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--fg); }
+#site-landing .landing-cta-sub { font-size: 16px; color: var(--mut); margin: 14px 0 0; }
+#site-landing .landing-cta-actions { display: flex; gap: 12px; justify-content: center; margin-top: 28px; flex-wrap: wrap; }
 
-#site-landing .landing-footer { max-width:1120px; margin:0 auto; padding:64px 28px 32px; }
-#site-landing .landing-footer-top { display:grid; grid-template-columns:1.4fr 3fr; gap:48px; padding-bottom:40px; border-bottom:1px solid var(--line); }
-#site-landing .landing-footer-tag { font-size:14px; color:var(--mut); margin:14px 0 0; max-width:240px; line-height:1.5; }
-#site-landing .landing-footer-cols { display:grid; grid-template-columns:repeat(4,1fr); gap:28px; }
-#site-landing .landing-footer-col { display:flex; flex-direction:column; gap:11px; }
-#site-landing .landing-footer-h { font-size:13px; font-weight:600; color:var(--fg); margin-bottom:3px; }
-#site-landing .landing-footer-col a { font-size:13.5px; color:var(--mut); }
-#site-landing .landing-footer-col a:hover { color:var(--acc); }
-#site-landing .landing-footer-bottom { display:flex; align-items:center; justify-content:space-between; padding-top:24px; flex-wrap:wrap; gap:12px; }
-#site-landing .landing-copy { font-size:13px; color:var(--faint); }
-#site-landing .landing-footer-mini { display:flex; gap:20px; }
-#site-landing .landing-footer-mini a { font-size:13px; color:var(--faint); }
-#site-landing .landing-footer-mini a:hover { color:var(--fg); }
+#site-landing .landing-footer { border-top: 1px solid var(--line); background: var(--bg); }
+#site-landing .landing-footer-inner { max-width: var(--lp-max); margin: 0 auto; padding: 56px 24px 36px; display: grid; grid-template-columns: 1.3fr 2fr; gap: 40px; }
+#site-landing .landing-footer-logo { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--fg); }
+#site-landing .landing-footer-logo svg { color: var(--acc); }
+#site-landing .landing-footer-tag { font-size: 13.5px; color: var(--mut); margin: 12px 0 0; }
+#site-landing .landing-footer-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+#site-landing .landing-footer-col { display: flex; flex-direction: column; gap: 10px; }
+#site-landing .landing-footer-h { font-size: 13px; font-weight: 600; color: var(--fg); margin: 0 0 4px; }
+#site-landing .landing-footer-col a { font-size: 13.5px; color: var(--mut); text-decoration: none; }
+#site-landing .landing-footer-col a:hover { color: var(--fg); }
+#site-landing .landing-footer-bottom { max-width: var(--lp-max); margin: 0 auto; padding: 18px 24px 28px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--faint); }
+#site-landing .landing-footer-legal { display: flex; gap: 18px; }
+#site-landing .landing-footer-legal a { color: var(--faint); text-decoration: none; }
+#site-landing .landing-footer-legal a:hover { color: var(--mut); }
 
-@media (max-width:880px) {
-  #site-landing .landing-hero-inner { grid-template-columns:1fr; gap:40px; }
-  #site-landing .landing-h1 { font-size:36px; }
-  #site-landing .landing-menu { display:none; }
-  #site-landing .landing-feat-grid,
-  #site-landing .landing-testi-grid,
-  #site-landing .landing-plans { grid-template-columns:1fr; }
-  #site-landing .landing-steps { flex-direction:column; }
-  #site-landing .landing-step-arrow { transform:rotate(90deg); justify-content:center; }
-  #site-landing .landing-stats-grid { grid-template-columns:repeat(2,1fr); gap:32px 24px; }
-  #site-landing .landing-footer-top { grid-template-columns:1fr; gap:32px; }
-  #site-landing .landing-footer-cols { grid-template-columns:repeat(2,1fr); }
+@media (max-width: 880px) {
+  #site-landing .landing-hero-inner { grid-template-columns: 1fr; gap: 40px; padding: 48px 20px; }
+  #site-landing .landing-headline { font-size: 38px; }
+  #site-landing .landing-menu { display: none; }
+  #site-landing .landing-feature-cards, #site-landing .landing-step-list, #site-landing .landing-quote-cards, #site-landing .landing-plan-cards { grid-template-columns: 1fr; }
+  #site-landing .landing-stats-inner { grid-template-columns: repeat(2, 1fr); gap: 32px 16px; }
+  #site-landing .landing-footer-inner { grid-template-columns: 1fr; gap: 32px; }
+  #site-landing .landing-footer-cols { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ===== site-dash ===== */
-#site-dash .dash-shell{display:grid;grid-template-columns:236px 1fr;min-height:680px;color:var(--fg);font-size:14px}
-#site-dash .dash-sidebar{display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--line);padding:0}
-#site-dash .dash-brand{display:flex;align-items:center;gap:8px;padding:18px 18px;border-bottom:1px solid var(--line)}
-#site-dash .dash-logo{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--acc);color:#fff}
-#site-dash .dash-brand-name{font-weight:600;letter-spacing:-.01em}
-#site-dash .dash-brand-tag{font-size:11px;color:var(--mut);background:var(--acc-soft);padding:2px 6px;border-radius:5px}
-#site-dash .dash-nav{flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:2px;overflow:auto}
-#site-dash .dash-nav-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:14px 8px 4px}
-#site-dash .dash-nav-label:first-child{margin-top:0}
-#site-dash .dash-nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--mut);text-decoration:none;transition:background .12s,color .12s}
-#site-dash .dash-nav-item span:first-of-type{flex:1}
+#site-dash .dash-shell{display:grid;grid-template-columns:236px 1fr;min-height:560px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+
+/* ===== Rail ===== */
+#site-dash .dash-rail{display:flex;flex-direction:column;background:var(--surface);border-right:1px solid var(--line);padding:18px 14px}
+#site-dash .dash-rail-top{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+#site-dash .dash-logo-mark{display:inline-flex;color:var(--acc)}
+#site-dash .dash-logo-text{font-size:16px;font-weight:700;letter-spacing:.5px;color:var(--fg)}
+#site-dash .dash-nav{display:flex;flex-direction:column;gap:2px;flex:1}
+#site-dash .dash-nav-label{font-size:11px;letter-spacing:.6px;color:var(--faint);text-transform:uppercase;margin:16px 8px 6px;font-weight:600}
+#site-dash .dash-nav-label:first-child{margin-top:4px}
+#site-dash .dash-nav-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:8px;color:var(--mut);font-size:13.5px;text-decoration:none;border:1px solid transparent}
+#site-dash .dash-nav-item svg{color:var(--faint);flex-shrink:0}
 #site-dash .dash-nav-item:hover{background:var(--surface2);color:var(--fg)}
-#site-dash .dash-nav-item.is-active{background:var(--acc-soft);color:var(--acc-deep)}
-#site-dash .dash-nav-badge{font-size:9px;font-weight:600;letter-spacing:.05em;color:var(--ok);border:1px solid var(--ok);border-radius:4px;padding:1px 4px}
-#site-dash .dash-nav-count{font-size:11px;font-weight:600;color:var(--fg);background:var(--surface2);border-radius:9px;padding:1px 7px}
-#site-dash .dash-user{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line);color:var(--mut)}
-#site-dash .dash-avatar{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:var(--acc-deep);color:#fff;font-size:12px;font-weight:600}
-#site-dash .dash-user-meta{flex:1;display:flex;flex-direction:column;line-height:1.3}
-#site-dash .dash-user-name{color:var(--fg);font-weight:500}
-#site-dash .dash-user-role{font-size:12px;color:var(--faint)}
-#site-dash .dash-main{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-#site-dash .dash-topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 22px;background:var(--bg);border-bottom:1px solid var(--line)}
-#site-dash .dash-crumb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--faint);margin-bottom:3px}
+#site-dash .dash-nav-item:hover svg{color:var(--mut)}
+#site-dash .dash-nav-item.is-active{background:var(--acc-soft);color:var(--fg);font-weight:600;border-color:var(--line)}
+#site-dash .dash-nav-item.is-active svg{color:var(--acc)}
+#site-dash .dash-nav-badge{margin-left:auto;font-size:11px;font-weight:700;background:var(--surface2);color:var(--mut);border:1px solid var(--line);border-radius:20px;padding:1px 7px}
+#site-dash .dash-rail-user{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px;border-top:1px solid var(--line)}
+#site-dash .dash-avatar{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);color:var(--mut);font-size:11px;font-weight:700;flex-shrink:0}
+#site-dash .dash-user-meta{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+#site-dash .dash-user-name{font-size:13px;font-weight:600;color:var(--fg)}
+#site-dash .dash-user-role{font-size:11px;color:var(--faint)}
+#site-dash .dash-user-caret{color:var(--faint);margin-left:auto}
+
+/* ===== Main ===== */
+#site-dash .dash-main{display:flex;flex-direction:column;min-width:0}
+#site-dash .dash-topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+#site-dash .dash-crumb{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--faint);margin-bottom:3px}
+#site-dash .dash-crumb a{color:var(--mut);text-decoration:none}
+#site-dash .dash-crumb a:hover{color:var(--fg)}
 #site-dash .dash-crumb .is-current{color:var(--mut)}
-#site-dash .dash-title{font-size:20px;font-weight:600;letter-spacing:-.02em;margin:0}
+#site-dash .dash-page-title{font-size:19px;font-weight:700;color:var(--fg);margin:0;letter-spacing:-.2px}
 #site-dash .dash-topbar-right{display:flex;align-items:center;gap:10px}
-#site-dash .dash-search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:0 10px;height:38px;width:260px;color:var(--mut)}
+#site-dash .dash-search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:280px}
+#site-dash .dash-search svg{color:var(--faint);flex-shrink:0}
 #site-dash .dash-search input{flex:1;background:none;border:none;outline:none;color:var(--fg);font-size:13px;min-width:0}
 #site-dash .dash-search input::placeholder{color:var(--faint)}
-#site-dash .dash-search kbd{font-family:var(--mono);font-size:11px;color:var(--faint);background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
-#site-dash .dash-icon-btn{position:relative;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:var(--surface);border:1px solid var(--line);color:var(--mut);cursor:pointer}
+#site-dash .dash-search kbd{font-family:var(--mono);font-size:10px;color:var(--mut);background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:2px 5px}
+#site-dash .dash-icon-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;background:var(--bg);border:1px solid var(--line);color:var(--mut);cursor:pointer}
 #site-dash .dash-icon-btn:hover{color:var(--fg);background:var(--surface2)}
-#site-dash .dash-dot{position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:50%;background:var(--bad);border:1.5px solid var(--bg)}
-#site-dash .dash-cta{display:flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:none;border-radius:9px;background:var(--acc);color:#fff;font-size:13px;font-weight:500;cursor:pointer}
+#site-dash .dash-dot{position:absolute;top:9px;right:10px;width:7px;height:7px;border-radius:50%;background:var(--acc);border:1.5px solid var(--surface)}
+#site-dash .dash-cta{display:inline-flex;align-items:center;gap:7px;background:var(--acc);color:var(--bg);border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer}
 #site-dash .dash-cta:hover{background:var(--acc-deep)}
-#site-dash .dash-content{flex:1;padding:20px 22px 28px;display:flex;flex-direction:column;gap:18px;overflow:auto}
-#site-dash .dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-#site-dash .dash-kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
-#site-dash .dash-kpi-head{display:flex;align-items:center;justify-content:space-between;color:var(--mut)}
-#site-dash .dash-kpi-label{font-size:13px}
-#site-dash .dash-kpi-ico{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:var(--acc-soft);color:var(--acc)}
-#site-dash .dash-kpi-val{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:10px 0 8px}
-#site-dash .dash-kpi-delta{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:2px 7px;border-radius:6px}
-#site-dash .dash-kpi-delta span{font-weight:400;color:var(--faint)}
-#site-dash .dash-kpi-delta.is-up{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
-#site-dash .dash-kpi-delta.is-down{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}
-#site-dash .dash-charts{display:grid;grid-template-columns:2fr 1fr;gap:14px}
-#site-dash .dash-lower{display:grid;grid-template-columns:2fr 1fr;gap:14px}
-#site-dash .dash-panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column}
-#site-dash .dash-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
-#site-dash .dash-panel-title{font-size:15px;font-weight:600;margin:0}
-#site-dash .dash-panel-sub{font-size:12px;color:var(--faint);margin:2px 0 0}
-#site-dash .dash-seg{display:flex;background:var(--surface2);border-radius:8px;padding:2px}
-#site-dash .dash-seg button{border:none;background:none;color:var(--mut);font-size:12px;padding:4px 11px;border-radius:6px;cursor:pointer}
-#site-dash .dash-seg button.is-active{background:var(--surface);color:var(--fg);font-weight:500}
-#site-dash .dash-legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-bottom:8px}
-#site-dash .dash-legend span{display:flex;align-items:center;gap:6px}
-#site-dash .dash-sw{width:10px;height:10px;border-radius:3px;display:inline-block}
-#site-dash .dash-sw.is-acc{background:var(--acc)}
-#site-dash .dash-sw.is-mut{background:var(--line2)}
-#site-dash .dash-sw.is-info{background:var(--info)}
-#site-dash .dash-sw.is-ok{background:var(--ok)}
-#site-dash .dash-sw.is-warn{background:var(--warn)}
-#site-dash .dash-canvas{flex:1}
-#site-dash .dash-svg{width:100%;height:200px;display:block}
-#site-dash .dash-grid{stroke:var(--line);stroke-width:1}
-#site-dash .dash-line-acc{fill:none;stroke:var(--acc);stroke-width:2.5;vector-effect:non-scaling-stroke}
-#site-dash .dash-line-mut{fill:none;stroke:var(--line2);stroke-width:2;stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
-#site-dash .dash-area{fill:var(--acc);opacity:.1}
-#site-dash .dash-xaxis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:6px}
-#site-dash .dash-donut-wrap{position:relative;display:flex;align-items:center;justify-content:center;padding:8px 0}
+
+/* ===== Content ===== */
+#site-dash .dash-content{padding:22px 24px;overflow:auto;flex:1}
+
+/* KPI */
+#site-dash .dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+#site-dash .dash-kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+#site-dash .dash-kpi-head{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--mut);margin-bottom:10px}
+#site-dash .dash-kpi-head svg{color:var(--faint)}
+#site-dash .dash-kpi-val{font-size:24px;font-weight:700;color:var(--fg);margin:0 0 8px;letter-spacing:-.5px}
+#site-dash .dash-kpi-delta{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;margin:0}
+#site-dash .dash-kpi-delta span{color:var(--faint);font-weight:400}
+#site-dash .dash-kpi-delta.is-up{color:var(--ok)}
+#site-dash .dash-kpi-delta.is-down{color:var(--bad)}
+
+/* Cards */
+#site-dash .dash-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column}
+#site-dash .dash-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+#site-dash .dash-card-title{font-size:15px;font-weight:700;color:var(--fg);margin:0}
+#site-dash .dash-card-sub{font-size:12px;color:var(--faint);margin:3px 0 0}
+#site-dash .dash-seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+#site-dash .dash-seg button{background:none;border:none;color:var(--mut);font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer}
+#site-dash .dash-seg button.is-active{background:var(--surface2);color:var(--fg);font-weight:600}
+#site-dash .dash-link{font-size:12.5px;color:var(--acc);text-decoration:none}
+#site-dash .dash-link:hover{text-decoration:underline}
+
+/* Charts row */
+#site-dash .dash-charts{display:grid;grid-template-columns:1.9fr 1fr;gap:14px;margin-bottom:16px}
+#site-dash .dash-chart-body{padding:18px 18px 8px;flex:1}
+#site-dash .dash-bars{display:flex;align-items:flex-end;gap:10px;height:170px}
+#site-dash .dash-bars span{flex:1;height:var(--h);background:var(--surface2);border:1px solid var(--line2);border-bottom:none;border-radius:4px 4px 0 0}
+#site-dash .dash-bars span.is-peak{background:var(--acc);border-color:var(--acc)}
+#site-dash .dash-xaxis{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+#site-dash .dash-legend{display:flex;gap:18px;padding:12px 18px 16px;font-size:12px;color:var(--mut)}
+#site-dash .dash-legend span{display:inline-flex;align-items:center;gap:7px}
+#site-dash .dash-sw{width:11px;height:11px;border-radius:3px;background:var(--surface2);border:1px solid var(--line2);display:inline-block}
+#site-dash .dash-sw.is-peak{background:var(--acc);border-color:var(--acc)}
+
+/* Donut */
+#site-dash .dash-donut-wrap{position:relative;display:flex;align-items:center;justify-content:center;padding:22px 18px 8px;flex:1}
 #site-dash .dash-donut{width:150px;height:150px;transform:rotate(-90deg)}
-#site-dash .dash-ring-bg{fill:none;stroke:var(--surface2);stroke-width:14}
-#site-dash .dash-ring{fill:none;stroke-width:14;stroke-linecap:butt}
+#site-dash .dash-ring-bg{fill:none;stroke:var(--surface2);stroke-width:5}
+#site-dash .dash-ring{fill:none;stroke-width:5;stroke-linecap:butt}
 #site-dash .dash-ring.s1{stroke:var(--acc)}
-#site-dash .dash-ring.s2{stroke:var(--info)}
-#site-dash .dash-ring.s3{stroke:var(--ok)}
-#site-dash .dash-ring.s4{stroke:var(--warn)}
-#site-dash .dash-donut-center{position:absolute;display:flex;flex-direction:column;align-items:center;line-height:1.1}
-#site-dash .dash-donut-num{font-size:20px;font-weight:600}
-#site-dash .dash-donut-cap{font-size:11px;color:var(--faint)}
-#site-dash .dash-donut-legend{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
-#site-dash .dash-donut-legend li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
-#site-dash .dash-donut-legend b{margin-left:auto;font-weight:600;color:var(--fg)}
+#site-dash .dash-ring.s2{stroke:var(--acc-deep)}
+#site-dash .dash-ring.s3{stroke:var(--mut)}
+#site-dash .dash-ring.s4{stroke:var(--line2)}
+#site-dash .dash-donut-center{position:absolute;text-align:center;line-height:1.25}
+#site-dash .dash-donut-center strong{display:block;font-size:20px;font-weight:700;color:var(--fg)}
+#site-dash .dash-donut-center span{font-size:11px;color:var(--faint)}
+#site-dash .dash-donut-legend{list-style:none;margin:0;padding:6px 18px 18px;display:flex;flex-direction:column;gap:9px}
+#site-dash .dash-donut-legend li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut)}
+#site-dash .dash-donut-legend b{margin-left:auto;color:var(--fg);font-weight:600}
+#site-dash .dash-donut-legend .dash-sw.s1{background:var(--acc);border-color:var(--acc)}
+#site-dash .dash-donut-legend .dash-sw.s2{background:var(--acc-deep);border-color:var(--acc-deep)}
+#site-dash .dash-donut-legend .dash-sw.s3{background:var(--mut);border-color:var(--mut)}
+#site-dash .dash-donut-legend .dash-sw.s4{background:var(--line2);border-color:var(--line2)}
+
+/* Lower split */
+#site-dash .dash-lower{display:grid;grid-template-columns:1fr 1.9fr;gap:14px;margin-bottom:18px}
+
+/* Activity feed */
+#site-dash .dash-feed{list-style:none;margin:0;padding:8px 18px 14px}
+#site-dash .dash-feed li{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+#site-dash .dash-feed li:last-child{border-bottom:none}
+#site-dash .dash-feed-dot{width:8px;height:8px;border-radius:50%;background:var(--surface2);border:1px solid var(--line2);margin-top:5px;flex-shrink:0}
+#site-dash .dash-feed li:first-child .dash-feed-dot{background:var(--acc);border-color:var(--acc)}
+#site-dash .dash-feed p{margin:0;font-size:13px;color:var(--fg)}
+#site-dash .dash-feed b{font-weight:600}
+#site-dash .dash-feed time{font-size:11.5px;color:var(--faint)}
+
+/* Table */
 #site-dash .dash-filters{display:flex;gap:6px}
-#site-dash .dash-chip{border:1px solid var(--line);background:none;color:var(--mut);font-size:12px;padding:4px 11px;border-radius:7px;cursor:pointer}
-#site-dash .dash-chip.is-active{background:var(--acc-soft);border-color:transparent;color:var(--acc-deep);font-weight:500}
-#site-dash .dash-table-scroll{overflow-x:auto}
+#site-dash .dash-chip{font-size:12px;color:var(--mut);background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:5px 12px;cursor:pointer}
+#site-dash .dash-chip.is-active{background:var(--surface2);color:var(--fg);font-weight:600;border-color:var(--line2)}
+#site-dash .dash-table-scroll{overflow:auto}
 #site-dash .dash-table{width:100%;border-collapse:collapse;font-size:13px}
-#site-dash .dash-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);font-weight:500;padding:0 12px 10px;border-bottom:1px solid var(--line)}
-#site-dash .dash-table th.is-sort{color:var(--fg)}
-#site-dash .dash-table th.is-sort svg{vertical-align:-2px;margin-left:2px}
-#site-dash .dash-table td{padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+#site-dash .dash-table thead th{text-align:left;font-size:11.5px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;padding:11px 18px;border-bottom:1px solid var(--line);background:var(--bg);white-space:nowrap}
+#site-dash .dash-table th.is-sorted{color:var(--mut)}
+#site-dash .dash-table th svg{vertical-align:middle;margin-left:3px;color:var(--faint)}
+#site-dash .dash-table tbody td{padding:12px 18px;border-bottom:1px solid var(--line);color:var(--fg)}
 #site-dash .dash-table tbody tr:last-child td{border-bottom:none}
 #site-dash .dash-table tbody tr:hover{background:var(--surface2)}
-#site-dash .dash-mono{font-family:var(--mono);font-size:12px}
-#site-dash .dash-muted{color:var(--faint);font-size:12px}
-#site-dash .dash-cell-av{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--acc-soft);color:var(--acc-deep);font-size:10px;font-weight:600;margin-right:8px;vertical-align:-7px}
-#site-dash .dash-badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px}
-#site-dash .dash-badge.is-ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent)}
-#site-dash .dash-badge.is-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
-#site-dash .dash-badge.is-bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
-#site-dash .dash-badge.is-info{color:var(--info);background:color-mix(in srgb,var(--info) 15%,transparent)}
-#site-dash .dash-pager{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+#site-dash .dash-mono{font-family:var(--mono);font-size:12.5px}
+#site-dash .dash-muted{color:var(--mut)}
+#site-dash .dash-badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;border:1px solid var(--line)}
+#site-dash .dash-badge.is-ok{color:var(--ok);border-color:var(--ok)}
+#site-dash .dash-badge.is-warn{color:var(--warn);border-color:var(--warn)}
+#site-dash .dash-badge.is-bad{color:var(--bad);border-color:var(--bad)}
+
+/* Pagination */
+#site-dash .dash-pager{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px solid var(--line)}
 #site-dash .dash-pager-info{font-size:12px;color:var(--faint)}
-#site-dash .dash-pager-btns{display:flex;align-items:center;gap:4px}
-#site-dash .dash-pager-btns button{min-width:30px;height:30px;border:1px solid var(--line);background:var(--surface);color:var(--mut);border-radius:7px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+#site-dash .dash-pager-btns{display:flex;gap:4px}
+#site-dash .dash-pager-btns button{min-width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--mut);font-size:12.5px;cursor:pointer}
 #site-dash .dash-pager-btns button:hover:not(:disabled){background:var(--surface2);color:var(--fg)}
-#site-dash .dash-pager-btns button.is-active{background:var(--acc);border-color:transparent;color:#fff;font-weight:500}
+#site-dash .dash-pager-btns button.is-active{background:var(--acc);border-color:var(--acc);color:var(--bg);font-weight:600}
 #site-dash .dash-pager-btns button:disabled{opacity:.4;cursor:default}
-#site-dash .dash-pager-gap{color:var(--faint);padding:0 2px}
-#site-dash .dash-link{font-size:12px;color:var(--acc);text-decoration:none}
-#site-dash .dash-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-#site-dash .dash-feed li{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line)}
-#site-dash .dash-feed li:last-child{border-bottom:none}
-#site-dash .dash-feed-ico{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;margin-top:1px}
-#site-dash .dash-feed-ico.is-ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent)}
-#site-dash .dash-feed-ico.is-info{color:var(--info);background:color-mix(in srgb,var(--info) 15%,transparent)}
-#site-dash .dash-feed-ico.is-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
-#site-dash .dash-feed-ico.is-bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,transparent)}
-#site-dash .dash-feed-ico.is-acc{color:var(--acc);background:var(--acc-soft)}
-#site-dash .dash-feed p{margin:0;font-size:13px;line-height:1.4}
-#site-dash .dash-feed time{font-size:11px;color:var(--faint)}
-#site-dash .dash-feed .dash-mono{color:var(--mut)}
-@media(max-width:880px){#site-dash .dash-shell{grid-template-columns:1fr}#site-dash .dash-sidebar{display:none}#site-dash .dash-kpis{grid-template-columns:repeat(2,1fr)}#site-dash .dash-charts,#site-dash .dash-lower{grid-template-columns:1fr}}
+
+/* Footer */
+#site-dash .dash-footer{display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
+#site-dash .dash-foot-links{display:flex;gap:16px}
+#site-dash .dash-foot-links a{color:var(--mut);text-decoration:none}
+#site-dash .dash-foot-links a:hover{color:var(--fg)}
+
+@media(max-width:880px){
+  #site-dash .dash-shell{grid-template-columns:1fr}
+  #site-dash .dash-rail{flex-direction:row;align-items:center;border-right:none;border-bottom:1px solid var(--line);padding:10px 14px;overflow-x:auto}
+  #site-dash .dash-rail-top{padding:0 12px 0 4px}
+  #site-dash .dash-nav{flex-direction:row;gap:4px}
+  #site-dash .dash-nav-label,#site-dash .dash-rail-user{display:none}
+  #site-dash .dash-nav-item span{display:none}
+  #site-dash .dash-kpis{grid-template-columns:repeat(2,1fr)}
+  #site-dash .dash-charts,#site-dash .dash-lower{grid-template-columns:1fr}
+  #site-dash .dash-search{min-width:0;width:140px}
+}
 
 /* ===== site-article ===== */
-.article-topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.article-topbar-inner{max-width:1120px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:24px}
-.article-brand{display:inline-flex;align-items:center;gap:8px;color:var(--fg);font-weight:700;font-size:15px;letter-spacing:-.01em;cursor:pointer}
-.article-brand svg{color:var(--acc)}
-.article-nav{display:flex;gap:6px;margin-left:8px}
-.article-nav a{padding:7px 12px;border-radius:8px;font-size:14px;color:var(--mut);cursor:pointer;transition:.15s}
-.article-nav a:hover{color:var(--fg);background:var(--surface)}
-.article-nav a.is-active{color:var(--fg);background:var(--surface)}
-.article-topbar-act{margin-left:auto;display:flex;align-items:center;gap:8px}
-.article-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--line);background:var(--surface);color:var(--mut);border-radius:9px;cursor:pointer;transition:.15s}
-.article-icon-btn:hover{color:var(--fg);border-color:var(--line2)}
-.article-subscribe-btn{padding:8px 16px;border:none;border-radius:9px;background:var(--acc);color:var(--bg);font-size:14px;font-weight:600;cursor:pointer}
-.article-subscribe-btn:hover{background:var(--acc-deep)}
+#site-article { color: var(--fg); line-height: 1.6; }
+#site-article * { box-sizing: border-box; }
+#site-article a { color: inherit; text-decoration: none; }
 
-.article-breadcrumb{max-width:1120px;margin:0 auto;padding:16px 24px 0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
-.article-breadcrumb a{color:var(--mut);cursor:pointer}
-.article-breadcrumb a:hover{color:var(--fg)}
-.article-bc-sep{color:var(--faint)}
-.article-bc-cur{color:var(--fg)}
+#site-article .article-topbar { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+#site-article .article-topbar-inner { max-width: 1160px; margin: 0 auto; padding: 0 32px; height: 60px; display: flex; align-items: center; gap: 28px; }
+#site-article .article-brand { display: flex; align-items: center; gap: 9px; }
+#site-article .article-logo-mark { display: inline-flex; color: var(--fg); }
+#site-article .article-logo-text { font-weight: 600; font-size: 16px; letter-spacing: -0.01em; }
+#site-article .article-mainnav { display: flex; gap: 22px; margin-left: 8px; }
+#site-article .article-navlink { font-size: 14px; color: var(--mut); padding: 4px 0; }
+#site-article .article-navlink:hover { color: var(--fg); }
+#site-article .article-navlink.is-active { color: var(--acc); font-weight: 500; }
+#site-article .article-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+#site-article .article-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--mut); cursor: pointer; }
+#site-article .article-iconbtn:hover { color: var(--fg); border-color: var(--line2); }
+#site-article .article-btn-ghost { background: transparent; border: 1px solid var(--line2); color: var(--fg); font-size: 13.5px; padding: 7px 14px; border-radius: 8px; cursor: pointer; }
+#site-article .article-btn-ghost:hover { background: var(--surface2); }
+#site-article .article-btn-solid { background: var(--acc); border: 1px solid var(--acc); color: #fff; font-size: 13.5px; font-weight: 500; padding: 7px 16px; border-radius: 8px; cursor: pointer; }
+#site-article .article-btn-solid:hover { background: var(--acc-deep); border-color: var(--acc-deep); }
 
-.article-shell{max-width:1120px;margin:0 auto;padding:0 24px}
-.article-head{padding:32px 0 8px;max-width:760px}
-.article-kicker{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--acc)}
-.article-title{margin:14px 0 0;font-size:clamp(30px,4.2vw,46px);line-height:1.16;letter-spacing:-.02em;font-weight:800;color:var(--fg)}
-.article-dek{margin:18px 0 0;font-size:clamp(17px,1.6vw,20px);line-height:1.6;color:var(--mut);max-width:62ch}
-.article-meta{margin:26px 0 0;display:flex;align-items:center;gap:12px}
-.article-avatar{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc-deep));color:var(--bg);font-size:14px;font-weight:700;flex:none}
-.article-meta-text{display:flex;flex-direction:column;line-height:1.4}
-.article-author{font-size:14px;font-weight:600;color:var(--fg)}
-.article-meta-sub{font-size:13px;color:var(--mut)}
-.article-meta-tag{margin-left:auto;font-size:12px;font-weight:600;color:var(--acc);background:var(--acc-soft);padding:5px 10px;border-radius:20px}
-.article-cover{margin:30px 0 0;max-width:none}
-.article-cover-fig{width:100%;aspect-ratio:16/7;border-radius:var(--radius);background:linear-gradient(135deg,var(--acc-deep),var(--acc) 45%,var(--surface2));border:1px solid var(--line);position:relative;overflow:hidden}
-.article-cover-fig::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent 38px,color-mix(in srgb,var(--bg) 22%,transparent) 38px,color-mix(in srgb,var(--bg) 22%,transparent) 40px)}
-.article-cover-cap{display:block;margin:10px 0 0;font-size:13px;color:var(--mut)}
+#site-article .article-breadcrumb { max-width: 1160px; margin: 0 auto; padding: 18px 32px 0; }
+#site-article .article-crumbs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; color: var(--faint); }
+#site-article .article-crumbs a:hover { color: var(--acc); }
+#site-article .article-crumb-sep { color: var(--faint); }
+#site-article .article-crumbs [aria-current] { color: var(--mut); }
 
-.article-body-grid{display:grid;grid-template-columns:minmax(0,1fr) 248px;gap:48px;padding:28px 0 0;align-items:start}
-.article-main{max-width:68ch;font-size:17px;line-height:1.78;color:var(--fg)}
-.article-main p{margin:0 0 20px}
-.article-lead{font-size:19px;line-height:1.7;color:var(--fg)}
-.article-h2{margin:40px 0 16px;font-size:25px;line-height:1.3;letter-spacing:-.01em;font-weight:700;color:var(--fg);scroll-margin-top:80px}
-.article-fig{margin:28px 0}
-.article-fig-img{width:100%;aspect-ratio:16/8;border-radius:10px;background:linear-gradient(120deg,var(--surface2),var(--surface));border:1px solid var(--line);position:relative;overflow:hidden}
-.article-fig-img::after{content:"";position:absolute;inset:14px;border-radius:6px;background:repeating-linear-gradient(0deg,transparent 0,transparent 7px,color-mix(in srgb,var(--mut) 24%,transparent) 7px,color-mix(in srgb,var(--mut) 24%,transparent) 8px)}
-.article-fig-cap{display:block;margin:10px 0 0;font-size:13px;color:var(--mut)}
-.article-pullquote{margin:34px 0;padding:6px 0 6px 22px;border-left:3px solid var(--acc);font-size:23px;line-height:1.45;font-weight:600;letter-spacing:-.01em;color:var(--fg)}
-.article-list{margin:0 0 20px;padding-left:20px}
-.article-list li{margin:0 0 8px}
-.article-list li::marker{color:var(--acc)}
-.article-code{margin:0 0 22px;padding:16px 18px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--fg)}
-.article-code code{font-family:inherit}
+#site-article .article-doc { max-width: 1160px; margin: 0 auto; padding: 0 32px; }
 
-.article-aside{position:sticky;top:84px;display:flex;flex-direction:column;gap:18px}
-.article-toc{border-left:2px solid var(--line);padding-left:16px}
-.article-toc-label{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin-bottom:12px}
-.article-toc ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
-.article-toc a{font-size:13.5px;line-height:1.4;color:var(--mut);cursor:pointer;transition:.15s;display:block}
-.article-toc a:hover{color:var(--fg)}
-.article-toc a.is-active{color:var(--acc);font-weight:600}
-.article-share{border-top:1px solid var(--line);padding-top:16px}
-.article-share-label{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin-bottom:10px}
-.article-share-btns{display:flex;gap:8px}
+#site-article .article-head { max-width: 720px; margin: 0 auto; padding: 40px 0 8px; }
+#site-article .article-kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--acc); margin-bottom: 16px; }
+#site-article .article-title { font-size: 42px; line-height: 1.18; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 18px; color: var(--fg); }
+#site-article .article-dek { font-size: 19px; line-height: 1.55; color: var(--mut); margin: 0 0 26px; }
+#site-article .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 13.5px; color: var(--mut); }
+#site-article .article-byline { display: flex; align-items: center; gap: 8px; }
+#site-article .article-avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line); color: var(--mut); }
+#site-article .article-author { color: var(--fg); font-weight: 500; }
+#site-article .article-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--line2); }
+#site-article .article-meta-item { display: inline-flex; align-items: center; gap: 5px; }
 
-.article-authorbox{margin:48px auto 0;max-width:68ch;display:flex;gap:18px;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
-.article-authorbox-avatar{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc-deep));color:var(--bg);font-size:17px;font-weight:700;flex:none}
-.article-authorbox-text{display:flex;flex-direction:column;gap:6px}
-.article-authorbox-name{font-size:16px;font-weight:700;color:var(--fg)}
-.article-authorbox-bio{margin:0;font-size:14px;line-height:1.6;color:var(--mut);max-width:54ch}
-.article-authorbox-follow{align-self:flex-start;margin-top:4px;padding:7px 16px;border:1px solid var(--line2);background:transparent;color:var(--fg);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
-.article-authorbox-follow:hover{border-color:var(--acc);color:var(--acc)}
+#site-article .article-cover { margin: 32px 0 0; }
+#site-article .article-cover-ph { aspect-ratio: 16 / 8; background: var(--surface2); border: 1px solid var(--line); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; color: var(--faint); }
+#site-article .article-cover-cap { font-size: 12.5px; color: var(--faint); margin-top: 10px; text-align: center; }
 
-.article-related{max-width:1120px;margin:56px auto 0;padding:0 24px}
-.article-related-title{margin:0 0 20px;font-size:21px;font-weight:700;letter-spacing:-.01em;color:var(--fg)}
-.article-related-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.article-card{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:.18s}
-.article-card:hover{border-color:var(--line2);transform:translateY(-2px)}
-.article-card-thumb{width:100%;aspect-ratio:16/9}
-.article-thumb-a{background:linear-gradient(135deg,var(--acc),var(--acc-deep))}
-.article-thumb-b{background:linear-gradient(135deg,var(--info),var(--surface2))}
-.article-thumb-c{background:linear-gradient(135deg,var(--surface2),var(--acc-deep))}
-.article-card-kicker{margin:14px 16px 0;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--acc)}
-.article-card-title{margin:8px 16px 0;font-size:16px;line-height:1.4;font-weight:700;color:var(--fg)}
-.article-card-meta{margin:8px 16px 16px;font-size:13px;color:var(--mut)}
+#site-article .article-layout { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 56px; align-items: start; margin-top: 28px; }
 
-.article-newsletter{margin:56px 0 0;background:var(--acc-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-.article-newsletter-inner{max-width:1120px;margin:0 auto;padding:36px 24px;display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap}
-.article-newsletter-title{margin:0;font-size:23px;font-weight:700;letter-spacing:-.01em;color:var(--fg)}
-.article-newsletter-sub{margin:8px 0 0;font-size:15px;color:var(--mut)}
-.article-newsletter-form{display:flex;gap:8px;flex:1;min-width:280px;max-width:440px}
-.article-newsletter-input{flex:1;padding:11px 14px;border:1px solid var(--line2);background:var(--bg);color:var(--fg);border-radius:9px;font-size:14px}
-.article-newsletter-input:focus{outline:none;border-color:var(--acc)}
-.article-newsletter-btn{padding:11px 20px;border:none;border-radius:9px;background:var(--acc);color:var(--bg);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
-.article-newsletter-btn:hover{background:var(--acc-deep)}
+#site-article .article-body { max-width: 680px; margin: 0 auto; width: 100%; font-size: 17px; line-height: 1.75; color: var(--fg); }
+#site-article .article-body > p { margin: 0 0 1.5rem; }
+#site-article .article-lead { font-size: 19px; line-height: 1.7; color: var(--fg); }
+#site-article .article-h2 { font-size: 25px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; margin: 3rem 0 1.1rem; color: var(--fg); scroll-margin-top: 80px; }
 
-.article-footer{border-top:1px solid var(--line);margin-top:0;background:var(--surface)}
-.article-footer-inner{max-width:1120px;margin:0 auto;padding:40px 24px 28px;display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap}
-.article-footer-tag{margin:12px 0 0;font-size:13px;color:var(--mut);max-width:34ch}
-.article-footer-cols{display:flex;gap:48px;flex-wrap:wrap}
-.article-footer-col{display:flex;flex-direction:column;gap:9px}
-.article-footer-h{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin-bottom:3px}
-.article-footer-col a{font-size:14px;color:var(--mut);cursor:pointer}
-.article-footer-col a:hover{color:var(--fg)}
-.article-footer-bar{max-width:1120px;margin:0 auto;padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut);flex-wrap:wrap;gap:10px}
-.article-footer-legal{display:flex;gap:16px}
-.article-footer-legal a{color:var(--mut);cursor:pointer}
-.article-footer-legal a:hover{color:var(--fg)}
+#site-article .article-fig { margin: 2.2rem 0; }
+#site-article .article-fig-ph { aspect-ratio: 16 / 7; background: var(--surface2); border: 1px solid var(--line); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; color: var(--faint); }
+#site-article .article-fig-cap { font-size: 12.5px; color: var(--faint); margin-top: 9px; }
 
-@media(max-width:860px){
-.article-nav{display:none}
-.article-body-grid{grid-template-columns:1fr;gap:32px}
-.article-aside{position:static}
-.article-related-grid{grid-template-columns:1fr}
+#site-article .article-pullquote { margin: 2.4rem 0; padding: 4px 0 4px 24px; border-left: 3px solid var(--acc); font-family: Georgia, "Times New Roman", serif; font-size: 24px; line-height: 1.4; color: var(--fg); font-style: italic; }
+
+#site-article .article-list { margin: 0 0 1.5rem; padding-left: 22px; }
+#site-article .article-list li { margin-bottom: 0.7rem; }
+#site-article .article-list li::marker { color: var(--faint); }
+
+#site-article .article-code { background: var(--surface2); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin: 1.8rem 0; overflow-x: auto; font-family: var(--mono); font-size: 13.5px; line-height: 1.65; color: var(--mut); }
+#site-article .article-code code { font-family: inherit; }
+
+#site-article .article-side { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 26px; }
+#site-article .article-side-label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); margin: 0 0 12px; }
+#site-article .article-toc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; border-left: 1px solid var(--line); }
+#site-article .article-toc-link { display: block; font-size: 13.5px; line-height: 1.45; color: var(--mut); padding: 7px 0 7px 14px; margin-left: -1px; border-left: 2px solid transparent; }
+#site-article .article-toc-link:hover { color: var(--fg); }
+#site-article .article-toc-link.is-active { color: var(--acc); border-left-color: var(--acc); font-weight: 500; }
+#site-article .article-share-row { display: flex; gap: 8px; }
+#site-article .article-share-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--mut); cursor: pointer; }
+#site-article .article-share-btn:hover { color: var(--fg); border-color: var(--line2); background: var(--surface2); }
+
+#site-article .article-authorbox { max-width: 680px; margin: 48px auto 0; display: flex; gap: 18px; padding: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+#site-article .article-authorbox-avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--line); color: var(--mut); }
+#site-article .article-authorbox-name { font-size: 16px; font-weight: 600; margin: 0; }
+#site-article .article-authorbox-role { font-size: 13px; color: var(--mut); margin: 3px 0 10px; }
+#site-article .article-authorbox-desc { font-size: 14px; line-height: 1.6; color: var(--mut); margin: 0 0 14px; }
+
+#site-article .article-related { margin-top: 64px; }
+#site-article .article-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+#site-article .article-related-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+#site-article .article-related-more { font-size: 13.5px; color: var(--acc); }
+#site-article .article-related-more:hover { color: var(--acc-deep); }
+#site-article .article-related-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+#site-article .article-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+#site-article .article-card:hover { border-color: var(--line2); }
+#site-article .article-card-ph { aspect-ratio: 16 / 9; background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--faint); margin-bottom: 14px; }
+#site-article .article-card-kicker { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+#site-article .article-card-title { font-size: 16px; font-weight: 600; line-height: 1.35; margin: 7px 0 12px; color: var(--fg); }
+#site-article .article-card-meta { margin-top: auto; font-size: 12.5px; color: var(--mut); }
+
+#site-article .article-newsletter { margin-top: 72px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); }
+#site-article .article-newsletter-inner { max-width: 1160px; margin: 0 auto; padding: 44px 32px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 28px; }
+#site-article .article-newsletter-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px; }
+#site-article .article-newsletter-sub { font-size: 14.5px; color: var(--mut); margin: 0; }
+#site-article .article-newsletter-form { display: flex; gap: 10px; flex: none; }
+#site-article .article-newsletter-input { width: 240px; height: 42px; background: var(--bg); border: 1px solid var(--line2); border-radius: 8px; padding: 0 14px; color: var(--fg); font-size: 14px; }
+#site-article .article-newsletter-input::placeholder { color: var(--faint); }
+#site-article .article-newsletter-input:focus { outline: none; border-color: var(--acc); }
+#site-article .article-newsletter-form .article-btn-solid { height: 42px; padding: 0 20px; }
+
+#site-article .article-footer { background: var(--bg); }
+#site-article .article-footer-inner { max-width: 1160px; margin: 0 auto; padding: 48px 32px 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 36px; }
+#site-article .article-footer-tag { font-size: 13px; color: var(--mut); margin: 10px 0 0; max-width: 220px; }
+#site-article .article-footer-cols { display: flex; gap: 56px; flex-wrap: wrap; }
+#site-article .article-footer-col { display: flex; flex-direction: column; gap: 9px; }
+#site-article .article-footer-h { font-size: 12.5px; font-weight: 600; color: var(--fg); margin: 0 0 3px; }
+#site-article .article-footer-col a { font-size: 13px; color: var(--mut); }
+#site-article .article-footer-col a:hover { color: var(--acc); }
+#site-article .article-footer-bottom { max-width: 1160px; margin: 0 auto; padding: 18px 32px 36px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--faint); }
+
+@media (max-width: 880px) {
+  #site-article .article-layout { grid-template-columns: 1fr; gap: 36px; }
+  #site-article .article-side { position: static; flex-direction: row; flex-wrap: wrap; gap: 28px; }
+  #site-article .article-related-grid { grid-template-columns: 1fr; }
+  #site-article .article-title { font-size: 32px; }
+  #site-article .article-mainnav { display: none; }
 }
 </style>
 </head>
@@ -510,311 +535,295 @@ body.xray .site.show [data-region].rg-active::before{
   <main class="stage" id="stage">
 <section class="site" id="site-landing">
 
-  <header class="landing-nav" data-region="상단 고정 내비바" data-en="Sticky top nav bar" data-pos="페이지 최상단 sticky 고정 — 스크롤 내내 로고와 가입 CTA를 손닿는 곳에" data-hier="전역 1순위 진입점. 좌측 로고 → 중앙 메뉴 → 우측 CTA로 Z 시작점">
+  <header class="landing-nav" data-region="상단 고정 내비바" data-en="Sticky top navbar" data-pos="페이지 최상단 sticky — 스크롤해도 항상 따라다녀 메뉴·CTA 즉시 접근" data-hier="구역 위계 최상위 진입점. 좌(로고)·중(메뉴)·우(CTA) 3분할, 시선은 로고→가입으로">
     <div class="landing-nav-inner">
-      <div class="landing-brand" data-region="브랜드 로고" data-en="Brand logo / wordmark" data-pos="내비 좌측 끝 — 좌상단은 홈 복귀의 관습적 위치" data-hier="브랜드 식별 최우선. 로고는 항상 홈 링크">
-        <span class="landing-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l4-7h10l4 7-9 8z"/></svg>
+      <div class="landing-brand" data-region="브랜드 로고" data-en="Brand / Logo" data-pos="내비 좌측 고정 — 클릭 시 홈, 정체성 앵커" data-hier="좌상단 첫 시선. 다른 메뉴보다 두께·크기로 약하게 우위">
+        <span class="landing-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></svg>
         </span>
-        <span class="landing-brandname">Stacklane</span>
+        <span class="landing-logo-text">Flowdesk</span>
       </div>
-      <nav class="landing-menu" data-region="주메뉴" data-en="Primary nav menu" data-pos="내비 중앙 — 핵심 탐색 경로를 균형 있게 배치" data-hier="2순위. 제품·기능 탐색 동선, 동등 위계의 평면 링크">
-        <a href="#features">기능</a>
-        <a href="#how">작동 방식</a>
-        <a href="#pricing">요금제</a>
-        <a href="#customers">고객 사례</a>
-        <a href="#docs">개발 문서</a>
+      <nav class="landing-menu" data-region="주 메뉴" data-en="Primary nav menu" data-pos="내비 중앙 — 핵심 페이지 4~5개를 한 줄로 평등 배열" data-hier="동급 항목 가로 나열. 활성 항목만 포인트색으로 현재 위치 표시">
+        <a href="#" class="landing-menu-link is-active">제품</a>
+        <a href="#" class="landing-menu-link">기능</a>
+        <a href="#" class="landing-menu-link">요금제</a>
+        <a href="#" class="landing-menu-link">고객사례</a>
+        <a href="#" class="landing-menu-link">문서</a>
       </nav>
-      <div class="landing-nav-cta" data-region="내비 CTA 그룹" data-en="Nav CTA cluster" data-pos="내비 우측 끝 — Z 패턴의 첫 줄 종착점, 시선이 자연히 멈추는 곳" data-hier="전환 1순위. 로그인은 보조(고스트), 가입은 강조(솔리드)">
-        <a class="landing-btn-ghost" href="#login">로그인</a>
-        <a class="landing-btn-solid" href="#signup">무료로 시작</a>
+      <div class="landing-nav-cta" data-region="내비 CTA 그룹" data-en="Nav CTA group" data-pos="내비 우측 — 로그인(텍스트)·가입(솔리드) 한 쌍" data-hier="우상단 전환 지점. 로그인은 약하게, 무료 시작만 채워 단일 주력">
+        <a href="#" class="landing-btn landing-btn-text">로그인</a>
+        <a href="#" class="landing-btn landing-btn-solid">무료로 시작</a>
       </div>
     </div>
   </header>
 
-  <section class="landing-hero" data-region="히어로" data-en="Hero section" data-pos="내비 바로 아래 최상단 — 첫 화면 점유, 좌측 카피 우측 비주얼의 Z 상단 구성" data-hier="페이지 위계 정점. 헤드라인이 최대 글자, 가치 제안과 1차 전환을 모두 담음">
-    <div class="landing-hero-inner">
-      <div class="landing-hero-copy" data-region="히어로 카피" data-en="Hero copy block" data-pos="히어로 좌측 — 좌→우 읽기 흐름의 출발, 메시지 우선 노출" data-hier="배지 → 헤드라인 → 서브 → CTA 순 하강 위계">
-        <span class="landing-eyebrow" data-region="아이브로 배지" data-en="Eyebrow badge" data-pos="헤드라인 위 작은 라벨 — 맥락을 한 줄로 선제시" data-hier="진입 신호. 헤드라인 읽기 전 카테고리 각인">신규 · 워크플로 자동화 2.0</span>
-        <h1 class="landing-h1">팀의 모든 운영 데이터를<br>한 줄로 흐르게</h1>
-        <p class="landing-sub">흩어진 도구와 스프레드시트를 하나의 파이프라인으로 연결합니다. 코드 없이 자동화하고, 실시간으로 추적하세요.</p>
-        <div class="landing-hero-cta" data-region="히어로 CTA 쌍" data-en="Hero CTA pair" data-pos="서브 카피 바로 아래 — 메시지 직후 행동 유도" data-hier="1차 전환점. 주 버튼(솔리드) + 보조 버튼(아웃라인) 명도 대비로 우선순위 구분">
-          <a class="landing-btn-solid landing-btn-lg" href="#signup">14일 무료 체험</a>
-          <a class="landing-btn-line landing-btn-lg" href="#demo">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-            제품 데모 보기
-          </a>
-        </div>
-        <p class="landing-microcopy">신용카드 불필요 · 2분 만에 연동 · 언제든 해지</p>
-      </div>
-      <div class="landing-hero-visual" data-region="제품 목업 비주얼" data-en="Product mockup visual" data-pos="히어로 우측 — Z 상단 우측, 카피를 시각으로 증명" data-hier="보조 강조. 텍스트 주장에 대한 제품 실체 제시">
-        <div class="landing-mockup">
-          <div class="landing-mockup-bar">
-            <span class="landing-dot"></span><span class="landing-dot"></span><span class="landing-dot"></span>
-            <span class="landing-mockup-url">app.stacklane.io/flows</span>
+  <main class="landing-main">
+
+    <section class="landing-hero" data-region="히어로" data-en="Hero section" data-pos="내비 바로 아래 첫 화면(above the fold) — 좌측 카피·우측 비주얼 Z패턴 시작점" data-hier="페이지 최상위 메시지 구역. 시선 진입 1순위, 가치 제안과 전환을 동시에">
+      <div class="landing-hero-inner">
+        <div class="landing-hero-copy" data-region="히어로 카피" data-en="Hero copy block" data-pos="히어로 좌측 — 텍스트·CTA를 좌측 정렬로 쌓아 읽는 흐름 위에서 아래로" data-hier="배지→헤드라인→서브→CTA 순. 헤드라인이 페이지 최대 글자">
+          <span class="landing-eyebrow" data-region="아이브로 배지" data-en="Eyebrow badge" data-pos="헤드라인 위 작은 라벨 — 카테고리·신규 소식 선고지" data-hier="헤드라인 보조. 가장 작은 글자, 무채색 배경 칩">
+            <span class="landing-dot" aria-hidden="true"></span>
+            팀 운영 자동화 플랫폼
+          </span>
+          <h1 class="landing-headline" data-region="히어로 헤드라인" data-en="Hero headline (H1)" data-pos="히어로 상단 — 한 줄 가치 제안을 가장 크게" data-hier="페이지 단일 H1, 최대 글자·최대 강조. 첫 시선이 머무는 곳">
+            흩어진 업무 데이터를<br>한 화면에서 끝낸다
+          </h1>
+          <p class="landing-subhead" data-region="히어로 서브헤드" data-en="Hero subhead" data-pos="헤드라인 바로 아래 — 누가·무엇을·왜 한 단락 보강" data-hier="헤드라인 다음 2순위. 작은 글자·보조 명도로 설명 역할">
+            영업·운영·재무 데이터를 한 워크스페이스로 통합합니다. 연동 5분, 코드 없이 자동화하고 실시간 지표를 추적하세요.
+          </p>
+          <div class="landing-hero-cta" data-region="히어로 CTA 쌍" data-en="Hero CTA pair" data-pos="서브헤드 아래 — 주(솔리드)·부(라인) 버튼을 나란히" data-hier="전환 1차 지점. 무료 시작만 채우고 데모는 라인으로 위계 차등">
+            <a href="#" class="landing-btn landing-btn-solid landing-btn-lg">14일 무료 체험</a>
+            <a href="#" class="landing-btn landing-btn-line landing-btn-lg">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+              제품 데모 보기
+            </a>
           </div>
-          <div class="landing-mockup-body">
-            <div class="landing-mockup-side">
-              <span class="landing-mockup-navitem landing-on">파이프라인</span>
-              <span class="landing-mockup-navitem">트리거</span>
-              <span class="landing-mockup-navitem">로그</span>
-              <span class="landing-mockup-navitem">팀</span>
+          <p class="landing-hero-note" data-region="CTA 보조 문구" data-en="CTA microcopy" data-pos="CTA 바로 아래 — 결제 정보 불필요 등 마찰 제거 안내" data-hier="가장 흐린 명도. 전환 망설임 해소용 미세 카피">신용카드 불필요 · 언제든 해지 가능</p>
+        </div>
+        <div class="landing-hero-visual" data-region="히어로 제품 목업" data-en="Hero product mockup" data-pos="히어로 우측 — 좌측 카피와 균형 이루는 비주얼, Z패턴 종점" data-hier="2순위 시선. 텍스트 주장에 시각 증거를 제공하는 무채색 더미 화면">
+          <div class="landing-mock-window">
+            <div class="landing-mock-bar" aria-hidden="true">
+              <span class="landing-mock-dot"></span><span class="landing-mock-dot"></span><span class="landing-mock-dot"></span>
             </div>
-            <div class="landing-mockup-main">
-              <div class="landing-mockup-row"><span class="landing-chip landing-chip-ok">실행 중</span><span class="landing-bar" style="width:78%"></span></div>
-              <div class="landing-mockup-row"><span class="landing-chip landing-chip-info">대기</span><span class="landing-bar" style="width:54%"></span></div>
-              <div class="landing-mockup-row"><span class="landing-chip landing-chip-ok">완료</span><span class="landing-bar" style="width:92%"></span></div>
-              <div class="landing-mockup-row"><span class="landing-chip landing-chip-warn">검토</span><span class="landing-bar" style="width:33%"></span></div>
-              <div class="landing-mockup-grid">
-                <div class="landing-mini"><span class="landing-mini-k">처리량</span><span class="landing-mini-v">12.4K</span></div>
-                <div class="landing-mini"><span class="landing-mini-k">성공률</span><span class="landing-mini-v">99.7%</span></div>
+            <div class="landing-mock-body">
+              <div class="landing-mock-side" aria-hidden="true">
+                <div class="landing-mock-line w70"></div>
+                <div class="landing-mock-line w50"></div>
+                <div class="landing-mock-line w60"></div>
+                <div class="landing-mock-line w40"></div>
+              </div>
+              <div class="landing-mock-content">
+                <div class="landing-mock-kpis" aria-hidden="true">
+                  <div class="landing-mock-kpi"><span class="landing-mock-line w40"></span><span class="landing-mock-num">82.4%</span></div>
+                  <div class="landing-mock-kpi"><span class="landing-mock-line w40"></span><span class="landing-mock-num">1,284</span></div>
+                  <div class="landing-mock-kpi"><span class="landing-mock-line w40"></span><span class="landing-mock-num">₩48.2M</span></div>
+                </div>
+                <div class="landing-mock-chart" aria-hidden="true">
+                  <svg viewBox="0 0 280 110" width="100%" height="100%" preserveAspectRatio="none">
+                    <polyline points="0,90 40,72 80,80 120,52 160,58 200,34 240,40 280,18" fill="none" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="landing-logos" data-region="신뢰 로고 줄" data-en="Logo cloud / trust bar" data-pos="히어로 직후 — 첫 인상 뒤 즉시 사회적 증거로 신뢰 보강" data-hier="신뢰 부스터. 채도 낮춰 보조 위계, 양 많아도 시선 부담 적게">
-    <p class="landing-logos-cap">2,400여 팀이 Stacklane으로 운영을 자동화합니다</p>
-    <div class="landing-logos-row">
-      <span class="landing-logoitem">Northbeam</span>
-      <span class="landing-logoitem">Cobalt</span>
-      <span class="landing-logoitem">Linehaul</span>
-      <span class="landing-logoitem">Patchwork</span>
-      <span class="landing-logoitem">Verано</span>
-      <span class="landing-logoitem">Drydock</span>
-    </div>
-  </section>
+    <section class="landing-logos" data-region="신뢰 로고 줄" data-en="Logo cloud / Trust bar" data-pos="히어로 바로 아래 — 첫 스크롤 직후 사회적 증거로 신뢰 보강" data-hier="보조 신뢰 구역. 무채색 흐린 더미 로고로 면을 낮게 깔아 본문 위계 양보">
+      <p class="landing-logos-label">국내외 2,400여 팀이 Flowdesk로 일합니다</p>
+      <div class="landing-logos-row" aria-hidden="true">
+        <span class="landing-logo-chip">Nimbus</span>
+        <span class="landing-logo-chip">Habor</span>
+        <span class="landing-logo-chip">Quanta</span>
+        <span class="landing-logo-chip">Meridian</span>
+        <span class="landing-logo-chip">Velo</span>
+        <span class="landing-logo-chip">Statik</span>
+      </div>
+    </section>
 
-  <section class="landing-features" id="features" data-region="기능 그리드" data-en="Feature grid" data-pos="본문 첫 블록 — 가치 제안을 구체 기능으로 분해해 제시" data-hier="본문 1순위. 섹션 헤딩 아래 동등 위계 카드 6개, 시선 좌→우 스캔">
-    <div class="landing-section-head" data-region="섹션 헤더" data-en="Section heading" data-pos="섹션 상단 중앙 — 아래 콘텐츠 그룹의 주제를 선언" data-hier="섹션 내 최상위 텍스트. 제목 + 한 줄 설명">
-      <span class="landing-kicker">기능</span>
-      <h2 class="landing-h2">운영에 필요한 모든 것, 한 화면에</h2>
-      <p class="landing-section-sub">연동부터 모니터링까지. 도구를 바꾸지 않고도 자동화를 시작합니다.</p>
-    </div>
-    <div class="landing-feat-grid">
-      <article class="landing-feat-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 셀 — 균등 분할, 아이콘 상단 정렬로 스캔 용이" data-hier="개별 기능 단위. 아이콘 → 제목 → 설명 하강 구조">
-        <span class="landing-feat-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span>
-        <h3 class="landing-feat-t">노코드 파이프라인</h3>
-        <p class="landing-feat-d">드래그로 단계를 잇고 분기와 조건을 설정합니다. 엔지니어 없이도 운영팀이 직접 만듭니다.</p>
-      </article>
-      <article class="landing-feat-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 셀 — 균등 분할" data-hier="개별 기능 단위">
-        <span class="landing-feat-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v6m0 8v6M4 12h6m4 0h6"/><circle cx="12" cy="12" r="3"/></svg></span>
-        <h3 class="landing-feat-t">200+ 커넥터</h3>
-        <p class="landing-feat-d">Slack, Notion, HubSpot, 데이터베이스까지. 양방향 동기화를 기본 제공합니다.</p>
-      </article>
-      <article class="landing-feat-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 셀 — 균등 분할" data-hier="개별 기능 단위">
-        <span class="landing-feat-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/></svg></span>
-        <h3 class="landing-feat-t">실시간 모니터링</h3>
-        <p class="landing-feat-d">모든 실행을 단계별로 추적합니다. 실패 지점에서 즉시 알림과 재시도를 받습니다.</p>
-      </article>
-      <article class="landing-feat-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 셀 — 균등 분할" data-hier="개별 기능 단위">
-        <span class="landing-feat-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
-        <h3 class="landing-feat-t">엔터프라이즈 보안</h3>
-        <p class="landing-feat-d">SOC 2, SSO, 감사 로그를 기본 탑재. 데이터는 전송·저장 시 모두 암호화됩니다.</p>
-      </article>
-      <article class="landing-feat-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 셀 — 균등 분할" data-hier="개별 기능 단위">
-        <span class="landing-feat-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
-        <h3 class="landing-feat-t">스케줄·트리거</h3>
-        <p class="landing-feat-d">크론, 웹훅, 이벤트 기반으로 흐름을 자동 실행합니다. 손이 갈 일이 사라집니다.</p>
-      </article>
-      <article class="landing-feat-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 셀 — 균등 분할" data-hier="개별 기능 단위">
-        <span class="landing-feat-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 3h5v5M21 3l-9 9M8 21H3v-5M3 21l9-9"/></svg></span>
-        <h3 class="landing-feat-t">버전·롤백</h3>
-        <p class="landing-feat-d">모든 변경을 버전으로 남기고 한 번에 되돌립니다. 운영 사고를 빠르게 복구합니다.</p>
-      </article>
-    </div>
-  </section>
+    <section class="landing-features" data-region="기능 그리드" data-en="Feature grid" data-pos="로고 줄 아래 — 핵심 기능을 카드 격자로 균등 배치, 스캔 가능하게" data-hier="본문 1번 섹션. 섹션 헤더→카드 6개 동급. 카드 내부는 아이콘→제목→설명 순">
+      <header class="landing-sec-head" data-region="섹션 헤더" data-en="Section header" data-pos="섹션 최상단 중앙 — 오버라인·제목·설명으로 구역 도입" data-hier="섹션 내 최상위 글자. 본문 H1보다 작은 H2로 구역 위계 한 단 낮춤">
+        <span class="landing-overline">기능</span>
+        <h2 class="landing-sec-title">운영에 필요한 모든 것, 한곳에</h2>
+        <p class="landing-sec-sub">도입 첫날부터 쓰는 핵심 기능. 통합·자동화·분석을 분리된 도구 없이 한 워크스페이스에서.</p>
+      </header>
+      <div class="landing-feature-cards" data-region="기능 카드 그룹" data-en="Feature card group" data-pos="섹션 헤더 아래 — 3열 그리드, 화면 좁아지면 자동 줄바꿈" data-hier="카드 6개 동급 우선순위. 시각 무게 균등, 색 강조 없이 아이콘만 포인트">
+        <article class="landing-feature-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 한 칸 — 단일 기능 1개를 담는 최소 단위" data-hier="아이콘(작은 포인트)→제목(중간 글자)→설명(흐림) 3단 내부 위계">
+          <span class="landing-feat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span>
+          <h3 class="landing-feat-title">데이터 통합</h3>
+          <p class="landing-feat-desc">60종 이상 SaaS를 클릭 몇 번으로 연결해 흩어진 지표를 한 테이블로 모읍니다.</p>
+        </article>
+        <article class="landing-feature-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 한 칸 — 단일 기능 1개" data-hier="아이콘→제목→설명 내부 3단 위계">
+          <span class="landing-feat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg></span>
+          <h3 class="landing-feat-title">노코드 자동화</h3>
+          <p class="landing-feat-desc">조건과 동작을 드래그로 연결해 반복 업무를 규칙 기반으로 자동 처리합니다.</p>
+        </article>
+        <article class="landing-feature-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 한 칸 — 단일 기능 1개" data-hier="아이콘→제목→설명 내부 3단 위계">
+          <span class="landing-feat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5M4 19h16M8 16V9M13 16V6M18 16v-4"/></svg></span>
+          <h3 class="landing-feat-title">실시간 대시보드</h3>
+          <p class="landing-feat-desc">팀별 KPI를 위젯으로 구성하고 변화가 생기면 즉시 화면에 반영합니다.</p>
+        </article>
+        <article class="landing-feature-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 한 칸 — 단일 기능 1개" data-hier="아이콘→제목→설명 내부 3단 위계">
+          <span class="landing-feat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/></svg></span>
+          <h3 class="landing-feat-title">권한·감사 로그</h3>
+          <p class="landing-feat-desc">역할별 접근 제어와 전체 활동 기록으로 보안 정책을 세밀하게 관리합니다.</p>
+        </article>
+        <article class="landing-feature-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 한 칸 — 단일 기능 1개" data-hier="아이콘→제목→설명 내부 3단 위계">
+          <span class="landing-feat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <h3 class="landing-feat-title">협업 코멘트</h3>
+          <p class="landing-feat-desc">데이터 위에 바로 멘션과 스레드를 달아 맥락을 잃지 않고 논의합니다.</p>
+        </article>
+        <article class="landing-feature-card" data-region="기능 카드" data-en="Feature card" data-pos="그리드 한 칸 — 단일 기능 1개" data-hier="아이콘→제목→설명 내부 3단 위계">
+          <span class="landing-feat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg></span>
+          <h3 class="landing-feat-title">API·웹훅</h3>
+          <p class="landing-feat-desc">개방형 API와 웹훅으로 자체 시스템과 양방향으로 데이터를 주고받습니다.</p>
+        </article>
+      </div>
+    </section>
 
-  <section class="landing-how" id="how" data-region="작동 방식 3스텝" data-en="How it works (3 steps)" data-pos="기능 그리드 다음 — 추상 가치를 절차로 풀어 진입 장벽을 낮춤" data-hier="본문 2순위. 번호 매긴 좌→우 순차 흐름으로 시간 순서 강조">
-    <div class="landing-section-head" data-region="섹션 헤더" data-en="Section heading" data-pos="섹션 상단 중앙" data-hier="섹션 내 최상위 텍스트">
-      <span class="landing-kicker">작동 방식</span>
-      <h2 class="landing-h2">3단계로 첫 자동화를 띄웁니다</h2>
-    </div>
-    <div class="landing-steps">
-      <div class="landing-step" data-region="스텝 카드" data-en="Step card" data-pos="순서 흐름 1번 — 좌측 시작점" data-hier="번호가 시각 앵커. 단계 순서가 곧 위계">
-        <span class="landing-stepnum">01</span>
-        <h3 class="landing-feat-t">도구 연결</h3>
-        <p class="landing-feat-d">쓰던 앱을 클릭 한 번으로 인증합니다. 데이터가 즉시 한곳에 모입니다.</p>
-      </div>
-      <div class="landing-step-arrow" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </div>
-      <div class="landing-step" data-region="스텝 카드" data-en="Step card" data-pos="순서 흐름 2번 — 중앙" data-hier="번호 앵커, 중간 단계">
-        <span class="landing-stepnum">02</span>
-        <h3 class="landing-feat-t">흐름 설계</h3>
-        <p class="landing-feat-d">트리거와 단계를 드래그로 잇습니다. 조건 분기까지 코드 없이 구성합니다.</p>
-      </div>
-      <div class="landing-step-arrow" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </div>
-      <div class="landing-step" data-region="스텝 카드" data-en="Step card" data-pos="순서 흐름 3번 — 우측 종착점" data-hier="번호 앵커, 결과 단계">
-        <span class="landing-stepnum">03</span>
-        <h3 class="landing-feat-t">실행·추적</h3>
-        <p class="landing-feat-d">자동으로 돌고 결과를 실시간으로 봅니다. 이상이 생기면 바로 알립니다.</p>
-      </div>
-    </div>
-  </section>
+    <section class="landing-steps" data-region="작동 방식 3스텝" data-en="How it works (3 steps)" data-pos="기능 그리드 아래 — 도입 절차를 번호 순서로 좌→우 흐름" data-hier="본문 2번 섹션. 번호로 순서 위계 명시, 1→2→3 진행 방향 강조">
+      <header class="landing-sec-head" data-region="섹션 헤더" data-en="Section header" data-pos="섹션 상단 중앙 — 구역 도입 제목" data-hier="섹션 내 최상위 H2">
+        <span class="landing-overline">작동 방식</span>
+        <h2 class="landing-sec-title">3단계면 충분합니다</h2>
+        <p class="landing-sec-sub">설치도 컨설팅도 필요 없습니다. 가입부터 첫 대시보드까지 평균 12분.</p>
+      </header>
+      <ol class="landing-step-list" data-region="스텝 리스트" data-en="Step list" data-pos="섹션 헤더 아래 — 3개 스텝 가로 배열, 번호 매김으로 순서 고정" data-hier="스텝 3개 동급이나 번호로 진행 순서 부여. 카드 내부는 번호→제목→설명">
+        <li class="landing-step" data-region="스텝 카드" data-en="Step card" data-pos="스텝 줄 첫 칸 — 첫 단계" data-hier="번호(원형 강조)→제목→설명. 번호가 진입 신호">
+          <span class="landing-step-num">1</span>
+          <h3 class="landing-step-title">계정 연결</h3>
+          <p class="landing-step-desc">사용 중인 도구를 선택해 OAuth로 연결합니다. 마이그레이션 작업은 없습니다.</p>
+        </li>
+        <li class="landing-step" data-region="스텝 카드" data-en="Step card" data-pos="스텝 줄 둘째 칸 — 두 번째 단계" data-hier="번호→제목→설명 내부 위계">
+          <span class="landing-step-num">2</span>
+          <h3 class="landing-step-title">워크플로 설계</h3>
+          <p class="landing-step-desc">템플릿을 고르거나 빈 캔버스에서 규칙을 끌어다 자동화를 구성합니다.</p>
+        </li>
+        <li class="landing-step" data-region="스텝 카드" data-en="Step card" data-pos="스텝 줄 셋째 칸 — 마지막 단계" data-hier="번호→제목→설명 내부 위계">
+          <span class="landing-step-num">3</span>
+          <h3 class="landing-step-title">지표 추적</h3>
+          <p class="landing-step-desc">대시보드를 공유하고 알림을 설정하면 팀 전체가 같은 숫자를 봅니다.</p>
+        </li>
+      </ol>
+    </section>
 
-  <section class="landing-stats" data-region="지표 밴드" data-en="Stat / metrics band" data-pos="작동 방식 다음 전폭 밴드 — 색 배경으로 흐름에 리듬을 주고 성과를 각인" data-hier="신뢰 강화 강조 구간. 큰 숫자가 시선을 끄는 KPI 카드 4열">
-    <div class="landing-stats-grid">
-      <div class="landing-stat" data-region="KPI 카드" data-en="KPI stat card" data-pos="밴드 내 균등 4분할 — 숫자 상단, 라벨 하단" data-hier="숫자가 최우선, 라벨은 보조 설명">
-        <span class="landing-stat-v">2,400+</span>
-        <span class="landing-stat-k">활성 팀</span>
-      </div>
-      <div class="landing-stat" data-region="KPI 카드" data-en="KPI stat card" data-pos="밴드 내 균등 4분할" data-hier="숫자 최우선">
-        <span class="landing-stat-v">99.98%</span>
-        <span class="landing-stat-k">가동률 SLA</span>
-      </div>
-      <div class="landing-stat" data-region="KPI 카드" data-en="KPI stat card" data-pos="밴드 내 균등 4분할" data-hier="숫자 최우선">
-        <span class="landing-stat-v">1.2억</span>
-        <span class="landing-stat-k">월간 실행 건수</span>
-      </div>
-      <div class="landing-stat" data-region="KPI 카드" data-en="KPI stat card" data-pos="밴드 내 균등 4분할" data-hier="숫자 최우선">
-        <span class="landing-stat-v">11시간</span>
-        <span class="landing-stat-k">팀당 주간 절감</span>
-      </div>
-    </div>
-  </section>
-
-  <section class="landing-testi" id="customers" data-region="고객 후기" data-en="Testimonials" data-pos="지표 밴드 다음 — 숫자 증거를 사람의 목소리로 보강" data-hier="신뢰 3순위. 인용문이 본문, 작성자 신원이 보조">
-    <div class="landing-section-head" data-region="섹션 헤더" data-en="Section heading" data-pos="섹션 상단 중앙" data-hier="섹션 내 최상위 텍스트">
-      <span class="landing-kicker">고객 사례</span>
-      <h2 class="landing-h2">현장의 평가</h2>
-    </div>
-    <div class="landing-testi-grid">
-      <figure class="landing-quote" data-region="후기 카드" data-en="Testimonial card" data-pos="그리드 셀 — 인용문 상단, 작성자 하단 고정" data-hier="인용문이 시각 중심, 아바타·이름은 출처 보강">
-        <blockquote class="landing-quote-text">"수작업 정산을 전부 자동화했습니다. 마감이 사흘에서 반나절로 줄었어요."</blockquote>
-        <figcaption class="landing-quote-who">
-          <span class="landing-avatar" style="--a:var(--acc)">SJ</span>
-          <span><span class="landing-quote-name">서지연</span><span class="landing-quote-role">Cobalt · 재무운영 리드</span></span>
-        </figcaption>
-      </figure>
-      <figure class="landing-quote" data-region="후기 카드" data-en="Testimonial card" data-pos="그리드 셀" data-hier="인용문 중심">
-        <blockquote class="landing-quote-text">"엔지니어를 거치지 않고 운영팀이 직접 흐름을 고칩니다. 속도가 완전히 달라졌습니다."</blockquote>
-        <figcaption class="landing-quote-who">
-          <span class="landing-avatar" style="--a:var(--info)">MK</span>
-          <span><span class="landing-quote-name">문강우</span><span class="landing-quote-role">Linehaul · 운영 총괄</span></span>
-        </figcaption>
-      </figure>
-      <figure class="landing-quote" data-region="후기 카드" data-en="Testimonial card" data-pos="그리드 셀" data-hier="인용문 중심">
-        <blockquote class="landing-quote-text">"감사 로그와 SSO가 기본이라 보안 검토를 한 번에 통과했습니다. 도입이 빨랐어요."</blockquote>
-        <figcaption class="landing-quote-who">
-          <span class="landing-avatar" style="--a:var(--ok)">HJ</span>
-          <span><span class="landing-quote-name">하지원</span><span class="landing-quote-role">Patchwork · 보안 담당</span></span>
-        </figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <section class="landing-pricing" id="pricing" data-region="요금제 3플랜" data-en="Pricing tiers (3 plans)" data-pos="후기 다음 — 신뢰가 쌓인 시점에 가격을 제시해 결정으로 유도" data-hier="전환 2순위. 중앙 추천 플랜을 강조해 시선 가운데로 집중">
-    <div class="landing-section-head" data-region="섹션 헤더" data-en="Section heading" data-pos="섹션 상단 중앙" data-hier="섹션 내 최상위 텍스트">
-      <span class="landing-kicker">요금제</span>
-      <h2 class="landing-h2">팀 규모에 맞춰 시작하세요</h2>
-      <p class="landing-section-sub">모든 플랜에 무료 체험 포함. 연결 도구 수에 제한 없음.</p>
-    </div>
-    <div class="landing-plans">
-      <article class="landing-plan" data-region="요금 플랜 카드" data-en="Pricing plan card" data-pos="좌측 — 진입 플랜, 가장 낮은 가격으로 부담 완화" data-hier="기본 옵션. 보조 위계, 외곽선만">
-        <span class="landing-plan-name">Starter</span>
-        <div class="landing-plan-price"><span class="landing-plan-num">₩0</span><span class="landing-plan-per">/월</span></div>
-        <p class="landing-plan-note">소규모 팀의 첫 자동화</p>
-        <ul class="landing-plan-list">
-          <li>흐름 5개</li>
-          <li>커넥터 10종</li>
-          <li>14일 실행 로그</li>
-          <li>이메일 지원</li>
-        </ul>
-        <a class="landing-btn-line landing-plan-cta" href="#signup">무료로 시작</a>
-      </article>
-      <article class="landing-plan landing-plan-feat" data-region="추천 요금 플랜" data-en="Featured pricing plan" data-pos="중앙 — 가장 권장하는 플랜을 한가운데 강조 배치" data-hier="요금 영역 시선 1순위. 배지·강조 테두리·솔리드 CTA로 최대 강조">
-        <span class="landing-plan-badge">가장 인기</span>
-        <span class="landing-plan-name">Growth</span>
-        <div class="landing-plan-price"><span class="landing-plan-num">₩89,000</span><span class="landing-plan-per">/월</span></div>
-        <p class="landing-plan-note">성장하는 운영팀 표준</p>
-        <ul class="landing-plan-list">
-          <li>흐름 무제한</li>
-          <li>커넥터 200+</li>
-          <li>90일 실행 로그</li>
-          <li>실시간 알림·재시도</li>
-          <li>SSO·역할 권한</li>
-        </ul>
-        <a class="landing-btn-solid landing-plan-cta" href="#signup">14일 무료 체험</a>
-      </article>
-      <article class="landing-plan" data-region="요금 플랜 카드" data-en="Pricing plan card" data-pos="우측 — 상위 플랜, 맞춤 영업 연결" data-hier="확장 옵션. 보조 위계, 가격 대신 문의 유도">
-        <span class="landing-plan-name">Enterprise</span>
-        <div class="landing-plan-price"><span class="landing-plan-num">맞춤</span></div>
-        <p class="landing-plan-note">대규모·규제 산업</p>
-        <ul class="landing-plan-list">
-          <li>전용 인프라</li>
-          <li>SLA 99.99%</li>
-          <li>감사 로그·SCIM</li>
-          <li>전담 매니저</li>
-          <li>온보딩 지원</li>
-        </ul>
-        <a class="landing-btn-line landing-plan-cta" href="#contact">영업팀 문의</a>
-      </article>
-    </div>
-  </section>
-
-  <section class="landing-cta" data-region="마지막 CTA 밴드" data-en="Final CTA band" data-pos="푸터 직전 전폭 밴드 — 스크롤 끝에서 마지막 전환 기회 회수" data-hier="전환 마지막 강조. 색 채운 밴드로 시선 집중, 단일 행동 제시">
-    <div class="landing-cta-inner">
-      <h2 class="landing-cta-h">오늘 첫 흐름을 띄워보세요</h2>
-      <p class="landing-cta-sub">2분이면 충분합니다. 카드 등록 없이 바로 시작합니다.</p>
-      <div class="landing-cta-actions" data-region="마지막 CTA 버튼군" data-en="Final CTA buttons" data-pos="밴드 중앙 하단 — 카피 바로 아래 행동 집결" data-hier="주 버튼 단독 강조, 보조 링크는 차순위">
-        <a class="landing-btn-invert landing-btn-lg" href="#signup">무료로 시작하기</a>
-        <a class="landing-btn-onacc landing-btn-lg" href="#demo">영업팀과 상담</a>
-      </div>
-    </div>
-  </section>
-
-  <footer class="landing-footer" data-region="푸터" data-en="Footer (multi-column)" data-pos="페이지 최하단 — 전역 보조 링크와 법적 정보의 종착 보관소" data-hier="최하위 위계. 멀티컬럼 사이트맵, 시선 마지막 정리 구간">
-    <div class="landing-footer-top">
-      <div class="landing-footer-brand" data-region="푸터 브랜드 열" data-en="Footer brand column" data-pos="푸터 좌측 — 로고와 한 줄 소개로 정체성 마무리" data-hier="푸터 내 식별 앵커, 나머지 링크 열보다 넓게">
-        <div class="landing-brand">
-          <span class="landing-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l4-7h10l4 7-9 8z"/></svg></span>
-          <span class="landing-brandname">Stacklane</span>
+    <section class="landing-stats" data-region="지표 밴드" data-en="Stat / metric band" data-pos="작동 방식 아래 — 가로 한 줄 띠로 숫자 증거를 압축 제시" data-hier="본문 강조 띠. 큰 숫자로 임팩트, 라벨은 흐리게 보조. 단일 면으로 리듬 전환">
+      <div class="landing-stats-inner">
+        <div class="landing-stat" data-region="지표 항목" data-en="Stat item" data-pos="밴드 한 칸 — 숫자 1개와 라벨" data-hier="숫자(최대 글자)→라벨(흐림) 2단. 숫자가 시선 우선">
+          <span class="landing-stat-num">2,400+</span>
+          <span class="landing-stat-label">활성 팀</span>
         </div>
-        <p class="landing-footer-tag">운영 데이터를 하나의 흐름으로.</p>
+        <div class="landing-stat" data-region="지표 항목" data-en="Stat item" data-pos="밴드 한 칸 — 숫자 1개와 라벨" data-hier="숫자→라벨 2단 위계">
+          <span class="landing-stat-num">38%</span>
+          <span class="landing-stat-label">평균 운영시간 절감</span>
+        </div>
+        <div class="landing-stat" data-region="지표 항목" data-en="Stat item" data-pos="밴드 한 칸 — 숫자 1개와 라벨" data-hier="숫자→라벨 2단 위계">
+          <span class="landing-stat-num">99.98%</span>
+          <span class="landing-stat-label">가동률 SLA</span>
+        </div>
+        <div class="landing-stat" data-region="지표 항목" data-en="Stat item" data-pos="밴드 한 칸 — 숫자 1개와 라벨" data-hier="숫자→라벨 2단 위계">
+          <span class="landing-stat-num">12분</span>
+          <span class="landing-stat-label">평균 도입 시간</span>
+        </div>
       </div>
-      <nav class="landing-footer-cols" data-region="푸터 링크 컬럼군" data-en="Footer link columns" data-pos="푸터 우측 — 카테고리별 사이트맵을 다열로 정렬" data-hier="주제별 그룹 헤더 + 하위 링크의 2단 위계">
-        <div class="landing-footer-col" data-region="푸터 링크 열" data-en="Footer link column" data-pos="다열 중 한 열 — 단일 주제 묶음" data-hier="열 제목이 그룹장, 링크가 항목">
-          <span class="landing-footer-h">제품</span>
-          <a href="#features">기능</a>
-          <a href="#pricing">요금제</a>
-          <a href="#changelog">업데이트</a>
-          <a href="#roadmap">로드맵</a>
+    </section>
+
+    <section class="landing-testimonials" data-region="고객 후기" data-en="Testimonials" data-pos="지표 밴드 아래 — 정량 증거 다음에 정성 증거로 신뢰 누적" data-hier="본문 3번 섹션. 인용문이 중심, 작성자 정보는 보조. 카드 균등 배열">
+      <header class="landing-sec-head" data-region="섹션 헤더" data-en="Section header" data-pos="섹션 상단 중앙 — 구역 도입 제목" data-hier="섹션 내 최상위 H2">
+        <span class="landing-overline">고객 후기</span>
+        <h2 class="landing-sec-title">현장의 평가</h2>
+      </header>
+      <div class="landing-quote-cards" data-region="후기 카드 그룹" data-en="Testimonial card group" data-pos="헤더 아래 — 후기 카드 3개 그리드" data-hier="카드 3개 동급. 내부는 인용문→구분선→작성자 순">
+        <figure class="landing-quote-card" data-region="후기 카드" data-en="Testimonial card" data-pos="그리드 한 칸 — 후기 1건" data-hier="인용문(본문 크기)→작성자(흐림). 인용 우선">
+          <blockquote class="landing-quote-text">분산된 영업 데이터를 모으는 데만 주마다 반나절을 썼습니다. 지금은 자동으로 들어옵니다.</blockquote>
+          <figcaption class="landing-quote-author" data-region="후기 작성자" data-en="Author block" data-pos="카드 하단 — 아바타·이름·소속" data-hier="아바타→이름→직함. 인용문 보조 신원">
+            <span class="landing-avatar" aria-hidden="true">JK</span>
+            <span class="landing-author-meta"><span class="landing-author-name">정경호</span><span class="landing-author-role">Nimbus · 영업운영 리드</span></span>
+          </figcaption>
+        </figure>
+        <figure class="landing-quote-card" data-region="후기 카드" data-en="Testimonial card" data-pos="그리드 한 칸 — 후기 1건" data-hier="인용문→작성자 내부 위계">
+          <blockquote class="landing-quote-text">노코드 자동화 덕에 개발 리소스 없이 운영팀이 직접 워크플로를 바꿉니다. 속도가 다릅니다.</blockquote>
+          <figcaption class="landing-quote-author" data-region="후기 작성자" data-en="Author block" data-pos="카드 하단 — 아바타·이름·소속" data-hier="아바타→이름→직함">
+            <span class="landing-avatar" aria-hidden="true">SY</span>
+            <span class="landing-author-meta"><span class="landing-author-name">서윤</span><span class="landing-author-role">Quanta · COO</span></span>
+          </figcaption>
+        </figure>
+        <figure class="landing-quote-card" data-region="후기 카드" data-en="Testimonial card" data-pos="그리드 한 칸 — 후기 1건" data-hier="인용문→작성자 내부 위계">
+          <blockquote class="landing-quote-text">권한 관리와 감사 로그가 명확해 보안 심사를 빠르게 통과했습니다. 도입 결정의 핵심이었죠.</blockquote>
+          <figcaption class="landing-quote-author" data-region="후기 작성자" data-en="Author block" data-pos="카드 하단 — 아바타·이름·소속" data-hier="아바타→이름→직함">
+            <span class="landing-avatar" aria-hidden="true">MH</span>
+            <span class="landing-author-meta"><span class="landing-author-name">문하늘</span><span class="landing-author-role">Meridian · 정보보안 담당</span></span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="landing-pricing" data-region="요금제" data-en="Pricing plans" data-pos="후기 아래 — 전환 직전 가격 비교를 3열로, 중앙 추천안 강조" data-hier="본문 4번 섹션. 3플랜 동급이나 추천(Pro)만 보더로 부각. 가격이 카드 시선 중심">
+      <header class="landing-sec-head" data-region="섹션 헤더" data-en="Section header" data-pos="섹션 상단 중앙 — 구역 도입 제목" data-hier="섹션 내 최상위 H2">
+        <span class="landing-overline">요금제</span>
+        <h2 class="landing-sec-title">팀 규모에 맞춰 시작</h2>
+        <p class="landing-sec-sub">모든 플랜에 14일 무료 체험 포함. 연결 도구 수와 사용자 좌석으로 구분됩니다.</p>
+      </header>
+      <div class="landing-plan-cards" data-region="플랜 카드 그룹" data-en="Pricing card group" data-pos="헤더 아래 — 3열 플랜 카드, 가운데가 추천" data-hier="3카드 비교 배열. 중앙 Pro만 강조 보더+배지로 의사결정 유도">
+        <article class="landing-plan" data-region="플랜 카드" data-en="Pricing card" data-pos="좌측 칸 — 입문 플랜" data-hier="플랜명→가격(큰 글자)→기능 목록→CTA(라인). 가격이 카드 첫 시선">
+          <h3 class="landing-plan-name">Starter</h3>
+          <p class="landing-plan-price"><span class="landing-plan-amt">₩0</span><span class="landing-plan-per">/ 월</span></p>
+          <p class="landing-plan-note">개인·소규모 팀 시범 도입용</p>
+          <ul class="landing-plan-feats">
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>사용자 3명</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>연동 5개</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>기본 대시보드</li>
+          </ul>
+          <a href="#" class="landing-btn landing-btn-line landing-btn-block">무료로 시작</a>
+        </article>
+        <article class="landing-plan is-featured" data-region="추천 플랜 카드" data-en="Featured pricing card" data-pos="중앙 칸 — 추천 플랜, 보더 강조로 시선 끌기" data-hier="3카드 중 강조 1순위. 배지+포인트 보더+솔리드 CTA로 기본 선택지로 제안">
+          <span class="landing-plan-badge">가장 인기</span>
+          <h3 class="landing-plan-name">Pro</h3>
+          <p class="landing-plan-price"><span class="landing-plan-amt">₩39,000</span><span class="landing-plan-per">/ 사용자·월</span></p>
+          <p class="landing-plan-note">성장하는 운영팀의 표준</p>
+          <ul class="landing-plan-feats">
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>사용자 무제한</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>연동 무제한</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>고급 자동화·웹훅</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>권한·감사 로그</li>
+          </ul>
+          <a href="#" class="landing-btn landing-btn-solid landing-btn-block">14일 무료 체험</a>
+        </article>
+        <article class="landing-plan" data-region="플랜 카드" data-en="Pricing card" data-pos="우측 칸 — 대기업 플랜" data-hier="플랜명→가격→기능→CTA(라인). 가격이 카드 첫 시선">
+          <h3 class="landing-plan-name">Enterprise</h3>
+          <p class="landing-plan-price"><span class="landing-plan-amt">문의</span></p>
+          <p class="landing-plan-note">전사 도입·맞춤 보안 요건</p>
+          <ul class="landing-plan-feats">
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>전용 SLA·SSO</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>온프레미스 옵션</li>
+            <li><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>전담 매니저</li>
+          </ul>
+          <a href="#" class="landing-btn landing-btn-line landing-btn-block">영업팀 문의</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="landing-cta-band" data-region="마지막 CTA 밴드" data-en="Final CTA band" data-pos="푸터 직전 — 스크롤 끝에서 전환을 마지막으로 반복 호출" data-hier="본문 종결 강조 띠. 짧은 카피+단일 솔리드 CTA로 결정 압축">
+      <div class="landing-cta-inner">
+        <h2 class="landing-cta-title">오늘 바로 시작하세요</h2>
+        <p class="landing-cta-sub">설정 없이 14일 무료. 끝나도 데이터는 그대로 남습니다.</p>
+        <div class="landing-cta-actions">
+          <a href="#" class="landing-btn landing-btn-solid landing-btn-lg">무료로 시작</a>
+          <a href="#" class="landing-btn landing-btn-line landing-btn-lg">영업팀과 상담</a>
         </div>
-        <div class="landing-footer-col" data-region="푸터 링크 열" data-en="Footer link column" data-pos="다열 중 한 열" data-hier="열 제목 + 항목">
-          <span class="landing-footer-h">개발자</span>
-          <a href="#docs">문서</a>
-          <a href="#api">API 레퍼런스</a>
-          <a href="#status">상태 페이지</a>
-          <a href="#sdk">SDK</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="landing-footer" data-region="푸터" data-en="Footer" data-pos="페이지 최하단 — 사이트 전 영역 링크와 법적 정보를 멀티컬럼으로 수납" data-hier="구역 위계 최하위. 작은 글자·흐린 명도, 탐색 보조와 신뢰 마감 역할">
+    <div class="landing-footer-inner">
+      <div class="landing-footer-brand" data-region="푸터 브랜드" data-en="Footer brand block" data-pos="푸터 좌측 — 로고·한 줄 소개로 정체성 재확인" data-hier="푸터 내 1순위 블록. 링크 컬럼보다 약간 넓게">
+        <span class="landing-footer-logo">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></svg>
+          Flowdesk
+        </span>
+        <p class="landing-footer-tag">팀 운영을 한 화면에서.</p>
+      </div>
+      <nav class="landing-footer-cols" data-region="푸터 링크 컬럼" data-en="Footer link columns" data-pos="푸터 우측 — 카테고리별 링크를 여러 열로 정렬" data-hier="컬럼 동급 배열. 각 컬럼 제목→링크 목록 2단 위계">
+        <div class="landing-footer-col" data-region="푸터 컬럼" data-en="Footer column" data-pos="컬럼 한 칸 — 제품 링크 묶음" data-hier="컬럼 제목(작은 강조)→링크(흐림)">
+          <h4 class="landing-footer-h">제품</h4>
+          <a href="#">기능</a><a href="#">요금제</a><a href="#">연동</a><a href="#">변경 이력</a>
         </div>
-        <div class="landing-footer-col" data-region="푸터 링크 열" data-en="Footer link column" data-pos="다열 중 한 열" data-hier="열 제목 + 항목">
-          <span class="landing-footer-h">회사</span>
-          <a href="#about">소개</a>
-          <a href="#careers">채용</a>
-          <a href="#blog">블로그</a>
-          <a href="#contact">문의</a>
+        <div class="landing-footer-col" data-region="푸터 컬럼" data-en="Footer column" data-pos="컬럼 한 칸 — 회사 링크 묶음" data-hier="컬럼 제목→링크 2단">
+          <h4 class="landing-footer-h">회사</h4>
+          <a href="#">소개</a><a href="#">블로그</a><a href="#">채용</a><a href="#">문의</a>
         </div>
-        <div class="landing-footer-col" data-region="푸터 링크 열" data-en="Footer link column" data-pos="다열 중 한 열" data-hier="열 제목 + 항목">
-          <span class="landing-footer-h">법적 고지</span>
-          <a href="#privacy">개인정보처리방침</a>
-          <a href="#terms">이용약관</a>
-          <a href="#security">보안</a>
-          <a href="#dpa">DPA</a>
+        <div class="landing-footer-col" data-region="푸터 컬럼" data-en="Footer column" data-pos="컬럼 한 칸 — 리소스 링크 묶음" data-hier="컬럼 제목→링크 2단">
+          <h4 class="landing-footer-h">리소스</h4>
+          <a href="#">문서</a><a href="#">API 레퍼런스</a><a href="#">상태</a><a href="#">보안</a>
         </div>
       </nav>
     </div>
-    <div class="landing-footer-bottom" data-region="푸터 하단 바" data-en="Footer bottom bar / legal" data-pos="푸터 최하단 가로줄 — 저작권과 부가 링크의 마지막 줄" data-hier="최저 위계. 저작권 좌측, 보조 링크 우측">
-      <span class="landing-copy">© 2026 Stacklane, Inc. 모든 권리 보유.</span>
-      <span class="landing-footer-mini">
-        <a href="#kr">한국어</a>
-        <a href="#status">시스템 상태: 정상</a>
-      </span>
+    <div class="landing-footer-bottom" data-region="푸터 하단 바" data-en="Footer bottom bar" data-pos="푸터 최하단 라인 — 저작권·약관을 한 줄로 마감" data-hier="페이지 최후순위. 가장 작고 흐린 정보, 법적 고지">
+      <span>© 2026 Flowdesk Inc.</span>
+      <span class="landing-footer-legal"><a href="#">이용약관</a><a href="#">개인정보처리방침</a></span>
     </div>
   </footer>
 
@@ -823,501 +832,472 @@ body.xray .site.show [data-region].rg-active::before{
 <section class="site" id="site-dash">
   <div class="dash-shell">
 
-    <aside class="dash-sidebar" data-region="사이드바 내비 레일" data-en="Sidebar / Nav rail" data-pos="화면 맨 왼쪽 세로 고정 — 앱 전역 이동축, 스크롤해도 따라옴" data-hier="좌상단 우선순위의 시작점. 로고→주메뉴→사용자 순으로 수직 위계">
+    <aside class="dash-rail" data-region="사이드바 내비 레일" data-en="Sidebar / Nav rail" data-pos="화면 좌측 끝 세로 고정 — 어느 페이지에서나 섹션 이동 가능" data-hier="앱 골격의 1차 내비. 좌상단 우선순위 원칙에 따라 로고가 최상단, 사용자는 최하단">
 
-      <div class="dash-brand" data-region="브랜드 로고" data-en="Brand / Logo lockup" data-pos="사이드바 최상단 — 모든 화면의 원점, 클릭 시 홈" data-hier="제품 정체성 앵커. 좌상단 첫 고정점">
-        <span class="dash-logo">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3zM13 21h8V8h-8zM3 21h8v-5H3z"/></svg>
+      <div class="dash-rail-top" data-region="레일 로고 영역" data-en="Rail brand / Logo" data-pos="레일 최상단 — 좌상단 첫 시선 지점" data-hier="브랜드 식별. 클릭 시 홈, 시각 무게는 작게">
+        <span class="dash-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         </span>
-        <span class="dash-brand-name">Pivotal</span>
-        <span class="dash-brand-tag">Analytics</span>
+        <span class="dash-logo-text">Atlas</span>
       </div>
 
-      <nav class="dash-nav" data-region="주 메뉴" data-en="Primary nav menu" data-pos="사이드바 본문 — 섹션별 그룹으로 묶어 수직 나열" data-hier="2차 위계. 현재 위치는 활성 상태로 강조, 나머지는 보조색">
+      <nav class="dash-nav" data-region="주 메뉴" data-en="Primary nav" data-pos="레일 상단~중단 세로 스택 — 사용 빈도순 정렬" data-hier="섹션 간 이동의 핵심. 활성 항목만 포인트색으로 현재 위치 표시">
         <p class="dash-nav-label">분석</p>
         <a class="dash-nav-item is-active" href="#">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 13h8V3H3zM13 21h8V8h-8zM3 21h8v-4H3z"/></svg>
           <span>대시보드</span>
         </a>
         <a class="dash-nav-item" href="#">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V5M4 19h16M8 16v-5M13 16V8M18 16v-9"/></svg>
           <span>리포트</span>
         </a>
         <a class="dash-nav-item" href="#">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg>
-          <span>실시간</span>
-          <span class="dash-nav-badge">LIVE</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span>사용자</span>
         </a>
         <p class="dash-nav-label">운영</p>
         <a class="dash-nav-item" href="#">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
-          <span>사용자</span>
-        </a>
-        <a class="dash-nav-item" href="#">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
           <span>주문</span>
-          <span class="dash-nav-count">24</span>
+          <span class="dash-nav-badge">12</span>
         </a>
         <a class="dash-nav-item" href="#">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-9M14 17H5M17 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM7 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 7l-8-4-8 4 8 4 8-4zM4 7v10l8 4 8-4V7M12 11v10"/></svg>
+          <span>재고</span>
+        </a>
+        <a class="dash-nav-item" href="#">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L16.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg>
           <span>설정</span>
         </a>
       </nav>
 
-      <div class="dash-user" data-region="사이드바 사용자 영역" data-en="Sidebar user profile" data-pos="사이드바 최하단 고정 — 계정 컨텍스트는 시선이 마지막에 닿는 곳" data-hier="최하위 위계. 계정 전환·로그아웃 진입점">
-        <span class="dash-avatar">JK</span>
+      <div class="dash-rail-user" data-region="레일 하단 사용자" data-en="Rail user profile" data-pos="레일 최하단 고정 — 계정·로그아웃의 관습적 위치" data-hier="보조 정보. 평소엔 배경으로, 필요 시 클릭">
+        <span class="dash-avatar" aria-hidden="true">SO</span>
         <span class="dash-user-meta">
-          <span class="dash-user-name">정경훈</span>
+          <span class="dash-user-name">서동현</span>
           <span class="dash-user-role">운영 관리자</span>
         </span>
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" class="dash-user-caret"><path d="M6 9l6 6 6-6"/></svg>
       </div>
     </aside>
 
     <div class="dash-main">
 
-      <header class="dash-topbar" data-region="상단바" data-en="Top bar / App header" data-pos="본문 최상단 sticky — 스크롤해도 검색·알림 접근 유지" data-hier="페이지 컨텍스트 + 전역 액션. F패턴 첫 가로획">
-        <div class="dash-topbar-left" data-region="페이지 타이틀 블록" data-en="Page title block" data-pos="상단바 좌측 — 좌상단 우선, 현재 페이지가 무엇인지 즉시 알림" data-hier="페이지 최대 글자. 브레드크럼으로 위치 맥락 보강">
-          <nav class="dash-crumb" data-region="브레드크럼" data-en="Breadcrumb" data-pos="타이틀 바로 위 — 계층 경로 표시" data-hier="보조 정보. 현재 위치까지의 경로">
-            <span>홈</span>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
-            <span>분석</span>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
-            <span class="is-current">대시보드</span>
+      <header class="dash-topbar" data-region="상단바" data-en="Top bar / App header" data-pos="본문 영역 상단 가로 고정 sticky — 스크롤해도 검색·알림 접근 유지" data-hier="페이지 맥락(제목)과 전역 액션(검색·알림·프로필)을 한 줄에. 본문 콘텐츠보다 시각 무게는 낮게">
+        <div class="dash-topbar-left" data-region="페이지 타이틀 영역" data-en="Page title block" data-pos="상단바 좌측 — F패턴 첫 가로 스캔의 시작점" data-hier="현재 페이지 위치 고지. 브레드크럼은 보조, 제목이 주">
+          <nav class="dash-crumb" data-region="브레드크럼" data-en="Breadcrumb" data-pos="제목 바로 위 — 계층 경로 표시" data-hier="현 위치의 상위 맥락. 작고 흐리게">
+            <a href="#">홈</a><span aria-hidden="true">/</span><a href="#">분석</a><span aria-hidden="true">/</span><span class="is-current">개요</span>
           </nav>
-          <h1 class="dash-title">운영 대시보드</h1>
+          <h1 class="dash-page-title">대시보드 개요</h1>
         </div>
-
-        <div class="dash-topbar-right" data-region="전역 액션 영역" data-en="Global action cluster" data-pos="상단바 우측 — F패턴 우상단, 검색·알림·프로필을 한 묶음으로" data-hier="전역 도구. 검색이 가장 크고 알림·프로필은 아이콘 축약">
-          <div class="dash-search" data-region="전역 검색" data-en="Global search" data-pos="액션 영역 좌측 — 가장 넓게, 어디서나 탐색 시작점" data-hier="우측 클러스터 중 최우선. 입력 가능한 단일 진입구">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="text" placeholder="지표·사용자·주문 검색" aria-label="검색">
-            <kbd>⌘K</kbd>
+        <div class="dash-topbar-right" data-region="전역 액션" data-en="Global actions" data-pos="상단바 우측 정렬 — 검색·알림·프로필 관습 배치" data-hier="전역 도구 모음. 검색이 가장 넓고, 아이콘 액션은 보조">
+          <div class="dash-search" data-region="검색 입력" data-en="Global search" data-pos="액션 영역 좌측, 가장 넓게 — 빈번한 탐색 행위" data-hier="가장 자주 쓰는 전역 액션. 넉넉한 폭으로 우선순위 표현">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+            <input type="text" placeholder="검색 — 주문, 사용자, 리포트" aria-label="검색">
+            <kbd>Ctrl K</kbd>
           </div>
-          <button class="dash-icon-btn" aria-label="알림" data-region="알림 벨" data-en="Notification bell" data-pos="검색 오른쪽 — 미확인 건수 뱃지로 주의 유도" data-hier="대기 상태 신호. 점 뱃지로 신규 알림 강조">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-            <span class="dash-dot"></span>
+          <button class="dash-icon-btn" aria-label="알림">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="dash-dot" aria-hidden="true"></span>
           </button>
-          <button class="dash-cta">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            리포트 생성
+          <button class="dash-cta" data-region="주 CTA" data-en="Primary CTA" data-pos="액션 영역 우측 끝 — 가장 오른쪽 종착점에 핵심 행동" data-hier="페이지 유일의 채움 버튼. 포인트색 솔리드로 최강 강조">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg>
+            새 리포트
           </button>
         </div>
       </header>
 
-      <div class="dash-content" data-region="콘텐츠 본문" data-en="Content / Main canvas" data-pos="상단바 아래 — 스크롤 영역, 위계 높은 순서대로 위에서 아래로 쌓음" data-hier="작업 본문. 위에서 아래로 요약→추세→상세 순">
+      <div class="dash-content" data-region="본문 콘텐츠" data-en="Main content area" data-pos="상단바 아래 스크롤 영역 — 사이드바 우측 전체" data-hier="페이지의 실질 정보. 위→아래로 중요도 하강(KPI→차트→리스트→표)">
 
-        <div class="dash-kpis" data-region="KPI 통계 카드" data-en="Stat cards (Bento / KPI)" data-pos="본문 최상단 가로 4열 — F패턴 첫 시선, 핵심 수치를 먼저" data-hier="요약 위계 1순위. 큰 숫자 + 증감으로 한눈에 상태 파악">
-          <div class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="베이비 그리드 1번 칸 — 좌상단, 가장 중요한 지표" data-hier="값(큰 글자) > 라벨 > 증감 배지 순 위계">
-            <div class="dash-kpi-head">
-              <span class="dash-kpi-label">총 매출</span>
-              <span class="dash-kpi-ico"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <section class="dash-kpis" data-region="KPI 통계 카드" data-en="Stat cards (Bento)" data-pos="본문 최상단 4열 그리드 — F패턴 첫 가로 줄에 핵심 지표 배치" data-hier="페이지에서 가장 먼저 읽히는 요약 숫자. 좌→우 중요도순(매출·주문·사용자·전환)">
+          <article class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="그리드 셀 — 라벨·값·증감 3단" data-hier="큰 숫자가 주역, 라벨과 증감은 보조">
+            <div class="dash-kpi-head"><span>총 매출</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
-            <div class="dash-kpi-val">₩ 248.6M</div>
-            <div class="dash-kpi-delta is-up">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M9 7h8v8"/></svg>
-              12.4% <span>전월 대비</span>
+            <p class="dash-kpi-val">₩ 4,820만</p>
+            <p class="dash-kpi-delta is-up"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 15l6-6 6 6"/></svg> 12.4% <span>전월 대비</span></p>
+          </article>
+          <article class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="그리드 셀 2번" data-hier="큰 숫자 주역, 증감 보조">
+            <div class="dash-kpi-head"><span>신규 주문</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-          </div>
-          <div class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="베이비 그리드 2번 칸" data-hier="값 강조, 증감 보조">
-            <div class="dash-kpi-head">
-              <span class="dash-kpi-label">신규 가입</span>
-              <span class="dash-kpi-ico"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M20 8v6M23 11h-6"/><circle cx="9" cy="7" r="4"/></svg></span>
+            <p class="dash-kpi-val">1,284</p>
+            <p class="dash-kpi-delta is-up"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 15l6-6 6 6"/></svg> 5.1% <span>전월 대비</span></p>
+          </article>
+          <article class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="그리드 셀 3번" data-hier="큰 숫자 주역, 증감 보조">
+            <div class="dash-kpi-head"><span>활성 사용자</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>
             </div>
-            <div class="dash-kpi-val">3,184</div>
-            <div class="dash-kpi-delta is-up">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M9 7h8v8"/></svg>
-              8.1% <span>전월 대비</span>
+            <p class="dash-kpi-val">8,942</p>
+            <p class="dash-kpi-delta is-down"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg> 1.8% <span>전월 대비</span></p>
+          </article>
+          <article class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="그리드 셀 4번" data-hier="큰 숫자 주역, 증감 보조">
+            <div class="dash-kpi-head"><span>전환율</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18M19 9l-5 5-4-4-4 4"/></svg>
             </div>
-          </div>
-          <div class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="베이비 그리드 3번 칸" data-hier="값 강조, 하락은 위험색 배지">
-            <div class="dash-kpi-head">
-              <span class="dash-kpi-label">전환율</span>
-              <span class="dash-kpi-ico"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
-            </div>
-            <div class="dash-kpi-val">4.62%</div>
-            <div class="dash-kpi-delta is-down">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 7 17 17M17 9v8H9"/></svg>
-              1.3% <span>전월 대비</span>
-            </div>
-          </div>
-          <div class="dash-kpi" data-region="KPI 카드" data-en="KPI card" data-pos="베이비 그리드 4번 칸 — 우측 끝" data-hier="값 강조, 증감 보조">
-            <div class="dash-kpi-head">
-              <span class="dash-kpi-label">활성 세션</span>
-              <span class="dash-kpi-ico"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.5A2 2 0 0 0 16.8 5H7.2a2 2 0 0 0-1.7.5z"/></svg></span>
-            </div>
-            <div class="dash-kpi-val">1,029</div>
-            <div class="dash-kpi-delta is-up">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17 17 7M9 7h8v8"/></svg>
-              5.7% <span>실시간</span>
-            </div>
-          </div>
-        </div>
+            <p class="dash-kpi-val">3.27%</p>
+            <p class="dash-kpi-delta is-up"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 15l6-6 6 6"/></svg> 0.4%p <span>전월 대비</span></p>
+          </article>
+        </section>
 
-        <div class="dash-charts">
+        <section class="dash-charts" data-region="차트 영역" data-en="Charts row" data-pos="KPI 아래 2열 — 주 차트(넓게)+보조 차트(좁게)" data-hier="요약 다음 단계의 상세. 주 차트가 시각 주역, 도넛은 보조">
 
-          <div class="dash-panel dash-chart-main" data-region="메인 차트 패널" data-en="Primary chart (line/bar)" data-pos="차트 행 좌측 2/3 — 가장 넓은 면적, 핵심 추세 시각화" data-hier="시각화 위계 1순위. 시간축 추세를 가장 큰 캔버스로">
-            <div class="dash-panel-head" data-region="패널 헤더" data-en="Panel header" data-pos="패널 최상단 — 제목·범례·기간 선택을 한 줄에" data-hier="패널 맥락. 좌측 제목 > 우측 컨트롤">
+          <article class="dash-card dash-chart-main" data-region="메인 라인/바 차트" data-en="Primary line/bar chart" data-pos="차트 행 좌측 넓은 칼럼 — 추세는 가로 폭이 클수록 읽기 좋음" data-hier="이 행의 주역. 시계열 매출 추세를 한눈에">
+            <header class="dash-card-head" data-region="카드 헤더" data-en="Card header" data-pos="카드 최상단 — 제목 좌측·필터 우측" data-hier="차트 맥락 고지. 제목 주, 기간 토글 보조">
               <div>
-                <h2 class="dash-panel-title">매출 추이</h2>
-                <p class="dash-panel-sub">최근 12주 · 주간 집계</p>
+                <h2 class="dash-card-title">매출 추세</h2>
+                <p class="dash-card-sub">최근 12개월 · 단위 백만원</p>
               </div>
-              <div class="dash-seg" data-region="기간 토글" data-en="Range segmented control" data-pos="패널 헤더 우측 — 차트 데이터 범위 전환" data-hier="패널 보조 컨트롤. 활성 구간만 강조">
-                <button>주</button>
-                <button class="is-active">월</button>
-                <button>분기</button>
+              <div class="dash-seg" role="group" aria-label="기간">
+                <button>주</button><button class="is-active">월</button><button>분기</button>
               </div>
-            </div>
-            <div class="dash-legend" data-region="범례" data-en="Chart legend" data-pos="차트 캔버스 위 — 색-계열 매핑 설명" data-hier="해석 보조. 색 칩 + 라벨로 계열 식별">
-              <span><i class="dash-sw is-acc"></i>이번 분기</span>
-              <span><i class="dash-sw is-mut"></i>지난 분기</span>
-            </div>
-            <div class="dash-canvas" data-region="라인 차트 영역" data-en="Line chart plot" data-pos="패널 본문 — 면적 대부분 차지" data-hier="데이터 본체. 추세선이 시선 중심">
-              <svg viewBox="0 0 640 220" preserveAspectRatio="none" class="dash-svg">
-                <line x1="0" y1="40" x2="640" y2="40" class="dash-grid"/>
-                <line x1="0" y1="90" x2="640" y2="90" class="dash-grid"/>
-                <line x1="0" y1="140" x2="640" y2="140" class="dash-grid"/>
-                <line x1="0" y1="190" x2="640" y2="190" class="dash-grid"/>
-                <polyline class="dash-line-mut" points="0,160 80,150 160,165 240,130 320,140 400,110 480,120 560,95 640,105"/>
-                <polygon class="dash-area" points="0,120 80,100 160,115 240,70 320,85 400,55 480,68 560,40 640,52 640,220 0,220"/>
-                <polyline class="dash-line-acc" points="0,120 80,100 160,115 240,70 320,85 400,55 480,68 560,40 640,52"/>
-              </svg>
-              <div class="dash-xaxis">
-                <span>1주</span><span>3주</span><span>5주</span><span>7주</span><span>9주</span><span>11주</span>
+            </header>
+            <div class="dash-chart-body" data-region="차트 플롯" data-en="Chart plot area" data-pos="카드 본문 — 축·바·범례" data-hier="실제 데이터 표현. 단일 포인트색 명도로만 구분">
+              <div class="dash-bars" aria-hidden="true">
+                <span style="--h:38%"></span><span style="--h:52%"></span><span style="--h:44%"></span>
+                <span style="--h:61%"></span><span style="--h:57%"></span><span style="--h:72%"></span>
+                <span style="--h:66%"></span><span style="--h:80%"></span><span style="--h:74%"></span>
+                <span class="is-peak" style="--h:92%"></span><span style="--h:85%"></span><span style="--h:78%"></span>
               </div>
+              <div class="dash-xaxis" aria-hidden="true"><span>1월</span><span>3월</span><span>5월</span><span>7월</span><span>9월</span><span>11월</span></div>
             </div>
-          </div>
+            <footer class="dash-legend" data-region="범례" data-en="Chart legend" data-pos="차트 하단 — 색·라벨 매핑" data-hier="보조 해설. 작게, 무채색+포인트 명도">
+              <span><i class="dash-sw is-peak"></i>최고 월</span>
+              <span><i class="dash-sw"></i>월 매출</span>
+            </footer>
+          </article>
 
-          <div class="dash-panel dash-chart-side" data-region="보조 차트 패널" data-en="Secondary chart (donut)" data-pos="차트 행 우측 1/3 — 메인 옆 보조 구성비" data-hier="시각화 위계 2순위. 구성비를 도넛으로 압축">
-            <div class="dash-panel-head">
+          <article class="dash-card dash-chart-side" data-region="보조 도넛 차트" data-en="Secondary donut chart" data-pos="차트 행 우측 좁은 칼럼 — 비중 구성은 작은 면적으로 충분" data-hier="주 차트의 보조. 채널 구성비를 단일색 명도로">
+            <header class="dash-card-head">
               <div>
-                <h2 class="dash-panel-title">채널 비중</h2>
-                <p class="dash-panel-sub">유입 출처별</p>
+                <h2 class="dash-card-title">채널 비중</h2>
+                <p class="dash-card-sub">유입 경로별</p>
               </div>
-            </div>
-            <div class="dash-donut-wrap" data-region="도넛 차트 영역" data-en="Donut chart plot" data-pos="패널 본문 중앙 — 원형 구성비 + 중앙 합계" data-hier="데이터 본체. 중앙 총합이 시선 고정점">
-              <svg viewBox="0 0 120 120" class="dash-donut">
-                <circle cx="60" cy="60" r="46" class="dash-ring-bg"/>
-                <circle cx="60" cy="60" r="46" class="dash-ring s1" stroke-dasharray="130 289" stroke-dashoffset="0"/>
-                <circle cx="60" cy="60" r="46" class="dash-ring s2" stroke-dasharray="78 289" stroke-dashoffset="-130"/>
-                <circle cx="60" cy="60" r="46" class="dash-ring s3" stroke-dasharray="52 289" stroke-dashoffset="-208"/>
-                <circle cx="60" cy="60" r="46" class="dash-ring s4" stroke-dasharray="29 289" stroke-dashoffset="-260"/>
+            </header>
+            <div class="dash-donut-wrap" data-region="도넛 플롯" data-en="Donut plot" data-pos="카드 본문 중앙" data-hier="구성비 표현. 명도 단계로만 분할">
+              <svg class="dash-donut" viewBox="0 0 42 42" aria-hidden="true">
+                <circle class="dash-ring-bg" cx="21" cy="21" r="15.9"/>
+                <circle class="dash-ring s1" cx="21" cy="21" r="15.9" stroke-dasharray="46 54" stroke-dashoffset="0"/>
+                <circle class="dash-ring s2" cx="21" cy="21" r="15.9" stroke-dasharray="28 72" stroke-dashoffset="-46"/>
+                <circle class="dash-ring s3" cx="21" cy="21" r="15.9" stroke-dasharray="16 84" stroke-dashoffset="-74"/>
+                <circle class="dash-ring s4" cx="21" cy="21" r="15.9" stroke-dasharray="10 90" stroke-dashoffset="-90"/>
               </svg>
-              <div class="dash-donut-center">
-                <span class="dash-donut-num">100%</span>
-                <span class="dash-donut-cap">총 유입</span>
-              </div>
+              <div class="dash-donut-center"><strong>1,284</strong><span>총 유입</span></div>
             </div>
-            <ul class="dash-donut-legend" data-region="도넛 범례" data-en="Donut legend list" data-pos="도넛 아래 — 항목별 색·라벨·비율 나열" data-hier="해석 보조. 비율 내림차순 정렬">
-              <li><i class="dash-sw is-acc"></i>오가닉 검색<b>45%</b></li>
-              <li><i class="dash-sw is-info"></i>광고<b>27%</b></li>
-              <li><i class="dash-sw is-ok"></i>추천<b>18%</b></li>
-              <li><i class="dash-sw is-warn"></i>직접<b>10%</b></li>
+            <ul class="dash-donut-legend" data-region="도넛 범례" data-en="Donut legend" data-pos="도넛 아래 리스트" data-hier="항목별 수치. 명도 점+라벨+값">
+              <li><i class="dash-sw s1"></i>검색 <b>46%</b></li>
+              <li><i class="dash-sw s2"></i>직접 <b>28%</b></li>
+              <li><i class="dash-sw s3"></i>추천 <b>16%</b></li>
+              <li><i class="dash-sw s4"></i>광고 <b>10%</b></li>
             </ul>
-          </div>
-        </div>
+          </article>
+        </section>
 
-        <div class="dash-lower">
+        <section class="dash-lower" data-region="하단 2열 영역" data-en="Lower split" data-pos="차트 아래 2열 — 최근 활동(좁게)+데이터 테이블(넓게)" data-hier="세부 운영 데이터. 테이블이 주, 활동 피드는 보조">
 
-          <div class="dash-panel dash-table-panel" data-region="데이터 테이블 패널" data-en="Data table panel" data-pos="하단 좌측 넓은 영역 — 상세 레코드, 요약 아래 드릴다운" data-hier="상세 위계 1순위. 행 단위 정밀 데이터">
-            <div class="dash-panel-head" data-region="테이블 헤더 바" data-en="Table toolbar" data-pos="테이블 위 — 제목·필터·정렬 컨트롤" data-hier="표 맥락. 제목 > 필터 칩 순">
-              <div>
-                <h2 class="dash-panel-title">최근 주문</h2>
-                <p class="dash-panel-sub">총 1,284건 중 5건</p>
-              </div>
+          <article class="dash-card dash-activity" data-region="최근 활동 리스트" data-en="Recent activity feed" data-pos="하단 행 좌측 좁은 칼럼 — 세로 타임라인" data-hier="실시간 흐름의 보조 정보. 최신순 스택, 시간은 흐리게">
+            <header class="dash-card-head">
+              <div><h2 class="dash-card-title">최근 활동</h2></div>
+              <a class="dash-link" href="#">전체 보기</a>
+            </header>
+            <ul class="dash-feed">
+              <li><span class="dash-feed-dot" aria-hidden="true"></span><div><p>김서연님이 주문 <b>#10482</b>를 결제</p><time>2분 전</time></div></li>
+              <li><span class="dash-feed-dot" aria-hidden="true"></span><div><p>재고 경고 — <b>무선 키보드</b> 12개</p><time>26분 전</time></div></li>
+              <li><span class="dash-feed-dot" aria-hidden="true"></span><div><p>월간 리포트 자동 생성 완료</p><time>1시간 전</time></div></li>
+              <li><span class="dash-feed-dot" aria-hidden="true"></span><div><p>이준호님이 환불 요청</p><time>3시간 전</time></div></li>
+              <li><span class="dash-feed-dot" aria-hidden="true"></span><div><p>신규 사용자 38명 가입</p><time>오늘 09:14</time></div></li>
+            </ul>
+          </article>
+
+          <article class="dash-card dash-table-card" data-region="데이터 테이블" data-en="Data table" data-pos="하단 행 우측 넓은 칼럼 — 행·열 밀도 높은 정밀 데이터" data-hier="이 행의 주역. 정렬·상태·페이지네이션을 갖춘 작업용 표">
+            <header class="dash-card-head" data-region="테이블 툴바" data-en="Table toolbar" data-pos="테이블 카드 상단 — 제목·필터" data-hier="표 맥락+필터. 제목 주, 필터 칩 보조">
+              <div><h2 class="dash-card-title">최근 주문</h2><p class="dash-card-sub">총 1,284건 중 5건</p></div>
               <div class="dash-filters">
                 <button class="dash-chip is-active">전체</button>
-                <button class="dash-chip">결제완료</button>
+                <button class="dash-chip">완료</button>
                 <button class="dash-chip">대기</button>
               </div>
-            </div>
-            <div class="dash-table-scroll">
-              <table class="dash-table" data-region="데이터 테이블" data-en="Data table" data-pos="패널 본문 — 헤더 행 + 데이터 행" data-hier="표 본체. 헤더 고정, 정렬 가능 컬럼은 화살표 표시">
-                <thead data-region="테이블 헤더 행" data-en="Table header row" data-pos="표 최상단 sticky — 컬럼 의미 고정" data-hier="컬럼 라벨. 정렬 활성 컬럼만 화살표 강조">
+            </header>
+            <div class="dash-table-scroll" data-region="표 본문" data-en="Table body" data-pos="툴바 아래 — 헤더행+데이터행" data-hier="실제 레코드. 헤더는 고정·정렬 가능, 값은 무채색">
+              <table class="dash-table">
+                <thead data-region="표 헤더행" data-en="Table header row" data-pos="표 최상단 — 열 이름·정렬 토글" data-hier="열 의미 고지. 정렬 화살표로 상호작용 암시">
                   <tr>
                     <th>주문번호</th>
-                    <th>고객</th>
-                    <th class="is-sort">금액
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+                    <th class="is-sorted">고객
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>
                     </th>
+                    <th>금액</th>
                     <th>상태</th>
-                    <th>일시</th>
+                    <th>일자</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td class="dash-mono">#PV-90412</td>
-                    <td><span class="dash-cell-av">SY</span>송예진</td>
-                    <td class="dash-mono">₩ 128,000</td>
-                    <td><span class="dash-badge is-ok">결제완료</span></td>
-                    <td class="dash-muted">06-24 14:08</td>
-                  </tr>
-                  <tr>
-                    <td class="dash-mono">#PV-90411</td>
-                    <td><span class="dash-cell-av">MJ</span>문재훈</td>
-                    <td class="dash-mono">₩ 42,500</td>
-                    <td><span class="dash-badge is-warn">배송대기</span></td>
-                    <td class="dash-muted">06-24 13:51</td>
-                  </tr>
-                  <tr>
-                    <td class="dash-mono">#PV-90410</td>
-                    <td><span class="dash-cell-av">HL</span>한도윤</td>
-                    <td class="dash-mono">₩ 316,200</td>
-                    <td><span class="dash-badge is-ok">결제완료</span></td>
-                    <td class="dash-muted">06-24 13:30</td>
-                  </tr>
-                  <tr>
-                    <td class="dash-mono">#PV-90409</td>
-                    <td><span class="dash-cell-av">KT</span>김태리</td>
-                    <td class="dash-mono">₩ 9,900</td>
-                    <td><span class="dash-badge is-bad">취소</span></td>
-                    <td class="dash-muted">06-24 12:47</td>
-                  </tr>
-                  <tr>
-                    <td class="dash-mono">#PV-90408</td>
-                    <td><span class="dash-cell-av">OS</span>오세린</td>
-                    <td class="dash-mono">₩ 74,000</td>
-                    <td><span class="dash-badge is-info">처리중</span></td>
-                    <td class="dash-muted">06-24 12:19</td>
-                  </tr>
+                  <tr><td class="dash-mono">#10482</td><td>김서연</td><td class="dash-mono">₩ 128,000</td><td><span class="dash-badge is-ok">완료</span></td><td class="dash-muted">06.24</td></tr>
+                  <tr><td class="dash-mono">#10481</td><td>이준호</td><td class="dash-mono">₩ 64,500</td><td><span class="dash-badge is-warn">대기</span></td><td class="dash-muted">06.24</td></tr>
+                  <tr><td class="dash-mono">#10480</td><td>박민지</td><td class="dash-mono">₩ 212,000</td><td><span class="dash-badge is-ok">완료</span></td><td class="dash-muted">06.23</td></tr>
+                  <tr><td class="dash-mono">#10479</td><td>정우성</td><td class="dash-mono">₩ 39,900</td><td><span class="dash-badge is-bad">취소</span></td><td class="dash-muted">06.23</td></tr>
+                  <tr><td class="dash-mono">#10478</td><td>한가람</td><td class="dash-mono">₩ 95,200</td><td><span class="dash-badge is-ok">완료</span></td><td class="dash-muted">06.22</td></tr>
                 </tbody>
               </table>
             </div>
-            <div class="dash-pager" data-region="페이지네이션" data-en="Pagination" data-pos="테이블 하단 — 페이지 이동 컨트롤" data-hier="탐색 보조. 현재 페이지만 강조">
+            <footer class="dash-pager" data-region="페이지네이션" data-en="Pagination" data-pos="테이블 카드 하단 — 페이지 이동" data-hier="표 탐색 보조. 현재 페이지만 강조, 나머지 무채색">
               <span class="dash-pager-info">1–5 / 1,284</span>
               <div class="dash-pager-btns">
-                <button aria-label="이전" disabled><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></button>
+                <button aria-label="이전" disabled><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                 <button class="is-active">1</button>
                 <button>2</button>
                 <button>3</button>
-                <span class="dash-pager-gap">…</span>
-                <button>257</button>
-                <button aria-label="다음"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></button>
+                <button aria-label="다음"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
               </div>
-            </div>
-          </div>
+            </footer>
+          </article>
+        </section>
 
-          <div class="dash-panel dash-activity" data-region="최근 활동 패널" data-en="Activity feed" data-pos="하단 우측 좁은 영역 — 시간순 이벤트 스트림" data-hier="상세 위계 2순위. 최신 이벤트가 맨 위">
-            <div class="dash-panel-head">
-              <div>
-                <h2 class="dash-panel-title">최근 활동</h2>
-                <p class="dash-panel-sub">실시간 피드</p>
-              </div>
-              <a class="dash-link" href="#">전체</a>
-            </div>
-            <ul class="dash-feed" data-region="활동 리스트" data-en="Activity list" data-pos="패널 본문 — 타임라인 형태 세로 나열" data-hier="이벤트 본체. 아이콘 + 행위 + 시각, 위→아래 최신순">
-              <li>
-                <span class="dash-feed-ico is-ok"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></span>
-                <div><p><b>한도윤</b>님 결제 완료 <span class="dash-mono">₩316,200</span></p><time>2분 전</time></div>
-              </li>
-              <li>
-                <span class="dash-feed-ico is-info"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
-                <div><p>신규 가입 <b>+18명</b> 유입</p><time>11분 전</time></div>
-              </li>
-              <li>
-                <span class="dash-feed-ico is-warn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
-                <div><p>재고 임계치 도달 <b>SKU-2207</b></p><time>26분 전</time></div>
-              </li>
-              <li>
-                <span class="dash-feed-ico is-acc"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>
-                <div><p>주간 리포트 자동 생성됨</p><time>1시간 전</time></div>
-              </li>
-              <li>
-                <span class="dash-feed-ico is-bad"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
-                <div><p><b>김태리</b>님 주문 취소</p><time>1시간 전</time></div>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <footer class="dash-footer" data-region="푸터" data-en="Footer" data-pos="본문 콘텐츠 최하단 — 스크롤 종착점" data-hier="법적·메타 정보. 가장 낮은 우선순위, 흐린 무채색">
+          <span>© 2026 Atlas Analytics</span>
+          <nav class="dash-foot-links"><a href="#">상태</a><a href="#">문서</a><a href="#">개인정보</a></nav>
+        </footer>
       </div>
     </div>
   </div>
 </section>
 
 <section class="site" id="site-article">
-  <header class="article-topbar" data-region="사이트 헤더" data-en="Site header / Masthead" data-pos="페이지 최상단 sticky — 스크롤해도 브랜드·내비 고정 노출" data-hier="브랜드 식별 + 전역 내비. 콘텐츠보다 한 단계 낮은 강조, 항상 접근 가능">
+
+  <header class="article-topbar" data-region="사이트 헤더" data-en="Site header / Top bar" data-pos="페이지 최상단 sticky — 스크롤 내내 브랜드·내비 고정" data-hier="사이트 식별·전역 이동. 콘텐츠보다 낮은 채도, 항상 접근 가능">
     <div class="article-topbar-inner">
-      <a class="article-brand" data-region="브랜드 로고" data-en="Brand / Wordmark" data-pos="헤더 좌측 — 좌상단은 홈 복귀의 관습 위치" data-hier="사이트 정체성 첫 신호. 클릭 시 홈">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h10M4 19h16"/></svg>
-        <span>표면 매거진</span>
-      </a>
-      <nav class="article-nav" data-region="주 내비게이션" data-en="Primary nav" data-pos="헤더 중앙·우측 — 카테고리 횡 배열" data-hier="섹션 이동 경로. 현재 카테고리 강조로 위치 인지">
-        <a class="is-active">디자인</a>
-        <a>엔지니어링</a>
-        <a>리서치</a>
-        <a>인터뷰</a>
+      <div class="article-brand" data-region="브랜드 로고" data-en="Brand / Logo" data-pos="헤더 좌측 — 좌상단은 홈으로 돌아가는 관습 위치" data-hier="사이트 정체성. 클릭 시 홈, 시각 무게는 중간">
+        <span class="article-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+        </span>
+        <span class="article-logo-text">필드노트</span>
+      </div>
+      <nav class="article-mainnav" data-region="주 내비게이션" data-en="Primary nav" data-pos="헤더 중앙·우측 — 상위 섹션을 가로로 나열" data-hier="2차 위계. 현재 섹션만 포인트색으로 활성 표시">
+        <a href="#" class="article-navlink is-active">디자인</a>
+        <a href="#" class="article-navlink">엔지니어링</a>
+        <a href="#" class="article-navlink">리서치</a>
+        <a href="#" class="article-navlink">컬처</a>
       </nav>
-      <div class="article-topbar-act" data-region="헤더 액션" data-en="Header actions / Utility" data-pos="헤더 최우측 — 검색·구독 같은 보조 동작 모음" data-hier="보조 기능. 구독 버튼만 acc로 살짝 강조">
-        <button class="article-icon-btn" aria-label="검색">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <div class="article-topbar-actions" data-region="헤더 액션" data-en="Header actions" data-pos="헤더 최우측 — 검색·로그인 같은 보조 동작" data-hier="보조 동작. 아이콘+텍스트형, 주목도 낮게">
+        <button class="article-iconbtn" aria-label="검색">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         </button>
-        <button class="article-subscribe-btn">구독</button>
+        <button class="article-btn-ghost">로그인</button>
+        <button class="article-btn-solid">구독</button>
       </div>
     </div>
   </header>
 
-  <nav class="article-breadcrumb" data-region="브레드크럼" data-en="Breadcrumb" data-pos="헤더 바로 아래 — 본문 시작 전 현재 위치 표시" data-hier="계층 경로. 작은 글자·보조색, 길찾기 보조 정보">
-    <a>홈</a>
-    <span class="article-bc-sep">/</span>
-    <a>디자인</a>
-    <span class="article-bc-sep">/</span>
-    <span class="article-bc-cur">타이포그래피</span>
+  <nav class="article-breadcrumb" data-region="브레드크럼" data-en="Breadcrumb" data-pos="헤더 바로 아래·본문 위 — 현재 글의 계층 경로" data-hier="최하위 위계. 위치 안내와 상위 이동, 작고 흐리게">
+    <ol class="article-crumbs">
+      <li><a href="#">홈</a></li>
+      <li aria-hidden="true" class="article-crumb-sep">/</li>
+      <li><a href="#">디자인</a></li>
+      <li aria-hidden="true" class="article-crumb-sep">/</li>
+      <li><a href="#">타이포그래피</a></li>
+      <li aria-hidden="true" class="article-crumb-sep">/</li>
+      <li><span aria-current="page">읽기 좋은 본문의 조건</span></li>
+    </ol>
   </nav>
 
-  <article class="article-shell">
-    <header class="article-head" data-region="아티클 헤더" data-en="Article header / Masthead" data-pos="본문 최상단 — 제목·메타·커버를 한 묶음으로 도입" data-hier="페이지에서 가장 강한 진입부. 카테고리→제목→부제→메타 순 하강 위계">
-      <span class="article-kicker" data-region="카테고리 키커" data-en="Kicker / Eyebrow" data-pos="제목 위 한 줄 — 제목보다 앞서 분류를 알림" data-hier="제목 보조 라벨. 작지만 acc색으로 주목, 분류 신호">타이포그래피</span>
-      <h1 class="article-title" data-region="아티클 제목" data-en="Headline / H1" data-pos="헤더 중심 — 키커 아래 가장 큰 텍스트" data-hier="페이지 최상위 표제. 가장 큰 글자, 첫 시선이 멈추는 지점">읽기 좋은 본문은 글자 크기가 아니라 줄 길이에서 시작된다</h1>
-      <p class="article-dek" data-region="부제 / 데크" data-en="Dek / Standfirst" data-pos="제목 바로 아래 — 제목을 한 문장으로 확장" data-hier="제목 다음 위계. 읽을지 말지 판단을 돕는 요약 한 줄">한 줄에 담기는 글자 수를 65자 안팎으로 잡으면 눈의 회귀 동작이 안정된다. 이 글은 측정값과 함께 그 이유를 정리한다.</p>
-      <div class="article-meta" data-region="아티클 메타" data-en="Byline / Article meta" data-pos="헤더 하단 — 저자·날짜·읽는시간을 한 줄로" data-hier="신뢰·맥락 정보. 본문보다 작은 보조 위계">
-        <span class="article-avatar" aria-hidden="true">림</span>
-        <div class="article-meta-text">
-          <span class="article-author">림지수</span>
-          <span class="article-meta-sub">2026년 6월 18일 · 읽는 시간 9분</span>
+  <article class="article-doc">
+
+    <header class="article-head" data-region="아티클 헤더" data-en="Article header / Masthead" data-pos="본문 시작부 — 제목 블록을 읽기 칼럼 폭으로 가운데 정렬" data-hier="페이지 최상위 위계. 카테고리→제목→부제→메타 순으로 시선 유도">
+      <div class="article-kicker" data-region="카테고리 키커" data-en="Category / Kicker" data-pos="제목 위 한 줄 — 글의 분류를 먼저 노출" data-hier="제목의 선행 라벨. 작은 대문자형, 포인트색 한 점">타이포그래피</div>
+      <h1 class="article-title" data-region="아티클 제목" data-en="Article title / H1" data-pos="헤더 중앙 — 페이지에서 가장 큰 글자" data-hier="첫 시선·최대 위계. 무채색 최고 명도, 굵게">읽기 좋은 본문의 조건</h1>
+      <p class="article-dek" data-region="부제 / 데크" data-en="Subhead / Dek" data-pos="제목 바로 아래 — 한두 문장 요약" data-hier="제목 보조. 중간 명도, 글의 약속을 한 줄로">행 길이, 수직 리듬, 위계. 긴 글을 끝까지 읽게 만드는 세 가지 레이아웃 결정을 정리했다.</p>
+
+      <div class="article-meta" data-region="아티클 메타" data-en="Byline / Meta row" data-pos="부제 아래 가로 한 줄 — 저자·날짜·읽는 시간" data-hier="신뢰 정보. 작은 무채색, 저자만 약간 강조">
+        <div class="article-byline">
+          <span class="article-avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+          </span>
+          <span class="article-author">서민호</span>
         </div>
-        <span class="article-meta-tag">측정 기반</span>
+        <span class="article-dot" aria-hidden="true"></span>
+        <span class="article-meta-item">2026년 6월 18일</span>
+        <span class="article-dot" aria-hidden="true"></span>
+        <span class="article-meta-item">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          9분 읽기
+        </span>
       </div>
-      <div class="article-cover" data-region="커버 이미지" data-en="Cover / Hero image" data-pos="헤더 맨 아래 — 본문 진입 직전 시각 휴지" data-hier="분위기 전달. 텍스트 위계 밖의 시각 요소, 캡션으로 출처 부기">
-        <div class="article-cover-fig"></div>
-        <span class="article-cover-cap">서로 다른 단 너비로 조판한 같은 문단 — 표면 매거진 조판 실험</span>
-      </div>
+
+      <figure class="article-cover" data-region="커버 이미지" data-en="Cover / Hero image" data-pos="헤더 아래 전폭 가까이 — 진입 시각 앵커" data-hier="시각적 도입. 무채색 플레이스홀더, 텍스트보다 약한 무게">
+        <div class="article-cover-ph" role="img" aria-label="커버 이미지 자리">
+          <svg viewBox="0 0 64 48" width="56" height="42" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="58" height="42" rx="3"/><circle cx="20" cy="18" r="5"/><path d="m9 41 16-15 11 9 8-7 11 10"/></svg>
+        </div>
+        <figcaption class="article-cover-cap">본문 칼럼은 한 줄에 약 65자를 넘기지 않을 때 가장 잘 읽힌다.</figcaption>
+      </figure>
     </header>
 
-    <div class="article-body-grid">
-      <main class="article-main" data-region="본문 읽기 칼럼" data-en="Reading column / Article body" data-pos="2단 레이아웃 좌측 주영역 — 폭을 65ch 내외로 제한해 한 줄 길이 통제" data-hier="페이지의 본 내용. 소제목·문단·인용·코드가 수직 리듬으로 흐르는 핵심 위계">
-        <p class="article-lead" data-region="리드 문단" data-en="Lead / Intro paragraph" data-pos="본문 첫 문단 — 커버 직후 도입" data-hier="본문 진입 강조 문단. 약간 큰 글자로 읽기 시동">글자를 키운다고 읽기 편해지지 않는다. 오히려 한 줄이 너무 길어지면 다음 줄 첫 글자를 찾는 눈의 회귀가 길어진다. 읽기 편한 본문은 글자 크기보다 줄 길이, 줄 간격, 단락 사이 간격의 합으로 결정된다.</p>
-        <p>측정해 보면 한국어 본문 기준 한 줄 45자에서 75자 사이에서 읽기 속도가 가장 안정적이었다. 이보다 짧으면 줄바꿈이 잦아 리듬이 끊기고, 길면 회귀 거리가 멀어져 같은 줄을 다시 읽거나 줄을 건너뛴다.</p>
+    <div class="article-layout" data-region="2단 레이아웃" data-en="Two-column layout" data-pos="헤더 아래 본문 영역 — 좌 읽기 칼럼 + 우 스티키 사이드바" data-hier="콘텐츠 본체. 좌측이 주역, 우측은 보조 내비">
 
-        <h2 class="article-h2" id="art-s1" data-region="섹션 제목" data-en="Section heading / H2" data-pos="본문 내 구획 시작 — 문단 묶음 위에 배치" data-hier="본문 2차 위계. 목차 항목과 1:1 대응하는 구획 표지">줄 길이를 먼저 정하는 이유</h2>
-        <p>레이아웃을 잡을 때 흔히 글자 크기부터 정한다. 하지만 순서를 바꿔 칼럼 폭을 먼저 정하면 글자 크기와 줄 간격이 자연스럽게 따라온다. 폭이 곧 한 줄 글자 수를 결정하기 때문이다.</p>
-        <figure class="article-fig" data-region="본문 이미지" data-en="Inline figure" data-pos="관련 문단 사이 — 설명을 시각으로 보강" data-hier="본문 보조 요소. 캡션이 의미를 고정, 본문 흐름 안에서 부차 위계">
-          <div class="article-fig-img"></div>
-          <figcaption class="article-fig-cap">단 너비를 35ch · 65ch · 95ch로 바꿔 같은 문단을 조판한 비교 — 가운데 65ch가 회귀 거리 최단</figcaption>
+      <div class="article-body" data-region="본문 읽기 칼럼" data-en="Reading column / Article body" data-pos="레이아웃 좌측 주 칼럼 — 폭 65ch로 제한해 가독성 확보" data-hier="페이지 핵심 콘텐츠. 수직 리듬으로 문단·소제목 호흡 관리">
+
+        <p class="article-lead">좋은 본문은 글꼴을 바꾸기 전에 결정된다. 한 줄의 길이, 줄 사이의 간격, 그리고 무엇을 먼저 보게 할지. 이 세 가지가 정해지면 나머지는 따라온다.</p>
+
+        <p>독자는 글을 읽지 않고 먼저 훑는다. 화면을 위에서 아래로 빠르게 스캔하며 읽을 가치가 있는지를 몇 초 안에 판단한다. 그래서 레이아웃의 첫 임무는 멋이 아니라 신호를 주는 일이다. 어디서부터 읽고, 어디서 쉬고, 무엇이 중요한지를 형태만으로 알려줘야 한다.</p>
+
+        <h2 class="article-h2" id="line-length" data-region="섹션 소제목" data-en="Section heading / H2" data-pos="본문 흐름 중간 — 단락 묶음의 시작" data-hier="본문 내 2차 위계. 제목보다 작고 문단보다 굵게, 목차 앵커">행 길이가 먼저다</h2>
+        <p>한 줄이 너무 길면 눈은 다음 줄의 시작점을 놓친다. 너무 짧으면 시선이 자주 꺾여 리듬이 끊긴다. 오랫동안 검증된 기준은 한 줄에 45자에서 75자, 본문은 그 한가운데인 65자 안팎이다. 이 페이지의 본문 칼럼도 그 폭으로 묶여 있다.</p>
+        <p>폭을 픽셀이 아니라 글자 수 단위(ch)로 잡으면 글꼴이 바뀌어도 읽기 폭이 유지된다. 화면이 넓어진다고 본문까지 넓힐 필요는 없다. 남는 공간은 여백으로 두거나 사이드바에 양보한다.</p>
+
+        <figure class="article-fig" data-region="본문 이미지" data-en="Inline figure + caption" data-pos="관련 문단 사이 — 본문 폭에 맞춘 도해" data-hier="본문 보조 자료. 캡션은 작은 흐린 글씨로 아래 부착">
+          <div class="article-fig-ph" role="img" aria-label="행 길이 비교 도해 자리">
+            <svg viewBox="0 0 64 40" width="48" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12h48M8 20h32M8 28h44"/></svg>
+          </div>
+          <figcaption class="article-fig-cap">그림 1. 같은 글이라도 행 길이에 따라 읽기 속도가 달라진다.</figcaption>
         </figure>
-        <p>위 비교에서 95자 칼럼은 시선이 줄 끝까지 갔다가 다음 줄 시작점을 놓치는 빈도가 높았다. 65자 칼럼은 줄바꿈 지점이 시야 안에 들어와 다음 줄로의 이동이 매끄러웠다.</p>
 
-        <blockquote class="article-pullquote" data-region="인용 풀쿼트" data-en="Pull quote" data-pos="본문 중간 — 한 문장을 끌어내 크게 배치" data-hier="시각적 강조 휴지. 본문보다 큰 글자로 리듬에 강세를 줌">줄 길이는 디자인이 아니라 읽기 동작을 위한 설정값이다.</blockquote>
+        <blockquote class="article-pullquote" data-region="인용 풀쿼트" data-en="Pull quote" data-pos="본문 흐름을 끊는 강조 블록 — 좌측 두꺼운 라인" data-hier="본문 중 시선 정지점. 큰 세리프, 스캔하는 눈을 붙잡는 장치">
+          레이아웃의 첫 임무는 멋이 아니라 신호를 주는 일이다.
+        </blockquote>
 
-        <h2 class="article-h2" id="art-s2" data-region="섹션 제목" data-en="Section heading / H2" data-pos="본문 내 구획 시작 — 두 번째 구획" data-hier="본문 2차 위계. 목차 두 번째 항목과 대응">수직 리듬을 맞추는 법</h2>
-        <p>수직 리듬은 줄 간격을 기준 단위로 삼아 모든 요소의 위아래 간격을 그 배수로 맞추는 방식이다. 제목, 문단, 이미지, 인용이 같은 격자 위에 정렬되면 페이지가 정돈돼 보인다.</p>
-        <ul class="article-list" data-region="본문 리스트" data-en="Body list" data-pos="설명 문단 아래 — 항목을 끊어 나열" data-hier="본문 내 병렬 정보. 문단보다 스캔하기 쉬운 보조 위계">
-          <li>기준 줄 간격을 정한다 — 본문 1.75배 권장</li>
-          <li>문단 사이 간격을 줄 간격의 정수배로 맞춘다</li>
-          <li>소제목 위 간격을 아래보다 넓게 둬 묶음을 만든다</li>
+        <h2 class="article-h2" id="rhythm" data-region="섹션 소제목" data-en="Section heading / H2" data-pos="다음 단락 묶음의 시작" data-hier="본문 내 2차 위계. 목차의 두 번째 앵커">수직 리듬을 지켜라</h2>
+        <p>수직 리듬은 줄 간격, 문단 간격, 제목 위아래 여백을 하나의 일관된 단위로 묶는 일이다. 간격이 제각각이면 글은 정돈되지 않은 느낌을 준다. 행간을 기준 단위로 삼고 모든 여백을 그 배수로 맞추면 페이지 전체가 한 박자로 호흡한다.</p>
+
+        <ul class="article-list" data-region="본문 리스트" data-en="Body list" data-pos="문단 사이 — 병렬 항목을 분리" data-hier="본문 보조. 마커는 흐리게, 항목 간 간격은 리듬 단위">
+          <li>본문 행간은 글자 크기의 1.6~1.8배가 무난하다.</li>
+          <li>문단 사이 간격은 한 줄 높이 이상으로 둔다.</li>
+          <li>제목 위 여백은 아래 여백보다 넓게 — 위 단락과 끊고 다음 단락과 묶는다.</li>
         </ul>
-        <p>아래는 본문 폭을 토큰 한 줄로 고정하는 예시다. 단위를 ch로 두면 글자 수 기준으로 폭이 잡힌다.</p>
-        <pre class="article-code" data-region="코드 블록" data-en="Code block" data-pos="설명 문단 아래 — 예시 코드를 별도 면으로 분리" data-hier="본문 내 기술 예시. 모노폰트·면 배경으로 본문과 구분"><code>.reading-column {
-  max-width: 65ch;
-  line-height: 1.75;
-  margin-inline: auto;
-}</code></pre>
 
-        <h2 class="article-h2" id="art-s3" data-region="섹션 제목" data-en="Section heading / H2" data-pos="본문 내 구획 시작 — 마지막 구획" data-hier="본문 2차 위계. 목차 세 번째 항목과 대응, 결론으로 수렴">정리</h2>
-        <p>줄 길이를 먼저 정하고, 그 위에 수직 리듬을 얹는다. 글자 크기는 마지막에 미세 조정한다. 이 순서를 지키면 어떤 화면 폭에서도 읽기 편한 본문이 나온다.</p>
-      </main>
+        <p>리듬을 코드로 강제하면 흐트러지지 않는다. 간격을 직접 픽셀로 적는 대신, 행 높이를 변수로 두고 그 배수만 사용한다.</p>
 
-      <aside class="article-aside" data-region="사이드바" data-en="Sidebar / Aside rail" data-pos="2단 레이아웃 우측 — 본문 보조 정보 모음" data-hier="본문 보조 영역. 본문보다 낮은 강조, 스크롤 동행">
-        <div class="article-toc" data-region="스티키 목차" data-en="Sticky TOC / Table of contents" data-pos="사이드바 상단 sticky — 스크롤해도 따라와 위치·이동 제공" data-hier="탐색 보조. 현재 섹션 강조로 읽기 위치 표시">
-          <span class="article-toc-label">목차</span>
-          <ul>
-            <li><a href="#art-s1" class="is-active">줄 길이를 먼저 정하는 이유</a></li>
-            <li><a href="#art-s2">수직 리듬을 맞추는 법</a></li>
-            <li><a href="#art-s3">정리</a></li>
-          </ul>
-        </div>
-        <div class="article-share" data-region="공유 박스" data-en="Share box" data-pos="목차 아래 — 공유 동작 모음" data-hier="보조 동작. 아이콘 버튼 묶음, 낮은 강조">
-          <span class="article-share-label">공유</span>
-          <div class="article-share-btns">
-            <button class="article-icon-btn" aria-label="링크 복사">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+        <pre class="article-code" data-region="코드 블록" data-en="Code block" data-pos="설명 문단 바로 아래 — 예시 코드" data-hier="본문 보조. 모노폰트·면 채움으로 본문과 분리"><code>:root { --rhythm: 1.7rem; }
+p  { margin-block: var(--rhythm); }
+h2 { margin-top: calc(var(--rhythm) * 2); }</code></pre>
+
+        <h2 class="article-h2" id="hierarchy" data-region="섹션 소제목" data-en="Section heading / H2" data-pos="마지막 단락 묶음의 시작" data-hier="본문 내 2차 위계. 목차의 세 번째 앵커">위계는 크기로 잡는다</h2>
+        <p>위계를 색으로 잡으려는 유혹은 흔하지만 위험하다. 색이 늘면 화면은 곧 산만해진다. 더 안전한 방법은 크기와 두께, 그리고 무채색 명도다. 제목은 크고 진하게, 본문은 보통, 보조 정보는 작고 흐리게. 이 세 단계만으로도 시선의 순서는 충분히 정해진다.</p>
+        <p>포인트색은 마지막 한 점에만 남겨둔다. 링크, 활성 메뉴, 주 버튼. 본문 글자에까지 색을 쓰면 정작 눌러야 할 곳이 묻힌다. 절제가 곧 위계다.</p>
+
+      </div>
+
+      <aside class="article-side" data-region="스티키 사이드바" data-en="Sticky sidebar" data-pos="레이아웃 우측 — sticky로 스크롤 시 따라옴" data-hier="보조 내비. 본문보다 좁고 낮은 무게, 읽기 위치 안내">
+
+        <nav class="article-toc" aria-label="목차" data-region="스티키 목차 (TOC)" data-en="Table of contents (sticky TOC)" data-pos="사이드바 상단 — 현재 위치를 표시하며 고정" data-hier="섹션 내비. 활성 항목만 포인트색, 나머지는 흐리게">
+          <p class="article-side-label">이 글의 목차</p>
+          <ol class="article-toc-list">
+            <li><a href="#line-length" class="article-toc-link is-active">행 길이가 먼저다</a></li>
+            <li><a href="#rhythm" class="article-toc-link">수직 리듬을 지켜라</a></li>
+            <li><a href="#hierarchy" class="article-toc-link">위계는 크기로 잡는다</a></li>
+          </ol>
+        </nav>
+
+        <div class="article-share" data-region="공유 영역" data-en="Share rail" data-pos="목차 아래 — 공유·저장 동작 묶음" data-hier="보조 동작. 라인형 아이콘 버튼, 주목도 낮게">
+          <p class="article-side-label">공유</p>
+          <div class="article-share-row">
+            <button class="article-share-btn" aria-label="링크 복사">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6-6"/><path d="M11 6l1-1a4 4 0 0 1 6 6l-1 1"/><path d="M13 18l-1 1a4 4 0 0 1-6-6l1-1"/></svg>
             </button>
-            <button class="article-icon-btn" aria-label="북마크">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+            <button class="article-share-btn" aria-label="저장">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v16l-6-4-6 4z"/></svg>
             </button>
-            <button class="article-icon-btn" aria-label="공유">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+            <button class="article-share-btn" aria-label="댓글">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v10H9l-4 4z"/></svg>
             </button>
           </div>
         </div>
+
       </aside>
+
     </div>
 
-    <section class="article-authorbox" data-region="저자 박스" data-en="Author bio box" data-pos="본문 종료 직후 — 글쓴이 소개를 본문 폭에 맞춰 배치" data-hier="본문 후 신뢰 보강. 본문보다 낮은 강조의 면 카드">
-      <span class="article-authorbox-avatar" aria-hidden="true">림</span>
-      <div class="article-authorbox-text">
-        <span class="article-authorbox-name">림지수</span>
-        <p class="article-authorbox-bio">표면 매거진 조판 에디터. 한국어 본문의 읽기 동작과 화면 조판을 측정 기반으로 다룬다. 격주 화요일 연재.</p>
-        <button class="article-authorbox-follow">팔로우</button>
+    <section class="article-authorbox" data-region="저자 박스" data-en="Author bio box" data-pos="본문 종료 직후 — 읽기 칼럼 폭에 맞춰 가운데" data-hier="신뢰·맥락 보강. 아바타+소개, 본문과 다른 면으로 구분">
+      <div class="article-authorbox-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+      </div>
+      <div class="article-authorbox-body">
+        <p class="article-authorbox-name">서민호</p>
+        <p class="article-authorbox-role">프로덕트 디자이너 · 필드노트 객원 필자</p>
+        <p class="article-authorbox-desc">읽기 경험과 정보 위계를 주제로 글을 쓴다. 작은 결정이 모여 만드는 가독성에 관심이 많다.</p>
+        <button class="article-btn-ghost">필자의 다른 글</button>
       </div>
     </section>
+
+    <section class="article-related" data-region="관련 글" data-en="Related posts" data-pos="저자 박스 아래 전폭 — 3카드 그리드" data-hier="이어 읽기 유도. 동등한 세 카드, 제목이 카드 내 최상위">
+      <div class="article-section-head">
+        <h2 class="article-related-title">이어서 읽기</h2>
+        <a href="#" class="article-related-more">전체 보기</a>
+      </div>
+      <div class="article-related-grid">
+        <a href="#" class="article-card" data-region="관련 글 카드" data-en="Related card" data-pos="그리드 한 칸 — 썸네일·카테고리·제목 묶음" data-hier="카드 내부 위계: 제목 우선, 메타는 하단 보조">
+          <div class="article-card-ph" role="img" aria-label="썸네일 자리">
+            <svg viewBox="0 0 64 40" width="34" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="58" height="34" rx="3"/><path d="m9 33 14-12 9 7 6-5 14 10"/></svg>
+          </div>
+          <span class="article-card-kicker">타이포그래피</span>
+          <h3 class="article-card-title">글꼴 두 개로 충분한 이유</h3>
+          <span class="article-card-meta">6분 읽기</span>
+        </a>
+        <a href="#" class="article-card" data-region="관련 글 카드" data-en="Related card" data-pos="그리드 한 칸 — 동일 구조 반복" data-hier="카드 내부 위계: 제목 우선">
+          <div class="article-card-ph" role="img" aria-label="썸네일 자리">
+            <svg viewBox="0 0 64 40" width="34" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="58" height="34" rx="3"/><path d="M14 30V14M26 30V20M38 30V10M50 30V22"/></svg>
+          </div>
+          <span class="article-card-kicker">디자인 시스템</span>
+          <h3 class="article-card-title">여백을 변수로 다루기</h3>
+          <span class="article-card-meta">8분 읽기</span>
+        </a>
+        <a href="#" class="article-card" data-region="관련 글 카드" data-en="Related card" data-pos="그리드 한 칸 — 동일 구조 반복" data-hier="카드 내부 위계: 제목 우선">
+          <div class="article-card-ph" role="img" aria-label="썸네일 자리">
+            <svg viewBox="0 0 64 40" width="34" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="58" height="34" rx="3"/><circle cx="32" cy="20" r="9"/><path d="M32 11v9l6 3"/></svg>
+          </div>
+          <span class="article-card-kicker">리서치</span>
+          <h3 class="article-card-title">사람들은 어떻게 화면을 훑는가</h3>
+          <span class="article-card-meta">11분 읽기</span>
+        </a>
+      </div>
+    </section>
+
   </article>
 
-  <section class="article-related" data-region="관련 글" data-en="Related posts / Recirculation" data-pos="저자 박스 아래 — 본문 폭을 넘는 전폭 3카드 그리드" data-hier="다음 읽을거리 유도. 본문 종료 후 재순환, 카드 균등 위계">
-    <h2 class="article-related-title">이어서 읽기</h2>
-    <div class="article-related-grid">
-      <a class="article-card" data-region="관련 글 카드" data-en="Article card" data-pos="관련 그리드 항목 — 썸네일+제목+메타" data-hier="개별 추천. 카드 내부는 제목 우선, 메타 보조">
-        <div class="article-card-thumb article-thumb-a"></div>
-        <span class="article-card-kicker">레이아웃</span>
-        <h3 class="article-card-title">여백은 빈 공간이 아니라 묶음을 만드는 도구다</h3>
-        <span class="article-card-meta">7분 · 림지수</span>
-      </a>
-      <a class="article-card" data-region="관련 글 카드" data-en="Article card" data-pos="관련 그리드 항목" data-hier="개별 추천. 제목 우선 위계">
-        <div class="article-card-thumb article-thumb-b"></div>
-        <span class="article-card-kicker">색</span>
-        <h3 class="article-card-title">본문 대비는 명도로 잡고, 색은 강조에만 쓴다</h3>
-        <span class="article-card-meta">6분 · 차도윤</span>
-      </a>
-      <a class="article-card" data-region="관련 글 카드" data-en="Article card" data-pos="관련 그리드 항목" data-hier="개별 추천. 제목 우선 위계">
-        <div class="article-card-thumb article-thumb-c"></div>
-        <span class="article-card-kicker">엔지니어링</span>
-        <h3 class="article-card-title">반응형에서 줄 길이를 유지하는 clamp 패턴</h3>
-        <span class="article-card-meta">8분 · 한별</span>
-      </a>
-    </div>
-  </section>
-
-  <section class="article-newsletter" data-region="뉴스레터 구독 밴드" data-en="Newsletter signup band" data-pos="관련 글 아래 — 전폭 강조 밴드로 전환 유도" data-hier="행동 유도 구간. acc 배경으로 페이지 내 시각적 강세">
+  <section class="article-newsletter" data-region="뉴스레터 구독 밴드" data-en="Newsletter band / CTA band" data-pos="푸터 직전 전폭 밴드 — 콘텐츠 끝 전환 지점" data-hier="페이지 후반 주 CTA. 단일 포인트 버튼 하나만 채움">
     <div class="article-newsletter-inner">
-      <div class="article-newsletter-text">
-        <h2 class="article-newsletter-title">격주 조판 노트를 메일로</h2>
-        <p class="article-newsletter-sub">읽기·레이아웃 실험을 정리해 화요일마다 보냅니다. 광고 없음.</p>
+      <div class="article-newsletter-copy">
+        <h2 class="article-newsletter-title">매주 한 통, 읽기 좋은 글</h2>
+        <p class="article-newsletter-sub">디자인과 글쓰기에 관한 노트를 격주로 보냅니다. 광고 없음, 언제든 해지.</p>
       </div>
-      <form class="article-newsletter-form" data-region="구독 폼" data-en="Signup form" data-pos="밴드 우측 — 입력+버튼 한 줄" data-hier="전환 동작. 버튼이 가장 강한 강조 대상">
-        <input class="article-newsletter-input" type="email" placeholder="이메일 주소" aria-label="이메일 주소">
-        <button class="article-newsletter-btn" type="button">구독하기</button>
+      <form class="article-newsletter-form" onsubmit="return false">
+        <input type="email" class="article-newsletter-input" placeholder="이메일 주소" aria-label="이메일 주소">
+        <button class="article-btn-solid" type="submit">구독하기</button>
       </form>
     </div>
   </section>
 
-  <footer class="article-footer" data-region="푸터" data-en="Footer" data-pos="페이지 최하단 — 전역 링크·법적 정보 마무리" data-hier="최저 강조 마감. 작은 글자, 보조색 링크 묶음">
+  <footer class="article-footer" data-region="푸터" data-en="Footer" data-pos="페이지 최하단 — 전역 링크·법적 고지" data-hier="최하위 위계. 무채색 흐림, 정보 밀도 높고 주목도 낮게">
     <div class="article-footer-inner">
-      <div class="article-footer-brand" data-region="푸터 브랜드" data-en="Footer brand" data-pos="푸터 좌측 — 로고+한 줄 소개" data-hier="브랜드 재확인. 마무리용 낮은 강조">
-        <div class="article-brand">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h10M4 19h16"/></svg>
-          <span>표면 매거진</span>
-        </div>
-        <p class="article-footer-tag">읽기와 레이아웃을 측정으로 다루는 매거진</p>
+      <div class="article-footer-brand" data-region="푸터 브랜드" data-en="Footer brand block" data-pos="푸터 좌측 — 로고·한 줄 소개" data-hier="사이트 재식별. 본문보다 흐리게">
+        <span class="article-logo-text">필드노트</span>
+        <p class="article-footer-tag">읽기와 만들기에 관한 기록.</p>
       </div>
-      <nav class="article-footer-cols" data-region="푸터 링크 그룹" data-en="Footer link columns" data-pos="푸터 우측 — 카테고리별 링크 열" data-hier="전역 탐색 보조. 균등 나열, 본문 외 정보">
+      <nav class="article-footer-cols" data-region="푸터 링크" data-en="Footer link columns" data-pos="푸터 우측 — 카테고리별 링크 묶음" data-hier="전역 보조 내비. 흐린 무채색 링크 그리드">
         <div class="article-footer-col">
-          <span class="article-footer-h">섹션</span>
-          <a>디자인</a><a>엔지니어링</a><a>리서치</a>
+          <p class="article-footer-h">콘텐츠</p>
+          <a href="#">디자인</a>
+          <a href="#">엔지니어링</a>
+          <a href="#">리서치</a>
         </div>
         <div class="article-footer-col">
-          <span class="article-footer-h">매거진</span>
-          <a>소개</a><a>필진</a><a>연재</a>
+          <p class="article-footer-h">회사</p>
+          <a href="#">소개</a>
+          <a href="#">필자 모집</a>
+          <a href="#">문의</a>
         </div>
         <div class="article-footer-col">
-          <span class="article-footer-h">연결</span>
-          <a>RSS</a><a>메일</a><a>제휴</a>
+          <p class="article-footer-h">정책</p>
+          <a href="#">이용약관</a>
+          <a href="#">개인정보</a>
+          <a href="#">RSS</a>
         </div>
       </nav>
     </div>
-    <div class="article-footer-bar">
-      <span>© 2026 표면 매거진</span>
-      <span class="article-footer-legal"><a>이용약관</a><a>개인정보</a></span>
+    <div class="article-footer-bottom">
+      <span>© 2026 필드노트</span>
+      <span>서울특별시 마포구 어딘가로 12</span>
     </div>
   </footer>
+
 </section>
   </main>
   <aside class="mapwrap" id="mapwrap"><div class="map-inner"><div class="map-h">구역 맵 <span id="map-count">0</span></div><div class="map-tree" id="maptree"></div></div></aside>
@@ -1409,47 +1389,39 @@ try{
   if(!root)return;
   root.querySelectorAll('.dash-seg button, .dash-chip').forEach(function(b){
     b.addEventListener('click',function(){
-      var sibs=this.parentElement.querySelectorAll('button');
-      sibs.forEach(function(s){s.classList.remove('is-active');});
-      this.classList.add('is-active');
+      var sibs=b.parentElement.querySelectorAll('button');
+      sibs.forEach(function(s){s.classList.remove('is-active')});
+      b.classList.add('is-active');
     });
   });
   root.querySelectorAll('.dash-nav-item').forEach(function(a){
     a.addEventListener('click',function(e){
       e.preventDefault();
-      root.querySelectorAll('.dash-nav-item').forEach(function(n){n.classList.remove('is-active');});
-      this.classList.add('is-active');
+      root.querySelectorAll('.dash-nav-item').forEach(function(n){n.classList.remove('is-active')});
+      a.classList.add('is-active');
     });
   });
 })();
 }catch(e){console.error("[layout site-dash]", e);}
 
 try{
-(function(){
-  var root=document.getElementById('site-article');
-  if(!root)return;
-  var links=root.querySelectorAll('.article-toc a');
-  var heads=[].slice.call(root.querySelectorAll('.article-h2'));
-  function setActive(id){
-    links.forEach(function(a){
-      a.classList.toggle('is-active',a.getAttribute('href')==='#'+id);
-    });
-  }
-  links.forEach(function(a){
-    a.addEventListener('click',function(e){
-      e.preventDefault();
-      var t=root.querySelector(a.getAttribute('href'));
-      if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
-    });
+(function () {
+  var root = document.getElementById('site-article');
+  if (!root) return;
+  var links = Array.prototype.slice.call(root.querySelectorAll('.article-toc-link'));
+  var heads = links.map(function (l) {
+    var id = l.getAttribute('href').slice(1);
+    return root.querySelector('#' + id);
   });
-  if('IntersectionObserver' in window){
-    var io=new IntersectionObserver(function(ents){
-      ents.forEach(function(en){
-        if(en.isIntersecting)setActive(en.target.id);
-      });
-    },{rootMargin:'-80px 0px -70% 0px'});
-    heads.forEach(function(h){io.observe(h);});
+  function onScroll() {
+    var active = 0;
+    for (var i = 0; i < heads.length; i++) {
+      if (heads[i] && heads[i].getBoundingClientRect().top <= 120) active = i;
+    }
+    links.forEach(function (l, i) { l.classList.toggle('is-active', i === active); });
   }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
 })();
 }catch(e){console.error("[layout site-article]", e);}
 </script>
