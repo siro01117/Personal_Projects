@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>수능 국어 진단 가이드 · 빈틈을 찾아 고친다</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#15141b; --bg2:#1c1a25; --panel:rgba(33,30,44,.55); --panel-2:rgba(42,38,55,.42);
+  --border:rgba(150,138,190,.12); --border-strong:rgba(150,138,190,.24);
+  --ink:#e4e1ea; --ink-dim:#b7b2c3; --ink-faint:#867f96;
+  --violet:#a99cd2; --violet-deep:#7b6fa6; --violet-soft:rgba(123,111,166,.1);
+  --crimson:#c5879a; --crimson-deep:#955f70; --gold:#d6c193; --gold-dim:#ad976c;
+  --glow:rgba(123,111,166,.2); --radius:14px; --maxw:880px;
+  --serif:'Gowun Batang',serif; --sans:'Noto Sans KR',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:300;font-size:16.5px;line-height:1.95;letter-spacing:-.002em;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1100px 640px at 82% -12%,rgba(123,111,166,.1),transparent 62%),radial-gradient(820px 520px at 4% 0%,rgba(150,95,112,.04),transparent 58%);
+  background-attachment:fixed;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.018;background-image:radial-gradient(circle at 1px 1px,rgba(200,188,225,.6) 1px,transparent 0);background-size:42px 42px}
+a{color:inherit;text-decoration:none}
+main{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,4vw,40px) 130px;position:relative;z-index:1}
+
+/* hero */
+.hero{text-align:center;padding:74px 0 30px}
+.hero .seal{width:74px;height:74px;margin:0 auto 22px;opacity:.86;filter:drop-shadow(0 0 8px var(--glow))}
+.hero .kicker{font-size:11px;letter-spacing:.4em;color:var(--gold-dim);text-transform:uppercase;margin-bottom:20px}
+.hero h1{font-family:var(--serif);font-weight:700;font-size:clamp(28px,4.6vw,42px);line-height:1.34}
+.hero h1 .em{color:var(--gold)}
+.hero p.lede{max-width:580px;margin:22px auto 0;color:var(--ink-dim);font-size:16px;line-height:1.95}
+
+/* section heads */
+.shead{display:flex;align-items:center;gap:13px;margin:54px 0 6px}
+.shead .ic{width:28px;height:28px;flex:none;color:var(--violet)}
+.shead .ic svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.6}
+.shead h2{font-family:var(--serif);font-weight:700;font-size:24px}
+.ssub{color:var(--ink-faint);font-size:14px;margin:3px 0 26px 41px}
+
+/* core */
+.core-grid{display:grid;gap:14px}
+@media(min-width:720px){.core-grid{grid-template-columns:1fr 1fr}}
+.pcard{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+.pcard .corner{position:absolute;width:12px;height:12px;border:1.5px solid var(--gold-dim);opacity:.28}
+.pcard .c1{top:8px;left:8px;border-right:0;border-bottom:0}.pcard .c4{bottom:8px;right:8px;border-left:0;border-top:0}
+.pcard h3{font-family:var(--serif);font-size:17px;color:var(--gold);margin-bottom:8px}
+.pcard p{color:var(--ink-dim);font-size:14.5px;line-height:1.9}
+.loop{margin-top:16px;background:var(--violet-soft);border:1px solid var(--border);border-radius:12px;padding:18px 22px}
+.loop .lh{font-size:11px;letter-spacing:.16em;color:var(--gold-dim);text-transform:uppercase;margin-bottom:8px}
+.loop p{color:var(--ink);font-family:var(--serif);font-size:16px;line-height:1.9}
+.howto{margin-top:14px;color:var(--ink-dim);font-size:14.5px;line-height:1.95;border-left:2px solid var(--gold-dim);padding:8px 0 8px 20px;background:linear-gradient(90deg,rgba(214,193,147,.04),transparent)}
+
+/* toolbar */
+.toolbar{position:sticky;top:0;z-index:30;background:linear-gradient(var(--bg) 70%,rgba(21,20,27,.86));backdrop-filter:blur(10px);padding:14px 0 12px;margin-bottom:8px;border-bottom:1px solid var(--border)}
+.search{width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:11px;padding:12px 16px;color:var(--ink);font-family:var(--sans);font-size:14.5px;outline:none;transition:.18s}
+.search:focus{border-color:var(--violet-deep)}
+.search::placeholder{color:var(--ink-faint)}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.filters button{font-family:var(--sans);font-size:13px;color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--border);padding:7px 14px;border-radius:999px;cursor:pointer;transition:.18s}
+.filters button:hover{color:var(--ink)}
+.filters button.on{color:#191620;background:linear-gradient(135deg,var(--gold),var(--gold-dim));border-color:transparent;font-weight:500}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.tagrow button{font-size:12px;color:var(--ink-faint);background:transparent;border:1px solid var(--border);padding:4px 11px;border-radius:999px;cursor:pointer;transition:.18s}
+.tagrow button:hover{color:var(--ink-dim)}
+.tagrow button.on{color:var(--violet);border-color:var(--violet-deep);background:var(--violet-soft)}
+.count{font-size:12.5px;color:var(--ink-faint);margin-top:11px}
+.count b{color:var(--violet);font-weight:500}
+
+/* gap cards */
+.gaps{margin-top:14px;display:grid;gap:10px}
+.gap{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:.18s}
+.gap[open]{border-color:var(--border-strong)}
+.gap>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:13px;padding:17px 20px}
+.gap>summary::-webkit-details-marker{display:none}
+.gap .area{flex:none;font-size:11px;font-weight:500;padding:4px 10px;border-radius:7px;border:1px solid var(--border-strong);color:var(--violet)}
+.gap[data-area="문학"] .area{color:var(--gold);border-color:var(--gold-dim)}
+.gap[data-area="화작"] .area{color:var(--crimson);border-color:var(--crimson-deep)}
+.gap[data-area="공통·태도"] .area{color:#9fb4c9;border-color:#5d7184}
+.gap[data-area="기출·운용"] .area{color:#a9c2a0;border-color:#5f7a55}
+.gap .sym{flex:1;font-size:15.5px;color:var(--ink);font-weight:400;line-height:1.55}
+.gap .chev{flex:none;width:16px;height:16px;stroke:var(--violet);fill:none;stroke-width:2;transition:.2s}
+.gap[open] .chev{transform:rotate(90deg)}
+.gbody{padding:2px 20px 20px 20px;border-top:1px solid var(--border);margin-top:-1px}
+.gbody .blk{margin-top:14px}
+.gbody .lbl{font-size:11px;letter-spacing:.1em;color:var(--gold-dim);text-transform:uppercase;display:block;margin-bottom:5px}
+.gbody .signs{color:var(--ink-dim);font-size:14px;line-height:1.85}
+.gbody .cause{color:var(--ink-dim);font-size:14px;line-height:1.85}
+.gbody .fixsum{color:var(--ink);font-size:14.5px;font-weight:500;background:var(--violet-soft);border:1px solid var(--border);border-radius:9px;padding:11px 14px;line-height:1.8}
+.gbody ol.steps{margin:8px 0 0 0;list-style:none;counter-reset:s}
+.gbody ol.steps li{position:relative;padding:7px 0 7px 30px;font-size:14px;color:var(--ink-dim);line-height:1.8;border-bottom:1px dashed rgba(150,138,190,.09)}
+.gbody ol.steps li:last-child{border-bottom:0}
+.gbody ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:8px;width:19px;height:19px;font-size:11px;color:var(--violet);border:1px solid var(--border-strong);border-radius:50%;display:grid;place-items:center;font-family:var(--sans)}
+.gbody .related{margin-top:12px;font-size:12.5px;color:var(--ink-faint)}.gbody .related b{color:var(--gold-dim)}
+.gbody .tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.gbody .tags span{font-size:11.5px;color:var(--ink-faint);background:var(--panel-2);border:1px solid var(--border);padding:3px 9px;border-radius:6px}
+.empty{text-align:center;color:var(--ink-faint);font-size:14px;padding:40px 0}
+
+footer{max-width:var(--maxw);margin:56px auto 0;text-align:center;color:var(--ink-faint);font-size:13px;border-top:1px solid var(--border);padding-top:28px;line-height:1.9}
+footer .seal{width:28px;height:28px;margin:0 auto 10px;opacity:.42}
+/* ===== theme toggle ===== */
+.themetoggle{position:fixed;top:15px;right:15px;z-index:60;width:40px;height:40px;border-radius:50%;background:var(--panel);border:1px solid var(--border-strong);color:var(--violet);cursor:pointer;display:grid;place-items:center;backdrop-filter:blur(6px);transition:.18s}
+.themetoggle:hover{color:var(--ink);border-color:var(--violet-deep)}
+.themetoggle svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7}
+.themetoggle .moon{display:none}
+[data-theme="light"] .themetoggle .sun{display:none}
+[data-theme="light"] .themetoggle .moon{display:block}
+/* ===== test ui ===== */
+.cta-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:26px;text-align:center}
+.cta-card p{color:var(--ink-dim);font-size:15px;margin-bottom:18px;line-height:1.9}
+.bigbtn{font-family:var(--sans);font-size:15px;font-weight:500;color:#191620;background:linear-gradient(135deg,var(--gold),var(--gold-dim));border:none;border-radius:11px;padding:12px 30px;cursor:pointer;transition:.18s}
+.bigbtn:hover{filter:brightness(1.06)}
+.bigbtn.ghost{color:var(--violet);background:transparent;border:1px solid var(--violet-deep)}
+.qsec{margin-top:26px}
+.qsec>h3{font-family:var(--serif);font-size:17px;color:var(--gold);margin-bottom:3px}
+.qsec .qintro{color:var(--ink-faint);font-size:13px;margin-bottom:14px}
+.qitem{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:15px 18px;margin-bottom:10px}
+.qitem .qtext{font-size:14.5px;color:var(--ink);line-height:1.72;margin-bottom:12px}
+.opts{display:flex;gap:8px}
+.opt{flex:1;text-align:center;font-size:13px;color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:10px 6px;cursor:pointer;transition:.15s}
+.opt:hover{color:var(--ink);border-color:var(--border-strong)}
+.opt.sel{color:var(--violet);border-color:var(--violet-deep);background:var(--violet-soft);font-weight:500}
+.opt.sel.s2{color:var(--crimson);border-color:var(--crimson-deep)}
+#test-bar{position:sticky;bottom:0;z-index:25;margin-top:16px;padding:14px 0;display:flex;align-items:center;gap:16px;justify-content:center;font-size:13.5px;color:var(--ink-dim);background:linear-gradient(rgba(0,0,0,0),var(--bg) 45%)}
+#test-bar b{color:var(--violet)}
+.reshead{font-family:var(--serif);font-size:18px;color:var(--gold);margin:6px 0 4px}
+.resbars{display:grid;gap:9px;margin:14px 0 8px}
+.resbar{display:flex;align-items:center;gap:12px}
+.resbar .rlab{flex:none;width:84px;font-size:13px;color:var(--ink-dim)}
+.resbar .rtrack{flex:1;height:9px;background:var(--panel-2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.resbar .rfill{height:100%;background:linear-gradient(90deg,var(--violet-deep),var(--crimson))}
+.resbar .rpct{flex:none;width:40px;text-align:right;font-size:12px;color:var(--gold-dim)}
+/* ===== light theme ===== */
+[data-theme="light"]{
+  --bg:#f4f0e6;--bg2:#ece5d6;--panel:rgba(255,253,247,.74);--panel-2:rgba(247,243,234,.82);
+  --border:rgba(120,98,66,.17);--border-strong:rgba(120,98,66,.32);
+  --ink:#2e2937;--ink-dim:#574f63;--ink-faint:#897f93;
+  --violet:#665596;--violet-deep:#7b6fa6;--violet-soft:rgba(123,111,166,.1);
+  --crimson:#a14e67;--crimson-deep:#9c5e72;--gold:#947431;--gold-dim:#947431;
+  --glow:rgba(123,111,166,.14);
+}
+[data-theme="light"] body{background-image:radial-gradient(1100px 640px at 82% -12%,rgba(123,111,166,.07),transparent 62%),radial-gradient(820px 520px at 4% 0%,rgba(160,110,60,.06),transparent 58%)}
+[data-theme="light"] body::before{opacity:.03;background-image:radial-gradient(circle at 1px 1px,rgba(120,98,66,.5) 1px,transparent 0)}
+[data-theme="light"] .toolbar{background:linear-gradient(var(--bg) 70%,rgba(244,240,230,.86))}
+[data-theme="light"] .bigbtn{color:#fff8ec}
+[data-theme="light"] .filters button.on{color:#fff8ec}
+[data-theme="light"] .gap[data-area="공통·태도"] .area{color:#3f5772;border-color:#88a1b5}
+[data-theme="light"] .gap[data-area="기출·운용"] .area{color:#496640;border-color:#88a17e}
+</style>
+<script>
+(function(){try{var t=localStorage.getItem('guidetheme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();
+function toggleTheme(){var L=document.documentElement.getAttribute('data-theme')==='light';try{localStorage.setItem('guidetheme',L?'dark':'light');}catch(e){}if(L)document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme','light');}
+</script>
+</head>
+<body>
+<button id="themebtn" class="themetoggle" onclick="toggleTheme()" aria-label="라이트/다크 전환">
+  <svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.1 5.1l1.7 1.7M17.2 17.2l1.7 1.7M18.9 5.1l-1.7 1.7M6.8 17.2l-1.7 1.7"/></svg>
+  <svg class="moon" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1111.2 3a6.6 6.6 0 009.8 9.8z"/></svg>
+</button>
+<main>
+  <header class="hero">
+    <svg class="seal" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#ad976c" stroke-width="1"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#7b6fa6" stroke-width="2" stroke-dasharray="3 6" opacity=".55"/>
+      <circle cx="50" cy="50" r="33" fill="none" stroke="#a99cd2" stroke-width="1"/>
+      <path d="M50 12 L57 43 L88 50 L57 57 L50 88 L43 57 L12 50 L43 43 Z" fill="none" stroke="#d6c193" stroke-width="1.3"/>
+      <circle cx="50" cy="50" r="7" fill="none" stroke="#c5879a" stroke-width="1.4"/><circle cx="50" cy="50" r="2.5" fill="#d6c193"/>
+    </svg>
+    <div class="kicker">DIAGNOSE &amp; REPAIR · 빈틈 진단</div>
+    <h1>수능 국어 진단 가이드<br/><span class="em">정해진 길은 없다, 빈틈을 찾아 고친다</span></h1>
+    <p class="lede">대부분의 학생은 한 경로의 ‘어느 지점’에 있는 게 아니라, 여기저기 빈틈이 흩어져 있다. 그래서 처음부터 끝까지 읽는 가이드가 아니다 — 핵심만 가볍게 잡고, 자기 약점이 보일 때마다 해당 처방을 꺼내 쓰는 방식이다.</p>
+  </header>
+
+  <!-- SELF-TEST -->
+  <section id="test">
+    <div class="shead"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg></span><h2>자가진단 테스트</h2></div>
+    <p class="ssub">평소 습관으로 답하면 약점 영역과 맞춤 처방을 골라준다 · 약 3~5분</p>
+    <div id="test-cta"><div class="cta-card"><p>시험·공부할 때의 ‘나’를 떠올리며 솔직하게 답하세요.<br/>다 채울수록 진단이 정확해집니다.</p><button class="bigbtn" id="startBtn">진단 시작</button></div></div>
+    <div id="test-form" style="display:none"></div>
+    <div id="test-bar" style="display:none"><span><b id="answered">0</b> / <span id="qtotal">0</span> 응답</span><button class="bigbtn" id="resultBtn">결과 보기</button></div>
+    <div id="test-result" style="display:none"></div>
+  </section>
+
+  <!-- CORE -->
+  <section id="core">
+    <div class="shead"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/></svg></span><h2>코어 · 늘 참인 것</h2></div>
+    <p class="ssub">빈틈이 어디든, 이것만은 깔고 간다</p>
+    <div class="core-grid" id="core-grid"></div>
+    <div class="loop" id="core-loop"></div>
+    <div class="howto" id="core-howto"></div>
+  </section>
+
+  <!-- DIAGNOSE -->
+  <section id="diagnose">
+    <div class="shead"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span><h2>빈틈 찾기 · 증상 → 처방</h2></div>
+    <p class="ssub">‘아 이거 내 얘기네’ 싶은 증상을 펼쳐 처방을 확인하라</p>
+    <div class="toolbar">
+      <input class="search" id="search" type="text" placeholder="증상 검색 (예: 시간, 보기, 집중, 지문이 안 읽혀…)" />
+      <div class="filters" id="areafilters"></div>
+      <div class="tagrow" id="tagfilters"></div>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="gaps" id="gaps"></div>
+  </section>
+
+  <footer>
+    <svg class="seal" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#ad976c" stroke-width="1"/><path d="M20 8 L22 18 L32 20 L22 22 L20 32 L18 22 L8 20 L18 18 Z" fill="none" stroke="#a99cd2" stroke-width="1"/></svg>
+    <p>수능 국어 진단 가이드 · 빈틈을 찾아 고친다 &nbsp;|&nbsp; 학습 참고용</p>
+  </footer>
+</main>
+
+<script>
+window.__DATA__ = {"core":{"principles":[{"title":"외우지 말고 읽는 힘을 기른다","body":"국어는 처음 보는 지문을 그 자리에서 처리하는 시험이다. 새 지식을 쌓는 게 아니라 읽기 능력을 훈련한다는 관점으로 모든 공부를 설계한다."},{"title":"자기 언어로 양을 줄인다","body":"어려운 개념어를 일상어로 바꿔 이해하면 처리할 텍스트가 절반으로 준다. 이해하면 암기는 저절로 따라온다. 모든 문장을 같은 강도로 100% 정독하려 들지 말고 핵심에 무게를 싣는다."},{"title":"출제 유형은 고정돼 있다 — 미리 알고 읽는다","body":"독서와 문학의 출제 유형은 정해져 있다. 무엇을 물을지 예측하며 읽으면 지문과 문제 사이를 왕복하는 시간 낭비가 사라지고, 제대로 읽었다면 선지에서 답이 바로 보인다. 안 보이면 독해가 덜 된 신호다."},{"title":"방법보다 책상에 앉아 몰입하는 게 먼저다","body":"아무리 좋은 방법도 집중하지 못하면 무용지물이다. 막연히 시간을 채우지 말고, 누구나 가능한 작은 단위부터 진짜 몰입한 분량을 쌓아 단계적으로 늘린다. 스마트폰은 의지가 아니라 물리적으로 격리한다."}],"loop":"검증된 기출을 풀고 → 감이 살아 있을 때 곧바로 해설로 \u0027내 판단 근거가 출제자가 요구한 깊이와 맞았는지\u0027 즉시 교정하고(맞은 문제도) → 그 교정을 반복해 독해 감각으로 체화한다. 몰아서 채점하면 감을 재현할 수 없어 교정 효과가 사라진다.","how_to_use":"이 가이드는 처음부터 끝까지 순서대로 읽는 자료가 아니라, 자기 약점을 발견할 때마다 해당 처방만 꺼내 쓰는 도구다. 예컨대 시간이 부족하면 \u0027유형 선행과 왕복 제거\u0027를, 지문이 이해 안 되면 \u0027자기 언어 재구성\u0027을, 책상에 못 앉으면 \u0027집중 운용\u0027을 펼친다. 같은 기법도 자기 등급에 맞게 강도를 조절하라 — 모두에게 통하는 만능 처방은 없다. 우선 자신의 현재 수준과 빈틈을 정직하게 진단하는 것이 출발점이다."},"gaps":[{"symptom":"지문을 다 읽었는데 \u0027결국 무슨 얘기였지?\u0027 하고 머릿속이 텅 빈다. 문장은 다 읽었는데 글이 한 덩어리로 안 잡히고, 문제를 풀려면 또 처음부터 다시 읽어야 한다.","area":"비문학","cause":"첫 문단에서 글의 화제(하고 싶은 말 하나)를 고정하지 못한 채 읽기 시작한다. 논리적인 지문은 화제 하나를 중심으로 설계돼 있는데, 그 중심축을 못 잡으면 모든 정보가 평면적으로 흩어진다.","fix_summary":"첫 문단을 내 말로 요약해 화제를 한 줄로 고정한 뒤, 나머지는 그 화제를 어떻게 전개하는지로 읽어라.","fix_steps":["첫 문단을 읽고 멈춰서 \u0027이 글은 ___에 대한 글이다\u0027를 내 말 한 문장으로 적거나 떠올린다.","그 한 문장(화제)을 중심에 박아두고, 뒤 문단은 모두 \u0027이 화제를 어떻게 설명/전개하나\u0027로 받아들인다.","문단이 끝날 때마다 1~2초 \u0027방금 이 문단이 화제에 대해 무슨 말을 했나\u0027를 떠올린다.","끝까지 화제가 안 잡히면 진도를 빼지 말고 첫 문단으로 돌아가 다시 요약부터 한다."],"related":"화제 한 줄 고정, 첫 문단 시동","signs":["첫 문단을 읽고도 \u0027이 글이 무엇에 대한 글인가\u0027를 한 문장으로 못 말한다","문단마다 새 얘기처럼 느껴지고 앞 내용과 연결이 안 된다","다 읽은 뒤 글 전체를 떠올리면 흩어진 단어만 떠오른다"],"tags":["독해","집중","화제"]},{"symptom":"\u0027정립-반정립\u0027, \u0027연역적 정당화\u0027 같은 추상적 개념어가 나오면 거기서 뇌가 멈춘다. 그 단어 뜻을 붙잡고 씨름하다 문장 전체를 놓치고, 다음 문장으로 못 넘어간다.","area":"비문학","cause":"추상적 개념어를 지문 표현 그대로 안고 가려 해서 인지부하가 폭증한다. 어려운 어휘를 일상어로 바꾸지 않으면 실제 처리할 텍스트양이 줄지 않아 독해가 막힌다.","fix_summary":"어려운 개념어는 즉시 \u0027나만의 쉬운 말\u0027로 번역해 처리할 텍스트양을 줄여라.","fix_steps":["개념어가 나오면 그 자리에서 \u0027쉽게 말하면 ___\u0027로 한 번 번역한다.","긴 문장은 핵심 주어·서술어만 남기고 \u0027누가 무엇을 어떻게\u0027로 압축한다.","번역이 안 될 만큼 어려운 진술은 뜻 캐기를 포기하고, \u0027이런 게 있다\u0027는 사실로 받아들인 뒤 글에서의 역할만 잡는다.","사전적 정확성보다 \u0027내가 이해되는 말\u0027을 우선한다. 시험은 그 문장 안에서의 쓰임만 묻는다."],"related":"추상어 자기 언어 재구성","signs":["한 문장 안의 개념어에서 시선이 멈춰 몇 번씩 다시 읽는다","지문 어휘를 그대로 담으려다 한 문단 읽는 시간이 폭증한다","문제 풀 때 그 개념어가 뭐였는지 떠올리려 다시 지문을 뒤진다"],"tags":["독해","어휘","재구성"]},{"symptom":"용어·숫자·정보가 한꺼번에 쏟아지는 문단을 만나면 압도당한다. 다 외워야 할 것 같아 한 글자씩 힘줘 읽다가 집중력이 바닥나고, 정작 중요한 데서 멍해진다.","area":"비문학","cause":"모든 문장을 같은 힘으로 정독하는 습관. 쉬운 곳에 에너지를 낭비해 정보 밀도 높은 구간에서 집중력이 고갈된다. 비문학은 \u0027다 외우는\u0027 시험이 아니라 정보를 선택적으로 처리하는 시험이다.","fix_summary":"정보에 층위를 매겨 상위 개념·비교만 남기고, 세부·수식은 위치만 표시하고 흘려보내라.","fix_steps":["읽으면서 문장의 층위를 분류한다: 개념(무엇인가) / 대상 비교 / 세부 구분 / 계산·적용.","상위 1~2층위(개념·비교)는 확실히 잡고, 세부 수치·수식은 밑줄로 위치만 남긴 뒤 통과한다.","쉽게 읽히는 문장과 동어반복 문장은 속도를 올려 빠르게 지나간다.","세부가 필요한 문항이 나오면 그때 표시해둔 위치로 단 한 번만 돌아간다."],"related":"선택적 정보 처리, 정보 층위화, 읽는 무게 조절","signs":["거의 모든 문장에 밑줄을 긋고 있다","한 문단에 너무 오래 머물러 뒤로 갈수록 지친다","세부 수치·정의를 다 기억하려다 큰 흐름을 놓친다"],"tags":["시간","독해","집중","정보량"]},{"symptom":"문단들이 그냥 줄줄이 나열된 정보로만 보인다. 어디가 더 중요한지, 무엇이 원인이고 무엇과 무엇이 대비되는지 구조가 안 보여 전부 똑같은 무게로 읽힌다.","area":"비문학","cause":"글의 논리 구조(비교·대조, 인과, 과정, 시간순)를 의식하지 않고 평면적으로 읽는다. 출제자는 이 구조를 그대로 선지로 만드는데, 구조를 못 보면 출제 포인트를 놓친다.","fix_summary":"지문 유형을 판별해 각 구조의 핵심(차이점/원인/순서/변화)을 추적하며 기호로 시각화하라.","fix_steps":["대상이 둘 이상 나오면 즉시 비교 구조로 전환하고 비교 기준(축)을 한 줄로 잡는다.","공통점은 묶고 차이 지점에 [ ] 표시, 인과·증감 관계는 화살표(예: 환율↑→수출↑)로 메모한다.","과정·단계 서술은 번호로 끊고, 시간순 서술은 \u0027무엇이 어떻게 바뀌었나\u0027에 주목한다.","다 읽은 직후 30초~1분 안에 \u0027위치와 관계\u0027만 담은 구조도를 그린다(세부 내용 말고)."],"related":"정보 구조화, 지문 구조 유형별 독해","signs":["대상이 둘 이상 나와도 비교축을 안 잡고 순서대로만 읽는다","\u0027A 때문에 B\u0027인지 \u0027B 때문에 A\u0027인지 인과 방향이 헷갈린다","문제에서 \u0027어디 보고 풀지\u0027 몰라 매번 지문 전체를 다시 훑는다"],"tags":["구조","독해","비교","추론"]},{"symptom":"이해 안 되는 한 문장에 꽂혀서 \u0027왜 이렇게 되지?\u0027를 붙들고 시간을 다 날린다. 끝내 이해 못 하면 \u0027이 지문 망했다\u0027는 불안에 뒷부분까지 흔들린다.","area":"비문학","cause":"어려운 문장을 그 자리에서 완벽히 이해하려 매달린다. 평가원은 풀이에 필요한 정보를 대개 뒤에서 부연해주는데, 그 신뢰가 없어 멈춰 선다.","fix_summary":"이해 안 되는 정보는 납득→신뢰→사실 수용 3단계로 처리하고 막히는 문장은 일단 넘어가라.","fix_steps":["상식적으로 당연한 진술은 외우려 말고 그냥 \u0027납득\u0027하며 받아들인다.","지금 정보가 부족해 막히면 \u0027뒤에서 설명해주겠지\u0027 믿고 일단 넘어간다.","끝까지 이해 안 되는 정보는 억지로 이해하지 말고 \u0027그런 게 있다\u0027는 사실로 수용한 뒤 글에서의 역할만 파악한다.","그 문장에 밑줄·메모로 위치만 남겨, 선지가 실제로 요구할 때만 돌아간다."],"related":"이해 불가 정보 처리, 추론 깊이 통제","signs":["공식·심화 진술 하나에서 막혀 같은 문장을 다섯 번 이상 다시 읽는다","\u0027이걸 이해 못 하면 문제 못 푼다\u0027는 생각에 진도가 안 나간다","지문 밖 배경지식까지 끌어와 끝없이 파고든다"],"tags":["독해","시간","집중","멘탈"]},{"symptom":"경제·법·과학 지문만 나오면 시작부터 주눅이 든다. 용어가 낯설어 \u0027내가 이 분야를 몰라서 안 읽히나\u0027 싶고, 배경지식이 부족해 못 푼다고 자책한다.","area":"비문학","cause":"비문학을 \u0027아는 지식을 꺼내 쓰는 시험\u0027으로 오해한다. 실제로는 처음 본 지문을 그 자리에서 처리하는 역량평가이고, 풀이에 필요한 정의는 지문 안에 다 있다. 배경지식 부족이 아니라 지문 내 정의를 추적·연결하는 훈련 부족이 원인인 경우가 많다.","fix_summary":"낯선 제재일수록 지문 안의 개념 정의를 표시·추적하고, 빈출 용어는 평소 기출로 감만 깔아둬라.","fix_steps":["지문에 나오는 모든 개념 정의에 밑줄·기호로 표시하며 읽는다. 정의는 거의 항상 선지로 쓰인다.","같은 대상을 다른 말로 부르면 \u0027=\u0027로 묶어 통합한다(예: 기축통화=국제기준통화=달러화).","배경지식과 지문이 충돌하면 무조건 지문을 따른다. 지문에 없는 내용은 선지가 될 수 없다.","제재별 빈출 용어를 기출 기반으로 정의 단위만 가볍게 정리해 자투리 시간에 회독한다(암기가 독해를 대체하진 않는다)."],"related":"제재별 용어 감각, 등호 묶기, 개념 정의 체크","signs":["특정 제재(경제·과학·철학 등) 지문에서 유독 정답률과 속도가 떨어진다","낯선 용어를 보면 \u0027내가 아는 지식이 없어서\u0027라고 생각한다","지문 설명보다 어디서 들은 배경지식을 먼저 떠올려 판단한다"],"tags":["독해","어휘","멘탈"]},{"symptom":"선지를 봐도 답이 바로 안 보여서 1~5번을 다 지문에 대보며 끼워맞춘다. 그러다 둘 중에 헷갈리고, 결국 느낌으로 골랐다가 틀린다. 한 문제에 시간도 너무 오래 걸린다.","area":"비문학","cause":"지문을 장악하지 못해, 선지를 볼 때 \u0027이 선지가 무슨 정보를 요구하는가\u0027를 규정하지 못하고 무작정 대조한다. 답이 바로 안 나오는 것은 독해가 덜 됐다는 신호인데, 끼워맞춰 맞히면 \u0027독해 없이도 맞힌다\u0027는 잘못된 자기암시가 굳는다.","fix_summary":"선지마다 \u0027요구하는 정보가 뭔지\u0027 먼저 규정한 뒤 표시해둔 위치로 곧장 가서 1:1로 대조하라.","fix_steps":["선지를 읽으면 먼저 \u0027이 선지는 지문의 어느 개념/관계를 묻나\u0027를 한 줄로 규정한다.","구조도·기호로 잡아둔 그 위치로 곧장 가서 핵심어를 1:1로 대조한다. 전체를 다시 읽지 않는다.","단골 함정을 우선 검증한다: 주체 바꿔치기, 정도 과장(항상/모두/반드시), 인과 뒤집기, A의 특징을 B에 붙이기.","답이 뚝뚝대야 나오면 끼워맞추지 말고 \u0027독해가 덜 됐다\u0027고 인정하고, 채점 후 그 지점을 즉시 교정한다.","맞은 문제도 \u0027왜 맞았는지\u0027 근거를 확인해 운으로 맞은 것을 걸러낸다."],"related":"선지 역추적, 함정 유형 인지","signs":["선지를 읽고 곧장 위치로 못 가고 막연히 전체를 다시 읽는다","두 선지 사이를 계속 왔다 갔다 하며 끼워맞춘다","맞아도 근거를 못 댄다. 느낌으로 골랐다"],"tags":["선지","독해","시간","기출"]},{"symptom":"지문을 다 읽고 나면 세부 내용이 기억 안 나서, 문제마다 본문을 처음부터 다시 뒤진다. 한 지문에 시간을 너무 써서 뒤 지문에서 쫓긴다.","area":"비문학","cause":"세부 디테일을 확인하려고 지문과 문제 사이를 계속 왕복하는 회귀 습관 때문이다. \u0027되돌아가면 된다\u0027는 안일함이 1회독의 정확도를 떨어뜨리고, 매번의 왕복이 실전 시간을 폭증시킨다.","fix_summary":"세부는 위치만 표시하고 1회독으로 장악한 뒤, 30초 구조도로 위치·관계만 잡아 회귀를 한 번으로 줄여라.","fix_steps":["읽으며 정보를 층위로 나눈다: 1층위 개념, 2층위 대상 비교, 3~4층위 세부·수식.","1~2층위는 머리에 남기고, 3~4층위 세부는 밑줄로 위치만 표시한다(외우지 않는다).","다 읽은 직후 30초~1분 안에 \u0027무엇이 어디에 어떤 관계로\u0027 있는지만 구조도로 잡는다.","문제는 기억으로 판단하고, 확인이 필요한 것만 표시해둔 위치로 한 번만 회귀한다.","기억으로 안 나는 문항은 끼워맞추지 말고 일단 판단한 뒤 넘기며 회귀 횟수를 의식적으로 줄인다."],"related":"무회귀 일독, 30초 구조도","signs":["문제 하나 풀 때마다 본문을 다시 찾아 읽는다","세부 수치가 기억 안 나 매번 지문으로 돌아간다","1회독 후 \u0027무슨 내용이었지\u0027가 거의 안 남는다"],"tags":["시간","독해","회귀"]},{"symptom":"첫 문장부터 끝까지 똑같이 꼼꼼히 읽는다. 그러다 정작 어려운 부분에서 집중력이 바닥나고 시간이 부족하다.","area":"비문학","cause":"모든 문장을 같은 힘으로 정독하는 습관. 쉬운 곳에 에너지를 낭비하면 정보 밀도가 높은 핵심 구간에서 쓸 집중력이 고갈된다. 비문학은 선택적 정보 처리가 본질이다.","fix_summary":"문단 첫 문장에서 난도를 판별해 쉬운 곳은 흘리고 어려운 곳에 에너지를 몰아주는 강약 독해를 하라.","fix_steps":["문단 첫 문장을 읽고 \u0027그냥 읽히는가, 막히는가\u0027를 즉시 판별한다.","그냥 읽히면 빠르게 통과하고, 동어반복 문장은 스킵한다.","새 개념·첫 문단·정보가 폭증하는 구간에서만 문장 단위로 끊어 천천히 읽는다.","개념 정의·공통점/차이점·인과 같은 핵심에 무게를 싣고, 예시·부연은 가볍게 읽는다.","문단을 넘길 때마다 난도 판별을 반복해 모드를 전환한다."],"related":"읽는 무게(템포) 조절, 그읽그풀/구조독해 전환","signs":["쉬운 문장도 두세 번 곱씹는다","지문 뒷부분에서 집중력이 급격히 떨어진다","예시·부연 문장까지 다 외우려 한다"],"tags":["시간","독해","집중"]},{"symptom":"습관적으로 밑줄을 너무 많이 친다. 손이 글자를 따라가다 보면 내용은 머리에 안 들어오고 속도만 느려진다.","area":"비문학","cause":"과도한 밑줄. 모든 곳에 긋는 것은 아무 곳도 강조하지 않은 것과 같고, 손이 먼저 긋다 보면 글자만 발음하듯 따라가는 \u0027음성적 독해\u0027로 떨어져 의미 처리가 멈춘다.","fix_summary":"밑줄을 줄이고 약속된 최소 기호로 선지화되는 핵심만 표시하라.","fix_steps":["습관적 밑줄을 줄이고 동그라미·세모·X 같은 최소 기호로 능동 표시한다.","개념 정의=밑줄, 공통점/차이점=[ ], 인과·비례=화살표 식으로 빈출 포인트에만 일관된 기호를 쓴다.","상식 충돌 지점·기본/예외·포함관계·복잡한 수식 등 선지화되는 곳만 위치를 남긴다.","손이 아니라 의미 이해가 독해를 끌고 가도록 \u0027글에 능동적으로 참여\u0027하는 감각으로 읽는다."],"related":"기호화 표시, 밑줄 다이어트, 음성적 독해 차단","signs":["거의 모든 문장에 밑줄이 그어져 있다","밑줄 친 곳을 봐도 왜 쳤는지 기억 안 난다","읽고 나면 글자는 봤는데 내용이 안 남는다"],"tags":["독해","집중","선지"]},{"symptom":"내용 일치 문제에서 선지 다섯 개가 다 맞는 말 같다. 결국 1~5번을 다 지문과 대조하다 시간만 까먹고, 두 개 중에 헷갈려 찍는다.","area":"비문학","cause":"선지의 핵심어를 먼저 규정하지 않고 막연한 인상으로 대조한다. 평가원 내용 일치 함정은 거의 \u0027주체 바꿔치기·정도 과장·인과 뒤집기\u0027 세 가지인데, 이 패턴을 의식하지 않으면 표면이 비슷한 선지에 다 속는다.","fix_summary":"선지의 핵심어를 짚고 지문의 해당 위치로만 가서 세 가지 함정 패턴으로 검증하라.","fix_steps":["선지를 읽자마자 \u0027이 선지가 묻는 핵심어(주어·대상)가 무엇인가\u0027를 한 단어로 규정한다.","지문 전체를 다시 훑지 말고, 그 핵심어가 정의·설명된 위치로 곧장 간다.","세 가지 함정으로 점검한다: 주어/대상 바꿔치기, \u0027항상·모두·반드시\u0027식 정도 과장, 원인-결과 뒤집기.","지문에 근거 문장이 아예 없으면 \u0027없던 내용 추가\u0027로 보고 옳지 않은 선지로 처리한다."],"related":"선지 역추적, 빈출 함정 패턴","signs":["선지를 읽고 \u0027어디서 봤더라\u0027 하며 지문 전체를 다시 훑는다","\u0027항상·모두·반드시·~만\u0027 같은 단어를 그냥 지나친다","직접 나온 내용인지 살짝 비튼 내용인지 구분이 안 된다"],"tags":["선지","독해","기출"]},{"symptom":"추론 문제에서 그럴듯한 선지를 골랐다가 틀린다. 답지를 보면 \u0027지문 근거를 넘어선 비약\u0027이라는데, 왜 비약인지 잘 모르겠다.","area":"비문학","cause":"추론을 \u0027내 상식으로 그럴듯한 것 고르기\u0027로 착각한다. 추론 정답은 지문에 직접 안 쓰였어도 지문 근거에서 논리적으로 따라 나와야 하는데, 상식으로 채우면 근거 없는 일반화(비약)에 걸린다.","fix_summary":"선지마다 \u0027이걸 뒷받침하는 지문 문장이 어디냐\u0027를 반드시 짚고, 못 짚으면 버려라.","fix_steps":["각 선지를 보고 \u0027이 진술의 근거가 되는 지문 문장이 어디인가\u0027를 손가락으로 짚어 본다.","근거 문장을 못 찾으면 \u0027정보 부족(단서 없음)\u0027으로 보고 제외한다.","근거는 있는데 범위를 넘어 일반화했으면 \u0027비약\u0027으로 보고 제외한다.","\u0027가능(~할 수 있다)\u0027과 \u0027필연(반드시 ~한다)\u0027을 구분해, 가능성만 말한 걸 단정한 선지를 거른다.","상식적으로 맞아도 지문 근거가 없으면 답이 될 수 없음을 원칙으로 고정한다."],"related":"선지 역추적, 비약/정보부족 구분","signs":["\u0027~일 것이다·~할 수 있다\u0027 선지에서 자주 틀린다","그럴듯하고 상식에 맞으면 정답으로 고르는 편이다","지문 근거 유무보다 \u0027말이 되는지\u0027로 판단한다"],"tags":["선지","독해","추론","기출"]},{"symptom":"지문은 안 어려운데 \u003c보기\u003e 적용 문제만 나오면 막힌다. 새 사례를 보면 지문 원리를 어떻게 붙여야 할지 멍해지고, 시간도 확 늘어진다.","area":"비문학","cause":"지문에서 \u0027원리/기준/관계\u0027를 한 줄로 추출하지 않은 채 \u003c보기\u003e로 넘어간다. \u003c보기\u003e 적용은 \u0027지문 정보로 보기 정보를 해석하는 힘\u0027을 보는 고난도 변별 유형이라, 원리를 명시적으로 잡고 한 단계씩 대입하지 않으면 무너진다.","fix_summary":"지문 원리를 한 줄로 규정한 뒤, 보기 상황에 한 단계씩 대입해 결과를 직접 도출하고 선지와 대조하라.","fix_steps":["지문에서 적용에 쓰일 핵심 원리·기준·관계를 한 줄로 적거나 머릿속에 고정한다.","\u003c보기\u003e를 읽으며 그 사례·도표·관점이 지문의 어느 개념에 대응하는지 1:1로 매핑한다.","지문 원리를 보기 상황에 한 단계씩 대입해 결과(방향·값)를 직접 도출한 뒤 선지를 본다.","선지는 \u0027지문 원리+보기 정보\u0027를 모두 충족해야 정답임을 기억하고, 한쪽만 맞는 함정을 경계한다.","비례/증감 관계는 변수를 실제로 움직여 방향을 확인하고, 시간이 많이 드는 유형이므로 세트 뒤로 배치한다."],"related":"\u003c보기\u003e 적용 절차, 변수 방향성 확인","signs":["지문은 쉬웠는데 보기 문제만 자꾸 틀린다","보기를 읽어도 지문의 어디와 연결되는지 모르겠다","지문 내용은 맞고 보기 해석만 틀린(혹은 그 반대) 선지에 자주 걸린다"],"tags":["보기","독해","선지","시간"]},{"symptom":"경제·과학의 계산·수치 문제만 나오면 패닉이 온다. 본문 공식을 처음부터 이해하려 붙잡다 시간을 다 쓰고, 정작 계산은 시작도 못 한다.","area":"비문학","cause":"수식·세부 수치(3~4층위 정보)를 읽을 때 다 이해·암기하려 한다. 평가원은 수식 같은 정보를 계산 문항에서 쓰라고 명확히 제시하므로, 읽을 때는 위치만 표시하고 문항에서 회귀해 대입하면 되는데 이 분리를 못 한다.","fix_summary":"수식은 읽을 때 위치만 남기고, 계산 문항에서 한 번만 회귀해 대입하라. 방향성으로 먼저 소거한다.","fix_steps":["본문의 공식·수치 문장은 이해하려 멈추지 말고 밑줄+위치 표시만 하고 통과한다.","변수 간 비례/반비례 관계를 발견하면 즉시 화살표로 메모한다(예: 환율↑→수출↑).","계산 문항을 풀 때 비로소 표시해둔 수식 위치로 한 번 회귀한다.","정밀 계산 전에 비례/반비례 방향만으로 틀린 선지부터 소거한다.","남은 선지만 실제 값을 대입해 확인한다."],"related":"정보 층위화, 변수 방향 소거","signs":["수식 문장에서 그 자리에 완벽히 이해하려고 멈춰 선다","계산 문제에서 본문 수식을 어디서 봤는지 못 찾아 헤맨다","방향만으로 소거되는 선지인데 끝까지 정밀 계산을 한다"],"tags":["시간","선지","추론"]},{"symptom":"여러 대상을 비교하는 지문에서 A와 B가 헷갈려 \u0027A의 특징을 B에 붙인\u0027 선지에 매번 속는다. 읽을 땐 알았는데 선지에서 살짝 뒤바꿔 놓으면 맞는 줄 알고 넘어간다.","area":"비문학","cause":"둘 이상 대상이 나올 때 비교 구조로 전환하지 않고 순서대로만 읽는다. 비문학 문항 다수가 비교·대조 판단이고 차이점이 가장 선지화되기 좋아서, 비교 축과 차이 지점을 미리 잡아두지 않으면 교차 함정(A↔B 바꿔치기)에 걸린다.","fix_summary":"대상이 둘 이상이면 즉시 비교 축을 잡고 차이 지점을 표시한 뒤, \u0027A↔B 바꿔치기\u0027 함정부터 검증하라.","fix_steps":["둘 이상의 대상이 등장하면 \u0027이건 비교 구조\u0027라고 인식을 전환한다.","비교 기준(축)을 명확히 잡는다(예: \u0027~의무를 지는가\u0027로 유형 구분).","대상별로 공통점은 묶고, 차이가 생기는 지점에 [ ]나 화살표로 대조를 표시한다.","선지를 볼 때 \u0027A의 특징을 B로 서술\u0027한 교차 함정을 가장 먼저 검증한다.","공통점을 차이점으로, 차이점을 공통점으로 바꿔 쓴 선지도 함께 점검한다."],"related":"공통점·차이점 비교 독해, 비교/대조 판단","signs":["둘 이상 대상이 나와도 비교 축을 따로 잡지 않는다","\u0027A는 ~하고 B는 ~한다\u0027 선지에서 한쪽만 보고 판단한다","공통점-차이점을 뒤바꿔 쓴 선지를 못 잡는다"],"tags":["선지","독해","비교"]},{"symptom":"어휘 문맥 의미 문제(밑줄 친 단어, 바꿔 쓰기)에서 사전적 뜻으로 골랐다가 틀린다. 아는 단어인데도 그 문장에서 어떤 의미로 쓰였는지 따지지 않고 익숙한 뜻으로 넘긴다.","area":"비문학","cause":"단어 의미를 그 문장에서의 쓰임이 아니라 사전적·습관적 의미로 판단한다. 어휘 문맥 문제는 다의어가 그 문장에서 어떤 의미로 기능하는지를 묻는데, 바꿔 넣어 검증하는 절차를 생략하면 익숙한 뜻에 끌려간다.","fix_summary":"선지의 단어를 원래 문장에 직접 넣어 문맥이 자연스러운지로 판단하라.","fix_steps":["밑줄 단어가 그 \u0027문장 안에서\u0027 어떤 의미로 쓰였는지 먼저 한 줄로 풀어 본다.","선지의 바꿔 쓴 단어를 원래 문장에 실제로 대입해 읽어 본다.","대입했을 때 문맥상 의미가 그대로 유지되고 자연스러운 선지를 고른다.","사전 1번 뜻이 아니라 \u0027이 문장에서의 쓰임\u0027을 기준으로 다의어를 판단한다."],"related":"어휘 문맥 의미 판단","signs":["밑줄 단어를 보면 곧장 평소 알던 뜻으로 매칭한다","바꿔 쓴 단어를 원래 문장에 넣어 보는 검증을 안 한다","다의어인데 사전 1번 뜻으로만 판단한다"],"tags":["어휘","선지","독해"]},{"symptom":"지문을 다 읽었는데 선지를 보면 \u0027이것도 맞는 것 같고 저것도 맞는 것 같다\u0027. 결국 느낌으로 하나 찍는데 자꾸 틀리고, 다시 풀면 다른 답을 고른다.","area":"문학","cause":"선지를 \u0027나의 감상·느낌\u0027으로 판단한다. 수능 문학은 모든 수험생이 납득할 객관적 근거(본문·보기·각주)가 있어야만 정답이 되는데, 그 근거를 본문에서 짚지 않고 인상으로 결정하니 매번 흔들린다.","fix_summary":"선지마다 \u0027이 진술을 허용하는 본문 근거 문장\u0027을 손가락으로 짚은 뒤에만 O/X를 매겨라.","fix_steps":["선지를 읽고 바로 O/X 하지 말고, \u0027이 말의 근거가 본문 몇 행에 있나\u0027를 먼저 찾는다.","근거 문장을 찾으면 그 자리를 짚고 선지와 1:1로 대조한다.","근거가 본문에 없으면 \u0027없던 상황 추가\u0027로 보고 적절하지 않은 선지로 처리한다.","\u0027느낌상 맞다\u0027는 판단이 든 선지는 반드시 근거 문장을 다시 확인하고, 못 찾으면 보류한다."],"related":"객관적 근거 기반 판단, 허용가능성 판단","signs":["선지를 고를 때 \u0027왠지·느낌상\u0027이 머릿속에 떠오른다","오답 해설을 보면 \u0027그렇게 볼 수도 있네\u0027 하고 납득해버린다","같은 문제를 다시 풀면 다른 답을 고른다"],"tags":["선지","독해","근거"]},{"symptom":"시를 읽으며 \u0027시인이 이걸로 뭘 말하려는 걸까\u0027를 자꾸 깊게 생각한다. 숨은 의미를 찾아 꼬아 읽는데 그게 오히려 오답이고, 정답 선지는 너무 평범해 보여 안 골랐다가 틀린다.","area":"문학","cause":"텍스트에 드러난 정보만 읽지 않고 시인의 창작 의도를 추측해 본문에 없는 의미를 만들어내는 과해석·재창작이다. 평가원은 시인≠화자를 전제로 하므로, 화자가 보여주는 세계 밖으로 나가면 함정에 빠진다.","fix_summary":"화자가 \u0027보여주는 세계 안\u0027에서만 판단하고, \u0027너무 나갔다\u0027 싶은 위화감이 들면 멈춰라.","fix_steps":["한 구절을 읽을 때 \u0027여기 적힌 사실\u0027과 \u0027내가 덧붙인 추측\u0027을 분리한다.","선지가 본문 근거를 넘어 확대·심화 해석했는지 \u0027이거 너무 간 거 아니야?\u0027 하고 점검한다.","틀린 선지를 \u0027주제 이탈 / 없던 상황 추가 / 과해석\u0027으로 분류해 위화감 감각을 키운다.","정답이 \u0027너무 평범해서\u0027 안 골랐던 문제를 모아, 평가원 정답은 본문에서 바로 따라 나옴을 확인한다."],"related":"사실만 추출하기, 과해석·재창작 차단","signs":["한 구절을 보고 본문에 없는 의도나 배경을 상상해 채운다","본문 근거를 넘어 한 단계 더 나간 해석을 한다","정답 선지가 \u0027너무 평범한데?\u0027 싶어 일부러 안 골랐다"],"tags":["독해","화자","추론"]},{"symptom":"시를 읽고 나면 분위기는 어렴풋이 느껴지는데, 화자가 어디서 뭘 하는지, 슬픈 건지 그리운 건지 정확히 못 잡겠다.","area":"문학","cause":"정서·분위기 같은 인상부터 잡으려 해서 화자가 처한 상황(공간·시간·행동)이라는 사실 토대가 비어 있다. 토대가 없으니 정서 판단이 흔들리고, 특히 정서가 변하는 지점(출제 1순위)을 놓친다.","fix_summary":"정서보다 먼저 \u0027화자가 어디서 언제 무엇을 하는가\u0027를 사실로 정리하고, 정서가 바뀌는 지점을 따로 표시하라.","fix_steps":["읽으면서 공간(어디)·시간(언제)·행동(무엇을)을 텍스트 그대로 메모한다.","그 위에 직접적 정서 표현을 1차 근거로 얹어 \u0027화자=어떤 상황의 어떤 심정\u0027을 한 문장으로 정리한다.","정서나 상황이 변하는 지점에 별도 표시를 하고 변화의 원인을 함께 잡는다.","정서 선지는 \u0027변화 전인지 후인지\u0027를 구분해, 선지가 어느 시점을 말하는지 확인한 뒤 판단한다."],"related":"화자 중심 사실 독해, 정서·시공간·행동 마킹","signs":["정서·태도 문제에서 비슷한 두 선지 사이를 늘 헤맨다","정서가 변하는 시인데 변화 전 정서로 답을 골라 틀린다","\u0027화자가 어떤 상황이냐\u0027를 한 문장으로 요약 못 한다"],"tags":["화자","정서","변화지점","독해"]},{"symptom":"현대시 첫 행부터 한 줄씩 완벽히 해석하려다 앞에서 막혀 끝까지 못 가고, 시간만 흘러 주제를 못 잡는다.","area":"문학","cause":"함축적인 시를 비문학처럼 순차적으로 정밀 분석하려 한다. 시는 주제를 먼저 잡아야 세부 시어가 풀리는데, 주제 없이 첫 행부터 파고들면 해석이 안 되고 시간만 잃는다.","fix_summary":"처음엔 가볍게 한 번 훑어 큰 의미만 잡고, 특히 마지막 행에서 주제가 수렴되는지 보라.","fix_steps":["시를 가볍게 한 번 훑어 전체 분위기와 큰 의미만 잡는다(첫 행부터 정밀 해석 금지).","결말부 5~6행에 주목한다. 화자의 최종 정서·주제가 여기로 모이는 경우가 많다.","\u003c보기\u003e가 있으면 읽어 출제자의 해석 관점을 확보하고, 각주도 본문에 대입한다.","잡은 주제를 기준으로 세부 시어·구절을 다시 보며 문제를 푼다. 모르는 시어에서 멈추지 말고 주제를 먼저 잡은 뒤 돌아와 채운다."],"related":"현대시 풀이 루틴, 끝부분 수렴 확인","signs":["첫 연에서 한 시어 뜻을 두고 오래 멈춰 있다","시 한 편 읽는 데 3분 이상 걸린다","다 읽었는데 \u0027주제가 뭐였지\u0027 하면 답이 안 나온다"],"tags":["주제","시간","독해","갈래"]},{"symptom":"고전시가만 나오면 모르는 옛말과 한자에서 멈춰버린다. 뜻을 몰라 흐름이 끊기고, 결국 정서도 주제도 못 잡고 시간만 쓴다.","area":"문학","cause":"모든 구절을 100% 해석하려는 집착과 각주 미활용이다. 각주는 출제자가 직접 준 객관적 근거인데 흘려보고 추측으로 해석하며, 모르는 어휘에서 멈춰 흐름과 시간을 동시에 잃는다.","fix_summary":"각주부터 본문에 대입하고, 끊지 않고 통독해 정서·처지만 잡아라. 완벽 해석은 버린다.","fix_steps":["각주(주석)를 먼저 읽고 해당 자리에 대입한다. 모르는 어휘라도 추측보다 각주를 우선한다.","빈출 한자·관용표현·반복 주제(연군지정/자연친화/안빈낙도)를 미리 정리해둔다.","끊지 않고 끝까지 통독해 전체 분위기를 먼저 잡는다. 모르는 구절은 앞뒤 맥락으로 추측하고 넘어간다.","화자의 처지·정서·지향(긍정/부정)만 확보되면 충분하다고 보고 문제로 넘어간다.","연계 빈출작은 줄거리·주제를 사전 학습한다."],"related":"고전시가 통독 + 각주 활용, 관습적 상징","signs":["각주가 있는데도 본문 옆 각주를 잘 안 본다","모르는 단어 하나에 막혀 다음 행으로 못 넘어간다","\u0027완벽히 해석해야 풀 수 있다\u0027고 생각해 한 구절씩 다 번역하려 한다"],"tags":["고전","어휘","각주","시간"]},{"symptom":"표현상·서술상 특징 문제가 제일 헷갈린다. 선지의 기법 용어가 본문에 쓰인 건 맞는 것 같은데, 그다음을 어떻게 판단할지 모르겠다.","area":"문학","cause":"선지를 \u0027기법이 쓰였는가\u0027와 \u0027그 효과 진술이 맞는가\u0027 두 조건으로 분리하지 않고 한 덩어리로 판단한다. 이 유형 오답의 전형은 \u0027기법은 맞지만 효과 진술이 틀림\u0027이라, 한쪽만 보면 함정에 걸린다.","fix_summary":"선지를 (1)기법이 실제 쓰였나 (2)효과 진술이 맞나 두 조건으로 쪼개, 하나만 틀려도 오답 처리하라.","fix_steps":["선지의 개념어를 본문에서 실제 쓰인 자리와 1:1로 짚는다(없으면 그 자리에서 오답).","기법이 쓰인 게 맞으면, 선지 뒷부분의 효과·의미 진술이 그 자리에 맞는지 따로 확인한다.","두 조건 중 하나라도 어긋나면 적절하지 않은 선지로 처리한다.","빈출 개념어(선경후정·수미상관·반어·역설·설의·도치·대구·색채대비·공감각·편집자적 논평 등)를 예문과 1:1로 묶어 정리해둔다."],"related":"표현상/서술상 특징 두 조건 검증","signs":["\u0027시선의 이동에 따라 시상을 전개한다\u0027 같은 선지에서 기법 부분만 보고 정한다","기법이 쓰였으면 그 선지를 맞다고 넘긴다","개념어가 본문 어디에 해당하는지 짚지 못한다"],"tags":["선지","개념어","독해"]},{"symptom":"문학 \u003c보기\u003e 문제에서 선지와 지문을 한 글자씩 비교하느라 시간을 엄청 쓴다. 그렇게 꼼꼼히 보는데도 정답률이 안 오른다.","area":"문학","cause":"\u003c보기\u003e를 출제자가 준 해석 기준틀로 쓰지 않고, 선지를 미세 표현 차이로 정밀 대조하느라 무의미한 왕복을 한다. 평가원 \u003c보기\u003e 오답 대부분은 미세 차이가 아니라 주제 이탈·과해석 같은 명백한 어긋남으로 만들어진다.","fix_summary":"\u003c보기\u003e를 먼저 읽어 해석 관점을 잡고, 선지는 \u0027내용 일치+과해석 여부\u0027 수준에서 빠르게 갈라라.","fix_steps":["\u003c보기\u003e를 먼저 읽어 출제자의 해석 관점·기준점(예: 자연vs문명, 생명력)을 확보한다.","그 기준점이 본문 어디서 나타나는지 짚어 확인한다(보기→본문 대조).","선지는 보통 \u0027본문 근거(앞)+해석(뒤)\u0027 구조이므로, 앞부분이 본문과 맞는지 보고 뒷부분 해석이 \u003c보기\u003e 관점을 벗어나 과하게 나갔는지 본다.","객관적으로 틀리지 않은 선지에는 과하게 고민하지 말고 넘어간다."],"related":"\u003c보기\u003e 기준점 활용, 과해석 감지","signs":["\u003c보기\u003e 한 문항에 5분 넘게 쓴다","선지와 본문 사이를 여러 번 왕복하며 다시 읽는다","\u003c보기\u003e를 대충 보고 본문 인상만으로 선지를 판단한다"],"tags":["보기","선지","시간"]},{"symptom":"(가)(나) 두 작품이 묶여 나오면 무너진다. \u0027(가)는 ~하고 (나)는 ~한다\u0027 식 비교 선지에서 한 작품만 맞춰보고 답을 골라 틀린다.","area":"문학","cause":"갈래복합을 작품별로 분리·비교 검증하지 않는다. 작품을 섞어 읽거나 비교 선지에서 한 작품만 확인하면, 한쪽은 맞고 한쪽은 틀린 선지를 거르지 못한다. 갈래복합은 평가원 최다·최고난도 형태라 여기서 가장 자주 틀린다.","fix_summary":"공통 화제를 축으로 작품별 화자·정서·표현을 따로 정리하고, 비교 선지는 작품마다 따로 검증하라.","fix_steps":["먼저 두(세) 작품을 관통하는 공통 화제(자연·시간·삶의 태도·소재 등)를 잡는다.","각 작품의 화자·정서·태도·표현을 작품별로 따로(머릿속 표로) 분리 정리한다.","비교 선지는 (가)에 대해 한 번, (나)에 대해 한 번 각각 따로 검증한다.","한쪽만 맞고 한쪽이 틀리면 그 선지 전체를 적절하지 않은 것으로 처리한다.","갈래마다 주목 포인트가 다름을 기억한다(시=정서·표현, 소설=사건·인물, 수필=교훈)."],"related":"갈래복합 작품별 분리·비교 검증","signs":["비교 선지에서 (가)만 확인하고 (나)는 안 보고 넘어간다","두 작품을 섞어 읽어 어느 게 어느 작품 내용인지 헷갈린다","갈래가 섞이면 무엇을 봐야 할지 모른다"],"tags":["갈래","비교","선지","보기"]},{"symptom":"\u0027험한·검은·병든\u0027 같은 부정적 단어는 자동으로 부정적 의미로, 밝은 단어는 긍정으로 본다. 그렇게 풀면 자꾸 함정에 걸린다.","area":"문학","cause":"시어 의미를 표면 어감으로 단정한다. 시어의 의미는 어감이 아니라 화자의 태도가 결정하는데, 이를 놓치면 대립 구도와 화자의 지향(=주제)을 못 잡아 함정 선지에 걸린다.","fix_summary":"시어를 화자의 태도에 따라 긍정/부정으로 범주화해 대립 구도를 세우고, 화자가 지향하는 쪽을 주제로 잡아라.","fix_steps":["시어 의미는 시 바깥 상식이 아니라 시 내부 맥락(화자의 태도)에서 찾는다.","각 시어를 화자가 긍정적으로 보는지/부정적으로 보는지로 분류한다(어감으로 단정 금지).","\u003c보기\u003e가 있으면 그 기준점(현실vs이상, 자연vs문명 등)으로 범주를 설정한다.","대립 구도가 드러나면 화자가 지향하는 쪽을 곧 주제로 확정하고, 시어 의미 선지를 이 기준으로 판단한다."],"related":"긍정/부정 범주화, 화자 지향 = 주제","signs":["시어의 표면 어감만으로 긍정/부정을 단정한다","화자가 어느 쪽을 지향하는지 묻는 문제에서 자주 틀린다","주제를 한마디로 못 잡아 시어 의미 문제에서 헤맨다"],"tags":["시어","범주화","주제","화자"]},{"symptom":"다 아는 내용인데 채점하면 한두 개씩 꼭 틀린다. 보면 \u0027적절하지 않은 걸 고르랬는데 적절한 걸 골랐네\u0027 하는 경우가 대부분이다.","area":"화작","cause":"발문이 \u0027적절한 것\u0027을 묻는지 \u0027적절하지 않은 것\u0027을 묻는지 풀이 도중에 헷갈린다. 화작은 절대 난도가 낮아 실력보다 발문 착각 같은 단순 실수에서 점수가 깎인다.","fix_summary":"지문 읽기 전에 발문의 적절/부적절을 시각 표시로 못박고 들어가라.","fix_steps":["지문 읽기 전 한 세트의 모든 발문을 먼저 한 번 훑는다.","\u0027적절한 것\u0027에는 동그라미, \u0027적절하지 않은\u0027 것에는 세모·별 같은 다른 표시를 친다.","발문에 등장한 핵심어(인물명, \u0027효과\u0027, \u0027자료\u0027, 특정 문단 지정 등)에도 표시해 찾을 대상을 고정한다.","답을 적기 전 발문 표시를 다시 보고 방향(맞는 걸 남기는지/틀린 걸 남기는지)을 확인한다."],"related":"진입 전 발문 표시 + 문단번호 매기기","signs":["채점에서 발문 방향을 거꾸로 본 실수가 반복된다","명백히 다른 선지를 잘 찾고도 답을 반대로 적는다","발문을 대충 읽고 바로 선지로 내려간다"],"tags":["발문","선지","실수통제"]},{"symptom":"조건 작문이나 자료 활용 문제에서 \u0027이거 맞네\u0027 하고 골랐는데 오답이다. 해설을 보면 조건 하나를 빠뜨렸거나 효과 중 하나만 보고 골랐다고 한다.","area":"화작","cause":"발문이 요구하는 조건·효과가 둘 이상인데 일부만 충족한 선지를 정답으로 착각한다. \u0027모든 조건을 다 충족해야 정답\u0027인 유형의 함정에 걸린 것이다.","fix_summary":"조건과 효과를 손으로 분해해 체크리스트로 만들고 전부 충족하는 선지만 남겨라.","fix_steps":["발문이 요구하는 조건·효과를 모두 밑줄 긋고 번호를 매겨 분해한다(비유 포함, 청유형, 대조 구조, 효과1·효과2 등).","선지마다 분해한 조건을 하나씩 대조하며 충족 여부를 체크한다.","조건이 하나라도 빠진 선지는 즉시 탈락시킨다(부분 충족은 오답).","\u0027특정 파트가 어떤 효과를 낸다\u0027는 연결형은, 그게 실제 그 파트의 효과인지까지 따진다."],"related":"조건 작문·자료 활용 체크리스트화","signs":["효과가 두 개 이상 나열된 선지를 첫 효과만 보고 고른다","조건 작문·자료 활용 유형에서 자주 틀린다","조건을 머릿속으로만 떠올리고 손으로 분해해 본 적이 없다"],"tags":["조건","자료","선지","체크리스트"]},{"symptom":"자료(그래프·통계·인터뷰) 활용 문제에서 그럴듯한 선지를 골랐는데 틀린다. 자료를 살짝 부풀려 해석한 선지에 자꾸 넘어간다.","area":"화작","cause":"자료가 실제로 뒷받침할 수 있는 범위를 넘어선 해석을 자료 근거로 착각하는 과잉해석이다. 자료 종류별로 \u0027무엇까지 말할 수 있는가\u0027를 규정하지 않고 인상으로 판단한다.","fix_summary":"자료마다 \u0027뒷받침 가능한 범위\u0027를 먼저 못박고, 그 범위를 넘는 선지는 부적절로 걸러라.","fix_steps":["자료를 볼 때 종류(그래프·표·인터뷰·전문가 견해·사례)별로 \u0027근거가 될 수 있는 범위\u0027를 한 줄로 규정한다.","선지를 \u0027자료를 왜곡 없이 반영했는가\u0027와 \u0027글의 목적·맥락에 부합하는가\u0027 두 축으로 본다.","자료 범위를 넘어선 일반화·인과·전망을 담은 선지는 부적절로 표시한다.","둘 이상의 자료를 묶어 쓰는 선지는 결합 논리(두 자료가 그 결론을 함께 받쳐주는지)까지 점검한다."],"related":"자료 범위 규정, 과잉해석 차단","signs":["\u0027~할 것이다·~때문이다\u0027처럼 자료보다 한 발 더 나간 선지에 끌린다","자료에 없는데 \u0027상식적으로 맞으니까\u0027 골라 버린다","자료의 종류와 한계를 의식하지 않고 내용만 본다"],"tags":["자료","선지","보기","추론"]},{"symptom":"화작에서 시간이 너무 오래 걸린다. 내용·말하기 방식·보기 문제를 따로 풀려다 같은 지문을 두세 번 읽게 되고, 비문학에 쓸 시간이 모자란다.","area":"화작","cause":"세 문제를 별개로 처리하려고 지문을 반복해 읽는 회독 낭비다. 한 번의 정독에 세 문제 근거가 모두 들어 있다는 점을 활용하지 못한다.","fix_summary":"내용 문제를 중심으로 한 번 정독하면서 방식·보기 문제를 그 안에서 동시에 처리하라.","fix_steps":["세 문제 성격을 먼저 규정한다: 내용·사실관계=정독 풀가동, 말하기 방식=정독 중 체크, 보기 적용=정독 후 즉답.","말하기 방식 선지에서 판단 키워드(질문, 자문자답, 출처 언급, 비유, 실천 권유 등)만 미리 뽑아 띄운다.","내용 문제 선지를 1번부터 읽으며 지문을 한 번 정독하고, 각 선지가 몇 번째 문단·부분에 있는지 위치로 대조한다.","정독 중 방식 키워드가 나오면 그 자리에서 방식 문제 답을 확정하고, 정독 후 보기 문제는 파악한 사실관계로 즉답한다."],"related":"정독 1회 통합 처리, 메인·간단·즉답 배분","signs":["같은 화법 지문을 문제마다 새로 읽는다","화작 한 세트에 5분 이상 쓴다","모든 문제를 같은 강도로 정독한다"],"tags":["시간","회독","독해"]},{"symptom":"작문 문제에서 내용이 그럴듯하면 다 맞는 것 같다. 표현·내용이 글에 어울리는지만 따지다 \u0027독자에 안 맞는 용어\u0027나 \u0027매체에 안 맞는 형식\u0027 같은 함정을 놓친다.","area":"화작","cause":"글의 목적·예상 독자·매체라는 작문 맥락을 판단 기준으로 잡지 않고 표면적인 내용 적절성만 본다. 평가원 작문은 맥락 고려를 직접 묻는데 그 기준이 비어 있다.","fix_summary":"작문 지문 첫머리에서 목적·예상 독자·매체 3요소를 먼저 표시하고 모든 판단의 상위 기준으로 삼아라.","fix_steps":["글쓰기 상황 첫머리에서 \u0027왜 쓰는가(목적)·누구에게(예상 독자)·어디에 싣는가(매체)\u0027를 찾아 표시한다.","자료 활용·표현 선정·고쳐쓰기 선지를 볼 때 이 3요소 중 무엇을 위반했는지로 적절/부적절을 가른다.","독자 수준에 안 맞는 용어, 매체에 안 맞는 형식, 목적과 어긋난 내용은 부적절로 거른다.","내용이 그럴듯해도 맥락 위반이면 탈락이라는 점을 의식하며 검토한다."],"related":"작문 맥락 3요소(목적·독자·매체)","signs":["선지의 내용만 보고 맥락(독자·매체·목적)을 따져본 적이 없다","\u0027전문 용어로 권위를 높인다\u0027 같은 선지가 왜 틀린지 헷갈린다","작문 지문에서 목적·독자·매체를 표시하지 않고 바로 읽는다"],"tags":["맥락","작문","선지","독자"]},{"symptom":"글쓰기 계획·점검표 대응 문제에서 \u0027계획에 있는데 글에 없는\u0027 경우는 잘 잡는데, \u0027글에 있는데 계획에 없는\u0027 경우를 놓쳐 틀린다.","area":"화작","cause":"계획·초고 대조를 한 방향으로만 한다. 양방향(계획→글, 글→계획) 불일치를 모두 점검하지 않아 단골 오답에 걸린다.","fix_summary":"계획·점검 항목과 초고를 양방향으로 1:1 대조하라.","fix_steps":["제시된 글쓰기 계획·자기 점검 항목을 번호로 분해한다.","각 항목이 초고(완성 글)에 실제로 반영됐는지 1:1로 대조한다.","\u0027계획엔 있으나 글에 없음\u0027과 \u0027글엔 있으나 계획에 없음\u0027 두 방향을 모두 확인한다.","점검 문항이 고쳐쓰기와 묶이면 \u0027점검 결과→수정 방향\u0027이 정합적인지까지 본다."],"related":"계획·점검표 1:1 양방향 대조","signs":["계획에 있는 항목이 글에 빠졌는지만 확인한다","글에만 등장하고 계획엔 없던 활용을 적절로 착각한다","계획 항목을 번호로 분해하지 않고 눈으로만 훑는다"],"tags":["작문","계획점검","선지","대조"]},{"symptom":"화작이 예상대로 안 풀리면 멍해진다. 한 문제에 막히면 멘탈이 흔들려 뒤의 비문학·문학 지문까지 줄줄이 무너진다.","area":"화작","cause":"쉬운 영역에서 막혔다는 당혹감에 말려들어 시간 압박과 불안이 증폭된다. 예측대로 안 풀려도 흔들리지 않는 운영 루틴이 없다.","fix_summary":"막히면 안전장치만 챙기고 넘어가는 루틴을 미리 정해 흔들림을 차단하라.","fix_steps":["화작은 일정 분량 기준으로 일관된 페이스로 푼다고 미리 정하고, 한 세트에 과하게 매이지 않는다.","시간이 부족하면 핵심 확인 포인트만 빠르게 보되, 함정이 있을 수 있으니 파트를 통째로 건너뛰지는 않는다.","찍더라도 발문(적절/부적절)을 다시 확인하고 명백한 오답 1~2개는 소거한 뒤 찍는다.","막히는 문제는 표시만 해두고 넘긴 뒤 전체를 돌고 와서 다시 본다."],"related":"시간 압박 안전장치, 막히면 넘기기","signs":["쉬운 화작에서 막히면 \u0027망했다\u0027 싶어 집중이 흐트러진다","한 문제를 붙잡다 전체 시간 계획이 무너진다","시간이 없을 때 한 파트를 통째로 건너뛰어 함정에 걸린다"],"tags":["멘탈","시간","집중"]},{"symptom":"책상에는 오래 앉아 있었는데 \u0027오늘 뭘 제대로 했지?\u0027 하면 떠오르는 게 없다. 시간은 채웠는데 머리에 남은 게 없고, 하루 17시간을 앉아도 점수가 안 오른다.","area":"공통·태도","cause":"\u0027몇 시간 했나\u0027로 공부를 측정하면 집중력이 흐트러진 채 자리만 지켜도 \u0027했다\u0027고 착각한다. 실질 학습량은 앉은 시간이 아니라 몰입한 분량으로 결정되는데, 시간 채우기는 이 둘을 분리해버린다.","fix_summary":"측정 단위를 \u0027앉은 시간\u0027에서 \u0027몰입해 끝낸 분량\u0027으로 바꿔라.","fix_steps":["공부 시작 전에 \u0027오늘 끝낼 분량\u0027(예: 비문학 1지문+해설 교정)을 먼저 정한다.","그 분량을 끝낼 때까지 멈추지 않고, 걸린 시간은 \u0027기록만\u0027 한다(시간으로 압박하지 않는다).","하루를 마칠 때 \u0027몇 시간 앉아 있었나\u0027가 아니라 \u0027몰입해 끝낸 분량이 며칠 치인가\u0027로 평가한다.","밀어붙이기 버거우면 단위를 잘게 쪼개 \u0027한 지문\u0027처럼 누구나 끝낼 수 있는 크기로 낮춘다."],"related":"분량 기준 측정, 즉시 교정 루프","signs":["공부 시간은 긴데 끝낸 분량을 세어보면 적다","\u0027오늘 ○시간 했다\u0027는 자주 말하지만 \u0027○지문 끝냈다\u0027는 잘 안 나온다","공부 기록이 시간 단위로만 채워져 있다"],"tags":["시간","집중","계획"]},{"symptom":"공부하다 나도 모르게 폰을 켠다. \u00275분만\u0027 했는데 30분이 지나 있고, 다시 집중하는 데 한참 걸린다. 의지로 참아도 계속 손이 간다.","area":"공통·태도","cause":"스마트폰은 의지력으로 통제하려 할수록 \u0027참기→유혹→실패\u0027에 에너지를 다 쓰게 되는 가장 큰 시간 도둑이다. 문제는 의지가 약한 게 아니라, 손 닿는 거리에 두고 의지에 맡긴 환경 설계다.","fix_summary":"폰은 참는 게 아니라 손이 닿지 않게 물리적으로 격리하라.","fix_steps":["공부하러 갈 때 폰을 집에 두거나 다른 사람에게 맡겨 손에 닿지 않게 한다.","같은 공간에서 공부해야 한다면 폰을 다른 방·가방 깊은 곳 등 \u0027일어나야만 닿는\u0027 위치로 치운다.","중요한 시험을 앞둔 기간에는 인터넷이 안 되는 기기로 바꾸는 것도 방법이다.","쉬는 시간에 자리에서 일어나지 않는다. 자리 이탈이 곧 폰으로 가는 경로다."],"related":"스마트폰 물리 격리, 휴식 시 자리 안 뜨기","signs":["\u0027잠깐만\u0027 하고 켠 폰을 한참 뒤에야 내려놓는다","폰을 책상 위나 주머니 등 손 닿는 곳에 두고 공부한다","집중이 끊길 때마다 가장 먼저 폰부터 확인한다"],"tags":["집중","환경"]},{"symptom":"공부를 시작하려면 막막하다. \u0027개념부터 완벽히 끝내고 시작해야지\u0027 하다가 며칠째 첫 페이지에서 못 나가고, 본격적인 공부는 계속 미뤄진다.","area":"공통·태도","cause":"\u0027완벽히 준비한 뒤 시작\u0027하려는 완벽주의가 시작 자체를 무한정 미루게 만든다. 국어는 지식 쌓기가 아니라 읽기 능력 훈련이라 개념은 핵심만 잡고 풀이 단계에서 계속 보완해야 하는데, 완벽한 준비를 전제로 깔면 출발선을 못 넘는다.","fix_summary":"완벽한 준비를 버리고 핵심만 1회 컴팩트하게 잡은 뒤 일단 풀이로 들어가라.","fix_steps":["개념·어휘는 \u0027진짜 필요한 핵심만\u0027 1회 컴팩트하게 보고, 완벽 이해는 목표에서 뺀다.","부족한 부분은 문제를 풀다 막힐 때마다 그 자리에서 보완한다고 미리 정해둔다.","\u0027완강·완독 후 시작\u0027이 아니라 \u0027오늘 당장 1지문 풀기\u0027를 첫 행동으로 잡는다.","개념서를 다시 펴고 싶어지면, 그건 시작을 미루는 신호로 인식하고 문제로 돌아간다."],"related":"개념 완벽 강박 깨기, 역량평가 관점","signs":["\u0027아직 준비가 안 됐다\u0027며 풀이를 자꾸 미룬다","개념서·인강 앞부분만 반복하고 문제는 거의 안 푼다","\u0027완벽하게 끝내고\u0027라는 말을 자주 한다"],"tags":["계획","완벽주의"]},{"symptom":"응용·심화 문제에서 막히면 \u0027역시 난 머리가 안 되는구나\u0027 싶다. 상위권은 타고난 천재라 술술 푸는 것 같고, 나는 안 될 것 같아 거기서 손을 놔버린다.","area":"공통·태도","cause":"\u0027상위권=천재\u0027라는 착각. 처음 보는 응용 문제에서 막히는 건 상위권에게도 똑같은 기본 상태인데, 이걸 \u0027재능 부족\u0027으로 오해하면 \u0027막힘=중단=포기\u0027로 곧장 이어진다. 국어 고득점은 재능이 아니라 방법과 집중력의 차이다.","fix_summary":"막힘은 누구나 겪는 기본값임을 인정하고 \u0027막힘=중단\u0027 연결을 끊어라.","fix_steps":["\u0027상위권도 첫 응용문제는 다 막힌다\u0027를 사실로 받아들이고, 막힘을 재능 판정이 아니라 정상 과정으로 본다.","막혔을 때 바로 해설로 넘어가지 말고, 정해둔 시간만큼 끝까지 붙들어 본다.","그래도 안 풀리면 해설을 보되 \u0027왜 막혔는지\u0027와 \u0027어디까지 읽었어야 했는지\u0027를 그 자리에서 교정한다.","\u0027난 안 되는 머리\u0027라는 생각이 들면 그건 감정이지 사실이 아니라고 분리해 인식한다."],"related":"재능 착각 깨기, 즉시 교정 루프","signs":["어려운 문제에서 막히면 곧바로 \u0027난 안 돼\u0027라는 생각이 든다","상위권을 보면 \u0027재능이 다르다\u0027고 느낀다","막히는 순간 더 붙들지 않고 바로 답지를 펼친다"],"tags":["멘탈","태도"]},{"symptom":"공부 중 자꾸 잡생각이 들고 멍해진다. 지문을 보며 머릿속으로 생각만 하다 시간이 흐르고, 정신 차리면 한 글자도 처리 못 한 채 같은 줄을 보고 있다.","area":"공통·태도","cause":"보고 \u0027생각부터\u0027 하면 손이 놀고, 손이 노는 순간 잡생각이 비집고 들어와 몰입이 끊긴다. 머리만 굴리는 수동적 상태는 졸음·멍 때림에 취약하다.","fix_summary":"생각부터 하지 말고 핵심을 손으로 먼저 써서 몰입을 강제하라.","fix_steps":["지문·문제를 보면 생각에 들어가기 전에 손부터 움직인다(문단을 짧게 요약해 쓴 뒤 곱씹는다).","한 문단을 읽으면 핵심을 한 문장으로 정리해 메모하며 능동적으로 글에 참여한다.","졸리거나 멍할 때는 의자에 절반만 걸터앉아 긴장을 유지하고, 심하면 잠깐 움직여 각성한다.","두뇌 부담이 큰 자습은 집중 잘 되는 시간대에, 인강은 졸린 시간대에 배치한다."],"related":"쓰면서 읽기, 능동 읽기, 컨디션별 배분","signs":["지문을 읽는데 손은 가만히 있고 머리로만 생각한다","같은 줄·같은 문단을 여러 번 다시 읽는다","공부 중 잡생각·멍 때림으로 시간이 새는 일이 잦다"],"tags":["집중","독해"]},{"symptom":"\u0027오늘 하루 종일 공부해서 전부 다 끝내자\u0027고 거창하게 계획하는데, 막상 시작하면 금방 지쳐 흐지부지된다. 계획이 클수록 손도 못 대고 미뤄진다.","area":"공통·태도","cause":"특히 시작이 어려운 유형에게 \u0027하루 종일·전 분량 완주\u0027 같은 큰 목표는 진입장벽이 너무 높아 거의 실패한다. 부담이 클수록 시작을 못 하고, 실패가 반복되면 자기효능감까지 무너진다.","fix_summary":"큰 목표 대신 \u0027누구나 가능한 10분\u0027으로 진입장벽을 낮춰 작은 성공을 쌓아라.","fix_steps":["\u0027딱 10분만 딴생각 없이 집중\u0027을 목표로 스톱워치를 켜고 시작한다.","10분을 3회 반복해 30분을 채우고, 30분마다 과목을 바꿔 관성으로 집중과 졸음을 동시에 차단한다.","진입기에는 시간을 의도적으로 제한하고, 그 안에서 할 수 있는 만큼만 한 뒤 작은 성공을 기록한다.","궤도에 오르면 10분 단위로 집중 분량과 시간을 단계적으로 늘려 확장한다."],"related":"10분 스몰스텝, 단계적 시간 확장","signs":["계획은 거창한데 실행률은 낮다","\u0027오늘 다 끝내자\u0027고 시작했다가 금방 지쳐 포기한 경험이 잦다","공부를 시작하는 것 자체가 가장 부담스럽다"],"tags":["계획","집중"]},{"symptom":"기출을 분석해야 한다길래 한 지문을 붙잡고 선지마다 근거 찾고 정리하는 데 한 시간씩 쓰는데, 다음 지문에선 또 안 먹힌다. 분석은 열심히 하는데 실력이 느는 느낌이 없다.","area":"기출·운용","cause":"기출을 \u0027거창하게 뜯어내는 분석 과제\u0027로 오해해 한 회독에 모든 걸 끝내려 한다. 실제로 일반화된 독해법은 한 번의 정밀 해부가 아니라 여러 회독에서 자연히 드러나는 \u0027공통점\u0027에서 나온다.","fix_summary":"한 번에 다 뜯지 말고, 회독마다 \u0027이번에 보이는 공통점 하나\u0027만 건져라.","fix_steps":["1회독에 완벽 분석한다는 목표를 버리고, 같은 지문/세트를 여러 번 보는 방식으로 전환한다.","회독마다 질문을 딱 하나로 고정한다: \u0027이번에 새로 보이는 공통점(발문 패턴, 함정 위치, 정답 근거가 놓이는 자리)은 무엇인가\u0027.","드러난 공통점을 한 줄 메모로 누적하고, 그게 다음 지문에 적용할 독해 규칙이 되는지 확인한다.","한 지문에 한 시간씩 쓰는 대신, 짧게 여러 지문을 돌며 같은 공통점이 반복되는지 검증한다."],"related":"다회독으로 공통점 추출","signs":["기출 한 지문에 30분~1시간 이상 쓴다","분석 노트는 두꺼운데 새 지문에서 재현이 안 된다","\u0027분석\u0027과 \u0027풀이\u0027가 머릿속에서 따로 논다"],"tags":["기출","분석강박","독해"]},{"symptom":"문제를 몰아서 풀고 나중에 한 번에 채점한다. 그런데 채점할 때쯤이면 \u0027내가 이걸 왜 골랐더라\u0027 기억이 안 나서, 틀린 이유를 봐도 와닿지 않는다.","area":"기출·운용","cause":"풀이와 채점 사이가 벌어지면 풀 때의 \u0027감\u0027을 재현할 수 없다. 정오만 확인하게 되고, 정작 교정해야 할 \u0027읽을 때의 판단\u0027은 이미 휘발돼 교정 효과가 사라진다.","fix_summary":"감이 살아 있을 때 — 지문/문제 단위로 풀고 곧바로 해설을 확인하라.","fix_steps":["채점 단위를 \u0027시험지 전체\u0027에서 \u0027지문 하나\u0027 또는 \u0027문제 하나\u0027로 잘게 쪼갠다.","한 지문(또는 한 문제)을 풀자마자 해설을 펴서, 정답 여부보다 \u0027내가 잡은 감이 맞았나\u0027를 먼저 따진다.","틀린 문제는 \u0027어디서부터 잘못 읽었나\u0027를, 맞은 문제도 \u0027출제자가 요구한 이해 깊이까지 닿았나\u0027를 그 자리에서 점검한다.","걸린 시간도 매번 같이 기록해 속도 변화를 추적한다."],"related":"즉시 교정 루프, 출제 깊이 보정","signs":["문제를 잔뜩 풀어놓고 채점을 미룬다","채점할 때 \u0027왜 이걸 골랐는지\u0027 기억이 안 난다","오답 노트를 만들어도 같은 유형을 또 틀린다"],"tags":["기출","교정","복습"]},{"symptom":"정답을 맞히면 그 문제는 그냥 넘어간다. 맞았으니 더 볼 게 없다고 생각하는데, 등급은 안 오르고 비슷한 유형에서 또 애매하게 찍어 맞거나 틀린다.","area":"기출·운용","cause":"맞은 문제를 \u0027운으로 맞은 건지, 출제 의도대로 읽어 맞은 건지\u0027 구분하지 않는다. 중상위권과 최상위권의 차이는 지식량이 아니라 \u0027어디까지 읽어야 하는가\u0027를 아는 깊이 인식인데, 맞은 문제를 버리면 그 깊이를 교정할 기회를 놓친다.","fix_summary":"맞은 문제일수록 \u0027제대로 읽어서 맞았나\u0027를 확인하라.","fix_steps":["채점 후 맞은 문제도 해설을 펴고, 내 근거와 해설의 정답 근거가 같은 자리·같은 깊이였는지 대조한다.","애매하게 남기고 골랐거나 소거법으로 맞힌 문제는 \u0027틀린 문제\u0027와 동급으로 분석 대상에 넣는다.","오답 선지가 왜 오답인지까지 설명할 수 있는지 셀프 점검한다(못 하면 덜 읽은 것).","출제자가 요구한 이해 깊이에 내 독해 수준을 맞춘다 — \u0027여기까지면 됐다\u0027의 선을 매번 보정한다."],"related":"맞은 문제 분석, 출제 깊이 보정","signs":["맞은 문제는 해설을 건너뛴다","찍거나 소거로 맞힌 걸 \u0027맞았다\u0027로 친다","오답 선지가 왜 틀렸는지 설명 못 한다"],"tags":["기출","선지","교정"]},{"symptom":"평가원 기출은 다 본 것 같고 식상해서, 요즘은 사설 모의고사와 심화서 위주로 푼다. 새 지문이 많아 도움 되는 것 같은데, 정작 평가원 모의를 보면 또 흔들린다.","area":"기출·운용","cause":"사설·심화서·브랜드에 휘둘려 \u0027답 고르는 기준\u0027을 사설 출제자에 맞춰버린다. 정답 근거와 요구되는 이해 깊이를 정확히 담은 건 검증된 평가원 기출뿐이라, 사설 의존은 독해 기준 자체를 비틀어 놓는다.","fix_summary":"중심은 평가원 기출 — 사설은 양 채우기가 아니라 보조로만 쓴다.","fix_steps":["학습 기준선은 평가원 기출에 둔다(답 고르는 기준과 요구 깊이를 잡아주는 건 기출뿐).","\u0027식상하다\u0027면 다 풀었다는 뜻이 아니라, 안 보고도 설명할 수준까지 체화됐는지부터 점검한다.","사설·심화서는 기출로 잡은 기준을 흔들지 않는 선에서, 신유형 적응이나 양 보강 용도로만 제한 투입한다.","사설 해설의 정답 근거가 평가원 기준과 어긋나면 평가원 기준을 우선한다."],"related":"평가원 기출 중심","signs":["요즘 푸는 게 사설·심화서 위주다","\u0027기출은 다 봤다\u0027며 안 본다","사설은 잘 맞는데 평가원 모의에서 흔들린다"],"tags":["기출","교재"]},{"symptom":"인강 하나 제대로 끝낸 적이 없다. 한 강 듣고 복습을 1시간씩 하다 진도가 안 나가고, 결국 중간에 지쳐 강의를 못 끝낸다. 강의는 늘 \u0027듣다 만\u0027 상태다.","area":"기출·운용","cause":"개념 강의 복습을 \u0027완벽히\u0027 하려다 복습 시간이 비대해져 완강 자체에 실패한다. 완강이 최우선인데 과한 복습 욕심이 진도를 막아 \u0027시작만 하고 못 끝내는\u0027 패턴을 만든다.","fix_summary":"복습은 10분 안에 끝내고 완강을 최우선에 둬라.","fix_steps":["개념 강의 복습은 10분(최대 20분)으로 시간을 못박는다. 강사가 강조한 포인트만 훑고, 강의 중 문제는 풀이 구경만 한다.","\u0027완벽한 복습\u0027이 아니라 \u0027강의를 끝까지 듣는 것\u0027을 1순위로 삼는다(부족분은 풀이 단계에서 보완).","문제풀이 강의는 한 지문/한 문제를 직접 풀고 즉시 해당 해설 강의를 듣는 식으로 끊어 간다.","인강은 두뇌 부담이 적으므로 졸린 시간대에 배치하고, 집중 잘 되는 시간대는 자습에 쓴다."],"related":"복습 10분 컷, 완강 우선, 컨디션별 배분","signs":["한 강 복습에 1시간씩 쓴다","끝까지 들은 강의가 거의 없다","집중 잘 되는 시간에 인강을 본다"],"tags":["인강","교재","시간"]},{"symptom":"개념을 완벽히 끝낸 다음 기출을 풀려는데, 개념서를 봐도 봐도 부족한 것 같아 계속 개념만 돈다. 문제는 거의 못 풀어봤다.","area":"기출·운용","cause":"\u0027개념 완성 후 풀이 시작\u0027이라는 순서 강박이 풀이 진입을 무한정 미룬다. 국어는 지식 쌓기가 아니라 읽기 능력 훈련이라 개념은 핵심만 잡고 풀이 단계에서 계속 보완해야 하는데, 순서를 거꾸로 잡고 있다.","fix_summary":"개념은 핵심만 1회 컴팩트하게 잡고 나머지는 풀이하며 보완하라.","fix_steps":["문학 개념어·기초 개념은 핵심 용어 위주로 1회 컴팩트하게 정리하고 끊는다(완벽 추구 금지).","개념이 \u0027부족하다\u0027는 느낌이 들어도 일단 기출 풀이로 진입한다. 부족분은 막힐 때 그 자리에서 채운다.","개념 회독 수를 늘리는 대신, 문제를 풀고 즉시 교정하는 루프로 학습 무게중심을 옮긴다.","\u0027아직 준비가 안 됐다\u0027는 생각이 곧 진입 신호임을 인식한다(준비 완료는 오지 않는다)."],"related":"개념 완벽주의 탈피, 역량평가 관점","signs":["개념서만 계속 회독한다","\u0027개념이 부족해서\u0027 문제를 미룬다","풀어본 기출이 거의 없다"],"tags":["개념강박","교재"]},{"symptom":"제한시간 재고 기출과 N제를 하루에 엄청 많이 푼다. 양으로 밀어붙이면 늘겠지 싶은데, 푼 양에 비해 점수는 그대로고 시간만 녹는다.","area":"기출·운용","cause":"양치기를 \u0027양\u0027으로 오해해 풀고 넘기기만 반복한다. 핵심은 푼 개수가 아니라 풀이 직후의 즉시 교정과 능동적 읽기 도구의 체화인데, 교정 없는 다량 풀이는 잘못된 감만 굳힌다.","fix_summary":"양치기의 본질은 양이 아니라 질 — 푼 만큼 그 자리에서 교정하라.","fix_steps":["\u0027몇 개 풀었나\u0027가 아니라 \u0027한 지문을 풀고 곧바로 교정했나\u0027를 하루 기준으로 삼는다.","풀이마다 능동 읽기 도구(자기 언어 재구성, 대비 짝 묶기, 연결·구분, 요약·도식화)를 의식적으로 적용해 체화한다.","다량 풀이 후 맞은·틀린 문제를 모두 분석하되, 분석 안 할 거면 차라리 풀이량을 줄인다.","난이도는 고1~2 기출 → 수능 기출 → 사설 순으로 점진 상향하며, 단계마다 교정이 따라붙는지 확인한다."],"related":"질적인 양치기, 능동 읽기 도구","signs":["하루에 푼 지문 수로 공부량을 잰다","풀고 채점만 하고 분석은 건너뛴다","많이 푸는데 점수가 정체다"],"tags":["양치기","기출","교정"]}]};
+(function(){
+  var D = window.__DATA__ || {core:{},gaps:[]};
+  var QUIZ = {"scale":["거의 아니다","가끔 그렇다","자주 그렇다"],"sections":[{"title":"비문학 독해 - 글을 잡는 힘","area":"비문학","intro":"지문을 읽는 동안 글이 한 덩어리로 잡히는지, 구조와 흐름을 보며 읽는지 점검합니다.","questions":[{"q":"지문을 끝까지 읽고 나면 \u0027결국 무슨 얘기였지\u0027 싶어 머리가 텅 비고, 문제를 풀려면 처음부터 다시 읽는다.","gaps":[{},{}]},{"q":"\u0027정립-반정립\u0027, \u0027연역적 정당화\u0027 같은 추상적 개념어가 나오면 그 단어 뜻에 붙들려 다음 문장으로 넘어가지 못한다.","gaps":{}},{"q":"용어와 숫자가 한꺼번에 쏟아지는 문단을 만나면 다 외워야 할 것 같아 한 글자씩 힘줘 읽다가 집중력이 바닥난다.","gaps":{}},{"q":"문단들이 그냥 줄줄이 나열된 정보로만 보이고, 어디가 중요한지·무엇이 원인이고 무엇이 대비되는지 구조가 안 보인다.","gaps":{}}],"scale":null},{"title":"비문학 독해 - 읽기 습관과 멘탈","area":"비문학","intro":"한 문장에 매달리는지, 분야·용어에 위축되는지, 읽기 속도를 망치는 습관이 있는지 봅니다.","questions":[{"q":"이해 안 되는 한 문장에 꽂혀 \u0027왜 이렇게 되지\u0027를 붙들다 시간을 날리고, 끝내 못 풀면 \u0027이 지문 망했다\u0027는 불안에 뒷부분까지 흔들린다.","gaps":{}},{"q":"경제·법·과학 지문이 나오면 시작부터 주눅이 들고, \u0027배경지식이 부족해서 못 푼다\u0027고 자책한다.","gaps":{}},{"q":"처음부터 끝까지 똑같이 꼼꼼히 읽다가 정작 어려운 부분에서 집중력과 시간이 모자란다.","gaps":{}},{"q":"습관적으로 밑줄을 너무 많이 쳐서 손이 글자를 따라가는 동안 내용은 머리에 안 들어오고 속도만 느려진다.","gaps":{}}],"scale":null},{"title":"비문학 선지 - 근거로 푸는 힘","area":"비문학","intro":"선지를 근거로 끊어내는지, 추론·비교·보기·계산·어휘 유형의 함정을 거르는지 진단합니다.","questions":[{"q":"선지를 봐도 답이 안 보여 1~5번을 다 지문에 대보다가, 둘 중 헷갈려 느낌으로 골랐다가 틀리고 시간도 오래 걸린다.","gaps":[{},{}]},{"q":"추론 문제에서 그럴듯한 선지를 골랐다 틀리는데, 답지의 \u0027지문 근거를 넘어선 비약\u0027이 왜 비약인지 잘 모르겠다.","gaps":{}},{"q":"지문은 안 어려운데 \u003c보기\u003e 적용 문제만 나오면 새 사례에 지문 원리를 어떻게 붙일지 막히고 시간이 확 늘어진다.","gaps":{}},{"q":"경제·과학의 계산·수치 문제에서 공식을 처음부터 이해하려 붙들다 시간을 다 쓰고 계산은 시작도 못 한다.","gaps":{}},{"q":"여러 대상을 비교하는 지문에서 \u0027A의 특징을 B에 붙인\u0027 선지에 자주 속는다.","gaps":{}},{"q":"어휘 문맥 의미·바꿔 쓰기 문제에서 그 문장에서의 쓰임을 따지지 않고 익숙한 사전적 뜻으로 골랐다 틀린다.","gaps":{}}],"scale":null},{"title":"문학 독해 - 작품을 읽는 눈","area":"문학","intro":"선지 사이에서 근거로 끊어내는지, 화자·정서·변화 지점을 잡는지, 갈래별 함정에 걸리는지 봅니다.","questions":[{"q":"지문을 다 읽어도 선지가 다 맞는 것 같아 느낌으로 찍고, 다시 풀면 다른 답을 고른다.","gaps":{}},{"q":"시를 읽으며 숨은 의미를 자꾸 깊게·꼬아 읽다가, 평범해 보이는 정답 선지를 안 골라 틀린다.","gaps":{}},{"q":"시를 읽고 나면 분위기는 어렴풋한데 화자가 어디서 뭘 하는지, 슬픈 건지 그리운 건지 정확히 못 잡겠다.","gaps":{}},{"q":"현대시를 첫 행부터 한 줄씩 완벽히 해석하려다 앞에서 막혀 끝까지 못 가고 주제를 못 잡는다.","gaps":{}},{"q":"고전시가의 모르는 옛말·한자에서 멈춰 흐름이 끊기고, 결국 정서도 주제도 못 잡는다.","gaps":{}}],"scale":null},{"title":"문학 선지 - 판단과 비교","area":"문학","intro":"표현·서술상 특징 판단, 보기 대조, 두 작품 비교, 시어 해석에서 정확히 끊는지 점검합니다.","questions":[{"q":"표현상·서술상 특징 문제에서 기법 용어가 본문에 쓰인 건 맞는 것 같은데 그다음을 어떻게 판단할지 모르겠다.","gaps":{}},{"q":"문학 \u003c보기\u003e 문제에서 선지와 지문을 한 글자씩 비교하느라 시간을 많이 쓰는데도 정답률이 안 오른다.","gaps":{}},{"q":"(가)(나) 두 작품이 묶여 나오면 비교 선지에서 한 작품만 맞춰보고 답을 골라 틀린다.","gaps":{}},{"q":"\u0027험한·검은·병든\u0027 같은 부정적 단어는 자동으로 부정적 의미로 보다가 함정에 걸린다.","gaps":{}}],"scale":null},{"title":"화법과 작문","area":"화작","intro":"발문·조건·자료 처리, 작문 점검, 시간 운용과 멘탈을 진단합니다.","questions":[{"q":"다 아는 내용인데 \u0027적절하지 않은 것\u0027을 묻는 발문을 놓쳐 적절한 걸 골라 틀린다.","gaps":{}},{"q":"조건 작문·자료 활용에서 조건 하나를 빠뜨리거나 효과 중 하나만 보고 골랐다 오답이 난다.","gaps":{}},{"q":"그래프·통계·인터뷰 같은 자료를 살짝 부풀려 해석한 선지에 자주 넘어간다.","gaps":{}},{"q":"화작에서 같은 지문을 두세 번 읽게 되어 시간이 오래 걸리고 비문학에 쓸 시간이 모자란다.","gaps":{}},{"q":"작문 문제에서 내용이 그럴듯하면 다 맞는 것 같아 \u0027독자에 안 맞는 용어\u0027나 \u0027매체에 안 맞는 형식\u0027 함정을 놓친다.","gaps":{}},{"q":"글쓰기 계획·점검 대응 문제에서 \u0027글에 있는데 계획에 없는\u0027 경우를 놓쳐 틀린다.","gaps":{}},{"q":"화작이 예상대로 안 풀리면 멍해지고, 한 문제에 막히면 뒤의 비문학·문학까지 줄줄이 무너진다.","gaps":{}}],"scale":null},{"title":"공부 태도와 집중","area":"공통·태도","intro":"공부의 밀도, 집중을 깨는 요인, 시작·계획·자기효능감을 점검합니다.","questions":[{"q":"오래 앉아 있었는데 \u0027오늘 뭘 제대로 했지\u0027 하면 떠오르는 게 없고, 시간을 채워도 점수가 안 오른다.","gaps":{}},{"q":"공부하다 나도 모르게 폰을 켜고, \u00275분만\u0027 했는데 30분이 지나 다시 집중하기까지 한참 걸린다.","gaps":{}},{"q":"\u0027개념부터 완벽히 끝내고 시작해야지\u0027 하다가 며칠째 첫 페이지에서 못 나가고 공부를 미룬다.","gaps":[{},{}]},{"q":"응용·심화에서 막히면 \u0027난 머리가 안 되는구나\u0027 싶어 상위권은 타고난 천재라 여기며 손을 놔버린다.","gaps":{}},{"q":"지문을 보며 잡생각·멍 때리는 사이 시간이 흐르고, 정신 차리면 같은 줄을 보고 있다.","gaps":{}},{"q":"\u0027오늘 하루 종일 다 끝내자\u0027고 거창하게 계획하지만 막상 시작하면 금방 지쳐 흐지부지된다.","gaps":{}}],"scale":null},{"title":"기출과 학습 운용","area":"기출·운용","intro":"기출 분석·복습 방식, 채점 습관, 교재 선택, 인강·개념·양치기 운용의 균형을 진단합니다.","questions":[{"q":"기출 한 지문에 선지마다 근거 찾고 정리하는 데 한 시간씩 쓰는데, 다음 지문에선 안 먹히고 실력이 느는 느낌이 없다.","gaps":{}},{"q":"문제를 몰아 풀고 나중에 한 번에 채점하는데, 그때쯤이면 \u0027왜 이걸 골랐더라\u0027가 기억 안 나 틀린 이유가 와닿지 않는다.","gaps":{}},{"q":"정답을 맞힌 문제는 더 볼 게 없다고 그냥 넘어가는데, 비슷한 유형에서 또 애매하게 찍어 맞거나 틀린다.","gaps":{}},{"q":"평가원 기출은 식상해 사설 모의·심화서 위주로 푸는데, 정작 평가원 모의를 보면 또 흔들린다.","gaps":{}},{"q":"한 강 듣고 복습을 1시간씩 하다 진도가 안 나가, 인강을 늘 \u0027듣다 만\u0027 상태로 끝낸다.","gaps":{}},{"q":"제한시간 재고 기출·N제를 하루에 엄청 많이 푸는데, 푼 양에 비해 점수는 그대로고 시간만 녹는다.","gaps":{}}],"scale":null}]};
+  function esc(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function sentbreak(t){ try{ return esc(t).split(new RegExp('(?<=[.!?])\\s+')).join('<br>'); }catch(e){ return esc(t); } }
+  var AREAS = ['비문학','문학','화작','공통·태도','기출·운용'];
+
+  // ---- core ----
+  var core = D.core||{};
+  document.getElementById('core-grid').innerHTML = (core.principles||[]).map(function(p){
+    return '<div class="pcard"><span class="corner c1"></span><span class="corner c4"></span><h3>'+esc(p.title)+'</h3><p>'+sentbreak(p.body)+'</p></div>';
+  }).join('');
+  document.getElementById('core-loop').innerHTML = core.loop ? '<div class="lh">단 하나의 루프</div><p>'+sentbreak(core.loop)+'</p>' : '';
+  document.getElementById('core-howto').innerHTML = core.how_to_use ? '<b style="color:var(--gold)">이 가이드 쓰는 법 · </b>'+sentbreak(core.how_to_use) : '';
+
+  // ---- gaps ----
+  var gaps = D.gaps||[];
+  var CHEV='<svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>';
+  function gapHTML(g,i){
+    var text=[g.symptom].concat(g.signs||[]).concat([g.cause,g.fix_summary]).concat(g.fix_steps||[]).concat(g.tags||[]).join(' ');
+    var signs=(g.signs&&g.signs.length)?'<div class="blk signs"><span class="lbl">이런 신호</span>'+g.signs.map(esc).join(' · ')+'</div>':'';
+    var steps=(g.fix_steps&&g.fix_steps.length)?'<ol class="steps">'+g.fix_steps.map(function(s){return '<li>'+sentbreak(s)+'</li>';}).join('')+'</ol>':'';
+    var rel=g.related?'<div class="related"><b>관련 ·</b> '+esc(g.related)+'</div>':'';
+    var tags=(g.tags&&g.tags.length)?'<div class="tags">'+g.tags.map(function(t){return '<span>#'+esc(t)+'</span>';}).join('')+'</div>':'';
+    return '<details class="gap" data-area="'+esc(g.area)+'" data-tags="'+esc((g.tags||[]).join(' '))+'" data-text="'+esc(text).replace(/"/g,'&quot;')+'">'+
+      '<summary><span class="area">'+esc(g.area)+'</span><span class="sym">'+esc(g.symptom)+'</span>'+CHEV+'</summary>'+
+      '<div class="gbody">'+signs+
+      '<div class="blk cause"><span class="lbl">원인</span>'+sentbreak(g.cause)+'</div>'+
+      '<div class="blk"><span class="lbl">처방</span><div class="fixsum">'+sentbreak(g.fix_summary)+'</div>'+steps+'</div>'+
+      rel+tags+'</div></details>';
+  }
+  document.getElementById('gaps').innerHTML = gaps.map(gapHTML).join('') + '<div class="empty" id="empty" style="display:none">해당하는 빈틈이 없어요. 필터를 바꿔보세요.</div>';
+
+  // ---- area filters ----
+  var af=document.getElementById('areafilters');
+  af.innerHTML='<button class="on" data-area="전체">전체</button>'+AREAS.map(function(a){return '<button data-area="'+a+'">'+a+'</button>';}).join('');
+  // ---- tag filters ----
+  var tagset={}; gaps.forEach(function(g){(g.tags||[]).forEach(function(t){tagset[t]=(tagset[t]||0)+1;});});
+  var tags=Object.keys(tagset).sort(function(a,b){return tagset[b]-tagset[a];});
+  document.getElementById('tagfilters').innerHTML = tags.map(function(t){return '<button data-tag="'+esc(t)+'">#'+esc(t)+'</button>';}).join('');
+
+  var curArea='전체', curTags=[], curQ='';
+  function apply(){
+    var els=document.querySelectorAll('.gap'), shown=0;
+    els.forEach(function(el){
+      var okA = curArea==='전체' || el.getAttribute('data-area')===curArea;
+      var elTags=el.getAttribute('data-tags').split(' ');
+      var okT = curTags.length===0 || curTags.every(function(t){return elTags.indexOf(t)>=0;});
+      var okQ = !curQ || el.getAttribute('data-text').toLowerCase().indexOf(curQ)>=0;
+      var show = okA&&okT&&okQ;
+      el.style.display = show?'':'none';
+      if(show) shown++;
+    });
+    document.getElementById('count').innerHTML='<b>'+shown+'</b>개 빈틈 표시 중 (전체 '+els.length+')';
+    document.getElementById('empty').style.display = shown===0?'block':'none';
+  }
+  af.querySelectorAll('button').forEach(function(b){b.onclick=function(){af.querySelectorAll('button').forEach(function(x){x.classList.remove('on');});b.classList.add('on');curArea=b.getAttribute('data-area');apply();};});
+  document.getElementById('tagfilters').querySelectorAll('button').forEach(function(b){b.onclick=function(){var t=b.getAttribute('data-tag');var i=curTags.indexOf(t);if(i>=0){curTags.splice(i,1);b.classList.remove('on');}else{curTags.push(t);b.classList.add('on');}apply();};});
+  document.getElementById('search').oninput=function(e){curQ=e.target.value.trim().toLowerCase();apply();};
+  apply();
+
+  // ===== 자가진단 테스트 =====
+  (function(){
+    var QZ = (typeof QUIZ!=='undefined'&&QUIZ)?QUIZ:{scale:['거의 아니다','가끔 그렇다','자주 그렇다'],sections:[]};
+    var SCALE=QZ.scale||['거의 아니다','가끔 그렇다','자주 그렇다'];
+    var SECS=QZ.sections||[];
+    var form=document.getElementById('test-form'); if(!form) return;
+    var answers={}, total=0; SECS.forEach(function(s){total+=(s.questions||[]).length;});
+    var h='';
+    SECS.forEach(function(s,si){
+      h+='<div class="qsec"><h3>'+esc(s.title)+'</h3>'+(s.intro?'<div class="qintro">'+esc(s.intro)+'</div>':'');
+      (s.questions||[]).forEach(function(q,qi){
+        h+='<div class="qitem"><div class="qtext">'+esc(q.q)+'</div><div class="opts" data-key="'+si+'_'+qi+'">'+SCALE.map(function(o,oi){return '<button type="button" class="opt" data-v="'+oi+'">'+esc(o)+'</button>';}).join('')+'</div></div>';
+      });
+      h+='</div>';
+    });
+    form.innerHTML=h;
+    var qt=document.getElementById('qtotal'); if(qt)qt.textContent=total;
+    form.querySelectorAll('.opts').forEach(function(row){
+      var key=row.getAttribute('data-key');
+      row.querySelectorAll('.opt').forEach(function(b){ b.onclick=function(){ row.querySelectorAll('.opt').forEach(function(x){x.classList.remove('sel','s2');}); b.classList.add('sel'); if(b.getAttribute('data-v')==='2')b.classList.add('s2'); answers[key]=parseInt(b.getAttribute('data-v'),10); var an=document.getElementById('answered'); if(an)an.textContent=Object.keys(answers).length; }; });
+    });
+    var sb=document.getElementById('startBtn'); if(sb)sb.onclick=function(){document.getElementById('test-cta').style.display='none';form.style.display='';document.getElementById('test-bar').style.display='flex';};
+    var rb=document.getElementById('resultBtn'); if(rb)rb.onclick=function(){
+      var gapScore={},areaSum={},areaCnt={};
+      SECS.forEach(function(s,si){ (s.questions||[]).forEach(function(q,qi){ areaCnt[s.area]=(areaCnt[s.area]||0)+1; var v=answers[si+'_'+qi]; if(v==null)return; areaSum[s.area]=(areaSum[s.area]||0)+v; (q.gaps||[]).forEach(function(gi){gapScore[gi]=(gapScore[gi]||0)+v;}); }); });
+      var picks=Object.keys(gapScore).map(function(k){return {i:+k,s:gapScore[k]};}).filter(function(x){return x.s>=2&&gaps[x.i];}).sort(function(a,b){return b.s-a.s;});
+      var AREAS=['비문학','문학','화작','공통·태도','기출·운용'];
+      var bars=AREAS.map(function(a){return {a:a,pct:areaCnt[a]?Math.round((areaSum[a]||0)/(areaCnt[a]*2)*100):0};}).sort(function(x,y){return y.pct-x.pct;});
+      var barsH='<div class="resbars">'+bars.map(function(b){return '<div class="resbar"><span class="rlab">'+esc(b.a)+'</span><span class="rtrack"><span class="rfill" style="width:'+b.pct+'%"></span></span><span class="rpct">'+b.pct+'%</span></div>';}).join('')+'</div>';
+      var cardsH=picks.length?picks.map(function(p){return gapHTML(gaps[p.i],p.i);}).join(''):'<div class="empty">두드러진 빈틈이 안 잡혔어요. 답을 더 채우거나 아래 라이브러리를 둘러보세요.</div>';
+      var res=document.getElementById('test-result');
+      res.innerHTML='<div class="reshead">영역별 취약도</div>'+barsH+'<div class="reshead" style="margin-top:24px">맞춤 처방 · '+picks.length+'개</div><p class="ssub" style="margin:2px 0 12px 0">‘자주/가끔 그렇다’로 답한 항목에서 골랐어요. 펼쳐서 처방을 확인하세요.</p><div class="gaps">'+cardsH+'</div><div style="text-align:center;margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button type="button" class="bigbtn ghost" id="retryBtn">다시 진단</button><button type="button" class="bigbtn ghost" id="libBtn">전체 라이브러리 보기</button></div>';
+      res.style.display='';
+      res.scrollIntoView({behavior:'smooth',block:'start'});
+      document.getElementById('retryBtn').onclick=function(){answers={};form.querySelectorAll('.opt').forEach(function(x){x.classList.remove('sel','s2');});var an=document.getElementById('answered');if(an)an.textContent='0';res.style.display='none';res.innerHTML='';document.getElementById('test').scrollIntoView({behavior:'smooth'});};
+      document.getElementById('libBtn').onclick=function(){document.getElementById('diagnose').scrollIntoView({behavior:'smooth'});};
+    };
+  })();
+})();
+</script>
+</body>
+</html>
