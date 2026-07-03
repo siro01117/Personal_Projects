@@ -1,9 +1,15 @@
 {
   "name": "인디사 기말 스테이지 (구)",
   "desc": "이전 버전. 선형 스테이지형 독학 모듈(7~11장). 후속은 '인디사 시험 대비 [기말]'.",
-  "stack": ["스테이지 게이팅", "객관식 즉시채점", "SVG 애니메이션", "localStorage 진행저장"],
+  "stack": [
+    "스테이지 게이팅",
+    "객관식 즉시채점",
+    "SVG 애니메이션",
+    "localStorage 진행저장"
+  ],
   "public": true,
   "order": 2,
   "color": "#7c8794",
-  "icon": "layers"
+  "icon": "layers",
+  "section": "Study"
 }

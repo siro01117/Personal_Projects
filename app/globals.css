@@ -114,6 +114,27 @@ svg.ic{stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;strok
 
 .empty{padding:60px 0;text-align:center;color:var(--mut);font-size:14px}
 
+/* ===== admin lock (header) ===== */
+.lockbtn{display:inline-flex;align-items:center;gap:6px;font-family:var(--disp);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line2);border-radius:7px;padding:6px 10px;transition:.18s}
+.lockbtn svg{width:14px;height:14px}
+.lockbtn:hover,.lockbtn.on{color:var(--fg);border-color:var(--fg)}
+
+/* ===== gate enter button ===== */
+.enter1{margin-top:clamp(38px,7vh,64px);display:inline-flex;align-items:center;gap:16px;width:fit-content;border:1px solid var(--line2);border-radius:12px;background:var(--surface);padding:18px 30px;transition:background .25s var(--ease);opacity:0;animation:rise .8s 1.2s var(--ease) forwards}
+.enter1:hover{background:var(--surface2)}
+.enter1 .mname{font-family:var(--disp);font-weight:600;font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;background:linear-gradient(110deg,var(--mut) 0%,var(--mut) 42%,#fff 50%,var(--mut) 58%,var(--mut) 100%);background-size:280% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tshine 3.6s linear infinite}
+.enter1 .marr{font-size:20px;color:var(--fg);transition:.3s var(--ease)}
+.enter1:hover .marr{transform:translateX(5px)}
+
+/* ===== section groups ===== */
+.secg{margin-top:36px}
+.secg:first-of-type{margin-top:24px}
+.sec-h{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.sec-label{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:.03em}
+.sec-sub{font-size:12px;color:var(--faint)}
+.sec-n{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--faint)}
+.secg .grid{margin-top:0}
+
 /* ===== iframe viewer ===== */
 .viewer{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;animation:din .3s var(--ease)}
 .viewer-bar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);flex-shrink:0}
