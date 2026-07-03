@@ -1,0 +1,9 @@
+{
+  "name": "잡기장",
+  "desc": "개인 캡처 보드 — IDEA·WORK·NOW·TODO 탭 + 전체 한눈 보드. 빠르게 적고 체크, 계정 DB 동기화. 어드민 전용.",
+  "stack": ["개인 캡처", "탭+보드", "DB 동기화"],
+  "public": false,
+  "order": 1,
+  "color": "#2f7bff",
+  "icon": "check"
+}

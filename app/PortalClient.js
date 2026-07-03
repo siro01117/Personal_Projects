@@ -15,6 +15,7 @@ const ICONS = {
   chart: '<path d="M3 21h18M6 21v-7M11 21V6M16 21v-10"/>',
   book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19a1 1 0 0 1 1 1v14H6a2 2 0 0 0-2 2z"/><path d="M4 20a2 2 0 0 1 2-2h14"/><path d="M8 7h8M8 10.5h6"/>',
   layout: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/>',
+  check: '<path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/>',
   default: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>',
 };
 const Icon = ({ k }) => (<svg className="ic" viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: ICONS[k] || ICONS.default }} />);
