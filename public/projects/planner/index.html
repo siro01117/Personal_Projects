@@ -79,7 +79,8 @@ button{cursor:pointer;border:none;background:none}
 .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;width:1px;height:1px}
 .ed-base{fill:none;stroke:var(--line2);stroke-width:1.5}
-.chev{fill:none;stroke:var(--flow);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ed-flow{fill:none;stroke:var(--flow);stroke-width:2.4;stroke-linecap:round;stroke-dasharray:2 4;animation:flow .5s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-12}}
 
 .node{position:absolute;width:220px;background:var(--surface);border:1px solid var(--nc,var(--nborder));border-radius:11px;box-shadow:0 6px 18px -10px rgba(0,0,0,.6);user-select:none;cursor:grab;transition:box-shadow .15s,border-color .15s}
 .node:hover{border-color:var(--nc,var(--acc))}
@@ -119,7 +120,7 @@ button{cursor:pointer;border:none;background:none}
 .emenu{position:fixed;z-index:50;background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:5px;box-shadow:0 12px 30px -8px rgba(0,0,0,.6);min-width:150px}
 .emenu button{display:flex;align-items:center;width:100%;text-align:left;font-size:13px;font-weight:600;color:var(--fg);padding:8px 11px;border-radius:7px;gap:8px}
 .emenu button:hover{background:var(--surface2)}.emenu button.del{color:var(--bad)}
-.emenu-color{display:flex;align-items:center;gap:8px;padding:8px 11px;font-size:12.5px;color:var(--mut);border-top:1px solid var(--line);margin-top:3px}
+.emenu-color{display:flex;align-items:center;gap:8px;padding:8px 11px;font-size:12.5px;color:var(--mut);border-bottom:1px solid var(--line);margin-bottom:3px}
 .emenu-color .ncsw{width:22px;height:22px}
 .emenu-color .ecreset{font-size:11px;font-weight:600;color:var(--faint);border:1px solid var(--line2);border-radius:6px;padding:4px 8px;margin-left:auto}
 .emenu-color .ecreset:hover{color:var(--fg)}
@@ -290,12 +291,10 @@ function edgeGeo(a,b){var A=nodeGeom(a),B=nodeGeom(b);var dx=B.cx-A.cx,dy=B.cy-A
     var lenv=Math.abs(my-ay)+Math.abs(bx-ax)+Math.abs(by-my),l1v=Math.abs(ax-ccx)+Math.abs(ay-my),l2v=Math.abs(bx-ccx)+Math.abs(by-my);
     return {ax:ax,ay:ay,bx:bx,by:by,cx:ccx,cy:ccy,full:full,h1:h1,h2:h2,segs:segs,len:lenv,l1:l1v,l2:l2v};
   }}
-function chevrons(mpid,len,color){var N=Math.min(60,Math.max(2,Math.round(len/16)));var dur=Math.max(.6,len/95);var g='';for(var k=0;k<N;k++){g+='<path class="chev" style="stroke:'+color+'" d="M-2.6 -3 L1.2 0 L-2.6 3"><animateMotion dur="'+dur.toFixed(2)+'s" repeatCount="indefinite" rotate="auto" begin="-'+(k*dur/N).toFixed(3)+'s"><mpath href="#'+mpid+'"/></animateMotion></path>';}return g;}
 function drawEdges(tmp,simple){var p=proj(),g='';
-  if(p)p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(!a||!b)return;var q=edgeGeo(a,b);var col=e.color||'var(--flow)';
-    if(simple){g+='<path class="ed-base" d="'+q.full+'"></path>';return;}
-    if(e.dir==='both'){g+='<path class="ed-base" d="'+q.full+'"></path><path id="mp'+e.id+'a" fill="none" stroke="none" d="'+q.h1+'"></path><path id="mp'+e.id+'b" fill="none" stroke="none" d="'+q.h2+'"></path>'+chevrons('mp'+e.id+'a',q.l1,col)+chevrons('mp'+e.id+'b',q.l2,col);}
-    else{g+='<path id="mp'+e.id+'" class="ed-base" d="'+q.full+'"></path>'+chevrons('mp'+e.id,q.len,col);}
+  if(p)p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(!a||!b)return;var q=edgeGeo(a,b);var st=e.color?' style="stroke:'+e.color+'"':'';
+    g+='<path class="ed-base" d="'+q.full+'"></path>';
+    if(!simple){g+='<path class="ed-flow"'+st+' d="'+q.h1+'"></path><path class="ed-flow"'+st+' d="'+q.h2+'"></path>';}
   });
   if(tmp)g+='<path class="ed-base" style="stroke:var(--flow)" d="'+tmp+'"></path>';
   edgesSvg.innerHTML=g;}
@@ -379,12 +378,12 @@ detailEl.addEventListener('drop',function(e){if(!fdrag)return;var list=detailEl.
 /* ---------- edge context menu (right-click) ---------- */
 function distSeg(px,py,x1,y1,x2,y2){var dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;if(l2===0)return Math.hypot(px-x1,py-y1);var t=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/l2));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));}
 function nearestEdge(wx,wy,thr){var p=proj();if(!p)return null;var best=null,bd=thr;p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(!a||!b)return;var q=edgeGeo(a,b);q.segs.forEach(function(s){var d=distSeg(wx,wy,s[0],s[1],s[2],s[3]);if(d<bd){bd=d;best=e;}});});return best;}
-function showEmenu(x,y,edge){var c=edge.color||'#2bff88';emenuEl.innerHTML='<button data-op="to">→ 정방향</button><button data-op="rev">← 반대 방향</button><button data-op="both">↔ 양방향</button><button data-op="del" class="del">'+svg(P_TRASH)+' 연결 삭제</button><div class="emenu-color"><span>선 색상</span><label class="ncsw" style="background:'+esc(c)+'"><input type="color" data-ecolor value="'+esc(c)+'"></label><button class="ecreset" data-op="ecreset">기본</button></div>';emenuEl.style.left=Math.min(x,window.innerWidth-180)+'px';emenuEl.style.top=Math.min(y,window.innerHeight-200)+'px';emenuEl.hidden=false;emenuEl.dataset.eid=edge.id;}
+function showEmenu(x,y,edge){var c=edge.color||'#2bff88';emenuEl.innerHTML='<div class="emenu-color"><span>선 색상</span><label class="ncsw" style="background:'+esc(c)+'"><input type="color" data-ecolor value="'+esc(c)+'"></label><button class="ecreset" data-op="ecreset">기본</button></div><button data-op="del" class="del">'+svg(P_TRASH)+' 연결 삭제</button>';emenuEl.style.left=Math.min(x,window.innerWidth-180)+'px';emenuEl.style.top=Math.min(y,window.innerHeight-140)+'px';emenuEl.hidden=false;emenuEl.dataset.eid=edge.id;}
 function hideEmenu(){emenuEl.hidden=true;}
 stage.addEventListener('contextmenu',function(e){var w=s2w(e.clientX,e.clientY);var edge=nearestEdge(w.x,w.y,10/view().scale);if(!edge)return;e.preventDefault();showEmenu(e.clientX,e.clientY,edge);});
 emenuEl.addEventListener('click',function(e){var b=e.target.closest('[data-op]');if(!b)return;var p=proj();var edge=p&&p.edges.find(function(x){return x.id===emenuEl.dataset.eid;});if(!edge){hideEmenu();return;}var op=b.getAttribute('data-op');
   if(op==='ecreset'){edge.color='';persist();drawEdges();var sw=emenuEl.querySelector('.ncsw'),ci=emenuEl.querySelector('[data-ecolor]');if(sw)sw.style.background='#2bff88';if(ci)ci.value='#2bff88';return;}
-  if(op==='to')edge.dir='to';else if(op==='both')edge.dir='both';else if(op==='rev'){var f=edge.from;edge.from=edge.to;edge.to=f;edge.dir='to';}else if(op==='del'){p.edges=p.edges.filter(function(x){return x.id!==edge.id;});}
+  if(op==='del'){p.edges=p.edges.filter(function(x){return x.id!==edge.id;});}
   persist();drawEdges();hideEmenu();});
 emenuEl.addEventListener('input',function(e){if(!e.target.matches('[data-ecolor]'))return;var p=proj();var edge=p&&p.edges.find(function(x){return x.id===emenuEl.dataset.eid;});if(edge){edge.color=e.target.value;var sw=emenuEl.querySelector('.ncsw');if(sw)sw.style.background=e.target.value;persist();drawEdges();}});
 document.addEventListener('mousedown',function(e){if(!emenuEl.hidden&&!e.target.closest('#emenu'))hideEmenu();});
