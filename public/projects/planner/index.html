@@ -68,8 +68,7 @@ button{cursor:pointer;border:none;background:none}
 .pcard-acts{position:absolute;top:14px;right:12px;display:flex;gap:4px;opacity:0;transition:.15s}
 .pcard:hover .pcard-acts{opacity:1}
 .pcard-acts button{width:26px;height:26px;border-radius:7px;color:var(--faint);display:inline-flex;align-items:center;justify-content:center}
-.pcard-acts button:hover{background:var(--surface2);color:var(--fg)}
-.pcard-acts button.del:hover{color:var(--bad)}
+.pcard-acts button:hover{background:var(--surface2);color:var(--fg)}.pcard-acts button.del:hover{color:var(--bad)}
 .pcard-acts .ic{width:15px;height:15px}
 
 /* canvas */
@@ -77,43 +76,44 @@ button{cursor:pointer;border:none;background:none}
 .stage.panning{cursor:grabbing}
 .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;width:1px;height:1px}
-.edges .ed{fill:none;stroke:color-mix(in srgb,var(--acc) 60%,var(--line2));stroke-width:2}
-.edges .ed.tmp{stroke:var(--acc);stroke-dasharray:5 5}
-#emarks{position:absolute;left:0;top:0}
-.emark{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:1px;background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:1px}
-.emark-dir{font-size:12px;font-weight:800;color:var(--acc);width:22px;height:20px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center}
-.emark-dir:hover{background:var(--acc-soft)}
-.emark-x{width:19px;height:20px;border-radius:14px;color:var(--faint);display:none;align-items:center;justify-content:center;font-size:14px}
-.emark:hover .emark-x{display:inline-flex}.emark-x:hover{color:var(--bad)}
+.ed-base{fill:none;stroke:var(--line2);stroke-width:1.6}
+.ed-flow{fill:none;stroke:var(--acc);stroke-width:2.6;stroke-linecap:round;stroke-dasharray:2 10;animation:flow 1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-12}}
 
-.node{position:absolute;width:220px;background:var(--surface);border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:11px;box-shadow:0 6px 18px -10px rgba(0,0,0,.6);user-select:none;cursor:grab;transition:box-shadow .15s,border-color .15s}
-.node:hover{border-color:var(--acc)}.node:active{cursor:grabbing}
-.node.db{border-left-color:var(--db)}.node.db:hover{border-color:var(--db)}
+.node{position:absolute;width:220px;background:var(--surface);border:1px solid var(--nc,var(--line2));border-radius:11px;box-shadow:0 6px 18px -10px rgba(0,0,0,.6);user-select:none;cursor:grab;transition:box-shadow .15s,border-color .15s}
+.node:hover{border-color:var(--nc,var(--acc))}
+.node.db{border-color:var(--nc,var(--db))}.node.db:hover{border-color:var(--nc,var(--db))}
+.node:active{cursor:grabbing}
 .node-h{display:flex;align-items:center;gap:8px;padding:12px 13px 8px}
 .node.db .node-h{padding-bottom:10px}
-.node-h .dbic{width:16px;height:16px;color:var(--db);flex:0 0 auto}
+.node-h .dbic{width:16px;height:16px;color:var(--nc,var(--db));flex:0 0 auto}
 .node-t{font-size:14.5px;font-weight:700;line-height:1.3;flex:1;min-width:0;word-break:break-word}
 .node.db .node-t{font-family:var(--mono);font-size:13.5px}
 .node-t.ph{color:var(--faint);font-weight:600}
 .node-b{padding:0 13px 12px;display:flex;align-items:center;gap:9px}
-.prbar{display:flex;gap:3px;flex:1}.prbar i{height:5px;flex:1;border-radius:3px;background:var(--line2)}.prbar i.on{background:var(--acc)}
+.prbar{display:flex;gap:3px;flex:1}.prbar i{height:5px;flex:1;border-radius:3px;background:var(--line2)}.prbar i.on{background:var(--nc,var(--acc))}
 .node-n{font-size:11px;color:var(--faint);font-family:var(--mono)}
 .node-feat{font-size:10.5px;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);border-radius:20px;padding:1px 7px;font-weight:700}
 .db-fields{border-top:1px solid var(--line);padding:4px 0 6px}
 .dbf{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 13px;font-size:12px}
 .dbf-n{color:var(--fg);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px}
-.dbf-n .pk{font-size:8.5px;font-weight:800;color:var(--db);border:1px solid color-mix(in srgb,var(--db) 50%,transparent);border-radius:3px;padding:0 3px}
+.dbf-n .pk{font-size:8.5px;font-weight:800;color:var(--nc,var(--db));border:1px solid color-mix(in srgb,var(--db) 50%,transparent);border-radius:3px;padding:0 3px}
 .dbf-t{color:var(--faint);font-family:var(--mono);font-size:11px;flex:0 0 auto}
 .dbf.more,.dbf.empt{color:var(--faint);font-size:11px;justify-content:flex-start}
-.port{position:absolute;right:-8px;top:24px;width:17px;height:17px;border-radius:50%;background:var(--acc);border:2px solid var(--bg);cursor:crosshair;display:flex;align-items:center;justify-content:center}
-.node.db .port{background:var(--db)}
-.port::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--bg)}
-.port:hover{transform:scale(1.2)}
+.chandle{position:absolute;top:7px;bottom:7px;width:13px;cursor:crosshair;z-index:2}
+.chandle.l{left:-6px}.chandle.r{right:-6px}
+.chandle:hover::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:3px;height:22px;border-radius:3px;background:var(--nc,var(--acc))}
+.chandle.l:hover::after{left:5px}.chandle.r:hover::after{right:5px}
 .zoombtns{position:absolute;left:14px;bottom:14px;display:flex;gap:6px;z-index:4}
 .zoombtns button{width:34px;height:34px;border-radius:8px;background:var(--surface);border:1px solid var(--line2);color:var(--mut);font-size:18px;display:flex;align-items:center;justify-content:center}
 .zoombtns button:hover{color:var(--fg);border-color:var(--acc)}
 .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--faint);text-align:center;padding:20px;pointer-events:none}
 .empty h2{font-size:17px;font-weight:700;color:var(--mut)}.empty p{font-size:13.5px;max-width:380px;line-height:1.6}
+
+/* context menu */
+.emenu{position:fixed;z-index:50;background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:5px;box-shadow:0 12px 30px -8px rgba(0,0,0,.6);min-width:150px}
+.emenu button{display:flex;align-items:center;width:100%;text-align:left;font-size:13px;font-weight:600;color:var(--fg);padding:8px 11px;border-radius:7px;gap:8px}
+.emenu button:hover{background:var(--surface2)}.emenu button.del{color:var(--bad)}
 
 /* detail */
 .detail{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
@@ -126,9 +126,14 @@ button{cursor:pointer;border:none;background:none}
 .dbadge.db{color:var(--db);border:1px solid color-mix(in srgb,var(--db) 45%,transparent)}
 .dbody{flex:1;overflow-y:auto;padding:24px clamp(18px,5vw,44px) 80px}
 .dwrap{max-width:720px;margin:0 auto}
-.dtitle{width:100%;background:transparent;border:none;font-size:27px;font-weight:800;color:var(--fg);padding:2px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.dtitle{width:100%;background:transparent;border:none;font-size:27px;font-weight:800;color:var(--fg);padding:2px 0 14px;border-bottom:1px solid var(--line);margin-bottom:12px}
 .dtitle:focus{outline:none;border-color:var(--acc)}.dtitle::placeholder{color:var(--faint)}
 .node-db-title{font-family:var(--mono);font-size:23px}
+.ncrow{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--mut);margin-bottom:16px}
+.ncsw{width:24px;height:24px;border-radius:7px;border:1px solid var(--line2);position:relative;overflow:hidden;cursor:pointer;display:inline-block}
+.ncsw input{position:absolute;inset:-4px;width:150%;height:150%;cursor:pointer;opacity:0}
+.ncreset{font-size:11.5px;font-weight:600;color:var(--faint);border:1px solid var(--line2);border-radius:7px;padding:5px 9px}
+.ncreset:hover{color:var(--fg);border-color:var(--acc)}
 .dlinks{font-size:12.5px;color:var(--mut);margin-bottom:16px}
 .dsub{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
 .dsub .cnt{font-family:var(--mono);color:var(--acc)}
@@ -155,7 +160,6 @@ button{cursor:pointer;border:none;background:none}
 .fstep textarea{width:100%;min-height:52px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13.5px;line-height:1.55;color:var(--fg);resize:vertical}
 .fstep textarea:focus{outline:none;border-color:var(--acc)}.fstep textarea::placeholder{color:var(--faint)}
 
-/* db fields (detail) */
 .fld{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:8px 10px;margin-bottom:7px}
 .fld.dragging{opacity:.4}.fld.over{box-shadow:inset 0 2px 0 var(--db)}
 .fld-pk{flex:0 0 auto;font-size:10px;font-weight:800;font-family:var(--mono);color:var(--faint);border:1px solid var(--line2);border-radius:5px;padding:3px 6px}
@@ -193,12 +197,13 @@ button{cursor:pointer;border:none;background:none}
 <div class="body">
   <div class="hub" id="hub" hidden></div>
   <div class="stage" id="stage" hidden>
-    <div class="world" id="world"><svg class="edges" id="edges"></svg><div id="emarks"></div></div>
+    <div class="world" id="world"><svg class="edges" id="edges"></svg></div>
     <div class="zoombtns"><button id="zin">+</button><button id="zout">−</button><button id="zfit" title="맞춤" style="font-size:12px">⤢</button></div>
     <div class="empty" id="empty" hidden></div>
   </div>
   <div class="detail" id="detail" hidden></div>
 </div>
+<div class="emenu" id="emenu" hidden></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -207,7 +212,7 @@ const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI
 const KV='planner';
 function rpc(fn,body){return fetch(SUPA+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
 
-const NODE_W=220, PY=24;
+const NODE_W=220;
 const PR_LABELS=['뼈대·핵심','기능 살 붙이기','디자인·상태','데이터·로직','예외·검증·마무리'];
 const ST_ORDER=['todo','doing','done'], ST_L={todo:'예정',doing:'진행',done:'완료'};
 const DB_TYPES=['uuid','text','varchar','int4','int8','numeric','float8','boolean','timestamptz','date','jsonb'];
@@ -221,7 +226,7 @@ const LKEY='planner_v1';
 function blank(){return {projects:[],theme:'dark'};}
 function normFeat(f){var st=ST_ORDER.indexOf(f.status)>=0?f.status:(f.done?'done':'todo');var had=Array.isArray(f.pr)&&f.pr.length;var pr=(Array.isArray(f.pr)?f.pr:[]).concat(['','','','','']).slice(0,5).map(function(s){return typeof s==='string'?s:'';});if(!had&&typeof f.desc==='string'&&f.desc.trim())pr[0]=f.desc;return {id:f.id||uid(),name:typeof f.name==='string'?f.name:'',status:st,pr:pr};}
 function normField(f){return {id:f.id||uid(),name:typeof f.name==='string'?f.name:'',type:typeof f.type==='string'?f.type:'',pk:!!f.pk};}
-function normNode(n){var type=n.type==='db'?'db':'page';return {id:n.id||uid(),type:type,title:typeof n.title==='string'?n.title:'',x:+n.x||0,y:+n.y||0,features:Array.isArray(n.features)?n.features.map(normFeat):[],fields:Array.isArray(n.fields)?n.fields.map(normField):[]};}
+function normNode(n){var type=n.type==='db'?'db':'page';return {id:n.id||uid(),type:type,title:typeof n.title==='string'?n.title:'',x:+n.x||0,y:+n.y||0,color:typeof n.color==='string'?n.color:'',features:Array.isArray(n.features)?n.features.map(normFeat):[],fields:Array.isArray(n.fields)?n.fields.map(normField):[]};}
 function normProj(p){var nodes=Array.isArray(p.nodes)?p.nodes.map(normNode):[];var ids={};nodes.forEach(function(n){ids[n.id]=1;});var edges=(Array.isArray(p.edges)?p.edges:[]).filter(function(e){return e&&ids[e.from]&&ids[e.to]&&e.from!==e.to;}).map(function(e){return {id:e.id||uid(),from:e.from,to:e.to,dir:e.dir==='both'?'both':'to'};});var v=p.view||{};return {id:p.id||uid(),name:typeof p.name==='string'?p.name:'프로젝트',nodes:nodes,edges:edges,view:{panX:+v.panX||0,panY:+v.panY||0,scale:v.scale?Math.min(2,Math.max(.4,v.scale)):1}};}
 function normalize(s){var o=blank();if(!s||typeof s!=='object')return o;o.theme=s.theme==='light'?'light':'dark';o.projects=Array.isArray(s.projects)?s.projects.map(normProj):[];return o;}
 var state=normalize(function(){try{return JSON.parse(localStorage.getItem(LKEY));}catch(e){return null;}}());
@@ -239,91 +244,65 @@ function persist(){touched=true;saveLocal();clearTimeout(saveT);saveT=setTimeout
 function loadRemote(){return rpc('kv_get',{p_k:KV}).then(function(r){if(touched){if(r!==null)setSync(true);return;}if(r&&typeof r==='object'&&Array.isArray(r.projects)){state=normalize(r);saveLocal();setSync(true);renderAll();}else if(r!==null){setSync(true);}});}
 
 /* ---------- refs ---------- */
-var hubEl=document.getElementById('hub'), stage=document.getElementById('stage'), world=document.getElementById('world'), edgesSvg=document.getElementById('edges'), emarksEl=document.getElementById('emarks'), detailEl=document.getElementById('detail');
+var hubEl=document.getElementById('hub'), stage=document.getElementById('stage'), world=document.getElementById('world'), edgesSvg=document.getElementById('edges'), detailEl=document.getElementById('detail'), emenuEl=document.getElementById('emenu');
 function view(){return proj()?proj().view:{panX:0,panY:0,scale:1};}
 function applyView(){var v=view();world.style.transform='translate('+v.panX+'px,'+v.panY+'px) scale('+v.scale+')';}
 function s2w(sx,sy){var r=stage.getBoundingClientRect(),v=view();return {x:(sx-r.left-v.panX)/v.scale,y:(sy-r.top-v.panY)/v.scale};}
 
 /* ---------- hub ---------- */
-function renderHub(){
-  var cards=state.projects.map(function(p){var pg=p.nodes.filter(function(n){return n.type!=='db';}).length,db=p.nodes.length-pg;
-    return '<div class="pcard" data-open="'+p.id+'"><div class="pcard-acts"><button data-ren="'+p.id+'" title="이름">'+svg(P_PEN)+'</button><button class="del" data-del="'+p.id+'" title="삭제">'+svg(P_TRASH)+'</button></div><div class="pcard-name">'+esc(p.name)+'</div><div class="pcard-meta">페이지 '+pg+' · DB '+db+'</div></div>';
-  }).join('');
-  hubEl.innerHTML='<div class="hubwrap"><div class="hub-h"><h1>프로젝트</h1><span>기획을 시작할 프로젝트를 고르세요</span></div><div class="hub-grid"><div class="pcard new" data-newproj>'+svg(P_PLUS)+'새 프로젝트</div>'+cards+'</div></div>';
-}
+function renderHub(){var cards=state.projects.map(function(p){var pg=p.nodes.filter(function(n){return n.type!=='db';}).length,db=p.nodes.length-pg;return '<div class="pcard" data-open="'+p.id+'"><div class="pcard-acts"><button data-ren="'+p.id+'" title="이름">'+svg(P_PEN)+'</button><button class="del" data-del="'+p.id+'" title="삭제">'+svg(P_TRASH)+'</button></div><div class="pcard-name">'+esc(p.name)+'</div><div class="pcard-meta">페이지 '+pg+' · DB '+db+'</div></div>';}).join('');hubEl.innerHTML='<div class="hubwrap"><div class="hub-h"><h1>프로젝트</h1><span>기획을 시작할 프로젝트를 고르세요</span></div><div class="hub-grid"><div class="pcard new" data-newproj>'+svg(P_PLUS)+'새 프로젝트</div>'+cards+'</div></div>';}
 
 /* ---------- canvas ---------- */
 function nodeHTML(n){
-  if(n.type==='db'){
-    var fs=n.fields||[];var rows=fs.slice(0,6).map(function(f){return '<div class="dbf"><span class="dbf-n">'+(f.pk?'<span class="pk">PK</span>':'')+esc(f.name||'field')+'</span><span class="dbf-t">'+esc(f.type||'')+'</span></div>';}).join('');
-    var more=fs.length>6?'<div class="dbf more">+'+(fs.length-6)+' 더</div>':'';
-    return '<div class="node db" data-id="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px"><div class="node-h"><span class="dbic">'+svg(P_DB)+'</span><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'table')+'</span></div><div class="db-fields">'+(rows||'<div class="dbf empt">필드 없음</div>')+more+'</div><div class="port" data-port></div></div>';
-  }
+  var cstyle='left:'+n.x+'px;top:'+n.y+'px'+(n.color?';--nc:'+n.color:'');
+  var handles='<div class="chandle l" data-port></div><div class="chandle r" data-port></div>';
+  if(n.type==='db'){var fs=n.fields||[];var rows=fs.slice(0,6).map(function(f){return '<div class="dbf"><span class="dbf-n">'+(f.pk?'<span class="pk">PK</span>':'')+esc(f.name||'field')+'</span><span class="dbf-t">'+esc(f.type||'')+'</span></div>';}).join('');var more=fs.length>6?'<div class="dbf more">+'+(fs.length-6)+' 더</div>':'';
+    return '<div class="node db" data-id="'+n.id+'" style="'+cstyle+'"><div class="node-h"><span class="dbic">'+svg(P_DB)+'</span><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'table')+'</span></div><div class="db-fields">'+(rows||'<div class="dbf empt">필드 없음</div>')+more+'</div>'+handles+'</div>';}
   var done=n.features.filter(function(f){return f.status==='done';}).length;var on=n.features.length?Math.round(done/n.features.length*5):0;var bars='';for(var i=0;i<5;i++)bars+='<i class="'+(i<on?'on':'')+'"></i>';var badge=done?'<span class="node-feat">'+done+'/'+n.features.length+'</span>':'';
-  return '<div class="node" data-id="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px"><div class="node-h"><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'제목 없음')+'</span></div><div class="node-b"><div class="prbar">'+bars+'</div><span class="node-n">'+n.features.length+' 기능</span>'+badge+'</div><div class="port" data-port></div></div>';
+  return '<div class="node" data-id="'+n.id+'" style="'+cstyle+'"><div class="node-h"><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'제목 없음')+'</span></div><div class="node-b"><div class="prbar">'+bars+'</div><span class="node-n">'+n.features.length+' 기능</span>'+badge+'</div>'+handles+'</div>';
 }
-function edgeGeo(a,b){var ax=a.x+NODE_W,ay=a.y+PY,bx=b.x,by=b.y+PY,mx=(ax+bx)/2;var r=Math.max(0,Math.min(9,Math.abs(by-ay)/2-1,Math.abs(mx-ax),Math.abs(bx-mx)));var s1=mx>=ax?1:-1,s2=by>=ay?1:-1,s3=bx>=mx?1:-1;var d;if(r<2||Math.abs(by-ay)<3){d='M '+ax+' '+ay+' L '+mx+' '+ay+' L '+mx+' '+by+' L '+bx+' '+by;}else{d='M '+ax+' '+ay+' H '+(mx-s1*r)+' Q '+mx+' '+ay+' '+mx+' '+(ay+s2*r)+' V '+(by-s2*r)+' Q '+mx+' '+by+' '+(mx+s3*r)+' '+by+' H '+bx;}return {ax:ax,ay:ay,bx:bx,by:by,mx:mx,my:(ay+by)/2,d:d};}
-function drawEdges(tmp){
-  var p=proj(),g='<defs><marker id="arw" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse"><path d="M1 1 L8.5 5 L1 9 Z" style="fill:color-mix(in srgb,var(--acc) 75%,var(--fg))"/></marker></defs>',m='';
-  if(p)p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(a&&b){var q=edgeGeo(a,b);var me=e.dir==='both'?' marker-start="url(#arw)"':'';g+='<path class="ed" marker-end="url(#arw)"'+me+' d="'+q.d+'"></path>';m+='<div class="emark" style="left:'+q.mx+'px;top:'+q.my+'px"><button class="emark-dir" data-edir="'+e.id+'" title="방향 전환">'+(e.dir==='both'?'↔':'→')+'</button><button class="emark-x" data-edel="'+e.id+'" title="연결 삭제">×</button></div>';}});
-  if(tmp)g+='<path class="ed tmp" d="'+tmp+'"></path>';
-  edgesSvg.innerHTML=g;emarksEl.innerHTML=tmp?'':m;
-}
+function nodeGeom(n){var el=world.querySelector('.node[data-id="'+n.id+'"]');var h=el?el.offsetHeight:72;return {x:n.x,y:n.y,w:NODE_W,h:h,cx:n.x+NODE_W/2,cy:n.y+h/2};}
+function edgeGeo(a,b){var A=nodeGeom(a),B=nodeGeom(b);var aR=B.cx>=A.cx,bR=A.cx>=B.cx;var ax=aR?A.x+A.w:A.x,ay=A.cy,bx=bR?B.x+B.w:B.x,by=B.cy;var mx;if(aR!==bR)mx=(ax+bx)/2;else mx=aR?Math.max(ax,bx)+42:Math.min(ax,bx)-42;var cy=(ay+by)/2;
+  var full='M '+ax+' '+ay+' L '+mx+' '+ay+' L '+mx+' '+by+' L '+bx+' '+by;
+  var h1='M '+mx+' '+cy+' L '+mx+' '+ay+' L '+ax+' '+ay;
+  var h2='M '+mx+' '+cy+' L '+mx+' '+by+' L '+bx+' '+by;
+  return {ax:ax,ay:ay,bx:bx,by:by,mx:mx,cy:cy,full:full,h1:h1,h2:h2,segs:[[ax,ay,mx,ay],[mx,ay,mx,by],[mx,by,bx,by]]};}
+function drawEdges(tmp){var p=proj(),g='';
+  if(p)p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(a&&b){var q=edgeGeo(a,b);var st=a.color?' style="stroke:'+a.color+'"':'';g+='<path class="ed-base" d="'+q.full+'"></path>';if(e.dir==='both'){g+='<path class="ed-flow"'+st+' d="'+q.h1+'"></path><path class="ed-flow"'+st+' d="'+q.h2+'"></path>';}else{g+='<path class="ed-flow"'+st+' d="'+q.full+'"></path>';}}});
+  if(tmp)g+='<path class="ed-flow" d="'+tmp+'"></path>';
+  edgesSvg.innerHTML=g;}
 function renderCanvas(){var p=proj(),em=document.getElementById('empty');world.querySelectorAll('.node').forEach(function(n){n.remove();});
   if(!p){drawEdges();return;}
-  if(!p.nodes.length){em.hidden=false;em.innerHTML='<h2>빈 캔버스</h2><p>우상단 <b>＋ 페이지</b> 또는 <b>＋ DB</b>로 노드를 추가하고, 노드 오른쪽 점을 끌어 연결하세요. 노드를 클릭하면 안으로 들어가 설계합니다.</p>';}else em.hidden=true;
+  if(!p.nodes.length){em.hidden=false;em.innerHTML='<h2>빈 캔버스</h2><p>우상단 <b>＋ 페이지</b> 또는 <b>＋ DB</b>로 노드를 추가하고, 노드의 좌/우 가장자리를 끌어 연결하세요. 노드를 클릭하면 안으로 들어가 설계합니다.</p>';}else em.hidden=true;
   var frag=document.createElement('div');frag.innerHTML=p.nodes.map(nodeHTML).join('');while(frag.firstChild)world.appendChild(frag.firstChild);drawEdges();}
 
 /* ---------- node detail ---------- */
-function featBlock(f){var open=!!openSet[f.id],filled=prFilled(f);
-  var head='<div class="fbh" data-fhead><span class="feat-grip" data-grip>'+svg(P_GRIP)+'</span><button class="feat-status" data-fstatus title="상태">'+ST_L[f.status]+'</button><input class="feat-name" data-fname value="'+esc(f.name)+'" placeholder="기능 이름"><span class="fb-prog">'+filled+'/5</span><span class="fb-chev">'+svg(P_CHEV)+'</span><button class="feat-x" data-fdel title="삭제">'+svg(P_X)+'</button></div>';
-  var body='';if(open){var s='';for(var i=0;i<5;i++)s+='<div class="fstep"><div class="fstep-h"><span class="fstep-n">PR'+(i+1)+'</span><span class="fstep-l">'+PR_LABELS[i]+'</span></div><textarea data-pr="'+i+'" placeholder="이 단계에서 구현할 것">'+esc(f.pr[i])+'</textarea></div>';body='<div class="fbb">'+s+'</div>';}
-  return '<div class="feat'+(open?' open':'')+' status-'+f.status+'" data-fid="'+f.id+'" draggable="true">'+head+body+'</div>';
-}
+function featBlock(f){var open=!!openSet[f.id],filled=prFilled(f);var head='<div class="fbh" data-fhead><span class="feat-grip" data-grip>'+svg(P_GRIP)+'</span><button class="feat-status" data-fstatus title="상태">'+ST_L[f.status]+'</button><input class="feat-name" data-fname value="'+esc(f.name)+'" placeholder="기능 이름"><span class="fb-prog">'+filled+'/5</span><span class="fb-chev">'+svg(P_CHEV)+'</span><button class="feat-x" data-fdel title="삭제">'+svg(P_X)+'</button></div>';var body='';if(open){var s='';for(var i=0;i<5;i++)s+='<div class="fstep"><div class="fstep-h"><span class="fstep-n">PR'+(i+1)+'</span><span class="fstep-l">'+PR_LABELS[i]+'</span></div><textarea data-pr="'+i+'" placeholder="이 단계에서 구현할 것">'+esc(f.pr[i])+'</textarea></div>';body='<div class="fbb">'+s+'</div>';}return '<div class="feat'+(open?' open':'')+' status-'+f.status+'" data-fid="'+f.id+'" draggable="true">'+head+body+'</div>';}
 function fieldRow(f){return '<div class="fld" data-fid="'+f.id+'" draggable="true"><span class="feat-grip" data-grip>'+svg(P_GRIP)+'</span><button class="fld-pk'+(f.pk?' on':'')+'" data-fpk title="기본키">PK</button><input class="fld-name" data-fname value="'+esc(f.name)+'" placeholder="필드명"><input class="fld-type" data-ftype value="'+esc(f.type)+'" placeholder="타입" list="dbtypes"><button class="feat-x" data-fdel title="삭제">'+svg(P_X)+'</button></div>';}
 function renderDetail(){
   var n=activeNode(),p=proj();if(!n){nav={level:'canvas',nodeId:null};renderAll();return;}
   var links=p.edges.filter(function(e){return e.from===n.id||e.to===n.id;}).map(function(e){var o=nodeById(e.from===n.id?e.to:e.from);var d=e.dir==='both'?'↔ ':(e.from===n.id?'→ ':'← ');return d+esc(o?o.title||'제목 없음':'?');}).join('  ·  ');
-  var isDB=n.type==='db';
-  var badge='<span class="dbadge '+(isDB?'db">DB':'pg">PAGE')+'</span>';
-  var content;
-  if(isDB){
-    var rows=(n.fields.length?'<div id="featlist">'+n.fields.map(fieldRow).join('')+'</div>':'<div class="feat-empty">필드가 없습니다. 이 테이블에 담을 데이터 필드를 추가하세요.</div>');
-    content='<div class="dsub">필드 <span class="cnt" style="color:var(--db)">'+n.fields.length+'</span></div>'+rows
-      +'<button class="addfeat dbadd" data-addfield>'+svg(P_PLUS)+' 필드 추가</button>'
-      +'<datalist id="dbtypes">'+DB_TYPES.map(function(t){return '<option value="'+t+'">';}).join('')+'</datalist>';
-  }else{
-    var done=n.features.filter(function(f){return f.status==='done';}).length;
-    var list=n.features.length?'<div id="featlist">'+n.features.map(featBlock).join('')+'</div>':'<div class="feat-empty">아직 기능이 없습니다. 기능을 추가하면 블록이 열리고, 그 안에서 PR 1~5로 구현을 설계합니다.</div>';
-    content='<div class="dsub">기능 <span class="cnt">'+n.features.length+(done?' · '+done+' 완료':'')+'</span></div>'+list+'<button class="addfeat" data-addfeat>'+svg(P_PLUS)+' 기능 추가</button>';
-  }
+  var isDB=n.type==='db';var badge='<span class="dbadge '+(isDB?'db">DB':'pg">PAGE')+'</span>';var content;
+  if(isDB){var rows=(n.fields.length?'<div id="featlist">'+n.fields.map(fieldRow).join('')+'</div>':'<div class="feat-empty">필드가 없습니다. 이 테이블에 담을 데이터 필드를 추가하세요.</div>');content='<div class="dsub">필드 <span class="cnt" style="color:var(--db)">'+n.fields.length+'</span></div>'+rows+'<button class="addfeat dbadd" data-addfield>'+svg(P_PLUS)+' 필드 추가</button><datalist id="dbtypes">'+DB_TYPES.map(function(t){return '<option value="'+t+'">';}).join('')+'</datalist>';}
+  else{var done=n.features.filter(function(f){return f.status==='done';}).length;var list=n.features.length?'<div id="featlist">'+n.features.map(featBlock).join('')+'</div>':'<div class="feat-empty">아직 기능이 없습니다. 기능을 추가하면 블록이 열리고, 그 안에서 PR 1~5로 구현을 설계합니다.</div>';content='<div class="dsub">기능 <span class="cnt">'+n.features.length+(done?' · '+done+' 완료':'')+'</span></div>'+list+'<button class="addfeat" data-addfeat>'+svg(P_PLUS)+' 기능 추가</button>';}
+  var swColor=n.color||(isDB?'#2dbd8e':'#6a7cff');
   detailEl.innerHTML='<div class="dhead"><button class="dback" data-back>‹ 캔버스</button>'+badge+'<div class="dcrumb">'+esc(p.name)+' › <b>'+esc(n.title||'제목 없음')+'</b></div></div>'
     +'<div class="dbody"><div class="dwrap">'
     +'<input class="dtitle'+(isDB?' node-db-title':'')+'" data-title value="'+esc(n.title)+'" placeholder="'+(isDB?'table_name':'페이지 이름')+'">'
+    +'<div class="ncrow"><span>테두리 색</span><label class="ncsw" style="background:'+esc(swColor)+'"><input type="color" data-ncolor value="'+esc(swColor)+'"></label><button class="ncreset" data-ncreset>기본</button></div>'
     +(links?'<div class="dlinks">연결 &nbsp;'+links+'</div>':'')
     +content
     +'<div class="dact"><button class="pbtn" data-copy>'+svg(P_COPY)+' '+(isDB?'스키마 복사':'프롬프트 복사')+'</button><button class="pbtn danger" data-delnode>'+svg(P_TRASH)+' '+(isDB?'테이블':'페이지')+' 삭제</button></div>'
     +'</div></div>';
 }
-
-function updateTop(){var onCanvas=nav.level==='canvas',onHub=nav.level==='hub';document.getElementById('tohub').hidden=!onCanvas;document.getElementById('projname').hidden=!onCanvas;document.getElementById('addpage').hidden=!onCanvas;document.getElementById('adddb').hidden=!onCanvas;if(onCanvas&&proj())document.getElementById('projname').textContent=proj().name;}
-function renderAll(){
-  document.documentElement.setAttribute('data-theme',state.theme);document.getElementById('tgl').textContent=state.theme==='dark'?'라이트':'다크';
-  updateTop();
-  hubEl.hidden=nav.level!=='hub';stage.hidden=nav.level!=='canvas';detailEl.hidden=nav.level!=='node';
-  if(nav.level==='hub')renderHub();
-  else if(nav.level==='canvas'){applyView();renderCanvas();}
-  else renderDetail();
-}
+function updateTop(){var onCanvas=nav.level==='canvas';document.getElementById('tohub').hidden=!onCanvas;document.getElementById('projname').hidden=!onCanvas;document.getElementById('addpage').hidden=!onCanvas;document.getElementById('adddb').hidden=!onCanvas;if(onCanvas&&proj())document.getElementById('projname').textContent=proj().name;}
+function renderAll(){document.documentElement.setAttribute('data-theme',state.theme);document.getElementById('tgl').textContent=state.theme==='dark'?'라이트':'다크';updateTop();hubEl.hidden=nav.level!=='hub';stage.hidden=nav.level!=='canvas';detailEl.hidden=nav.level!=='node';if(nav.level==='hub')renderHub();else if(nav.level==='canvas'){applyView();renderCanvas();}else renderDetail();}
 
 /* ---------- ops ---------- */
 function openProject(id){cur=id;nav={level:'canvas',nodeId:null};renderAll();}
-function toHub(){nav={level:'hub',nodeId:null};cur=null;renderAll();}
 function addNode(type){var p=proj();if(!p)return;var r=stage.getBoundingClientRect(),v=p.view;var cx=(r.width/2-v.panX)/v.scale-110,cy=(r.height/2-v.panY)/v.scale-30;var n=normNode({type:type,x:Math.round(cx+(p.nodes.length%5)*20),y:Math.round(cy+(p.nodes.length%5)*20)});p.nodes.push(n);persist();nav={level:'node',nodeId:n.id};renderAll();setTimeout(function(){var t=document.querySelector('.dtitle');if(t)t.focus();},30);}
 function delNode(id){var p=proj();if(!p)return;p.nodes=p.nodes.filter(function(n){return n.id!==id;});p.edges=p.edges.filter(function(e){return e.from!==id&&e.to!==id;});persist();nav={level:'canvas',nodeId:null};renderAll();}
 function addEdge(from,to){var p=proj();if(!p||from===to)return;if(p.edges.some(function(e){return (e.from===from&&e.to===to)||(e.from===to&&e.to===from);}))return;p.edges.push({id:uid(),from:from,to:to,dir:'to'});persist();drawEdges();}
-function cycleDir(id){var p=proj();if(!p)return;var e=p.edges.find(function(x){return x.id===id;});if(e){e.dir=e.dir==='both'?'to':'both';persist();drawEdges();}}
-function delEdge(id){var p=proj();if(!p)return;p.edges=p.edges.filter(function(e){return e.id!==id;});persist();drawEdges();}
 function openNode(id){nav={level:'node',nodeId:id};renderAll();}
 function newProject(){var name=prompt('새 프로젝트 이름','새 프로젝트');if(name==null)return;var p=normProj({name:name.trim()||'새 프로젝트'});state.projects.push(p);persist();openProject(p.id);}
 function renameProject(id){var p=state.projects.find(function(x){return x.id===id;});if(!p)return;var name=prompt('프로젝트 이름',p.name);if(name==null)return;p.name=name.trim()||p.name;persist();renderAll();}
@@ -331,15 +310,9 @@ function delProject(id){var p=state.projects.find(function(x){return x.id===id;}
 var toastT=null;function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show');},1500);}
 function itemOf(el){var n=activeNode();if(!n)return null;var row=el.closest('.feat,.fld');if(!row)return null;var id=row.getAttribute('data-fid');var arr=n.type==='db'?n.fields:n.features;return arr.find(function(x){return x.id===id;});}
 
-/* ---------- hub events ---------- */
-hubEl.addEventListener('click',function(e){
-  if(e.target.closest('[data-newproj]')){newProject();return;}
-  var ren=e.target.closest('[data-ren]');if(ren){renameProject(ren.getAttribute('data-ren'));return;}
-  var del=e.target.closest('[data-del]');if(del){delProject(del.getAttribute('data-del'));return;}
-  var op=e.target.closest('[data-open]');if(op){openProject(op.getAttribute('data-open'));return;}
-});
-/* ---------- topbar ---------- */
-document.getElementById('tohub').onclick=toHub;
+/* ---------- hub / topbar events ---------- */
+hubEl.addEventListener('click',function(e){if(e.target.closest('[data-newproj]')){newProject();return;}var ren=e.target.closest('[data-ren]');if(ren){renameProject(ren.getAttribute('data-ren'));return;}var del=e.target.closest('[data-del]');if(del){delProject(del.getAttribute('data-del'));return;}var op=e.target.closest('[data-open]');if(op){openProject(op.getAttribute('data-open'));return;}});
+document.getElementById('tohub').onclick=function(){nav={level:'hub',nodeId:null};cur=null;renderAll();};
 document.getElementById('addpage').onclick=function(){addNode('page');};
 document.getElementById('adddb').onclick=function(){addNode('db');};
 document.getElementById('tg').onclick=function(){state.theme=state.theme==='dark'?'light':'dark';persist();renderAll();};
@@ -348,44 +321,54 @@ document.getElementById('tg').onclick=function(){state.theme=state.theme==='dark
 detailEl.addEventListener('click',function(e){
   if(e.target.closest('[data-back]')){nav={level:'canvas',nodeId:null};renderAll();return;}
   var n=activeNode();if(!n)return;
+  if(e.target.closest('[data-ncreset]')){n.color='';persist();renderDetail();return;}
   if(e.target.closest('[data-delnode]')){if(confirm('삭제할까요?'))delNode(n.id);return;}
   if(e.target.closest('[data-copy]')){copyNode(n);return;}
   if(e.target.closest('[data-addfeat]')){var nf=normFeat({});n.features.push(nf);openSet[nf.id]=true;persist();renderDetail();var ins=detailEl.querySelectorAll('.feat-name');if(ins.length)ins[ins.length-1].focus();return;}
   if(e.target.closest('[data-addfield]')){n.fields.push(normField({}));persist();renderDetail();var ins2=detailEl.querySelectorAll('.fld-name');if(ins2.length)ins2[ins2.length-1].focus();return;}
   var fs=e.target.closest('[data-fstatus]');if(fs){var f=itemOf(fs);if(f){f.status=ST_ORDER[(ST_ORDER.indexOf(f.status)+1)%3];persist();renderDetail();}return;}
   var pk=e.target.closest('[data-fpk]');if(pk){var f2=itemOf(pk);if(f2){f2.pk=!f2.pk;persist();renderDetail();}return;}
-  var fd=e.target.closest('[data-fdel]');if(fd){var f3=itemOf(fd);if(f3){if(f3.id&&openSet[f3.id])delete openSet[f3.id];var arr=n.type==='db'?'fields':'features';n[arr]=n[arr].filter(function(x){return x.id!==f3.id;});persist();renderDetail();}return;}
+  var fd=e.target.closest('[data-fdel]');if(fd){var f3=itemOf(fd);if(f3){if(f3.id&&openSet[f3.id])delete openSet[f3.id];var an=n.type==='db'?'fields':'features';n[an]=n[an].filter(function(x){return x.id!==f3.id;});persist();renderDetail();}return;}
   var head=e.target.closest('[data-fhead]');
   if(head&&!e.target.closest('input,[data-fstatus],[data-fdel],[data-grip]')){var f4=itemOf(head);if(f4){openSet[f4.id]=!openSet[f4.id];renderDetail();}return;}
 });
 detailEl.addEventListener('input',function(e){var n=activeNode();if(!n)return;
   if(e.target.matches('[data-title]')){n.title=e.target.value;var c=detailEl.querySelector('.dcrumb b');if(c)c.textContent=n.title||'제목 없음';persist();}
+  else if(e.target.matches('[data-ncolor]')){n.color=e.target.value;var sw=detailEl.querySelector('.ncsw');if(sw)sw.style.background=n.color;persist();}
   else if(e.target.matches('[data-fname]')){var f=itemOf(e.target);if(f){f.name=e.target.value;persist();}}
   else if(e.target.matches('[data-ftype]')){var f2=itemOf(e.target);if(f2){f2.type=e.target.value;persist();}}
   else if(e.target.matches('[data-pr]')){var f3=itemOf(e.target);if(f3){f3.pr[+e.target.getAttribute('data-pr')]=e.target.value;var pgel=e.target.closest('.feat').querySelector('.fb-prog');if(pgel)pgel.textContent=prFilled(f3)+'/5';persist();}}
 });
 function copyNode(n){var out;if(n.type==='db'){out='create table '+(n.title||'table')+' (\n'+n.fields.map(function(f){return '  '+(f.name||'col')+' '+(f.type||'text')+(f.pk?' primary key':'');}).join(',\n')+'\n);';}else{out='# '+(n.title||'제목 없음')+'\n';n.features.forEach(function(f){out+='\n## 기능 — '+(f.name||'(무제)')+'  ['+ST_L[f.status]+']\n';for(var i=0;i<5;i++)if(f.pr[i]&&f.pr[i].trim())out+='### PR'+(i+1)+' · '+PR_LABELS[i]+'\n'+f.pr[i]+'\n';});}(navigator.clipboard?navigator.clipboard.writeText(out):Promise.reject()).then(function(){toast('복사됨');},function(){toast('복사 실패');});}
 
-/* item drag reorder (features or fields) */
+/* item drag reorder */
 var fdrag=null;
 detailEl.addEventListener('dragstart',function(e){var row=e.target.closest('.feat,.fld');if(!row)return;if(e.target.matches('input,textarea')){e.preventDefault();return;}fdrag=row.getAttribute('data-fid');row.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',fdrag);}catch(_){}});
 detailEl.addEventListener('dragend',function(){var d=detailEl.querySelector('.dragging');if(d)d.classList.remove('dragging');detailEl.querySelectorAll('.over').forEach(function(x){x.classList.remove('over');});fdrag=null;});
 detailEl.addEventListener('dragover',function(e){if(!fdrag)return;var list=detailEl.querySelector('#featlist');if(!list)return;e.preventDefault();detailEl.querySelectorAll('.over').forEach(function(x){x.classList.remove('over');});var rows=[].slice.call(list.querySelectorAll('.feat:not(.dragging),.fld:not(.dragging)'));for(var i=0;i<rows.length;i++){var r=rows[i].getBoundingClientRect();if(e.clientY<r.top+r.height/2){rows[i].classList.add('over');return;}}});
 detailEl.addEventListener('drop',function(e){if(!fdrag)return;var list=detailEl.querySelector('#featlist');if(!list)return;e.preventDefault();var n=activeNode();if(!n)return;var arr=n.type==='db'?n.fields:n.features;var rows=[].slice.call(list.querySelectorAll('.feat:not(.dragging),.fld:not(.dragging)'));var beforeId=null;for(var i=0;i<rows.length;i++){var r=rows[i].getBoundingClientRect();if(e.clientY<r.top+r.height/2){beforeId=rows[i].getAttribute('data-fid');break;}}var idx=arr.findIndex(function(f){return f.id===fdrag;});if(idx<0)return;var moved=arr.splice(idx,1)[0];var bi=beforeId?arr.findIndex(function(f){return f.id===beforeId;}):arr.length;arr.splice(bi<0?arr.length:bi,0,moved);persist();renderDetail();});
 
+/* ---------- edge context menu (right-click) ---------- */
+function distSeg(px,py,x1,y1,x2,y2){var dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;if(l2===0)return Math.hypot(px-x1,py-y1);var t=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/l2));return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));}
+function nearestEdge(wx,wy,thr){var p=proj();if(!p)return null;var best=null,bd=thr;p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(!a||!b)return;var q=edgeGeo(a,b);q.segs.forEach(function(s){var d=distSeg(wx,wy,s[0],s[1],s[2],s[3]);if(d<bd){bd=d;best=e;}});});return best;}
+function showEmenu(x,y,edge){emenuEl.innerHTML='<button data-op="to">→ 정방향</button><button data-op="rev">← 반대 방향</button><button data-op="both">↔ 양방향</button><button data-op="del" class="del">'+svg(P_TRASH)+' 연결 삭제</button>';emenuEl.style.left=Math.min(x,window.innerWidth-170)+'px';emenuEl.style.top=y+'px';emenuEl.hidden=false;emenuEl.dataset.eid=edge.id;}
+function hideEmenu(){emenuEl.hidden=true;}
+stage.addEventListener('contextmenu',function(e){var w=s2w(e.clientX,e.clientY);var edge=nearestEdge(w.x,w.y,10/view().scale);if(!edge)return;e.preventDefault();showEmenu(e.clientX,e.clientY,edge);});
+emenuEl.addEventListener('click',function(e){var b=e.target.closest('[data-op]');if(!b)return;var p=proj();var edge=p&&p.edges.find(function(x){return x.id===emenuEl.dataset.eid;});if(edge){var op=b.getAttribute('data-op');if(op==='to')edge.dir='to';else if(op==='both')edge.dir='both';else if(op==='rev'){var f=edge.from;edge.from=edge.to;edge.to=f;edge.dir='to';}else if(op==='del'){p.edges=p.edges.filter(function(x){return x.id!==edge.id;});}persist();drawEdges();}hideEmenu();});
+document.addEventListener('mousedown',function(e){if(!emenuEl.hidden&&!e.target.closest('#emenu'))hideEmenu();});
+
 /* ---------- canvas events ---------- */
 var drag=null;
 stage.addEventListener('mousedown',function(e){
-  if(e.target.closest('.emark'))return;
+  if(e.button!==0)return;
   var port=e.target.closest('[data-port]');if(port){drag={mode:'link',from:port.closest('.node').getAttribute('data-id')};e.preventDefault();return;}
   var node=e.target.closest('.node');if(node){var id=node.getAttribute('data-id'),nn=nodeById(id),w=s2w(e.clientX,e.clientY);drag={mode:'node',id:id,dx:w.x-nn.x,dy:w.y-nn.y,sx:e.clientX,sy:e.clientY,moved:false};e.preventDefault();return;}
   var v=view();drag={mode:'pan',sx:e.clientX,sy:e.clientY,px:v.panX,py:v.panY};stage.classList.add('panning');
 });
-stage.addEventListener('click',function(e){var dir=e.target.closest('[data-edir]');if(dir){cycleDir(dir.getAttribute('data-edir'));return;}var del=e.target.closest('[data-edel]');if(del){delEdge(del.getAttribute('data-edel'));return;}});
 window.addEventListener('mousemove',function(e){if(!drag)return;
   if(drag.mode==='pan'){var v=view();v.panX=drag.px+(e.clientX-drag.sx);v.panY=drag.py+(e.clientY-drag.sy);applyView();}
   else if(drag.mode==='node'){if(!drag.moved&&Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)<4)return;drag.moved=true;var nn=nodeById(drag.id);if(!nn)return;var w=s2w(e.clientX,e.clientY);nn.x=Math.round(w.x-drag.dx);nn.y=Math.round(w.y-drag.dy);var el=document.querySelector('.node[data-id="'+drag.id+'"]');if(el){el.style.left=nn.x+'px';el.style.top=nn.y+'px';}drawEdges();}
-  else if(drag.mode==='link'){var a=nodeById(drag.from);if(!a)return;var w=s2w(e.clientX,e.clientY);var ax=a.x+NODE_W,ay=a.y+PY,mx=(ax+w.x)/2;drawEdges('M '+ax+' '+ay+' L '+mx+' '+ay+' L '+mx+' '+w.y+' L '+w.x+' '+w.y);}
+  else if(drag.mode==='link'){var a=nodeById(drag.from);if(!a)return;var G=nodeGeom(a);var w=s2w(e.clientX,e.clientY);var R=w.x>=G.cx;var ax=R?G.x+G.w:G.x,ay=G.cy,mx=(ax+w.x)/2;drawEdges('M '+ax+' '+ay+' L '+mx+' '+ay+' L '+mx+' '+w.y+' L '+w.x+' '+w.y);}
 });
 window.addEventListener('mouseup',function(e){if(!drag)return;
   if(drag.mode==='pan'){stage.classList.remove('panning');persist();}
@@ -397,7 +380,7 @@ function zoomAt(cx,cy,factor){var p=proj();if(!p)return;var v=p.view,ns=Math.min
 stage.addEventListener('wheel',function(e){if(!proj())return;e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.1:0.9);},{passive:false});
 document.getElementById('zin').onclick=function(){var r=stage.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.2);};
 document.getElementById('zout').onclick=function(){var r=stage.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,0.83);};
-document.getElementById('zfit').onclick=function(){var p=proj();if(!p||!p.nodes.length)return;var a=1e9,b=1e9,c=-1e9,d=-1e9;p.nodes.forEach(function(n){a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+NODE_W);d=Math.max(d,n.y+90);});var r=stage.getBoundingClientRect(),sc=Math.min(2,Math.max(.4,Math.min((r.width-90)/(c-a||1),(r.height-90)/(d-b||1))));p.view.scale=sc;p.view.panX=(r.width-(c-a)*sc)/2-a*sc;p.view.panY=(r.height-(d-b)*sc)/2-b*sc;applyView();persist();};
+document.getElementById('zfit').onclick=function(){var p=proj();if(!p||!p.nodes.length)return;var a=1e9,b=1e9,c=-1e9,d=-1e9;p.nodes.forEach(function(n){var G=nodeGeom(n);a=Math.min(a,G.x);b=Math.min(b,G.y);c=Math.max(c,G.x+G.w);d=Math.max(d,G.y+G.h);});var r=stage.getBoundingClientRect(),sc=Math.min(2,Math.max(.4,Math.min((r.width-90)/(c-a||1),(r.height-90)/(d-b||1))));p.view.scale=sc;p.view.panX=(r.width-(c-a)*sc)/2-a*sc;p.view.panY=(r.height-(d-b)*sc)/2-b*sc;applyView();persist();};
 
 renderAll();
 loadRemote();
