@@ -79,7 +79,7 @@ button{cursor:pointer;border:none;background:none}
 .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;width:1px;height:1px}
 .ed-base{fill:none;stroke:var(--line2);stroke-width:1.5}
-.chev{stroke:none}
+.chev{fill:none;stroke:var(--flow);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .node{position:absolute;width:220px;background:var(--surface);border:1px solid var(--nc,var(--nborder));border-radius:11px;box-shadow:0 6px 18px -10px rgba(0,0,0,.6);user-select:none;cursor:grab;transition:box-shadow .15s,border-color .15s}
 .node:hover{border-color:var(--nc,var(--acc))}
@@ -91,7 +91,11 @@ button{cursor:pointer;border:none;background:none}
 .node-t{font-size:14.5px;font-weight:700;line-height:1.3;flex:1;min-width:0;word-break:break-word}
 .node.db .node-t{font-family:var(--mono);font-size:13.5px}
 .node-t.ph{color:var(--faint);font-weight:600}
-.node-b{padding:0 13px 12px;display:flex;align-items:center;gap:9px}
+.node-b{padding:2px 13px 12px}
+.sqrow{display:flex;flex-wrap:wrap;gap:3px}
+.sq{width:11px;height:11px;border-radius:3px;border:1.5px solid var(--line2)}
+.sq.s-doing{background:var(--nc,var(--acc));border-color:var(--nc,var(--acc))}
+.sq.s-done{background:var(--ok);border-color:var(--ok)}
 .prbar{display:flex;gap:3px;flex:1}.prbar i{height:5px;flex:1;border-radius:3px;background:var(--line2)}.prbar i.on{background:var(--nc,var(--acc))}
 .node-n{font-size:11px;color:var(--faint);font-family:var(--mono)}
 .node-feat{font-size:10.5px;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 45%,transparent);border-radius:20px;padding:1px 7px;font-weight:700}
@@ -263,8 +267,9 @@ function nodeHTML(n){
   var handles='<div class="chandle l" data-port></div><div class="chandle r" data-port></div>';
   if(n.type==='db'){var fs=n.fields||[];var rows=fs.slice(0,6).map(function(f){return '<div class="dbf"><span class="dbf-n">'+(f.pk?'<span class="pk">PK</span>':'')+esc(f.name||'field')+'</span><span class="dbf-t">'+esc(f.type||'')+'</span></div>';}).join('');var more=fs.length>6?'<div class="dbf more">+'+(fs.length-6)+' 더</div>':'';
     return '<div class="node db" data-id="'+n.id+'" style="'+cstyle+'"><div class="node-h"><span class="dbic">'+svg(P_DB)+'</span><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'table')+'</span></div><div class="db-fields">'+(rows||'<div class="dbf empt">필드 없음</div>')+more+'</div>'+handles+'</div>';}
-  var done=n.features.filter(function(f){return f.status==='done';}).length;var on=n.features.length?Math.round(done/n.features.length*5):0;var bars='';for(var i=0;i<5;i++)bars+='<i class="'+(i<on?'on':'')+'"></i>';var badge=done?'<span class="node-feat">'+done+'/'+n.features.length+'</span>':'';
-  return '<div class="node" data-id="'+n.id+'" style="'+cstyle+'"><div class="node-h"><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'제목 없음')+'</span></div><div class="node-b"><div class="prbar">'+bars+'</div><span class="node-n">'+n.features.length+' 기능</span>'+badge+'</div>'+handles+'</div>';
+  var sq=n.features.map(function(f){return '<i class="sq s-'+f.status+'"></i>';}).join('');
+  var nb=n.features.length?'<div class="node-b"><div class="sqrow">'+sq+'</div></div>':'';
+  return '<div class="node" data-id="'+n.id+'" style="'+cstyle+'"><div class="node-h"><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'제목 없음')+'</span></div>'+nb+handles+'</div>';
 }
 function nodeGeom(n){var el=world.querySelector('.node[data-id="'+n.id+'"]');var h=el?el.offsetHeight:72;return {x:n.x,y:n.y,w:NODE_W,h:h,cx:n.x+NODE_W/2,cy:n.y+h/2};}
 function edgeGeo(a,b){var A=nodeGeom(a),B=nodeGeom(b);var dx=B.cx-A.cx,dy=B.cy-A.cy;var ax,ay,bx,by,full,h1,h2,segs,ccx,ccy;
@@ -285,12 +290,12 @@ function edgeGeo(a,b){var A=nodeGeom(a),B=nodeGeom(b);var dx=B.cx-A.cx,dy=B.cy-A
     var lenv=Math.abs(my-ay)+Math.abs(bx-ax)+Math.abs(by-my),l1v=Math.abs(ax-ccx)+Math.abs(ay-my),l2v=Math.abs(bx-ccx)+Math.abs(by-my);
     return {ax:ax,ay:ay,bx:bx,by:by,cx:ccx,cy:ccy,full:full,h1:h1,h2:h2,segs:segs,len:lenv,l1:l1v,l2:l2v};
   }}
-function chevrons(mpid,len,color){var N=Math.min(60,Math.max(2,Math.round(len/15)));var dur=Math.max(.5,len/130);var g='';for(var k=0;k<N;k++){g+='<path class="chev" style="fill:'+color+'" d="M-4 -4.5 L1 0 L-4 4.5 L-1.4 4.5 L3.6 0 L-1.4 -4.5 Z"><animateMotion dur="'+dur.toFixed(2)+'s" repeatCount="indefinite" rotate="auto" begin="-'+(k*dur/N).toFixed(3)+'s"><mpath href="#'+mpid+'"/></animateMotion></path>';}return g;}
+function chevrons(mpid,len,color){var N=Math.min(60,Math.max(2,Math.round(len/16)));var dur=Math.max(.6,len/95);var g='';for(var k=0;k<N;k++){g+='<path class="chev" style="stroke:'+color+'" d="M-2.6 -3 L1.2 0 L-2.6 3"><animateMotion dur="'+dur.toFixed(2)+'s" repeatCount="indefinite" rotate="auto" begin="-'+(k*dur/N).toFixed(3)+'s"><mpath href="#'+mpid+'"/></animateMotion></path>';}return g;}
 function drawEdges(tmp,simple){var p=proj(),g='';
   if(p)p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(!a||!b)return;var q=edgeGeo(a,b);var col=e.color||'var(--flow)';
     if(simple){g+='<path class="ed-base" d="'+q.full+'"></path>';return;}
-    if(e.dir==='both'){g+='<path id="mp'+e.id+'a" fill="none" stroke="none" d="'+q.h1+'"></path><path id="mp'+e.id+'b" fill="none" stroke="none" d="'+q.h2+'"></path>'+chevrons('mp'+e.id+'a',q.l1,col)+chevrons('mp'+e.id+'b',q.l2,col);}
-    else{g+='<path id="mp'+e.id+'" fill="none" stroke="none" d="'+q.full+'"></path>'+chevrons('mp'+e.id,q.len,col);}
+    if(e.dir==='both'){g+='<path class="ed-base" d="'+q.full+'"></path><path id="mp'+e.id+'a" fill="none" stroke="none" d="'+q.h1+'"></path><path id="mp'+e.id+'b" fill="none" stroke="none" d="'+q.h2+'"></path>'+chevrons('mp'+e.id+'a',q.l1,col)+chevrons('mp'+e.id+'b',q.l2,col);}
+    else{g+='<path id="mp'+e.id+'" class="ed-base" d="'+q.full+'"></path>'+chevrons('mp'+e.id,q.len,col);}
   });
   if(tmp)g+='<path class="ed-base" style="stroke:var(--flow)" d="'+tmp+'"></path>';
   edgesSvg.innerHTML=g;}
