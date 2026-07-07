@@ -25,8 +25,7 @@ html[data-theme="light"]{
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none!important}
 html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--kfont);-webkit-font-smoothing:antialiased;
-  display:flex;flex-direction:column;overflow:hidden;height:100vh}
+body{background:var(--bg);color:var(--fg);font-family:var(--kfont);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden;height:100vh}
 button,input,textarea,select{font-family:inherit;color:inherit}
 button{cursor:pointer;border:none;background:none}
 :focus-visible{outline:2px solid var(--acc);outline-offset:1px}
@@ -38,7 +37,7 @@ button{cursor:pointer;border:none;background:none}
 .back:hover{color:var(--fg);border-color:var(--line2)}
 .title{font-size:16px;font-weight:800;letter-spacing:-.01em}
 .psel{display:flex;align-items:center;gap:6px;margin-left:4px}
-.psel select{background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13.5px;font-weight:600;max-width:220px}
+.psel select{background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13.5px;font-weight:600;max-width:200px}
 .tbtn{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--mut);border:1px solid var(--line2);border-radius:8px;padding:7px 9px}
 .tbtn:hover{color:var(--fg);border-color:var(--acc)}
 .tbtn .ic{width:15px;height:15px}
@@ -48,81 +47,95 @@ button{cursor:pointer;border:none;background:none}
 .addpage{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#fff;background:var(--acc);border-radius:9px;padding:9px 13px}
 .addpage:hover{background:var(--acc-deep)}
 .addpage .ic{width:16px;height:16px;stroke-width:2.4}
+.themebtn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.themebtn:hover{color:var(--fg);border-color:var(--line2)}
 
-/* stage/canvas */
+/* canvas */
 .body{flex:1;display:flex;min-height:0}
-.stage{flex:1;position:relative;overflow:hidden;cursor:grab;
-  background-image:radial-gradient(var(--dot) 1.3px,transparent 1.3px);background-size:26px 26px}
+.stage{flex:1;position:relative;overflow:hidden;cursor:grab;background-image:radial-gradient(var(--dot) 1.3px,transparent 1.3px);background-size:26px 26px}
 .stage.panning{cursor:grabbing}
 .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;width:1px;height:1px}
-.edges path{fill:none;stroke:var(--line2);stroke-width:2}
-.edges path.tmp{stroke:var(--acc);stroke-dasharray:5 4}
+.edges .ed{fill:none;stroke:color-mix(in srgb,var(--acc) 52%,var(--line2));stroke-width:2;stroke-linecap:round}
+.edges .ed.tmp{stroke:var(--acc);stroke-dasharray:5 5}
+.edges .edp{fill:var(--acc);stroke:var(--bg);stroke-width:1.6}
 
-.node{position:absolute;width:214px;background:var(--surface);border:1px solid var(--line2);border-left:3px solid var(--acc);
-  border-radius:11px;box-shadow:0 6px 18px -10px rgba(0,0,0,.6);user-select:none;transition:box-shadow .15s,border-color .15s}
+.node{position:absolute;width:214px;background:var(--surface);border:1px solid var(--line2);border-left:3px solid var(--acc);border-radius:11px;box-shadow:0 6px 18px -10px rgba(0,0,0,.6);user-select:none;cursor:grab;transition:box-shadow .15s,border-color .15s}
 .node:hover{border-color:var(--acc)}
-.node.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-soft),0 10px 26px -12px rgba(0,0,0,.7)}
-.node-h{display:flex;align-items:center;gap:8px;padding:12px 13px 8px;cursor:grab}
-.node-h:active{cursor:grabbing}
+.node:active{cursor:grabbing}
+.node-h{display:flex;align-items:center;gap:8px;padding:12px 13px 8px}
 .node-t{font-size:14.5px;font-weight:700;line-height:1.3;flex:1;min-width:0;word-break:break-word}
 .node-t.ph{color:var(--faint);font-weight:600}
-.node-b{padding:0 13px 12px;display:flex;align-items:center;gap:8px}
+.node-b{padding:0 13px 12px;display:flex;align-items:center;gap:9px}
 .prbar{display:flex;gap:3px;flex:1}
 .prbar i{height:5px;flex:1;border-radius:3px;background:var(--line2)}
 .prbar i.on{background:var(--acc)}
 .node-n{font-size:11px;color:var(--faint);font-family:var(--mono)}
-.port{position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:17px;height:17px;border-radius:50%;
-  background:var(--acc);border:2px solid var(--bg);cursor:crosshair;display:flex;align-items:center;justify-content:center}
+.node-feat{font-size:10.5px;color:var(--acc);border:1px solid color-mix(in srgb,var(--acc) 45%,transparent);border-radius:20px;padding:1px 7px;font-weight:700}
+.port{position:absolute;right:-8px;top:26px;width:17px;height:17px;border-radius:50%;background:var(--acc);border:2px solid var(--bg);cursor:crosshair;display:flex;align-items:center;justify-content:center}
 .port::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--bg)}
-.port:hover{transform:translateY(-50%) scale(1.2)}
+.port:hover{transform:scale(1.2)}
+.zoombtns{position:absolute;left:14px;bottom:14px;display:flex;gap:6px;z-index:4}
+.zoombtns button{width:34px;height:34px;border-radius:8px;background:var(--surface);border:1px solid var(--line2);color:var(--mut);font-size:18px;display:flex;align-items:center;justify-content:center}
+.zoombtns button:hover{color:var(--fg);border-color:var(--acc)}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--faint);text-align:center;padding:20px;pointer-events:none}
+.empty h2{font-size:17px;font-weight:700;color:var(--mut)}
+.empty p{font-size:13.5px;max-width:360px;line-height:1.6}
 
-/* panel */
-.panel{flex:0 0 auto;width:0;overflow:hidden;background:var(--panel);border-left:1px solid var(--line2);transition:width .18s}
-.panel.open{width:360px}
-.panel-in{width:360px;height:100%;display:flex;flex-direction:column}
-.panel-h{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:13px 15px;border-bottom:1px solid var(--line)}
-.panel-h .pk{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-family:var(--mono)}
-.panel-x{margin-left:auto;color:var(--faint);display:inline-flex;padding:3px}.panel-x:hover{color:var(--fg)}
-.panel-body{flex:1;overflow-y:auto;padding:15px}
-.ptitle{width:100%;background:transparent;border:none;font-size:20px;font-weight:800;color:var(--fg);padding:2px 0 12px;border-bottom:1px solid var(--line);margin-bottom:16px}
-.ptitle:focus{outline:none;border-color:var(--acc)}
-.ptitle::placeholder{color:var(--faint)}
-.prstep{margin-bottom:14px}
+/* detail (page level) */
+.detail{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
+.dhead{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:11px 20px;border-bottom:1px solid var(--line2);background:var(--surface)}
+.dback{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+.dback:hover{color:var(--fg);border-color:var(--acc)}
+.dcrumb{font-size:14px;color:var(--faint)}.dcrumb b{color:var(--fg);font-weight:700}
+.dbody{flex:1;overflow-y:auto;padding:24px clamp(18px,5vw,44px) 80px}
+.dwrap{max-width:720px;margin:0 auto}
+.dtitle{width:100%;background:transparent;border:none;font-size:27px;font-weight:800;color:var(--fg);padding:2px 0 14px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.dtitle:focus{outline:none;border-color:var(--acc)}
+.dtitle::placeholder{color:var(--faint)}
+.dsec{margin-bottom:26px}
+.dsec-h{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-bottom:13px}
+.dsec-h .cnt{font-family:var(--mono);color:var(--acc)}
+.prstep{margin-bottom:12px}
 .prstep-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .prstep-n{font-family:var(--mono);font-size:11px;font-weight:800;color:#fff;background:var(--acc);border-radius:5px;padding:2px 7px;letter-spacing:.03em}
 .prstep-l{font-size:12px;color:var(--faint)}
-.prstep textarea{width:100%;min-height:64px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;
-  padding:10px 12px;font-size:14px;line-height:1.55;color:var(--fg);resize:vertical}
+.prstep textarea{width:100%;min-height:56px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:14px;line-height:1.55;color:var(--fg);resize:vertical}
 .prstep textarea:focus{outline:none;border-color:var(--acc)}
 .prstep textarea::placeholder{color:var(--faint)}
-.plinks{margin:6px 0 16px}
-.plinks-h{font-size:11px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
-.plink{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);padding:6px 8px;border-radius:7px;background:var(--surface2);margin-bottom:4px}
-.plink .dir{font-size:10px;font-family:var(--mono);color:var(--faint)}
-.plink .rm{margin-left:auto;color:var(--faint);display:inline-flex;cursor:pointer}.plink .rm:hover{color:var(--bad)}
-.plink .rm .ic{width:14px;height:14px}
-.pact{display:flex;gap:8px;margin-top:8px}
-.pbtn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:700;border-radius:9px;padding:10px;border:1px solid var(--line2);color:var(--mut)}
+
+.feat{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line2);border-radius:11px;padding:11px 12px;margin-bottom:9px}
+.feat.dragging{opacity:.4}
+.feat.over{box-shadow:inset 0 2px 0 var(--acc)}
+.feat-grip{color:var(--faint);cursor:grab;padding-top:5px;opacity:.55}
+.feat-grip:hover{opacity:1}
+.feat-grip .ic{width:15px;height:15px;stroke-width:1.8}
+.feat-check{flex:0 0 auto;width:21px;height:21px;margin-top:3px;border-radius:6px;border:2px solid var(--line2);display:inline-flex;align-items:center;justify-content:center;color:transparent}
+.feat-check:hover{border-color:var(--acc)}
+.feat.done .feat-check{background:var(--acc);border-color:var(--acc);color:#fff}
+.feat-check .ic{width:13px;height:13px;stroke-width:3}
+.feat-main{flex:1;min-width:0}
+.feat-name{width:100%;background:transparent;border:none;font-size:15px;font-weight:700;color:var(--fg);padding:1px 0}
+.feat-name:focus{outline:none}
+.feat.done .feat-name{color:var(--faint);text-decoration:line-through}
+.feat-desc{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;line-height:1.5;color:var(--fg);margin-top:7px;min-height:34px;resize:vertical}
+.feat-desc:focus{outline:none;border-color:var(--acc)}
+.feat-desc::placeholder{color:var(--faint)}
+.feat-x{flex:0 0 auto;color:var(--faint);padding:4px;margin-top:1px}.feat-x:hover{color:var(--bad)}
+.feat-x .ic{width:15px;height:15px}
+.addfeat{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:700;color:var(--acc);border:1.5px dashed var(--line2);border-radius:11px;padding:12px;margin-top:2px}
+.addfeat:hover{border-color:var(--acc);background:var(--acc-soft)}
+.addfeat .ic{width:16px;height:16px;stroke-width:2.4}
+.feat-empty{font-size:13.5px;color:var(--faint);padding:6px 2px 12px}
+.dact{display:flex;gap:9px;margin-top:26px;padding-top:20px;border-top:1px solid var(--line)}
+.pbtn{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;border-radius:9px;padding:10px 15px;border:1px solid var(--line2);color:var(--mut)}
 .pbtn:hover{color:var(--fg);border-color:var(--acc)}
 .pbtn.danger:hover{color:var(--bad);border-color:var(--bad)}
 .pbtn .ic{width:15px;height:15px}
 
-/* empty */
-.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--faint);text-align:center;padding:20px;pointer-events:none}
-.empty h2{font-size:17px;font-weight:700;color:var(--mut)}
-.empty p{font-size:13.5px;max-width:340px;line-height:1.6}
-
-.themebtn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
-.themebtn:hover{color:var(--fg);border-color:var(--line2)}
-.zoombtns{position:absolute;left:14px;bottom:14px;display:flex;gap:6px;z-index:4}
-.zoombtns button{width:34px;height:34px;border-radius:8px;background:var(--surface);border:1px solid var(--line2);color:var(--mut);font-size:18px;display:flex;align-items:center;justify-content:center}
-.zoombtns button:hover{color:var(--fg);border-color:var(--acc)}
-.hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);font-size:12px;color:var(--faint);background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line);border-radius:8px;padding:6px 12px;pointer-events:none}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(10px);background:var(--fg);color:var(--bg);font-weight:700;font-size:13px;padding:9px 16px;border-radius:9px;opacity:0;pointer-events:none;transition:.25s;z-index:40}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-textarea::-webkit-scrollbar,.panel-body::-webkit-scrollbar{width:9px}
-::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+::-webkit-scrollbar{width:9px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
 </style>
 </head>
 <body>
@@ -142,14 +155,11 @@ textarea::-webkit-scrollbar,.panel-body::-webkit-scrollbar{width:9px}
 </header>
 <div class="body">
   <div class="stage" id="stage">
-    <div class="world" id="world">
-      <svg class="edges" id="edges"></svg>
-    </div>
+    <div class="world" id="world"><svg class="edges" id="edges"></svg></div>
     <div class="zoombtns"><button id="zin">+</button><button id="zout">−</button><button id="zfit" title="맞춤" style="font-size:12px">⤢</button></div>
-    <div class="hint" id="hint" hidden></div>
     <div class="empty" id="empty" hidden></div>
   </div>
-  <aside class="panel" id="panel"><div class="panel-in" id="panelIn"></div></aside>
+  <div class="detail" id="detail" hidden></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -159,6 +169,7 @@ const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI
 const KV='planner';
 function rpc(fn,body){return fetch(SUPA+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
 
+const NODE_W=214, PY=26; // port/edge y offset
 const PR_LABELS=['뼈대·핵심','기능 살 붙이기','디자인·상태','데이터·로직','예외·검증·마무리'];
 var uidC=0; function uid(){uidC++;return 'x'+Date.now().toString(36)+uidC.toString(36);}
 function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -166,175 +177,170 @@ function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return
 /* ---------- state ---------- */
 const LKEY='planner_v1';
 function blank(){return {projects:[],cur:null,theme:'dark'};}
-function normNode(n){return {id:n.id||uid(),title:typeof n.title==='string'?n.title:'',x:+n.x||0,y:+n.y||0,pr:Array.isArray(n.pr)?n.pr.slice(0,5).concat(['','','','','']).slice(0,5).map(function(s){return typeof s==='string'?s:'';}):['','','','','']};}
+function normFeat(f){return {id:f.id||uid(),name:typeof f.name==='string'?f.name:'',desc:typeof f.desc==='string'?f.desc:'',done:!!f.done};}
+function normNode(n){return {id:n.id||uid(),title:typeof n.title==='string'?n.title:'',x:+n.x||0,y:+n.y||0,
+  pr:(Array.isArray(n.pr)?n.pr:[]).concat(['','','','','']).slice(0,5).map(function(s){return typeof s==='string'?s:'';}),
+  features:Array.isArray(n.features)?n.features.map(normFeat):[]};}
 function normProj(p){
-  var nodes=Array.isArray(p.nodes)?p.nodes.map(normNode):[];
-  var ids={}; nodes.forEach(function(n){ids[n.id]=1;});
+  var nodes=Array.isArray(p.nodes)?p.nodes.map(normNode):[]; var ids={}; nodes.forEach(function(n){ids[n.id]=1;});
   var edges=(Array.isArray(p.edges)?p.edges:[]).filter(function(e){return e&&ids[e.from]&&ids[e.to]&&e.from!==e.to;}).map(function(e){return {id:e.id||uid(),from:e.from,to:e.to};});
   var v=p.view||{}; return {id:p.id||uid(),name:typeof p.name==='string'?p.name:'프로젝트',nodes:nodes,edges:edges,view:{panX:+v.panX||0,panY:+v.panY||0,scale:v.scale?Math.min(2,Math.max(.4,v.scale)):1}};
 }
-function normalize(s){ var o=blank(); if(!s||typeof s!=='object')return o; o.theme=s.theme==='light'?'light':'dark';
-  o.projects=Array.isArray(s.projects)?s.projects.map(normProj):[];
-  o.cur=o.projects.some(function(p){return p.id===s.cur;})?s.cur:(o.projects[0]?o.projects[0].id:null); return o; }
+function normalize(s){var o=blank();if(!s||typeof s!=='object')return o;o.theme=s.theme==='light'?'light':'dark';o.projects=Array.isArray(s.projects)?s.projects.map(normProj):[];o.cur=o.projects.some(function(p){return p.id===s.cur;})?s.cur:(o.projects[0]?o.projects[0].id:null);return o;}
 var state=normalize(function(){try{return JSON.parse(localStorage.getItem(LKEY));}catch(e){return null;}}());
+var nav={level:'canvas',pageId:null};
 function proj(){return state.projects.find(function(p){return p.id===state.cur;})||null;}
+function pageById(id){var p=proj();return p?p.nodes.find(function(n){return n.id===id;}):null;}
+function activePage(){return nav.level==='page'?pageById(nav.pageId):null;}
 
-/* ---------- persistence (kv + local, touched-guard) ---------- */
+/* ---------- persistence ---------- */
 function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify(state));}catch(e){}}
 var saveT=null,touched=false;
 function setSync(ok){var el=document.getElementById('sync');el.className='sync '+(ok?'ok':'');document.getElementById('syncl').textContent=ok?'동기화됨':'로컬';}
 function persist(){touched=true;saveLocal();clearTimeout(saveT);saveT=setTimeout(function(){rpc('kv_set',{p_k:KV,p_v:state}).then(function(r){if(r!==null)setSync(true);});},600);}
-function loadRemote(){return rpc('kv_get',{p_k:KV}).then(function(r){
-  if(touched){if(r!==null)setSync(true);return;}
-  if(r&&typeof r==='object'&&Array.isArray(r.projects)){state=normalize(r);saveLocal();setSync(true);renderAll();}
-  else if(r!==null){setSync(true);}
-});}
+function loadRemote(){return rpc('kv_get',{p_k:KV}).then(function(r){if(touched){if(r!==null)setSync(true);return;}if(r&&typeof r==='object'&&Array.isArray(r.projects)){state=normalize(r);saveLocal();setSync(true);renderAll();}else if(r!==null){setSync(true);}});}
 
-/* ---------- helpers ---------- */
-var stage=document.getElementById('stage'), world=document.getElementById('world'), edgesSvg=document.getElementById('edges');
-var sel=null; // selected node id
+/* ---------- refs / view ---------- */
+var stage=document.getElementById('stage'), world=document.getElementById('world'), edgesSvg=document.getElementById('edges'), detailEl=document.getElementById('detail');
 function view(){return proj()?proj().view:{panX:0,panY:0,scale:1};}
 function applyView(){var v=view();world.style.transform='translate('+v.panX+'px,'+v.panY+'px) scale('+v.scale+')';}
 function s2w(sx,sy){var r=stage.getBoundingClientRect(),v=view();return {x:(sx-r.left-v.panX)/v.scale,y:(sy-r.top-v.panY)/v.scale};}
-function nodeById(id){var p=proj();return p?p.nodes.find(function(n){return n.id===id;}):null;}
 function prFilled(n){return n.pr.filter(function(s){return s&&s.trim();}).length;}
 
-/* ---------- render ---------- */
-function renderProjects(){
-  var s=document.getElementById('psel'); s.innerHTML=state.projects.map(function(p){return '<option value="'+p.id+'"'+(p.id===state.cur?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')||'<option>프로젝트 없음</option>';
-}
+/* ---------- render: canvas ---------- */
 function nodeHTML(n){
-  var f=prFilled(n);
-  var bars=''; for(var i=0;i<5;i++)bars+='<i class="'+(i<f?'on':'')+'"></i>';
-  return '<div class="node'+(n.id===sel?' sel':'')+'" data-id="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px">'
-    +'<div class="node-h" data-drag><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'제목 없음')+'</span></div>'
-    +'<div class="node-b"><div class="prbar">'+bars+'</div><span class="node-n">'+f+'/5</span></div>'
+  var f=prFilled(n),bars='';for(var i=0;i<5;i++)bars+='<i class="'+(i<f?'on':'')+'"></i>';
+  var featc=n.features.length?'<span class="node-feat">'+n.features.length+' 기능</span>':'';
+  return '<div class="node" data-id="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px">'
+    +'<div class="node-h"><span class="node-t'+(n.title?'':' ph')+'">'+esc(n.title||'제목 없음')+'</span></div>'
+    +'<div class="node-b"><div class="prbar">'+bars+'</div><span class="node-n">'+f+'/5</span>'+featc+'</div>'
     +'<div class="port" data-port title="드래그해서 연결"></div></div>';
+}
+function edgeGeo(a,b){var ax=a.x+NODE_W,ay=a.y+PY,bx=b.x,by=b.y+PY,dx=Math.max(52,Math.abs(bx-ax)*0.5);return {ax:ax,ay:ay,bx:bx,by:by,d:'M '+ax+' '+ay+' C '+(ax+dx)+' '+ay+', '+(bx-dx)+' '+by+', '+bx+' '+by};}
+function drawEdges(tmp){
+  var p=proj(),g='';
+  if(p)p.edges.forEach(function(e){var a=pageById(e.from),b=pageById(e.to);if(a&&b){var q=edgeGeo(a,b);g+='<path class="ed" d="'+q.d+'"></path><circle class="edp" cx="'+q.ax+'" cy="'+q.ay+'" r="3.4"></circle><circle class="edp" cx="'+q.bx+'" cy="'+q.by+'" r="3.4"></circle>';}});
+  if(tmp)g+='<path class="ed tmp" d="'+tmp+'"></path>';
+  edgesSvg.innerHTML=g;
 }
 function renderCanvas(){
   var p=proj();
-  document.getElementById('empty').hidden=!!(p&&p.nodes.length);
-  if(!p){ document.getElementById('empty').innerHTML='<h2>프로젝트가 없습니다</h2><p>상단 ＋ 로 프로젝트를 만들어 페이지 설계를 시작하세요.</p>'; world.querySelectorAll('.node').forEach(function(n){n.remove();}); drawEdges(); return; }
-  if(!p.nodes.length){ document.getElementById('empty').innerHTML='<h2>빈 캔버스</h2><p>우상단 <b>＋ 페이지</b>로 첫 화면(페이지)을 추가하고, 노드 오른쪽 점을 끌어 다음 페이지로 연결하세요.</p>'; }
+  var em=document.getElementById('empty');
   world.querySelectorAll('.node').forEach(function(n){n.remove();});
-  var frag=document.createElement('div'); frag.innerHTML=p.nodes.map(nodeHTML).join('');
+  if(!p){em.hidden=false;em.innerHTML='<h2>프로젝트가 없습니다</h2><p>상단 ＋ 로 프로젝트를 만들어 페이지 설계를 시작하세요.</p>';drawEdges();return;}
+  if(!p.nodes.length){em.hidden=false;em.innerHTML='<h2>빈 캔버스</h2><p>우상단 <b>＋ 페이지</b>로 첫 화면을 추가하고, 노드 오른쪽 점을 끌어 다음 페이지로 연결하세요. 노드를 클릭하면 안으로 들어가 기능을 설계합니다.</p>';}
+  else em.hidden=true;
+  var frag=document.createElement('div');frag.innerHTML=p.nodes.map(nodeHTML).join('');
   while(frag.firstChild)world.appendChild(frag.firstChild);
   drawEdges();
 }
-function edgePath(a,b){
-  var ax=a.x+214,ay=a.y+34, bx=b.x,by=b.y+34;           // from right-mid to left-mid
-  var dx=Math.max(40,Math.abs(bx-ax)/2);
-  return 'M '+ax+' '+ay+' C '+(ax+dx)+' '+ay+', '+(bx-dx)+' '+by+', '+bx+' '+by;
-}
-function drawEdges(tmp){
-  var p=proj(); var paths='';
-  if(p)p.edges.forEach(function(e){var a=nodeById(e.from),b=nodeById(e.to);if(a&&b)paths+='<path d="'+edgePath(a,b)+'"></path>';});
-  if(tmp)paths+='<path class="tmp" d="'+tmp+'"></path>';
-  edgesSvg.innerHTML=paths;
-}
-function renderPanel(){
-  var p=document.getElementById('panel'), inn=document.getElementById('panelIn');
-  var n=sel?nodeById(sel):null;
-  if(!n){p.classList.remove('open');inn.innerHTML='';return;}
-  p.classList.add('open');
-  var pr=proj();
-  var links=pr.edges.filter(function(e){return e.from===n.id||e.to===n.id;}).map(function(e){
-    var other=nodeById(e.from===n.id?e.to:e.from); var dir=e.from===n.id?'→':'←';
-    return '<div class="plink"><span class="dir">'+dir+'</span>'+esc(other?other.title||'제목 없음':'?')+'<span class="rm" data-rmedge="'+e.id+'"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div>';
-  }).join('');
-  var steps=''; for(var i=0;i<5;i++){
-    steps+='<div class="prstep"><div class="prstep-h"><span class="prstep-n">PR'+(i+1)+'</span><span class="prstep-l">'+PR_LABELS[i]+'</span></div>'
-      +'<textarea data-pr="'+i+'" placeholder="이 단계에서 구현할 것 — 기능·디자인·데이터 등">'+esc(n.pr[i])+'</textarea></div>';
-  }
-  inn.innerHTML='<div class="panel-h"><span class="pk">PAGE</span><button class="panel-x" data-close><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'
-    +'<div class="panel-body">'
-    +'<input class="ptitle" data-title placeholder="페이지 이름" value="'+esc(n.title)+'">'
-    +(links?'<div class="plinks"><div class="plinks-h">연결</div>'+links+'</div>':'')
-    +steps
-    +'<div class="pact"><button class="pbtn" data-copy><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg> 프롬프트 복사</button>'
-    +'<button class="pbtn danger" data-delnode><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 13h8l1-13"/></svg> 삭제</button></div>'
-    +'</div>';
-}
-function renderAll(){document.documentElement.setAttribute('data-theme',state.theme);document.getElementById('tgl').textContent=state.theme==='dark'?'라이트':'다크';renderProjects();applyView();renderCanvas();renderPanel();}
 
-/* ---------- node/edge ops ---------- */
-function addNode(){
-  var p=proj(); if(!p){newProject();return;}
-  var r=stage.getBoundingClientRect(),v=p.view;
-  var cx=(r.width/2-v.panX)/v.scale-107, cy=(r.height/2-v.panY)/v.scale-30;
-  var n=normNode({title:'',x:Math.round(cx+(p.nodes.length%5)*18),y:Math.round(cy+(p.nodes.length%5)*18)});
-  p.nodes.push(n); sel=n.id; persist(); renderCanvas(); renderPanel();
-  setTimeout(function(){var t=document.querySelector('.ptitle');if(t)t.focus();},30);
+/* ---------- render: detail (page) ---------- */
+function renderDetail(){
+  var pg=activePage(),p=proj();
+  if(!pg){nav={level:'canvas',pageId:null};renderAll();return;}
+  var links=p.edges.filter(function(e){return e.from===pg.id||e.to===pg.id;}).map(function(e){var o=pageById(e.from===pg.id?e.to:e.from);return (e.from===pg.id?'→ ':'← ')+esc(o?o.title||'제목 없음':'?');}).join(' · ');
+  var steps='';for(var i=0;i<5;i++){steps+='<div class="prstep"><div class="prstep-h"><span class="prstep-n">PR'+(i+1)+'</span><span class="prstep-l">'+PR_LABELS[i]+'</span></div><textarea data-pr="'+i+'" placeholder="이 단계에서 구현할 것 — 기능·디자인·데이터 등">'+esc(pg.pr[i])+'</textarea></div>';}
+  var feats=pg.features.length?pg.features.map(function(f){
+    return '<div class="feat'+(f.done?' done':'')+'" data-fid="'+f.id+'" draggable="true">'
+      +'<span class="feat-grip" data-grip><svg class="ic" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></svg></span>'
+      +'<button class="feat-check" data-fcheck><svg class="ic" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>'
+      +'<div class="feat-main"><input class="feat-name" data-fname value="'+esc(f.name)+'" placeholder="기능 이름"><textarea class="feat-desc" data-fdesc placeholder="설명 · 구현 노트">'+esc(f.desc)+'</textarea></div>'
+      +'<button class="feat-x" data-fdel><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+  }).join(''):'<div class="feat-empty">아직 기능이 없습니다. 이 페이지에서 구현할 기능들을 목록으로 추가하세요.</div>';
+  detailEl.innerHTML=''
+    +'<div class="dhead"><button class="dback" data-back>‹ 캔버스</button><div class="dcrumb">'+esc(p.name)+' › <b>'+esc(pg.title||'제목 없음')+'</b></div></div>'
+    +'<div class="dbody"><div class="dwrap">'
+    +'<input class="dtitle" data-title value="'+esc(pg.title)+'" placeholder="페이지 이름">'
+    +(links?'<div class="dsec-h" style="margin-top:-8px">연결 <span style="color:var(--mut);font-family:var(--kfont);text-transform:none;letter-spacing:0;font-weight:500">'+links+'</span></div>':'')
+    +'<div class="dsec"><div class="dsec-h">PR 빌드 단계 <span class="cnt">'+prFilled(pg)+'/5</span></div>'+steps+'</div>'
+    +'<div class="dsec"><div class="dsec-h">기능 목록 <span class="cnt">'+pg.features.length+'</span></div><div id="featlist">'+feats+'</div>'
+    +'<button class="addfeat" data-addfeat><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> 기능 추가</button></div>'
+    +'<div class="dact"><button class="pbtn" data-copy><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg> 프롬프트 복사</button>'
+    +'<button class="pbtn danger" data-delpage><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 13h8l1-13"/></svg> 페이지 삭제</button></div>'
+    +'</div></div>';
 }
-function delNode(id){var p=proj();if(!p)return;p.nodes=p.nodes.filter(function(n){return n.id!==id;});p.edges=p.edges.filter(function(e){return e.from!==id&&e.to!==id;});if(sel===id)sel=null;persist();renderCanvas();renderPanel();}
+
+function renderProjects(){document.getElementById('psel').innerHTML=state.projects.map(function(p){return '<option value="'+p.id+'"'+(p.id===state.cur?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')||'<option>프로젝트 없음</option>';}
+function renderAll(){
+  document.documentElement.setAttribute('data-theme',state.theme);document.getElementById('tgl').textContent=state.theme==='dark'?'라이트':'다크';
+  renderProjects();
+  var onCanvas=nav.level!=='page'||!activePage();
+  stage.hidden=!onCanvas; detailEl.hidden=onCanvas; document.getElementById('addpage').hidden=!onCanvas;
+  if(onCanvas){applyView();renderCanvas();} else renderDetail();
+}
+
+/* ---------- ops ---------- */
+function addNode(){var p=proj();if(!p){newProject();return;}var r=stage.getBoundingClientRect(),v=p.view;var cx=(r.width/2-v.panX)/v.scale-107,cy=(r.height/2-v.panY)/v.scale-36;var n=normNode({x:Math.round(cx+(p.nodes.length%5)*20),y:Math.round(cy+(p.nodes.length%5)*20)});p.nodes.push(n);persist();nav={level:'page',pageId:n.id};renderAll();setTimeout(function(){var t=document.querySelector('.dtitle');if(t)t.focus();},30);}
+function delNode(id){var p=proj();if(!p)return;p.nodes=p.nodes.filter(function(n){return n.id!==id;});p.edges=p.edges.filter(function(e){return e.from!==id&&e.to!==id;});persist();nav={level:'canvas',pageId:null};renderAll();}
 function addEdge(from,to){var p=proj();if(!p||from===to)return;if(p.edges.some(function(e){return (e.from===from&&e.to===to)||(e.from===to&&e.to===from);}))return;p.edges.push({id:uid(),from:from,to:to});persist();drawEdges();}
-function delEdge(id){var p=proj();if(!p)return;p.edges=p.edges.filter(function(e){return e.id!==id;});persist();drawEdges();renderPanel();}
-function selectNode(id){sel=id;renderCanvas();renderPanel();}
+function openPage(id){nav={level:'page',pageId:id};renderAll();}
+function newProject(){var name=prompt('새 프로젝트 이름','새 프로젝트');if(name==null)return;var p=normProj({name:name.trim()||'새 프로젝트'});state.projects.push(p);state.cur=p.id;nav={level:'canvas',pageId:null};persist();renderAll();}
+function renameProject(){var p=proj();if(!p)return;var name=prompt('프로젝트 이름',p.name);if(name==null)return;p.name=name.trim()||p.name;persist();renderAll();}
+function delProject(){var p=proj();if(!p)return;if(!confirm('“'+p.name+'” 프로젝트를 삭제할까요?'))return;state.projects=state.projects.filter(function(x){return x.id!==p.id;});state.cur=state.projects[0]?state.projects[0].id:null;nav={level:'canvas',pageId:null};persist();renderAll();}
+var toastT=null;function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show');},1500);}
 
-/* ---------- projects ---------- */
-function newProject(){var name=prompt('새 프로젝트 이름','새 프로젝트');if(name==null)return;var p=normProj({name:name.trim()||'새 프로젝트'});state.projects.push(p);state.cur=p.id;sel=null;persist();renderAll();}
-function renameProject(){var p=proj();if(!p)return;var name=prompt('프로젝트 이름',p.name);if(name==null)return;p.name=name.trim()||p.name;persist();renderProjects();}
-function delProject(){var p=proj();if(!p)return;if(!confirm('“'+p.name+'” 프로젝트를 삭제할까요?'))return;state.projects=state.projects.filter(function(x){return x.id!==p.id;});state.cur=state.projects[0]?state.projects[0].id:null;sel=null;persist();renderAll();}
-
-/* ---------- toast ---------- */
-var toastT=null;
-function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show');},1500);}
-
-/* ---------- events: topbar ---------- */
-document.getElementById('psel').addEventListener('change',function(e){state.cur=e.target.value;sel=null;persist();renderAll();});
+/* ---------- topbar events ---------- */
+document.getElementById('psel').addEventListener('change',function(e){state.cur=e.target.value;nav={level:'canvas',pageId:null};persist();renderAll();});
 document.getElementById('pnew').onclick=newProject;
 document.getElementById('pren').onclick=renameProject;
 document.getElementById('pdel').onclick=delProject;
 document.getElementById('addpage').onclick=addNode;
 document.getElementById('tg').onclick=function(){state.theme=state.theme==='dark'?'light':'dark';persist();renderAll();};
 
-/* ---------- events: panel ---------- */
-document.getElementById('panelIn').addEventListener('click',function(e){
-  if(e.target.closest('[data-close]')){sel=null;renderCanvas();renderPanel();return;}
-  if(e.target.closest('[data-delnode]')){if(confirm('이 페이지를 삭제할까요?'))delNode(sel);return;}
-  var rm=e.target.closest('[data-rmedge]');if(rm){delEdge(rm.getAttribute('data-rmedge'));return;}
-  if(e.target.closest('[data-copy]')){var n=nodeById(sel);if(!n)return;var txt='# '+(n.title||'제목 없음')+'\n\n'+n.pr.map(function(s,i){return '## PR'+(i+1)+' · '+PR_LABELS[i]+'\n'+(s||'(비어 있음)');}).join('\n\n');
-    (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast('프롬프트 복사됨');},function(){toast('복사 실패');});return;}
+/* ---------- detail events ---------- */
+detailEl.addEventListener('click',function(e){
+  if(e.target.closest('[data-back]')){nav={level:'canvas',pageId:null};renderAll();return;}
+  var pg=activePage();if(!pg)return;
+  if(e.target.closest('[data-delpage]')){if(confirm('이 페이지를 삭제할까요?'))delNode(pg.id);return;}
+  if(e.target.closest('[data-addfeat]')){pg.features.push(normFeat({}));persist();renderDetail();var ins=detailEl.querySelectorAll('.feat-name');if(ins.length)ins[ins.length-1].focus();return;}
+  if(e.target.closest('[data-copy]')){var txt='# '+(pg.title||'제목 없음')+'\n\n'+pg.pr.map(function(s,i){return '## PR'+(i+1)+' · '+PR_LABELS[i]+'\n'+(s||'(비어 있음)');}).join('\n\n')+'\n\n## 기능 목록\n'+(pg.features.length?pg.features.map(function(f){return '- '+(f.name||'(무제)')+(f.desc?': '+f.desc:'');}).join('\n'):'(없음)');(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast('프롬프트 복사됨');},function(){toast('복사 실패');});return;}
+  var fc=e.target.closest('[data-fcheck]');if(fc){var f=featOf(fc);if(f){f.done=!f.done;persist();renderDetail();}return;}
+  var fd=e.target.closest('[data-fdel]');if(fd){var f2=featOf(fd);if(f2){pg.features=pg.features.filter(function(x){return x.id!==f2.id;});persist();renderDetail();}return;}
 });
-document.getElementById('panelIn').addEventListener('input',function(e){
-  var n=nodeById(sel);if(!n)return;
-  if(e.target.matches('[data-title]')){n.title=e.target.value;var t=document.querySelector('.node[data-id="'+sel+'"] .node-t');if(t){t.textContent=n.title||'제목 없음';t.className='node-t'+(n.title?'':' ph');}persist();}
-  else if(e.target.matches('[data-pr]')){var i=+e.target.getAttribute('data-pr');n.pr[i]=e.target.value;var nd=document.querySelector('.node[data-id="'+sel+'"]');if(nd){var f=prFilled(n);nd.querySelectorAll('.prbar i').forEach(function(el,k){el.className=k<f?'on':'';});nd.querySelector('.node-n').textContent=f+'/5';}persist();}
+detailEl.addEventListener('input',function(e){
+  var pg=activePage();if(!pg)return;
+  if(e.target.matches('[data-title]')){pg.title=e.target.value;var c=detailEl.querySelector('.dcrumb b');if(c)c.textContent=pg.title||'제목 없음';persist();}
+  else if(e.target.matches('[data-pr]')){pg.pr[+e.target.getAttribute('data-pr')]=e.target.value;var cnt=detailEl.querySelector('.dsec .cnt');if(cnt)cnt.textContent=prFilled(pg)+'/5';persist();}
+  else if(e.target.matches('[data-fname]')){var f=featOf(e.target);if(f){f.name=e.target.value;persist();}}
+  else if(e.target.matches('[data-fdesc]')){var f2=featOf(e.target);if(f2){f2.desc=e.target.value;persist();}}
 });
+function featOf(el){var pg=activePage();if(!pg)return null;var row=el.closest('.feat');if(!row)return null;var id=row.getAttribute('data-fid');return pg.features.find(function(f){return f.id===id;});}
 
-/* ---------- events: canvas (pan / drag node / connect) ---------- */
-var drag=null; // {mode:'pan'|'node'|'link', ...}
+/* feature drag reorder */
+var fdrag=null;
+detailEl.addEventListener('dragstart',function(e){var row=e.target.closest('.feat');if(!row)return;if(!e.target.closest('[data-grip]')&&e.target.matches('input,textarea')){e.preventDefault();return;}fdrag=row.getAttribute('data-fid');row.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',fdrag);}catch(_){}});
+detailEl.addEventListener('dragend',function(){var d=detailEl.querySelector('.feat.dragging');if(d)d.classList.remove('dragging');detailEl.querySelectorAll('.feat.over').forEach(function(x){x.classList.remove('over');});fdrag=null;});
+detailEl.addEventListener('dragover',function(e){if(!fdrag)return;var list=detailEl.querySelector('#featlist');if(!list)return;e.preventDefault();detailEl.querySelectorAll('.feat.over').forEach(function(x){x.classList.remove('over');});var rows=[].slice.call(list.querySelectorAll('.feat:not(.dragging)'));var after=null;for(var i=0;i<rows.length;i++){var r=rows[i].getBoundingClientRect();if(e.clientY<r.top+r.height/2){after=rows[i];break;}}if(after)after.classList.add('over');});
+detailEl.addEventListener('drop',function(e){if(!fdrag)return;e.preventDefault();var pg=activePage();if(!pg)return;var list=detailEl.querySelector('#featlist');var rows=[].slice.call(list.querySelectorAll('.feat:not(.dragging)'));var beforeId=null;for(var i=0;i<rows.length;i++){var r=rows[i].getBoundingClientRect();if(e.clientY<r.top+r.height/2){beforeId=rows[i].getAttribute('data-fid');break;}}var arr=pg.features,idx=arr.findIndex(function(f){return f.id===fdrag;});if(idx<0)return;var moved=arr.splice(idx,1)[0];var bi=beforeId?arr.findIndex(function(f){return f.id===beforeId;}):arr.length;arr.splice(bi<0?arr.length:bi,0,moved);persist();renderDetail();});
+
+/* ---------- canvas events: pan / drag / connect / open ---------- */
+var drag=null;
 stage.addEventListener('mousedown',function(e){
   var port=e.target.closest('[data-port]');
-  if(port){ var nd=port.closest('.node'); drag={mode:'link',from:nd.getAttribute('data-id')}; e.preventDefault(); return; }
-  var handle=e.target.closest('[data-drag]');
-  if(handle){ var node=handle.closest('.node'); var id=node.getAttribute('data-id'); var n=nodeById(id); var w=s2w(e.clientX,e.clientY);
-    drag={mode:'node',id:id,dx:w.x-n.x,dy:w.y-n.y,moved:false}; selectNode(id); e.preventDefault(); return; }
-  if(e.target.closest('.node'))return; // clicks inside node (non-handle) ignored for pan
-  var v=view(); drag={mode:'pan',sx:e.clientX,sy:e.clientY,px:v.panX,py:v.panY}; stage.classList.add('panning');
+  if(port){drag={mode:'link',from:port.closest('.node').getAttribute('data-id')};e.preventDefault();return;}
+  var node=e.target.closest('.node');
+  if(node){var id=node.getAttribute('data-id'),n=pageById(id),w=s2w(e.clientX,e.clientY);drag={mode:'node',id:id,dx:w.x-n.x,dy:w.y-n.y,sx:e.clientX,sy:e.clientY,moved:false};e.preventDefault();return;}
+  var v=view();drag={mode:'pan',sx:e.clientX,sy:e.clientY,px:v.panX,py:v.panY};stage.classList.add('panning');
 });
 window.addEventListener('mousemove',function(e){
   if(!drag)return;
   if(drag.mode==='pan'){var v=view();v.panX=drag.px+(e.clientX-drag.sx);v.panY=drag.py+(e.clientY-drag.sy);applyView();}
-  else if(drag.mode==='node'){var n=nodeById(drag.id);if(!n)return;var w=s2w(e.clientX,e.clientY);n.x=Math.round(w.x-drag.dx);n.y=Math.round(w.y-drag.dy);drag.moved=true;var el=document.querySelector('.node[data-id="'+drag.id+'"]');if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}drawEdges();}
-  else if(drag.mode==='link'){var a=nodeById(drag.from);if(!a)return;var w=s2w(e.clientX,e.clientY);var ax=a.x+214,ay=a.y+34;var dx=Math.max(40,Math.abs(w.x-ax)/2);drawEdges('M '+ax+' '+ay+' C '+(ax+dx)+' '+ay+', '+(w.x-dx)+' '+w.y+', '+w.x+' '+w.y);}
+  else if(drag.mode==='node'){if(!drag.moved&&Math.abs(e.clientX-drag.sx)+Math.abs(e.clientY-drag.sy)<4)return;drag.moved=true;var n=pageById(drag.id);if(!n)return;var w=s2w(e.clientX,e.clientY);n.x=Math.round(w.x-drag.dx);n.y=Math.round(w.y-drag.dy);var el=document.querySelector('.node[data-id="'+drag.id+'"]');if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}drawEdges();}
+  else if(drag.mode==='link'){var a=pageById(drag.from);if(!a)return;var w=s2w(e.clientX,e.clientY);var ax=a.x+NODE_W,ay=a.y+PY,dx=Math.max(52,Math.abs(w.x-ax)*0.5);drawEdges('M '+ax+' '+ay+' C '+(ax+dx)+' '+ay+', '+(w.x-dx)+' '+w.y+', '+w.x+' '+w.y);}
 });
 window.addEventListener('mouseup',function(e){
   if(!drag)return;
   if(drag.mode==='pan'){stage.classList.remove('panning');persist();}
-  else if(drag.mode==='node'){if(drag.moved)persist();}
-  else if(drag.mode==='link'){var tgt=document.elementFromPoint(e.clientX,e.clientY);var nd=tgt&&tgt.closest?tgt.closest('.node'):null;if(nd){addEdge(drag.from,nd.getAttribute('data-id'));}drawEdges();}
+  else if(drag.mode==='node'){if(drag.moved)persist();else openPage(drag.id);}
+  else if(drag.mode==='link'){var tgt=document.elementFromPoint(e.clientX,e.clientY),nd=tgt&&tgt.closest?tgt.closest('.node'):null;if(nd)addEdge(drag.from,nd.getAttribute('data-id'));drawEdges();}
   drag=null;
 });
-// 빈 캔버스 클릭 → 선택 해제
-stage.addEventListener('click',function(e){ if(drag)return; if(!e.target.closest('.node')&&!e.target.closest('.zoombtns')){ if(sel){sel=null;renderCanvas();renderPanel();} } });
-
-/* zoom */
-function zoomAt(cx,cy,factor){var p=proj();if(!p)return;var v=p.view;var ns=Math.min(2,Math.max(.4,v.scale*factor));var r=stage.getBoundingClientRect();var wx=(cx-r.left-v.panX)/v.scale,wy=(cy-r.top-v.panY)/v.scale;v.scale=ns;v.panX=cx-r.left-wx*ns;v.panY=cy-r.top-wy*ns;applyView();persist();}
+function zoomAt(cx,cy,factor){var p=proj();if(!p)return;var v=p.view,ns=Math.min(2,Math.max(.4,v.scale*factor)),r=stage.getBoundingClientRect(),wx=(cx-r.left-v.panX)/v.scale,wy=(cy-r.top-v.panY)/v.scale;v.scale=ns;v.panX=cx-r.left-wx*ns;v.panY=cy-r.top-wy*ns;applyView();persist();}
 stage.addEventListener('wheel',function(e){if(!proj())return;e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.1:0.9);},{passive:false});
 document.getElementById('zin').onclick=function(){var r=stage.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.2);};
 document.getElementById('zout').onclick=function(){var r=stage.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,0.83);};
-document.getElementById('zfit').onclick=function(){var p=proj();if(!p||!p.nodes.length)return;var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;p.nodes.forEach(function(n){minX=Math.min(minX,n.x);minY=Math.min(minY,n.y);maxX=Math.max(maxX,n.x+214);maxY=Math.max(maxY,n.y+72);});var r=stage.getBoundingClientRect();var sc=Math.min(2,Math.max(.4,Math.min((r.width-80)/(maxX-minX||1),(r.height-80)/(maxY-minY||1))));p.view.scale=sc;p.view.panX=(r.width-(maxX-minX)*sc)/2-minX*sc;p.view.panY=(r.height-(maxY-minY)*sc)/2-minY*sc;applyView();persist();};
+document.getElementById('zfit').onclick=function(){var p=proj();if(!p||!p.nodes.length)return;var a=1e9,b=1e9,c=-1e9,d=-1e9;p.nodes.forEach(function(n){a=Math.min(a,n.x);b=Math.min(b,n.y);c=Math.max(c,n.x+NODE_W);d=Math.max(d,n.y+72);});var r=stage.getBoundingClientRect(),sc=Math.min(2,Math.max(.4,Math.min((r.width-90)/(c-a||1),(r.height-90)/(d-b||1))));p.view.scale=sc;p.view.panX=(r.width-(c-a)*sc)/2-a*sc;p.view.panY=(r.height-(d-b)*sc)/2-b*sc;applyView();persist();};
 
 /* ---------- init ---------- */
 renderAll();
