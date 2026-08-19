@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="2026-08-26~29 도쿄 3박 4일 여행 타임라인. 날짜별 가로 스와이프, 예약 대기·리스크·예산 정리.">
+<title>도쿄 3박4일 타임라인</title>
+<style>
+  :root{
+    color-scheme:light;
+    --paper:#F4F6FA;
+    --surface:#FFFFFF;
+    --surface-2:#F6F7FA;
+    --ink:#141C2E;
+    --ink-2:#4C5570;
+    --ink-3:#8990A6;
+    --line:#D8DCE6;
+    --line-soft:#E5E8EF;
+    --indigo:#2B4A80;
+    --indigo-soft:#E7ECF6;
+    --accent:#C9451F;
+    --accent-soft:#FBEAE4;
+    --green:#1F6B4A;
+    --green-soft:#E3F1EA;
+    --ghost:#B9C0D0;
+    --shadow:0 1px 2px rgba(20,28,46,.05), 0 8px 24px -16px rgba(20,28,46,.28);
+  }
+  /* 다크 테마에서도 밝게 고정 — 종이 위 일정표 */
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:56px 24px 96px;}
+
+  /* masthead */
+  .mast{
+    display:flex;flex-direction:column;gap:18px;
+    padding-bottom:26px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:ui-monospace,"Cascadia Mono","SFMono-Regular",Consolas,monospace;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink-3);
+  }
+  h1{
+    margin:0;font-size:40px;line-height:1.12;letter-spacing:-.03em;font-weight:800;
+    text-wrap:balance;
+  }
+  h1 .sub{display:block;font-size:15px;font-weight:500;letter-spacing:0;color:var(--ink-2);margin-top:10px;}
+  .facts{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+    background:var(--line-soft);border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;
+  }
+  .fact{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:3px;}
+  .fact dt{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .fact dd{margin:0;font-size:14px;font-weight:600;}
+
+  .legend{
+    display:flex;gap:14px;flex-wrap:wrap;align-items:center;
+    margin-top:18px;font-size:12px;color:var(--ink-3);
+  }
+  .legend .item{display:flex;gap:6px;align-items:center;}
+
+  /* chips */
+  .chip{
+    display:inline-flex;align-items:center;
+    font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;
+    white-space:nowrap;
+    background:var(--indigo-soft);color:var(--indigo);
+  }
+  .chip.ok{background:var(--indigo);color:#fff;}
+  .chip.rec{background:var(--green-soft);color:var(--green);}
+  .chip.warn{background:var(--accent-soft);color:var(--accent);}
+  .chip.alt{background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line);}
+
+  /* 가로 스크롤 데이 트랙 */
+  .track-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin:40px 0 14px;
+  }
+  .daynav{display:flex;gap:6px;flex-wrap:wrap;}
+  .daynav button{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:11px;letter-spacing:.12em;
+    padding:6px 11px;border-radius:20px;cursor:pointer;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .daynav button:hover{border-color:var(--indigo);color:var(--indigo);}
+  .daynav button[aria-current="true"]{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+  .daynav button:focus-visible,.arrow:focus-visible{outline:2px solid var(--indigo);outline-offset:2px;}
+  .arrows{display:flex;gap:6px;flex:none;}
+  .arrow{
+    width:32px;height:32px;border-radius:50%;cursor:pointer;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+    display:grid;place-items:center;transition:border-color .15s,color .15s;
+  }
+  .arrow:hover:not(:disabled){border-color:var(--indigo);color:var(--indigo);}
+  .arrow:disabled{opacity:.35;cursor:default;}
+  .arrow svg{width:16px;height:16px;}
+
+  .days{
+    display:flex;gap:16px;align-items:flex-start;
+    overflow-x:auto;overscroll-behavior-x:contain;
+    scroll-snap-type:x mandatory;
+    padding:2px 2px 20px;margin:0 -2px;
+    scrollbar-width:thin;scrollbar-color:var(--ghost) transparent;
+  }
+  .days::-webkit-scrollbar{height:8px;}
+  .days::-webkit-scrollbar-thumb{background:var(--ghost);border-radius:8px;}
+  .days::-webkit-scrollbar-track{background:transparent;}
+
+  .day{
+    flex:0 0 100%;scroll-snap-align:start;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:18px 18px 20px;box-shadow:var(--shadow);
+  }
+  .day-head{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line-soft);
+  }
+  .day-no{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:11px;letter-spacing:.16em;color:var(--indigo);
+    background:var(--indigo-soft);padding:4px 8px;border-radius:5px;
+  }
+  .day-date{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:22px;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;
+  }
+  .day-dow{font-size:14px;color:var(--ink-2);font-weight:600;}
+  .day-tag{width:100%;order:3;font-size:12px;color:var(--ink-3);}
+  .day-note{
+    display:flex;gap:8px;align-items:flex-start;
+    margin:-4px 0 12px;padding:9px 11px;border-radius:8px;
+    background:var(--accent-soft);color:var(--accent);
+    font-size:12.5px;line-height:1.5;
+  }
+  .day-note svg{width:15px;height:15px;flex:none;margin-top:2px;}
+
+  /* timeline */
+  .rows{display:flex;flex-direction:column;}
+  .row{display:grid;grid-template-columns:62px 30px 1fr;align-items:stretch;}
+  .t{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:13px;font-variant-numeric:tabular-nums;
+    color:var(--ink-2);padding-top:16px;text-align:right;padding-right:2px;letter-spacing:-.02em;
+  }
+  .t.none{color:var(--ghost);}
+  .t.est{color:var(--ink-3);font-weight:500;}
+  .rail{position:relative;}
+  .rail::before{
+    content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;
+    background:var(--line);transform:translateX(-.5px);
+  }
+  .row:first-child .rail::before{top:21px;}
+  .row:last-child .rail::before{bottom:calc(100% - 21px);}
+  .dot{
+    position:absolute;left:50%;top:21px;width:9px;height:9px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:var(--indigo);box-shadow:0 0 0 3px var(--surface);
+  }
+  .row.fixed .dot{background:var(--accent);}
+  .row.est .dot{background:var(--indigo);opacity:.45;}
+  .row.blank .dot{background:var(--surface);border:1px dashed var(--ghost);}
+
+  .card{
+    background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;
+    padding:12px 14px;margin:7px 0 7px 4px;
+    display:flex;gap:11px;align-items:flex-start;
+  }
+  .row.fixed .card{background:var(--surface);border-color:var(--line);box-shadow:var(--shadow);}
+  .row.blank .card{background:transparent;border:1px dashed var(--ghost);}
+  .ico{flex:none;width:20px;height:20px;color:var(--indigo);margin-top:1px;}
+  .row.fixed .ico{color:var(--accent);}
+  .row.blank .ico{color:var(--ghost);}
+  .body{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;}
+  .ttl{font-weight:650;font-size:15px;letter-spacing:-.01em;}
+  .row.blank .ttl{font-weight:500;color:var(--ink-3);}
+  .meta{font-size:13px;color:var(--ink-2);}
+  .meta .em{color:var(--ink);font-weight:600;}
+  .slot{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .row-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+
+  /* panels */
+  .panel{
+    margin-top:52px;border-top:1px solid var(--line);padding-top:28px;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px;
+  }
+  h2{
+    margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-3);
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  ul.list li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink-2);}
+  ul.list li .ico{width:16px;height:16px;color:var(--ghost);margin-top:3px;}
+  ul.list li.q .ico{color:var(--accent);}
+  ul.list li.q{color:var(--ink);}
+  .fill{display:inline-block;min-width:80px;border-bottom:1px dashed var(--ghost);}
+
+  /* 맛집 후보 */
+  .picks{margin-top:48px;border-top:1px solid var(--line);padding-top:28px;}
+  .pick-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;
+    background:var(--line-soft);border:1px solid var(--line-soft);border-radius:10px;overflow:hidden;
+  }
+  .pick{background:var(--surface);padding:14px 16px;display:flex;gap:11px;align-items:flex-start;}
+  .pick .ico{width:18px;height:18px;color:var(--indigo);margin-top:2px;}
+  .pick .nm{font-weight:650;font-size:14.5px;letter-spacing:-.01em;display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+  .pick .ds{font-size:12.5px;color:var(--ink-2);margin-top:3px;line-height:1.5;}
+  .pick .wk{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);margin-top:6px;
+    font-variant-numeric:tabular-nums;
+  }
+  .note{margin-top:14px;font-size:12.5px;color:var(--ink-3);}
+
+  /* 예산 */
+  .budget{margin-top:48px;border-top:1px solid var(--line);padding-top:28px;}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line-soft);border-radius:10px;}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:420px;background:var(--surface);}
+  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line-soft);}
+  th{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600;
+  }
+  td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;}
+  tr:last-child td{border-bottom:none;}
+  tr.sum td{font-weight:700;background:var(--indigo-soft);color:var(--indigo);}
+
+  footer{
+    margin-top:44px;padding-top:18px;border-top:1px solid var(--line-soft);
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:11px;color:var(--ink-3);letter-spacing:.04em;
+    display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  }
+
+  @media (max-width:560px){
+    .wrap{padding:36px 16px 72px;}
+    h1{font-size:30px;}
+    .day{padding:16px 14px 18px;}
+    .row{grid-template-columns:44px 20px 1fr;}
+    .t{font-size:12px;}
+    .card{padding:11px 12px;}
+    .arrows{display:none;}
+    .track-head{flex-direction:column;align-items:flex-start;}
+  }
+</style>
+
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ic-takeoff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 21h20"/><path d="M4.5 15.5l1.9-3.3 12-1.1a2 2 0 0 0 .6-3.8l-1.6-.7-3.1 2.3-3.6-1.5 1.4-2.6-2.2-1-3.4 4-3.6-1.5a1 1 0 0 0-1.3 1.3l3 7.9z"/>
+  </symbol>
+  <symbol id="ic-landing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 21h20"/><path d="M3.6 12.4l.8 3.7 11.6 3.1a2 2 0 0 0 2.2-3.1l-1.1-1.3-3.7-1.2-1.4-3.7 2.8-.7-.3-2.4-5 1.4-2.6-2.9a1 1 0 0 0-1.7.5l-1.6 6.6z"/>
+  </symbol>
+  <symbol id="ic-hotel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 20V6"/><path d="M3 15h18v5"/><path d="M21 15v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="11" r="2"/>
+  </symbol>
+  <symbol id="ic-tower" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2v3"/><path d="M6.5 21L12 5l5.5 16"/><path d="M8.3 15h7.4"/><path d="M9.6 11h4.8"/><path d="M4 21h16"/>
+  </symbol>
+  <symbol id="ic-bus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="4" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><path d="M6.5 21v-2"/><path d="M17.5 21v-2"/><circle cx="7.5" cy="14" r=".7" fill="currentColor" stroke="none"/><circle cx="16.5" cy="14" r=".7" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ic-train" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="3" width="14" height="14" rx="4"/><path d="M5 10.5h14"/><path d="M8.5 20l-2 2.2"/><path d="M15.5 20l2 2.2"/><path d="M7.5 20h9"/><circle cx="9" cy="13.8" r=".8" fill="currentColor" stroke="none"/><circle cx="15" cy="13.8" r=".8" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ic-meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 2v8a2.5 2.5 0 0 0 5 0V2"/><path d="M7.5 10.5V22"/><path d="M17.5 22V2c-2 .8-3 3.2-3 6.8s1 4.4 3 4.4"/>
+  </symbol>
+  <symbol id="ic-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 10c0 5.5-8 12-8 12s-8-6.5-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.8"/>
+  </symbol>
+  <symbol id="ic-blank" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><path d="M12 8.5v7"/><path d="M8.5 12h7"/>
+  </symbol>
+  <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5z"/>
+  </symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/>
+  </symbol>
+  <symbol id="ic-q" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2-2.5 3.6"/><circle cx="12" cy="17.2" r=".8" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ic-bag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="7" width="18" height="14" rx="2.5"/><path d="M8.5 7V5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/>
+  </symbol>
+  <symbol id="ic-shop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 8h16l-1.2 12H5.2L4 8z"/><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2"/>
+  </symbol>
+  <symbol id="ic-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/><path d="M6 14.5h4"/>
+  </symbol>
+  <symbol id="ic-mountain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 19h20L14.2 6.2a2.6 2.6 0 0 0-4.4 0L2 19z"/><path d="M8.4 11.5c1.2 1 2 1 2.6.4s1.4-.6 2.6.4"/>
+  </symbol>
+  <symbol id="ic-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.5" y="6.5" width="19" height="13.5" rx="2.5"/><path d="M8.5 6.5l1.4-2.5h4.2l1.4 2.5"/><circle cx="12" cy="13.2" r="3.4"/>
+  </symbol>
+  <symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5L1.8 20.5h20.4L12 3.5z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17.3" r=".8" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ic-bowl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2.5 11h19"/><path d="M3.6 11a8.4 8.4 0 0 0 16.8 0"/><path d="M9.6 3.2c-.9 1.1.9 2.1 0 3.2"/><path d="M14.4 3.2c-.9 1.1.9 2.1 0 3.2"/><path d="M5 20.5h14"/>
+  </symbol>
+  <symbol id="ic-skewer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3.2 20.8L7 17"/><circle cx="9.2" cy="14.8" r="2.4"/><circle cx="12.8" cy="11.2" r="2.4"/><circle cx="16.4" cy="7.6" r="2.4"/><path d="M18.6 5.4l2.2-2.2"/>
+  </symbol>
+  <symbol id="ic-beef" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4.2 9.5c1.5-4 6-6 9.6-5.2 4.4 1 6.6 5 5.7 8.8-.9 3.8-4.8 6.6-9 6.3-3.9-.3-7-3-7.1-6.3 0-1.3.3-2.4.8-3.6z"/><circle cx="10" cy="12" r="3"/>
+  </symbol>
+  <symbol id="ic-lantern" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2v2.5"/><path d="M12 19.5V22"/><ellipse cx="12" cy="12" rx="6" ry="7.5"/><path d="M6.4 8.5h11.2"/><path d="M6.4 15.5h11.2"/>
+  </symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8 12.2l2.8 2.8L16.2 9"/>
+  </symbol>
+  <symbol id="ic-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>
+  </symbol>
+  <symbol id="ic-pill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2.2" y="8.2" width="19.6" height="7.6" rx="3.8" transform="rotate(-45 12 12)"/><path d="M8.5 8.5l7 7"/>
+  </symbol>
+  <symbol id="ic-art" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2.5l2.1 5.3 5.4 2.2-5.4 2.2L12 17.5l-2.1-5.3L4.5 10l5.4-2.2z"/><path d="M18.5 16.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>
+  </symbol>
+  <symbol id="ic-sky" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 21V9.5l5-3v4l5-3v4l5-3V21"/><path d="M2 21h20"/><path d="M7 14v2M12 14v2M17 14v2"/>
+  </symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3l2.7 5.9 6.3.7-4.7 4.3 1.3 6.2L12 17l-5.6 3.1 1.3-6.2L3 9.6l6.3-.7z"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow">TOKYO &middot; 08.26 &mdash; 08.29 &middot; 나(04년생) &amp; 엄마(71년생)</div>
+    <h1>도쿄 3박 4일 타임라인
+      <span class="sub">부산 출발 &middot; 신주쿠 베이스 &middot; 후지산 근교 1일</span>
+    </h1>
+    <dl class="facts">
+      <div class="fact"><dt>Airline</dt><dd>제주항공</dd></div>
+      <div class="fact"><dt>Route</dt><dd>부산(PUS) &harr; 나리타(NRT)</dd></div>
+      <div class="fact"><dt>Stay</dt><dd>호텔 그레이서리 신주쿠</dd></div>
+      <div class="fact"><dt>Nights</dt><dd>3박 4일</dd></div>
+    </dl>
+    <div class="legend">
+      <span class="item"><span class="chip ok">확정</span> 예약·발권 완료</span>
+      <span class="item"><span class="chip rec">추천</span> 선택지 중 권장안</span>
+      <span class="item"><span class="chip warn">예약 필요</span> 지금 처리할 것</span>
+      <span class="item"><span class="chip alt">대안</span> 바꿔도 되는 안</span>
+      <span class="item"><code>&asymp;</code> 추정 시각</span>
+    </div>
+  </header>
+
+  <div class="track-head">
+    <nav class="daynav" id="daynav" aria-label="날짜 이동">
+      <button type="button" data-i="0">DAY 1 &middot; 08.26</button>
+      <button type="button" data-i="1">DAY 2 &middot; 08.27</button>
+      <button type="button" data-i="2">DAY 3 &middot; 08.28</button>
+      <button type="button" data-i="3">DAY 4 &middot; 08.29</button>
+    </nav>
+    <div class="arrows">
+      <button class="arrow" id="prev" type="button" aria-label="이전 날">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button class="arrow" id="next" type="button" aria-label="다음 날">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="days" id="days" tabindex="0" aria-label="날짜별 일정 (좌우 스크롤)">
+
+  <!-- ================= DAY 1 ================= -->
+  <section class="day">
+    <div class="day-head">
+      <span class="day-no">DAY 1</span>
+      <span class="day-date">08.26</span>
+      <span class="day-dow">수요일</span>
+      <span class="day-tag">이동 &middot; 신주쿠 &middot; 도쿄타워 야경</span>
+    </div>
+    <div class="day-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 2"/></svg>
+      <span><strong>04시대 기상하는 날.</strong> 체크인 후 오후는 일부러 비워 호텔 휴식으로 잡았습니다. 8월 도쿄 습도에 첫날부터 무리하면 남은 사흘이 무너짐.</span>
+    </div>
+    <div class="rows">
+
+      <div class="row est">
+        <div class="t est">04:20</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-sun"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">기상</span></div>
+            <div class="meta">전날 짐 다 싸두고 자기 &middot; 여권 &middot; 여권 사본은 따로</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">05:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bag"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">김해공항 도착</span><span class="chip rec">2시간 전</span></div>
+            <div class="meta">국제선 카운터 체크인 &middot; 수하물 위탁 &middot; 보조배터리는 기내로</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">07:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-takeoff"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">김해공항 출발</span><span class="chip ok">확정</span></div>
+            <div class="meta">제주항공 &middot; 비행 약 2시간 &middot; 한일 시차 없음</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">09:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-landing"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">나리타공항 도착</span><span class="chip ok">확정</span></div>
+            <div class="meta">도착 터미널은 탑승권에서 확인</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;10:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-phone"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">입국심사 &middot; 수하물 &middot; 세관</span><span class="chip rec">Visit Japan Web</span></div>
+            <div class="meta">여름 성수기 <span class="em">40~60분</span> &middot; VJW 사전등록하면 QR로 통과 &middot; 여기서 밀리면 하루가 통째로 밀림</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;10:45</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-train"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">N&rsquo;EX 나리타 &rarr; 신주쿠</span><span class="chip rec">추천</span></div>
+            <div class="meta">
+              약 1시간 20분 &middot; 좌석 지정 &middot; 캐리어 거치대 있음<br>
+              <span class="em">에키넷 &ldquo;티켓리스 35%OFF&rdquo;로 편도 약 2,640엔</span> &mdash; 창구 정가 3,250엔보다 쌈. 은련 제외 해외카드 결제 가능<br>
+              <span class="chip alt">대안</span> 리무진버스 1시간 30분 &middot; 3,600엔 &middot; 환승 없이 호텔 근처 직행
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;12:10</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-hotel"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">호텔 도착 &mdash; 짐만 맡기기</span></div>
+            <div class="meta">체크인 14:00 &middot; 프런트에 캐리어 보관 요청 &middot; 신주쿠역에서 도보 약 12분</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;12:40</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bowl"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">늦은 점심 &mdash; 츠루톤탄</span><span class="chip rec">추천</span></div>
+            <div class="meta">
+              도보 8분 &middot; 1,200~2,000엔 &middot; 대형 창작 우동<br>
+              새벽부터 굶은 상태에 자극적이지 않고 회전 빠름 &mdash; 도착 첫 끼로 최적<br>
+              <span class="chip alt">대안</span> 규카츠 모토무라 (도보 7분, 웨이팅 있음)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">14:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-hotel"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">호텔 그레이서리 신주쿠 체크인</span><span class="chip ok">확정</span></div>
+            <div class="meta">가부키초 &middot; 건물에 고질라 조형물 &middot; 1층 세븐일레븐</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">14:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-moon"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">호텔 휴식</span><span class="chip rec">1시간 40분</span></div>
+            <div class="meta">04시 기상 + 습도 &middot; 샤워하고 눕기 &middot; 저녁이 길어졌으니 여기서 확실히 충전</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;15:45</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-train"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠 &rarr; 아자부다이힐즈</span></div>
+            <div class="meta">오에도선 신주쿠 &rarr; <span class="em">아자부주반</span> 약 15분, 도보 8분 &middot; 총 약 30분</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t est">&asymp;16:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-art"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">teamLab Borderless</span><span class="chip rec">인스타 1순위</span><span class="chip warn">사전예약</span></div>
+            <div class="meta">
+              아자부다이힐즈 &middot; 체류 약 2시간 &middot; 성인 <span class="em">3,600엔~</span> (현장 구매 시 200엔 추가)<br>
+              경계 없이 흘러다니는 디지털 아트. <span class="em">거울방 &middot; 램프의 숲 &middot; 꽃이 몸에 피는 방</span> &mdash; 뭘 찍어도 사진이 됨. 모녀 사진 여기서 다 건짐<br>
+              <span class="em">실내 냉방</span>이라 8월 오후를 통째로 피하는 효과도 있음. 08:30~21:00, 마지막 입장 폐관 1시간 전
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;18:40</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">도보 이동 &rarr; 도쿄타워</span><span class="chip rec">동선 0</span></div>
+            <div class="meta">아자부다이힐즈에서 <span class="em">도보 약 15분</span> &middot; 걸어가는 길에 타워가 점점 커짐, 이 구간이 사진 잘 나옴</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">19:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-tower"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">도쿄타워</span><span class="chip ok">확정</span><span class="chip warn">티켓 확인</span></div>
+            <div class="meta">
+              8월 말 일몰 약 18:20 &rarr; <span class="em">19:00이면 야경 완성된 시간</span><br>
+              메인데크(150m)만 볼지 톱데크 투어(250m)까지 갈지 결정 필요 &mdash; 톱데크는 사전예약제
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;20:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-train"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠 복귀</span></div>
+            <div class="meta">약 30분 &middot; 타워 아래 잔디밭에서 올려다보는 각도 한 컷 찍고 이동</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;21:15</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-lantern"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">가벼운 저녁 &mdash; 가부키초 푸드홀</span><span class="chip rec">추천</span></div>
+            <div class="meta">
+              도큐 가부키초 타워 2층 &middot; 도보 3분 &middot; 새벽 5시까지 &middot; 1인 2,500~3,000엔<br>
+              늦은 시간에도 열려 있고 화려해서 첫날 마무리로 좋음. 맛은 평범, 분위기값<br>
+              <span class="chip alt">대안</span> 이치란 (도보 2분, 24시간, 1,000엔대)
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= DAY 2 ================= -->
+  <section class="day">
+    <div class="day-head">
+      <span class="day-no">DAY 2</span>
+      <span class="day-date">08.27</span>
+      <span class="day-dow">목요일</span>
+      <span class="day-tag">후지산 하이라이트 포토스팟 버스투어 A코스 &middot; 한국인 가이드</span>
+    </div>
+    <div class="day-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 2"/></svg>
+      <span>판매자가 코스별 시각을 공개하지 않음. <strong>07:30 출발 / 18:00 해산</strong>과 각 스팟 체류 시간, 구간 거리로 역산한 <strong>추정 시간표</strong>입니다 &mdash; <code>&asymp;</code> 표시가 추정치. 당일 교통·날씨로 밀릴 수 있음.</span>
+    </div>
+    <div class="rows">
+
+      <div class="row est">
+        <div class="t est">06:40</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-sun"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">기상 &middot; 준비</span></div>
+            <div class="meta">호텔 조식 예약했다면 오픈 시각 확인 &mdash; 06:30 오픈이어야 겨우 가능</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">07:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-meal"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">1층 세븐일레븐 &mdash; 아침거리</span><span class="chip rec">추천</span></div>
+            <div class="meta">차에서 먹을 오니기리 &middot; 샌드위치 &middot; 커피 &middot; <span class="em">물 넉넉히</span> &middot; 점심은 현지에서 사도 됨</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">07:10</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">호텔 출발 &rarr; 신주쿠 L타워</span></div>
+            <div class="meta">도보 약 12분 &middot; <span class="em">07:20</span> 도착 목표 &middot; 전날 밤에 위치 한 번 확인해둘 것</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">07:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bus"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠역 집합 &middot; 버스 출발</span><span class="chip ok">확정</span></div>
+            <div class="meta"><span class="em">L타워 1층 스타벅스 앞</span> &middot; 출발 10분 전 도착 필수 &middot; 아침은 차에서 (첫 코스까지 1시간 50분)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;09:20</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-mountain"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">아라쿠라야마 센겐공원 &amp; 혼초거리</span></div>
+            <div class="meta"><span class="em">09:20 ~ 11:00</span> (체류 1시간 40분) &middot; 오층탑+후지산 그 사진 &middot; <span class="em">계단 398개</span> &mdash; 어머니 페이스 조절, 물 챙겨 올라갈 것 &middot; 내려와서 혼초거리 커피 한 잔</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;11:20</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-camera"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">로손 후지카와구치코점</span></div>
+            <div class="meta"><span class="em">11:20 ~ 11:35</span> (체류 15분) &middot; 편의점 뒤로 후지산 뜨는 인생샷 스팟 &middot; 15분뿐이라 사진만</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;11:55</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">가와구치 호수 &amp; 오이시 공원</span><span class="chip ok">점심</span></div>
+            <div class="meta"><span class="em">11:55 ~ 12:35</span> (체류 40분) &middot; 호수 건너 후지산 뷰, 꽃길 산책로</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;12:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-meal"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">점심 &mdash; 오이시 공원에서</span><span class="chip ok">결정</span></div>
+            <div class="meta">투어 불포함, 현장 결제 &middot; 체류 40분뿐이니 <span class="em">도착하자마자 식사 먼저, 산책은 그 다음</span> &middot; 매점 붐빌 경우 대비해 세븐일레븐 간식 하나는 챙겨두기</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;13:35</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">시라이토 폭포</span></div>
+            <div class="meta"><span class="em">13:35 ~ 14:25</span> (체류 50분) &middot; 이동 약 1시간 &middot; 후지산 복류수 폭포, 8월이라 시원함</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;15:10</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">오부치 사사바</span></div>
+            <div class="meta"><span class="em">15:10 ~ 15:50</span> (체류 40분) &middot; 녹차밭 너머 후지산, 이 투어의 시그니처 컷</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;15:50</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bus"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠로 복귀</span></div>
+            <div class="meta">이동 약 2시간 10분 &middot; 차에서 자면 딱</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">18:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bus"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠역 해산</span><span class="chip ok">확정</span></div>
+            <div class="meta">호텔까지 도보 약 12분</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;18:20</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-hotel"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">호텔 들러 짐 내려놓기</span></div>
+            <div class="meta">하루 종일 들고 다닌 짐 정리 &middot; 땀 씻고 나가면 저녁이 편함</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;19:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-beef"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">와규 야키니쿠</span><span class="chip warn">예약 필요</span></div>
+            <div class="meta">
+              <span class="em">1순위 &mdash; 야키니쿠 단(檀) 신주쿠 본점</span> <span class="chip rec">추천</span><br>
+              8,500엔~ &middot; A5 흑모와규 &middot; 17:00~23:00 무휴 &middot; 한국어 메뉴 &middot; 둘이서 17,000~20,000엔<br>
+              <span class="em">2순위 &mdash; 야키니쿠 고야 신주쿠</span><br>
+              창업 34년 노포 &middot; A5 흑모와규 1인 300g 코스 &middot; 신주쿠교엔 근처, 호텔에서 도보 20분 안팎
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;21:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-moon"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">호텔 복귀</span></div>
+            <div class="meta">새벽부터 움직인 날 &middot; 다음날 여유 일정이니 푹 잘 것</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= DAY 3 ================= -->
+  <section class="day">
+    <div class="day-head">
+      <span class="day-no">DAY 3</span>
+      <span class="day-date">08.28</span>
+      <span class="day-dow">금요일</span>
+      <span class="day-tag">아키하바라 &rarr; 하라주쿠 &rarr; 시부야 &middot; 야마노테선 한 줄</span>
+    </div>
+    <div class="day-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5"/><circle cx="12" cy="8.2" r=".8" fill="currentColor" stroke="none"/></svg>
+      <span>전부 <strong>야마노테선 한 줄</strong>. 마지막 시부야에서 신주쿠는 <strong>7분</strong>이라 복귀도 가장 짧음. <strong>대안</strong> &mdash; 센소지·아메요코를 원하면 하라주쿠·시부야 자리에 아사쿠사·우에노를 넣으면 됨(복귀 40분).</span>
+    </div>
+    <div class="rows">
+
+      <div class="row est">
+        <div class="t est">08:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-sun"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">기상 &mdash; 느긋하게</span><span class="chip rec">회복일</span></div>
+            <div class="meta">전날 새벽부터 강행군한 다음날 &middot; 서두르지 않기</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;09:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-meal"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">아침 &mdash; 킷사텐</span></div>
+            <div class="meta">도토루 &middot; 코메다 커피 &middot; 스타벅스 &mdash; 토스트·샌드위치 &middot; 신주쿠 도보권에 다 있음</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;10:20</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-train"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠 &rarr; 아키하바라</span></div>
+            <div class="meta">JR 주오·소부선 각역정차 <span class="em">약 20분</span> &middot; 환승 없음 &middot; 스이카 터치</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;11:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-shop"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">아키하바라 전자상가</span><span class="chip rec">2~3시간</span></div>
+            <div class="meta">
+              대부분 <span class="em">11시 전후 오픈</span>이라 시작 시각으로 적당<br>
+              요도바시 아키바 (대형 가전, 어머니 취향도 커버) &middot; 라디오회관 &middot; 애니메이트 &middot; 만다라케 &middot; 돈키호테<br>
+              <span class="em">프리쿠라</span> 한 판 &mdash; 게임센터마다 있음. 한국 인생네컷과 보정 결이 달라서 어머니 반응이 좋음<br>
+              면세 카운터는 여권 필수 &mdash; 반드시 소지
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;13:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-meal"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">점심 &mdash; 아키하바라</span></div>
+            <div class="meta">타베로그 <span class="em">PC 브라우저</span>로 3.5점 이상 미리 찍어두기 (모바일 앱은 유료) &middot; 이 동네는 카레·라멘·규동 밀집</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;14:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">간다 묘진 신사</span><span class="chip alt">30분 · 빼도 됨</span></div>
+            <div class="meta">아키하바라에서 <span class="em">도보 10분</span> &middot; 전자상가의 수호신사 &middot; 조용한 구간 하나 넣는 정도. 시간 빠듯하면 생략</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;14:50</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-train"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">아키하바라 &rarr; 하라주쿠</span></div>
+            <div class="meta">JR 야마노테선 <span class="em">약 25분</span> &middot; 환승 없음</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;15:20</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-shop"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">하라주쿠 &mdash; 다케시타도리 &middot; 오모테산도</span><span class="chip rec">추천</span></div>
+            <div class="meta">
+              다케시타도리 = 10~20대 거리, 크레페 &middot; 컬러풀한 간판 &middot; 사진 잘 나오는 골목<br>
+              한 블록 넘어가면 <span class="em">오모테산도</span> &mdash; 가로수길 + 명품 건축물. 분위기가 완전히 바뀌어서 어머니 쪽도 재밌어함<br>
+              두 거리 성격이 달라서 <span class="em">모녀 취향을 한 번에 커버</span>하는 구간
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;17:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-pin"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">시부야 &mdash; 스크램블 교차로 &middot; 하치코</span></div>
+            <div class="meta">하라주쿠에서 <span class="em">1정거장 3분</span> &middot; 스타벅스 2층 창가가 교차로 촬영 명당 &middot; 걸어서 건너는 영상 한 컷</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t est">17:50</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-sky"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">시부야 스카이</span><span class="chip rec">인스타 성지</span><span class="chip warn">지금 예약</span></div>
+            <div class="meta">
+              옥상 노천 전망대 &middot; 15시 이후 입장 <span class="em">3,700엔</span><br>
+              <span class="em">8월 말 일몰 약 18:20 &rarr; 17:50 입장이 정답</span>. 노을과 야경을 둘 다 봄<br>
+              최고 포토존은 <span class="em">루프탑 에스컬레이터</span> &mdash; 노을 질 때 여기서 인생샷<br>
+              티켓은 <span class="em">방문 28일 전 자정 오픈</span> &rarr; 8/28분은 이미 판매 중. 일몰 시간대는 빨리 나감
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;19:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-meal"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">저녁 &mdash; 시부야</span></div>
+            <div class="meta">미야시타파크 옥상·푸드홀, 시부야 스트림 주변 &middot; 타베로그 PC로 3.5+ 미리 찍어두기</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;21:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-shop"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠 복귀 &middot; 쇼핑 마무리</span><span class="chip rec">7분</span></div>
+            <div class="meta">시부야 &rarr; 신주쿠 야마노테 <span class="em">7분</span> &middot; 돈키호테 가부키초점 심야 영업 &middot; <span class="em">마지막 날은 시간이 없으니 기념품은 오늘 끝낼 것</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= DAY 4 ================= -->
+  <section class="day">
+    <div class="day-head">
+      <span class="day-no">DAY 4</span>
+      <span class="day-date">08.29</span>
+      <span class="day-dow">토요일</span>
+      <span class="day-tag">귀국 &mdash; 오전 일정 없음</span>
+    </div>
+    <div class="day-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5L1.8 20.5h20.4L12 3.5z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17.3" r=".8" fill="currentColor" stroke="none"/></svg>
+      <span>14:10 출발 &rarr; 역산하면 <strong>10:30에는 신주쿠를 떠야 함</strong>. 오전에 뭘 넣기엔 빠듯하니 일정 없이 잡았습니다. 토요일이라 N&rsquo;EX 혼잡 가능 &mdash; 좌석 지정 권장.</span>
+    </div>
+    <div class="rows">
+
+      <div class="row est">
+        <div class="t est">08:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-sun"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">기상</span></div>
+            <div class="meta">호텔 조식 있으면 여기서 사용</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;09:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bag"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">짐 정리</span><span class="chip warn">반입 금지 확인</span></div>
+            <div class="meta">
+              쇼핑한 것 포함 캐리어 무게 확인 &middot; 제주항공 수하물 규정<br>
+              <span class="em">이브 진통제 &middot; 메디콘 감기약은 한국 반입 불가</span> &mdash; 샀으면 여기서 빼기
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row blank">
+        <div class="t none">&asymp;10:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-hotel"/></svg>
+          <div class="body">
+            <div class="slot">체크아웃</div>
+            <div class="ttl">정확한 퇴실 시각 확인 필요 &mdash; 보통 10:00~11:00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;10:30</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-train"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">신주쿠 &rarr; 나리타</span><span class="chip rec">늦어도 11:00 열차</span></div>
+            <div class="meta">N&rsquo;EX 약 1시간 20분 &middot; 왕복으로 끊었으면 여기서 사용 &middot; 토요일 혼잡 대비 좌석 지정</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;12:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-bag"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">나리타 도착 &middot; 수속</span></div>
+            <div class="meta">출발 <span class="em">2시간 10분</span> 전 &middot; 체크인 &middot; 수하물 위탁 &middot; 출국심사</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;13:00</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-shop"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">면세점 &middot; 남은 엔화 정리</span></div>
+            <div class="meta">동전은 공항에서 털고 가기 &middot; 면세 한도 &mdash; 주류 3병 &middot; 담배 200개비 &middot; 개별 물품 20만엔</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row fixed">
+        <div class="t">14:10</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-takeoff"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">나리타 출발</span><span class="chip ok">확정</span></div>
+            <div class="meta">제주항공 &middot; 나리타 &rarr; 부산</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row est">
+        <div class="t est">&asymp;16:35</div>
+        <div class="rail"><span class="dot"></span></div>
+        <div class="card">
+          <svg class="ico"><use href="#ic-landing"/></svg>
+          <div class="body">
+            <div class="row-head"><span class="ttl">김해공항 도착</span><span class="chip alt">추정</span></div>
+            <div class="meta">서쪽 방향은 갈 때보다 20~30분 더 걸림 &middot; 정확한 시각은 항공권 확인</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  </div>
+
+  <!-- ================= 예산 ================= -->
+  <section class="budget">
+    <h2>예산 추정 &mdash; 2인 · 항공·숙박·투어 제외</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>항목</th><th>내역</th><th style="text-align:right">엔</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>공항 왕복</td><td>N'EX 에키넷 할인 2,640엔 &times; 2인 &times; 왕복</td><td class="num">10,560</td></tr>
+          <tr><td>시내 교통</td><td>3일치 지하철·JR, 1인 약 1,750엔</td><td class="num">3,500</td></tr>
+          <tr><td>teamLab Borderless</td><td>3,600엔 &times; 2인 (사전예약가)</td><td class="num">7,200</td></tr>
+          <tr><td>도쿄타워</td><td>메인데크 기준 &middot; 톱데크 선택 시 증가</td><td class="num">3,000</td></tr>
+          <tr><td>시부야 스카이</td><td>15시 이후 입장 3,700엔 &times; 2인</td><td class="num">7,400</td></tr>
+          <tr><td>8/26 식사</td><td>츠루톤탄 점심 + 푸드홀 저녁</td><td class="num">9,000</td></tr>
+          <tr><td>8/27 식사</td><td>편의점 아침 + 오이시공원 점심 + <strong>와규 저녁 27,000</strong></td><td class="num">31,500</td></tr>
+          <tr><td>8/28 식사</td><td>카페 아침 + 아키하바라 점심 + 시부야 저녁</td><td class="num">13,000</td></tr>
+          <tr><td>8/29 식사</td><td>공항 간단히</td><td class="num">2,000</td></tr>
+          <tr class="sum"><td>소계</td><td>쇼핑·기념품 별도</td><td class="num">87,160</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      환율 874원/100엔 기준 <strong>약 76만원</strong>. 쇼핑 예산은 따로.<br>
+      <strong>수정 이력</strong> &mdash; 야키니쿠를 20,000엔으로 잡았던 건 낙관적이었음. 8,500엔은 코스 최저가고 음료·추가 주문 붙으면 1인 12,000~15,000엔이 현실적이라 <strong>27,000엔</strong>으로 올림. teamLab·시부야 스카이 추가로 14,600엔 증가.
+    </div>
+  </section>
+
+  <!-- ================= 리스크 ================= -->
+  <section class="budget">
+    <h2>리스크 &mdash; 미리 알고 갈 것</h2>
+    <ul class="list">
+      <li class="q"><svg class="ico"><use href="#ic-warn"/></svg><span><strong>8월은 후지산이 잘 안 보인다</strong> &mdash; 가시율은 겨울이 압도적이고 여름은 습기·구름에 가림. 포토스팟 투어인데 후지산이 없으면 아라쿠라야마 오층탑도 그냥 탑. 투어는 그대로 진행되고 환불도 안 됨. 전날 밤 <a href="https://www.cametan.com">카메탄 라이브캠</a>으로 상태 확인하고 기대치 조정할 것</span></li>
+      <li class="q"><svg class="ico"><use href="#ic-warn"/></svg><span><strong>8월 말~9월은 일본 태풍 피크</strong> &mdash; 투어 취소·항공 지연 가능성 실재. 투어 취소 규정 확인, 출발 전 기상청 태풍 정보 체크</span></li>
+      <li class="q"><svg class="ico"><use href="#ic-warn"/></svg><span><strong>티켓 3종 예약 경쟁</strong> &mdash; 시부야 스카이는 28일 전 오픈이라 8/28분이 이미 풀렸고 일몰 시간대부터 나감. teamLab도 시간대 지정제. 야키니쿠까지 <strong>셋 다 이번 주에</strong></span></li>
+      <li class="q"><svg class="ico"><use href="#ic-q"/></svg><span><strong>가부키초 야간 동선</strong> &mdash; 호객 있는 구역이 있음. 밤 이동은 골든가이 방향보다 도큐 타워 쪽 큰길로</span></li>
+      <li class="q"><svg class="ico"><use href="#ic-q"/></svg><span><strong>도쿄타워는 밖에서 볼 때 더 예쁘다</strong> &mdash; 올라가면 정작 타워가 안 보인다는 게 정론. 다만 시부야 스카이를 8/28에 넣어 전망대 아쉬움은 상쇄됨. 도쿄타워는 아자부다이힐즈에서 걸어오며 보는 각도로 충분히 건짐</span></li>
+      <li class="q"><svg class="ico"><use href="#ic-q"/></svg><span><strong>8월 야외 시간대</strong> &mdash; 8/28 하라주쿠 15:20~17:00이 하루 중 가장 더운 구간. 오모테산도 가로수 그늘 쪽으로 붙어 걷고 카페 한 번 끊어갈 것</span></li>
+    </ul>
+  </section>
+
+  <!-- ================= 맛집 후보 ================= -->
+  <section class="picks">
+    <h2>신주쿠 식사 후보 &mdash; 호텔 기준 도보권</h2>
+    <div class="pick-grid">
+
+      <div class="pick">
+        <svg class="ico"><use href="#ic-beef"/></svg>
+        <div>
+          <div class="nm">야키니쿠 단(檀) 신주쿠 본점 <span class="chip warn">예약</span></div>
+          <div class="ds">A5 흑모와규, 야마가타·다지마규. 한국어 메뉴 있음. 8/27 저녁 1순위.</div>
+          <div class="wk">8,500엔~ &middot; 17:00~23:00 무휴</div>
+        </div>
+      </div>
+
+      <div class="pick">
+        <svg class="ico"><use href="#ic-lantern"/></svg>
+        <div>
+          <div class="nm">신주쿠 카부키홀 (가부키 요코초) <span class="chip rec">8/26 저녁</span></div>
+          <div class="ds">도큐 가부키초 타워 2층. 일본 각지 + 한국 음식 야시장 컨셉 푸드홀. 새벽 5시까지. 맛은 평범, 분위기로 가는 곳.</div>
+          <div class="wk">도보 3분 &middot; 1인 2,500~3,000엔 &middot; 06:00~05:00</div>
+        </div>
+      </div>
+
+      <div class="pick">
+        <svg class="ico"><use href="#ic-bowl"/></svg>
+        <div>
+          <div class="nm">츠루톤탄 신주쿠점 <span class="chip rec">8/26 점심</span></div>
+          <div class="ds">세숫대야만 한 그릇의 창작 우동. 자극적이지 않고 회전 빠름.</div>
+          <div class="wk">도보 8분 &middot; 1,200~2,000엔</div>
+        </div>
+      </div>
+
+      <div class="pick">
+        <svg class="ico"><use href="#ic-skewer"/></svg>
+        <div>
+          <div class="nm">오모이데요코초 (추억의 골목)</div>
+          <div class="ds">쇼와 시대 그대로인 야키토리 골목. 좁고 연기 나지만 분위기는 도쿄 최고. 이번 일정엔 자리가 없지만 시간 나면 대체 후보.</div>
+          <div class="wk">도보 10분 &middot; 1인 2,000~3,500엔 &middot; 저녁</div>
+        </div>
+      </div>
+
+      <div class="pick">
+        <svg class="ico"><use href="#ic-meal"/></svg>
+        <div>
+          <div class="nm">츠나하치 신주쿠 본점</div>
+          <div class="ds">1924년 창업 튀김 정식집. 카운터에서 갓 튀겨 하나씩. 조용하고 정갈함.</div>
+          <div class="wk">도보 12분 &middot; 점심 2,000엔대 / 저녁 4,000엔대</div>
+        </div>
+      </div>
+
+      <div class="pick">
+        <svg class="ico"><use href="#ic-bowl"/></svg>
+        <div>
+          <div class="nm">이치란 신주쿠 가부키초점 <span class="chip alt">야식 보험</span></div>
+          <div class="ds">24시간 돈코츠 라멘. 호텔에서 제일 가까움.</div>
+          <div class="wk">도보 2분 &middot; 1,000엔대 &middot; 24시간</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="note">맛집 검색은 타베로그 <strong>PC 브라우저</strong>로 &mdash; 모바일 앱은 프리미엄 결제해야 제대로 검색됨. 평점 3.5 이상 + 리뷰 수 충분한 곳 기준.</div>
+  </section>
+
+  <!-- ================= 준비·확인 ================= -->
+  <div class="panel">
+    <section>
+      <h2>지금 처리할 것</h2>
+      <ul class="list">
+        <li class="q"><svg class="ico"><use href="#ic-star"/></svg><span><strong>시부야 스카이 (8/28)</strong> &mdash; 17:30~18:00 입장분. 28일 전 오픈이라 이미 판매 중, 일몰대부터 매진</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-star"/></svg><span><strong>teamLab Borderless (8/26)</strong> &mdash; 16:30 입장분. 공식 사이트 사전구매가 현장보다 1인 200엔 쌈</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-warn"/></svg><span><strong>야키니쿠 단 예약</strong> &mdash; 1~2주 전 권장인데 여행까지 8일. 타베로그 또는 테이블체크, 확정 메일 수신 확인</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-warn"/></svg><span><strong>N&rsquo;EX 에키넷 예매</strong> &mdash; 회원가입 후 &ldquo;티켓리스 35%OFF&rdquo; 선택. 왕복 2회분</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-warn"/></svg><span><strong>Visit Japan Web</strong> 2인 모두 사전 등록</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-q"/></svg><span>도쿄타워 &mdash; 메인데크 / 톱데크 투어 결정, 톱데크는 사전예약제</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-q"/></svg><span>호텔 체크아웃 시각 &middot; 조식 포함 여부와 오픈 시각</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-q"/></svg><span>귀국편 김해 도착 시각 확인</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>준비물</h2>
+      <ul class="list">
+        <li><svg class="ico"><use href="#ic-check"/></svg><span>여권 + <strong>여권 사본</strong> (사본은 따로 보관)</span></li>
+        <li><svg class="ico"><use href="#ic-check"/></svg><span>신분증 &mdash; 여권 분실 대비, 여권과 분리 보관</span></li>
+        <li><svg class="ico"><use href="#ic-card"/></svg><span>트래블카드 &mdash; 하나 트래블로그(세븐뱅크 무료 출금) + 다른 브랜드 1장 병행</span></li>
+        <li><svg class="ico"><use href="#ic-phone"/></svg><span>모바일 스이카 등록 (보증금 없음) 또는 현지 실물 2,000엔</span></li>
+        <li><svg class="ico"><use href="#ic-phone"/></svg><span>eSIM &mdash; 한국 번호 유지되는 유일한 수단. 기기 호환 확인</span></li>
+        <li><svg class="ico"><use href="#ic-phone"/></svg><span>데이터 로밍 차단 부가서비스 + 문자 받을 회선은 로밍 ON</span></li>
+        <li><svg class="ico"><use href="#ic-check"/></svg><span>충전기 &middot; 보조배터리(기내 휴대) &middot; 돼지코</span></li>
+        <li><svg class="ico"><use href="#ic-check"/></svg><span>양산 &middot; 손선풍기 &middot; 쿨토시 &mdash; 8월 도쿄 습도 대비</span></li>
+        <li><svg class="ico"><use href="#ic-check"/></svg><span>편한 신발 &mdash; 8/27 계단 398개, 8/28 종일 도보</span></li>
+        <li><svg class="ico"><use href="#ic-check"/></svg><span>비상약 &middot; 파파고 오프라인 &middot; 작은 크로스백</span></li>
+        <li class="q"><svg class="ico"><use href="#ic-pill"/></svg><span><strong>귀국 시 반입 금지</strong> &mdash; 이브 진통제 · 메디콘 감기약. 파브론은 1인 1개 가능</span></li>
+      </ul>
+    </section>
+  </div>
+
+  <footer>
+    <span>TOKYO ITINERARY &mdash; 2026.08.19 기준</span>
+    <span>예약 3건 대기 &middot; 리스크 6</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var track = document.getElementById('days');
+  var days  = Array.prototype.slice.call(track.querySelectorAll('.day'));
+  var navs  = Array.prototype.slice.call(document.querySelectorAll('#daynav button'));
+  var prev  = document.getElementById('prev');
+  var next  = document.getElementById('next');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var current = 0;
+
+  function goTo(i){
+    i = Math.max(0, Math.min(days.length - 1, i));
+    track.scrollTo({ left: days[i].offsetLeft - track.offsetLeft, behavior: reduce ? 'auto' : 'smooth' });
+  }
+
+  function sync(){
+    var mid = track.scrollLeft + track.clientWidth / 2;
+    var best = 0, bestD = Infinity;
+    days.forEach(function(d, i){
+      var c = d.offsetLeft - track.offsetLeft + d.offsetWidth / 2;
+      var dist = Math.abs(c - mid);
+      if (dist < bestD){ bestD = dist; best = i; }
+    });
+    current = best;
+    navs.forEach(function(b, i){ b.setAttribute('aria-current', i === best ? 'true' : 'false'); });
+    prev.disabled = track.scrollLeft <= 2;
+    next.disabled = track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
+  }
+
+  navs.forEach(function(b){ b.addEventListener('click', function(){ goTo(+b.dataset.i); }); });
+  prev.addEventListener('click', function(){ goTo(current - 1); });
+  next.addEventListener('click', function(){ goTo(current + 1); });
+  track.addEventListener('scroll', function(){ window.requestAnimationFrame(sync); }, { passive: true });
+  track.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight'){ e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft'){ e.preventDefault(); goTo(current - 1); }
+  });
+  window.addEventListener('resize', sync);
+  sync();
+})();
+</script>
+</body>
+</html>
