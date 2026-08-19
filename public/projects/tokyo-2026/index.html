@@ -1291,7 +1291,7 @@
   navs.forEach(function(b){ b.addEventListener('click', function(){ goTo(+b.dataset.i); }); });
   prev.addEventListener('click', function(){ goTo(current - 1); });
   next.addEventListener('click', function(){ goTo(current + 1); });
-  track.addEventListener('scroll', function(){ window.requestAnimationFrame(sync); }, { passive: true });
+  track.addEventListener('scroll', sync, { passive: true });
   track.addEventListener('keydown', function(e){
     if (e.key === 'ArrowRight'){ e.preventDefault(); goTo(current + 1); }
     if (e.key === 'ArrowLeft'){ e.preventDefault(); goTo(current - 1); }
