@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="2026-08-26~29 도쿄 3박 4일 여행 타임라인. 스테이지 모드로 일정 하나씩, 인사이트 모드로 전체 흐름.">
+<meta name="description" content="2026-08-26~29 도쿄 3박 4일 여행 타임라인. 방문 장소 중심, 스테이지/인사이트 2모드.">
 <title>도쿄 3박4일 타임라인</title>
 <style>
   :root{
@@ -444,7 +444,7 @@
       <button type="button" id="mode-stage" aria-pressed="true">스테이지</button>
       <button type="button" id="mode-insight" aria-pressed="false">인사이트</button>
     </div>
-    <span class="modehint" id="modehint">일정 하나씩 · 좌우로 흐름 따라가기</span>
+    <span class="modehint" id="modehint">장소 하나씩 · 좌우로 흐름 따라가기</span>
   </div>
 
   <!-- ══════ STAGE ══════ -->
@@ -549,149 +549,106 @@
 
   var DAYS = [
     { n:1, date:'08.26', dow:'수요일', tag:'이동 · 신주쿠 · 도쿄타워 야경', events:[
-      { t:'04:20', icon:'sun', title:'기상', detail:'전날 짐 다 싸두고 자기 · 여권과 <span class="em">여권 사본</span>은 따로 보관.' },
-      { t:'05:30', icon:'bag', title:'김해공항 도착', chips:[['2시간 전','rec']],
-        stats:[['권장 도착','05:30']],
-        detail:'국제선 카운터 체크인 · 수하물 위탁 · <span class="em">보조배터리는 기내로</span>.' },
-      { t:'07:30', icon:'takeoff', title:'김해공항 출발', fixed:true, chips:[['확정','ok']],
+      { t:'07:30', icon:'takeoff', title:'김해공항', fixed:true, chips:[['확정','ok']],
         stats:[['출발','07:30'],['도착','09:30'],['비행','2시간']],
-        detail:'제주항공 · 한일 시차 없음.' },
-      { t:'09:30', icon:'landing', title:'나리타공항 도착', fixed:true, chips:[['확정','ok']],
-        detail:'도착 터미널은 탑승권에서 확인.' },
-      { t:'10:30', est:true, icon:'phone', title:'입국심사 · 수하물 · 세관', chips:[['Visit Japan Web','rec']],
-        stats:[['소요','40~60분']],
-        detail:'여름 성수기 기준. VJW 사전등록하면 QR로 통과. <span class="em">여기서 밀리면 하루가 통째로 밀림</span>.' },
-      { t:'10:45', est:true, icon:'train', title:'N’EX 나리타 → 신주쿠', chips:[['추천','rec']],
-        stats:[['출발','10:45'],['도착','12:05'],['소요','1시간 20분']],
-        detail:'좌석 지정 · 캐리어 거치대 있음.<br>에키넷 <span class="em">“티켓리스 35%OFF”로 편도 약 2,640엔</span> — 창구 정가 3,250엔보다 쌈. 은련 제외 해외카드 결제 가능.<br><br><span class="em">대안</span> 리무진버스 1시간 30분 · 3,600엔 · 환승 없이 호텔 근처 직행.' },
-      { t:'12:10', est:true, icon:'hotel', title:'호텔 도착 — 짐만 맡기기',
-        detail:'체크인은 14:00이라 프런트에 캐리어 보관 요청. 신주쿠역에서 도보 약 12분.' },
-      { t:'12:40', est:true, icon:'bowl', title:'늦은 점심 — 츠루톤탄', chips:[['추천','rec']],
+        detail:'제주항공 · 한일 시차 없음.<br>2시간 전 <span class="em">05:30</span>까지 도착 권장 → 역산하면 <span class="em">04:20</span> 기상. 전날 짐 다 싸두기.<br>여권 사본은 여권과 따로, 보조배터리는 기내로.' },
+
+      { t:'09:30', icon:'landing', title:'나리타공항', fixed:true, chips:[['확정','ok']],
+        stats:[['도착','09:30'],['입국심사','40~60분']],
+        detail:'여름 성수기 기준 입국심사가 오래 걸림. <span class="em">Visit Japan Web</span> 사전등록하면 QR로 통과 — 여기서 밀리면 하루가 통째로 밀림.<br><br><span class="em">신주쿠까지</span> N’EX 약 1시간 20분. 에키넷 “티켓리스 35%OFF”로 편도 약 2,640엔(창구 정가 3,250엔).<br><span class="em">대안</span> 리무진버스 1시간 30분 · 3,600엔 · 환승 없이 직행.' },
+
+      { t:'12:40', est:true, icon:'bowl', title:'츠루톤탄 신주쿠점', chips:[['점심','rec']],
         stats:[['도보','8분'],['예산','1,200~2,000엔']],
-        detail:'대형 창작 우동. 새벽부터 굶은 상태에 자극적이지 않고 회전 빠름 — 도착 첫 끼로 최적.<br><br><span class="em">대안</span> 규카츠 모토무라(도보 7분, 웨이팅 있음).' },
-      { t:'14:00', icon:'hotel', title:'호텔 그레이서리 신주쿠 체크인', fixed:true, chips:[['확정','ok']],
-        detail:'가부키초 · 건물에 고질라 조형물 · 1층 세븐일레븐.' },
-      { t:'14:00', est:true, icon:'moon', title:'호텔 휴식', chips:[['비워두기','rec']],
-        stats:[['체류','1시간 40분']],
-        detail:'04시 기상 + 습도. 샤워하고 눕기 — 저녁이 길어졌으니 여기서 확실히 충전.' },
-      { t:'15:45', est:true, icon:'train', title:'신주쿠 → 아자부다이힐즈',
-        stats:[['소요','약 30분']],
-        detail:'오에도선 신주쿠 → <span class="em">아자부주반</span> 약 15분, 도보 8분.' },
+        detail:'대형 창작 우동. 새벽부터 굶은 상태에 자극적이지 않고 회전이 빨라 도착 첫 끼로 최적.<br><br><span class="em">대안</span> 규카츠 모토무라(도보 7분, 웨이팅 있음).' },
+
+      { t:'14:00', icon:'hotel', title:'호텔 그레이서리 신주쿠', fixed:true, chips:[['체크인','ok']],
+        stats:[['체크인','14:00'],['도보','신주쿠역 12분']],
+        detail:'가부키초 · 건물에 고질라 조형물 · 1층 세븐일레븐.<br>≈12:10에 먼저 들러 <span class="em">캐리어만 맡기고</span> 점심 → 14:00 체크인.<br><br>체크인 후 <span class="em">약 1시간 40분 휴식</span>을 넣어둠. 04시 기상 + 8월 습도라 저녁 야경까지 버티려면 필요.' },
+
       { t:'16:30', est:true, icon:'art', title:'teamLab Borderless', fixed:true, chips:[['예약 확정','ok'],['인스타 1순위','rec']],
-        stats:[['입장','16:30'],['체류','약 2시간'],['종료','18:30']],
-        detail:'아자부다이힐즈. <span class="em">입장 시간대는 예약 확정분 기준으로 재확인 필요</span>.<br>경계 없이 흘러다니는 디지털 아트 — <span class="em">거울방 · 램프의 숲 · 꽃이 몸에 피는 방</span>. 뭘 찍어도 사진이 됨.<br><br><span class="em">실내 냉방</span>이라 8월 오후를 통째로 피하는 효과도 있음.' },
-      { t:'18:40', est:true, icon:'pin', title:'도보 이동 → 도쿄타워', chips:[['동선 0','rec']],
-        stats:[['도보','약 15분']],
-        detail:'걸어가는 길에 타워가 점점 커짐. <span class="em">이 구간이 사진 제일 잘 나옴</span>.' },
+        stats:[['입장','16:30'],['체류','약 2시간'],['이동','신주쿠 30분']],
+        detail:'아자부다이힐즈. <span class="em">입장 시간대는 예약 확정분 기준으로 재확인 필요</span>.<br>오에도선 신주쿠 → 아자부주반 15분, 도보 8분.<br><br>거울방 · 램프의 숲 · 꽃이 몸에 피는 방. 실내 냉방이라 8월 오후를 통째로 피하는 효과도 있음.' },
+
       { t:'19:00', icon:'tower', title:'도쿄타워', fixed:true, chips:[['확정','ok'],['티켓 확인','warn']],
-        stats:[['일몰','18:20'],['입장','19:00']],
-        detail:'일몰 직후라 <span class="em">야경이 완성된 시간</span>.<br>메인데크(150m)만 볼지 톱데크 투어(250m)까지 갈지 결정 필요 — 톱데크는 사전예약제.' },
-      { t:'20:30', est:true, icon:'train', title:'신주쿠 복귀',
-        stats:[['소요','약 30분']],
-        detail:'타워 아래 잔디밭에서 올려다보는 각도 한 컷 찍고 이동.' },
-      { t:'21:15', est:true, icon:'lantern', title:'가벼운 저녁 — 가부키초 푸드홀', chips:[['추천','rec']],
-        stats:[['도보','3분'],['1인','2,500~3,000엔'],['영업','06:00~05:00']],
+        stats:[['일몰','18:20'],['입장','19:00'],['도보','15분']],
+        detail:'아자부다이힐즈에서 <span class="em">걸어서 15분</span> — 가는 길에 타워가 점점 커지는 구간이 사진 제일 잘 나옴.<br>일몰 직후라 야경이 완성된 시간.<br><br>메인데크(150m)만 볼지 톱데크 투어(250m)까지 갈지 결정 필요. 톱데크는 사전예약제.' },
+
+      { t:'21:15', est:true, icon:'lantern', title:'가부키초 푸드홀', chips:[['저녁','rec']],
+        stats:[['도보','3분'],['1인','2,500~3,000엔'],['영업','~05:00']],
         detail:'도큐 가부키초 타워 2층. 늦은 시간에도 열려 있고 화려해서 첫날 마무리로 좋음. 맛은 평범, 분위기값.<br><br><span class="em">대안</span> 이치란(도보 2분, 24시간, 1,000엔대).' }
     ]},
 
     { n:2, date:'08.27', dow:'목요일', tag:'후지산 하이라이트 포토스팟 버스투어 A코스', events:[
-      { t:'06:40', est:true, icon:'sun', title:'기상 · 준비',
-        detail:'호텔 조식 예약했다면 오픈 시각 확인 — 06:30 오픈이어야 겨우 가능.' },
-      { t:'07:00', est:true, icon:'meal', title:'1층 세븐일레븐 — 아침거리', chips:[['추천','rec']],
-        detail:'차에서 먹을 오니기리 · 샌드위치 · 커피 · <span class="em">물 넉넉히</span>. 점심은 현지에서 사도 됨.' },
-      { t:'07:10', est:true, icon:'pin', title:'호텔 출발 → 신주쿠 L타워',
-        stats:[['도보','약 12분'],['도착 목표','07:20']],
-        detail:'전날 밤에 위치 한 번 확인해둘 것.' },
-      { t:'07:30', icon:'bus', title:'신주쿠역 집합 · 버스 출발', fixed:true, chips:[['확정','ok']],
+      { t:'07:30', icon:'bus', title:'신주쿠 L타워', fixed:true, chips:[['투어 집합','ok']],
         stats:[['집합','07:20'],['출발','07:30']],
-        detail:'<span class="em">L타워 1층 스타벅스 앞</span> · 출발 10분 전 도착 필수. 아침은 차에서 (첫 코스까지 1시간 50분).' },
-      { t:'09:20', est:true, icon:'mountain', title:'아라쿠라야마 센겐공원 & 혼초거리',
+        detail:'<span class="em">L타워 1층 스타벅스 앞</span>. 출발 10분 전 도착 필수 → <span class="em">07:10</span> 호텔 출발(도보 12분).<br>전날 밤에 위치 한 번 확인해둘 것.<br><br>아침은 07:00에 호텔 1층 세븐일레븐에서 사서 차에서. 첫 코스까지 1시간 50분.' },
+
+      { t:'09:20', est:true, icon:'mountain', title:'아라쿠라야마 센겐공원', chips:[['혼초거리','alt']],
         stats:[['도착','09:20'],['출발','11:00'],['체류','1시간 40분']],
-        detail:'이동 약 1시간 50분. 오층탑+후지산 그 사진.<br><span class="em">계단 398개</span> — 어머니 페이스 조절, 물 챙겨 올라갈 것. 내려와서 혼초거리 커피 한 잔.' },
+        detail:'오층탑과 후지산이 함께 나오는 그 사진.<br><span class="em">계단 398개</span> — 어머니 페이스 조절, 물 챙겨 올라갈 것.<br><br>내려와서 혼초거리에서 커피 한 잔 정도 여유 있음.' },
+
       { t:'11:20', est:true, icon:'camera', title:'로손 후지카와구치코점',
         stats:[['도착','11:20'],['출발','11:35'],['체류','15분']],
-        detail:'이동 약 20분. 편의점 뒤로 후지산 뜨는 인생샷 스팟. 15분뿐이라 사진만.' },
-      { t:'11:55', est:true, icon:'pin', title:'가와구치 호수 & 오이시 공원', chips:[['점심','ok']],
+        detail:'편의점 뒤로 후지산이 뜨는 인생샷 스팟. 15분뿐이라 사진만 찍고 이동.' },
+
+      { t:'11:55', est:true, icon:'pin', title:'오이시 공원', chips:[['점심','ok']],
         stats:[['도착','11:55'],['출발','12:35'],['체류','40분']],
-        detail:'이동 약 20분. 호수 건너 후지산 뷰, 꽃길 산책로.' },
-      { t:'12:00', est:true, icon:'meal', title:'점심 — 오이시 공원에서', chips:[['결정','ok']],
-        detail:'투어 불포함, 현장 결제. 체류 40분뿐이니 <span class="em">도착하자마자 식사 먼저, 산책은 그 다음</span>. 매점 붐빌 경우 대비해 세븐일레븐 간식 하나는 챙겨두기.' },
+        detail:'가와구치 호수 건너 후지산 뷰, 꽃길 산책로.<br><br><span class="em">점심을 여기서 해결하기로 결정</span>. 투어 불포함이라 현장 결제. 체류가 40분뿐이니 도착하자마자 식사 먼저, 산책은 그 다음.<br>매점이 붐빌 경우 대비해 세븐일레븐 간식 하나는 챙겨두기.' },
+
       { t:'13:35', est:true, icon:'pin', title:'시라이토 폭포',
         stats:[['도착','13:35'],['출발','14:25'],['체류','50분']],
-        detail:'이동 약 1시간. 후지산 복류수 폭포, 8월이라 시원함.' },
+        detail:'후지산 복류수가 넓게 퍼져 떨어지는 폭포. 8월이라 시원함.' },
+
       { t:'15:10', est:true, icon:'pin', title:'오부치 사사바',
         stats:[['도착','15:10'],['출발','15:50'],['체류','40분']],
-        detail:'이동 약 45분. 녹차밭 너머 후지산 — <span class="em">이 투어의 시그니처 컷</span>.' },
-      { t:'15:50', est:true, icon:'bus', title:'신주쿠로 복귀',
-        stats:[['소요','약 2시간 10분']],
-        detail:'차에서 자면 딱.' },
-      { t:'18:00', icon:'bus', title:'신주쿠역 해산', fixed:true, chips:[['확정','ok']],
-        detail:'호텔까지 도보 약 12분.' },
-      { t:'18:20', est:true, icon:'hotel', title:'호텔 들러 짐 내려놓기',
-        detail:'하루 종일 들고 다닌 짐 정리. 땀 씻고 나가면 저녁이 편함.' },
-      { t:'19:00', est:true, icon:'beef', title:'와규 야키니쿠', chips:[['예약 필요','warn']],
-        stats:[['1인','8,500엔~'],['2인 예상','27,000엔']],
-        detail:'<span class="em">1순위 — 야키니쿠 단(檀) 신주쿠 본점</span><br>A5 흑모와규 · 17:00~23:00 무휴 · 한국어 메뉴.<br><br><span class="em">2순위 — 야키니쿠 고야 신주쿠</span><br>창업 34년 노포 · A5 흑모와규 1인 300g 코스 · 호텔에서 도보 20분 안팎.' },
-      { t:'21:00', est:true, icon:'moon', title:'호텔 복귀',
-        detail:'새벽부터 움직인 날. 다음날 여유 일정이니 푹 잘 것.' }
+        detail:'녹차밭 너머로 후지산 — <span class="em">이 투어의 시그니처 컷</span>.<br>여기서 신주쿠까지 약 2시간 10분, 차에서 자면 딱.' },
+
+      { t:'18:00', icon:'bus', title:'신주쿠역', fixed:true, chips:[['투어 해산','ok']],
+        stats:[['해산','18:00'],['도보','호텔 12분']],
+        detail:'호텔 들러 짐 내려놓고 땀 씻으면 저녁이 편함.' },
+
+      { t:'19:00', est:true, icon:'beef', title:'야키니쿠 단(檀) 신주쿠 본점', chips:[['예약 필요','warn']],
+        stats:[['1인','8,500엔~'],['2인 예상','27,000엔'],['영업','17:00~23:00']],
+        detail:'A5 흑모와규 · 무휴 · 한국어 메뉴 있음.<br><br><span class="em">2순위</span> 야키니쿠 고야 신주쿠 — 창업 34년 노포, A5 흑모와규 1인 300g 코스. 신주쿠교엔 근처라 호텔에서 도보 20분 안팎.' }
     ]},
 
     { n:3, date:'08.28', dow:'금요일', tag:'아키하바라 → 하라주쿠 → 시부야 · 야마노테선 한 줄', events:[
-      { t:'08:30', est:true, icon:'sun', title:'기상 — 느긋하게', chips:[['회복일','rec']],
-        detail:'전날 새벽부터 강행군한 다음날. 서두르지 않기.' },
-      { t:'09:30', est:true, icon:'meal', title:'아침 — 킷사텐',
-        detail:'도토루 · 코메다 커피 · 스타벅스 — 토스트·샌드위치. 신주쿠 도보권에 다 있음.' },
-      { t:'10:20', est:true, icon:'train', title:'신주쿠 → 아키하바라',
-        stats:[['소요','약 20분']],
-        detail:'JR 주오·소부선 각역정차 · 환승 없음 · 스이카 터치.' },
-      { t:'11:00', est:true, icon:'shop', title:'아키하바라 전자상가', chips:[['2~3시간','rec']],
-        stats:[['체류','2~3시간']],
-        detail:'대부분 <span class="em">11시 전후 오픈</span>이라 시작 시각으로 적당.<br>요도바시 아키바(대형 가전, 어머니 취향도 커버) · 라디오회관 · 애니메이트 · 만다라케 · 돈키호테.<br><br><span class="em">프리쿠라</span> 한 판 — 게임센터마다 있음. 한국 인생네컷과 보정 결이 달라서 어머니 반응이 좋음.<br>면세 카운터는 여권 필수.' },
-      { t:'13:00', est:true, icon:'meal', title:'점심 — 아키하바라',
-        detail:'타베로그 <span class="em">PC 브라우저</span>로 3.5점 이상 미리 찍어두기(모바일 앱은 유료). 이 동네는 카레·라멘·규동 밀집.' },
+      { t:'11:00', est:true, icon:'shop', title:'아키하바라', chips:[['금요일 = 한산','rec']],
+        stats:[['체류','2~3시간'],['이동','신주쿠 20분']],
+        detail:'JR 주오·소부선 각역정차, 환승 없음. 대부분 <span class="em">11시 전후 오픈</span>이라 시작 시각으로 적당.<br>요도바시 아키바 · 라디오회관 · 애니메이트 · 만다라케 · 돈키호테.<br><br><span class="em">프리쿠라</span> 한 판 — 한국 인생네컷과 보정 결이 달라서 어머니 반응이 좋음.<br>면세 카운터는 여권 필수.<br><br>점심도 이 동네에서 — 카레·라멘·규동 밀집.' },
+
       { t:'14:00', est:true, icon:'pin', title:'간다 묘진 신사', chips:[['빼도 됨','alt']],
         stats:[['도보','10분'],['체류','30분']],
-        detail:'전자상가의 수호신사. 조용한 구간 하나 넣는 정도 — 시간 빠듯하면 생략.' },
-      { t:'14:50', est:true, icon:'train', title:'아키하바라 → 하라주쿠',
-        stats:[['소요','약 25분']],
-        detail:'JR 야마노테선 · 환승 없음.' },
-      { t:'15:20', est:true, icon:'shop', title:'하라주쿠 — 다케시타도리 · 오모테산도', chips:[['추천','rec']],
-        detail:'다케시타도리 = 10~20대 거리, 크레페 · 컬러풀한 간판 · 사진 잘 나오는 골목.<br>한 블록 넘어가면 <span class="em">오모테산도</span> — 가로수길 + 명품 건축물. 분위기가 완전히 바뀌어서 어머니 쪽도 재밌어함.<br><br>두 거리 성격이 달라 <span class="em">모녀 취향을 한 번에 커버</span>하는 구간.' },
-      { t:'17:00', est:true, icon:'pin', title:'시부야 — 스크램블 교차로 · 하치코',
+        detail:'전자상가의 수호신사. 정신없는 상가 뒤에 조용한 구간 하나 넣는 정도 — 시간 빠듯하면 생략.' },
+
+      { t:'15:20', est:true, icon:'shop', title:'하라주쿠', chips:[['추천','rec']],
+        stats:[['이동','야마노테 25분']],
+        detail:'다케시타도리 = 10~20대 거리, 크레페 · 컬러풀한 간판 · 사진 잘 나오는 골목.<br>한 블록 넘어가면 <span class="em">오모테산도</span> — 가로수길 + 명품 건축물. 분위기가 완전히 바뀜.<br><br>두 거리 성격이 달라 <span class="em">모녀 취향을 한 번에 커버</span>하는 구간. 그늘 쪽으로 붙어 걷고 카페 한 번 끊어갈 것.' },
+
+      { t:'17:00', est:true, icon:'pin', title:'시부야 스크램블 교차로',
         stats:[['이동','1정거장 3분']],
-        detail:'스타벅스 2층 창가가 교차로 촬영 명당. 걸어서 건너는 영상 한 컷.' },
+        detail:'하치코 동상. 스타벅스 2층 창가가 교차로 촬영 명당.<br>걸어서 건너는 영상 한 컷.<br><br>해 지고 간판 불 들어온 뒤에 <span class="em">한 번 더</span> 오면 완전히 다름.' },
+
       { t:'17:40', est:true, icon:'sky', title:'미야시타파크 옥상', chips:[['무료','rec']],
         stats:[['도보','5분'],['일몰','18:20']],
-        detail:'상업시설 위에 얹힌 <span class="em">옥상 공원</span> · 잔디·스케이트장. 입장료·예약 없음.<br>일몰에 맞춰 올라가면 시부야 스카이라인이 물듦.<br><br>시부야 스카이(예약 실패)의 대체 — 높이는 안 되지만 <span class="em">트인 야외</span>라 사진 결은 비슷.' },
-      { t:'18:40', est:true, icon:'camera', title:'스크램블 교차로 야경',
-        detail:'해 지고 간판 불 들어온 뒤가 진짜. 낮에 본 곳을 <span class="em">밤에 한 번 더</span>.' },
-      { t:'19:10', est:true, icon:'meal', title:'저녁 — 시부야',
-        detail:'미야시타파크 푸드홀(그대로 아래층), 시부야 요코초, 시부야 스트림 주변. 타베로그 PC로 3.5+ 미리 찍어두기.' },
-      { t:'20:40', est:true, icon:'shop', title:'신주쿠 복귀 · 쇼핑 마무리', chips:[['7분','rec']],
-        stats:[['소요','7분']],
-        detail:'시부야 → 신주쿠 야마노테 7분. 돈키호테 가부키초점 심야 영업.<br><span class="em">마지막 날은 시간이 없으니 기념품은 오늘 끝낼 것</span>.' }
+        detail:'상업시설 위에 얹힌 옥상 공원 · 잔디 · 스케이트장. 입장료도 예약도 없음.<br>일몰에 맞춰 올라가면 시부야 스카이라인이 물듦.<br><br>시부야 스카이(예약 실패)의 대체 — 높이는 안 되지만 트인 야외라 사진 결은 비슷.' },
+
+      { t:'19:10', est:true, icon:'meal', title:'시부야 요코초 · 미야시타파크 푸드홀', chips:[['저녁','rec']],
+        stats:[['복귀','신주쿠 7분']],
+        detail:'미야시타파크 아래층이 바로 푸드홀이라 동선이 끊기지 않음. 시부야 스트림 주변도 후보.<br>타베로그 <span class="em">PC 브라우저</span>로 3.5점 이상 미리 찍어두기(모바일 앱은 유료).<br><br>시부야 → 신주쿠 야마노테 7분. 돈키호테 심야 영업이라 <span class="em">기념품은 오늘 끝낼 것</span> — 마지막 날은 시간이 없음.' }
     ]},
 
     { n:4, date:'08.29', dow:'토요일', tag:'귀국 — 오전 일정 없음', events:[
-      { t:'08:00', est:true, icon:'sun', title:'기상',
-        detail:'호텔 조식 있으면 여기서 사용.' },
-      { t:'09:00', est:true, icon:'bag', title:'짐 정리', chips:[['반입 금지 확인','warn']],
-        detail:'쇼핑한 것 포함 캐리어 무게 확인 · 제주항공 수하물 규정.<br><span class="em">이브 진통제 · 메디콘 감기약은 한국 반입 불가</span> — 샀으면 여기서 빼기.' },
-      { t:'10:00', est:true, icon:'hotel', title:'체크아웃', chips:[['시각 미확인','alt']],
-        detail:'정확한 퇴실 시각 확인 필요 — 보통 10:00~11:00.' },
-      { t:'10:30', est:true, icon:'train', title:'신주쿠 → 나리타', chips:[['늦어도 11:00 열차','rec']],
-        stats:[['출발','10:30'],['소요','1시간 20분']],
-        detail:'N’EX. 왕복으로 끊었으면 여기서 사용. 토요일 혼잡 대비 좌석 지정.' },
-      { t:'12:00', est:true, icon:'bag', title:'나리타 도착 · 수속',
-        stats:[['도착','12:00'],['출발까지','2시간 10분']],
-        detail:'체크인 · 수하물 위탁 · 출국심사.' },
-      { t:'13:00', est:true, icon:'shop', title:'면세점 · 남은 엔화 정리',
-        detail:'동전은 공항에서 털고 가기. 면세 한도 — 주류 3병 · 담배 200개비 · 개별 물품 20만엔.' },
-      { t:'14:10', icon:'takeoff', title:'나리타 출발', fixed:true, chips:[['확정','ok']],
-        stats:[['출발','14:10']],
-        detail:'제주항공 · 나리타 → 부산.' },
-      { t:'16:35', est:true, icon:'landing', title:'김해공항 도착', chips:[['추정','alt']],
-        stats:[['도착','16:35(추정)']],
+      { t:'10:00', est:true, icon:'hotel', title:'호텔 그레이서리 신주쿠', chips:[['체크아웃','alt']],
+        stats:[['체크아웃','10:00'],['출발','10:30']],
+        detail:'정확한 퇴실 시각 확인 필요 — 보통 10:00~11:00.<br>쇼핑한 것 포함 캐리어 무게 확인.<br><br><span class="em">이브 진통제 · 메디콘 감기약은 한국 반입 불가</span> — 샀으면 여기서 빼기.' },
+
+      { t:'12:00', est:true, icon:'landing', title:'나리타공항', fixed:true, chips:[['출발 14:10','ok']],
+        stats:[['도착','12:00'],['출발','14:10'],['여유','2시간 10분']],
+        detail:'N’EX 약 1시간 20분 — 토요일 혼잡 대비 좌석 지정. 늦어도 <span class="em">11:00</span> 열차.<br>체크인 · 수하물 위탁 · 출국심사 후 면세점.<br><br>동전은 공항에서 털고 가기. 면세 한도 — 주류 3병 · 담배 200개비 · 개별 물품 20만엔.' },
+
+      { t:'16:35', est:true, icon:'takeoff', title:'김해공항', chips:[['도착 추정','alt']],
+        stats:[['도착','16:35']],
         detail:'서쪽 방향은 갈 때보다 20~30분 더 걸림. 정확한 시각은 항공권 확인.' }
     ]}
   ];
@@ -975,8 +932,8 @@
     $('mode-stage').setAttribute('aria-pressed', isStage ? 'true' : 'false');
     $('mode-insight').setAttribute('aria-pressed', isStage ? 'false' : 'true');
     $('modehint').textContent = isStage
-      ? '일정 하나씩 · 좌우로 흐름 따라가기'
-      : '전체 흐름을 트리로 · 제목을 누르면 상세';
+      ? '장소 하나씩 · 좌우로 흐름 따라가기'
+      : '방문 장소 전체 · 이름을 누르면 상세';
     if (!isStage) $('panelbox').classList.remove('open');
   }
   $('mode-stage').addEventListener('click', function(){ setMode('stage'); });
@@ -989,7 +946,7 @@
     if (e.key === 'ArrowLeft'){ e.preventDefault(); go(cur - 1); }
   });
 
-  $('footcount').textContent = '일정 ' + FLAT.length + '개 · 예약 1건 대기 · 리스크 6';
+  $('footcount').textContent = '방문 ' + FLAT.length + '곳 · 예약 1건 대기 · 리스크 6';
 
   renderStage(0);
   renderTree();
