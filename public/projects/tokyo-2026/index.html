@@ -91,7 +91,7 @@
     padding:22px 24px 20px;display:flex;flex-direction:column;overflow:hidden;
   }
   .st-top{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
     padding:0 2px 14px;flex:none;
   }
 
@@ -101,7 +101,32 @@
   .stage-viewport{
     position:relative;overflow:hidden;min-width:0;
     height:404px;border-radius:13px;background:var(--surface-2);
+    transition:height .32s cubic-bezier(.22,1,.36,1);
   }
+  .stage-viewport.compact{height:224px;}
+  .stage-viewport.compact .st-detail{display:none;}
+  @media (prefers-reduced-motion: reduce){ .stage-viewport{transition:none;} }
+
+  /* 카드 전체가 상세 토글 스위치 */
+  .card-stage{cursor:pointer;}
+  .card-stage:focus-visible{outline:2px solid var(--indigo);outline-offset:-3px;}
+  .st-more{
+    flex:none;display:flex;align-items:center;gap:5px;justify-content:flex-end;
+    margin-top:10px;font-size:11.5px;color:var(--ink-3);
+  }
+  .st-more svg{width:13px;height:13px;transition:transform .2s;}
+  .stage-viewport.compact .st-more svg{transform:rotate(-90deg);}
+
+  .st-toggle{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:10.5px;letter-spacing:.1em;padding:5px 10px;border-radius:999px;cursor:pointer;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+    display:inline-flex;align-items:center;gap:5px;margin-left:auto;
+  }
+  .st-toggle:hover{border-color:var(--indigo);color:var(--indigo);}
+  .st-toggle:focus-visible{outline:2px solid var(--indigo);outline-offset:2px;}
+  .st-toggle svg{width:12px;height:12px;transition:transform .2s;}
+  .st-toggle[aria-expanded="false"] svg{transform:rotate(-90deg);}
 
   /* 나가는 카드와 들어오는 카드가 동시에 움직여야 트랙처럼 읽힘 */
   @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
@@ -654,11 +679,17 @@
   var cur = 0;
 
   var cardEl = null;
+  var detailOpen = true;   // 카드 클릭으로 토글, 다음 카드에도 유지
+
+  var CARET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 
   function buildCard(item){
     var ev = item.e;
     var el = document.createElement('article');
     el.className = 'card-stage st-card' + (ev.fixed ? ' is-fixed' : '');
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', ev.title + ' — 눌러서 상세 접기/펼치기');
     el.innerHTML =
       '<div class="st-inner">' +
         '<div class="st-hero">' +
@@ -671,8 +702,27 @@
         '</div>' +
         statsHtml(ev.stats, 'st-stats', 'st-stat') +
         '<div class="st-detail">' + (ev.detail || '') + '</div>' +
+        (ev.detail ? '<div class="st-more">상세 ' + CARET + '</div>' : '') +
       '</div>';
+
+    el.addEventListener('click', function(e){
+      if (e.target.closest('a')) return;   // 링크 클릭은 통과
+      setDetail(!detailOpen);
+    });
+    el.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setDetail(!detailOpen); }
+    });
     return el;
+  }
+
+  function setDetail(open){
+    detailOpen = open;
+    $('viewport').classList.toggle('compact', !open);
+    var t = $('sttoggle');
+    if (t){
+      t.setAttribute('aria-expanded', open ? 'true' : 'false');
+      t.firstChild.nodeValue = open ? '상세 접기 ' : '상세 펼치기 ';
+    }
   }
 
   function renderStage(dir){
@@ -702,7 +752,10 @@
     // 컨테이너에 붙어 움직이지 않는 부분
     $('sttop').innerHTML =
       '<span class="st-day">DAY ' + day.n + ' · ' + day.date + ' ' + day.dow.charAt(0) + '</span>' +
+      '<button class="st-toggle" type="button" id="sttoggle" aria-expanded="' + (detailOpen ? 'true' : 'false') + '">' +
+        (detailOpen ? '상세 접기 ' : '상세 펼치기 ') + CARET + '</button>' +
       '<span class="st-count">' + (cur + 1) + ' / ' + FLAT.length + '</span>';
+    $('sttoggle').addEventListener('click', function(e){ e.stopPropagation(); setDetail(!detailOpen); });
     $('stfoot').innerHTML =
       '<div class="progress"><span style="width:' + ((cur + 1) / FLAT.length * 100) + '%"></span></div>' +
       '<div class="st-keys"><kbd>←</kbd> <kbd>→</kbd> 로도 이동</div>';
