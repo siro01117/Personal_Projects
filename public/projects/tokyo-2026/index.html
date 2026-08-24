@@ -80,38 +80,43 @@
   .nav-btn svg{width:20px;height:20px;}
   .nav-btn:focus-visible{outline:2px solid var(--indigo);outline-offset:3px;}
 
-  .card-stage{
+  /* 고정 컨테이너 — 헤더·진행바는 여기 붙어 움직이지 않음 */
+  .stage-frame{
     background:var(--surface);border:1px solid var(--line);border-radius:20px;
-    padding:26px 30px 22px;
-    height:520px;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:var(--shadow-lg);padding:20px 22px 16px;min-width:0;
+  }
+  .card-stage{
+    position:absolute;inset:0;
+    background:var(--surface);border:1px solid var(--line-soft);border-radius:13px;
+    padding:22px 24px 20px;display:flex;flex-direction:column;overflow:hidden;
   }
   .st-top{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding-bottom:16px;border-bottom:1px solid var(--line-soft);flex:none;
+    padding:0 2px 14px;flex:none;
   }
 
-  .st-inner{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:20px;}
+  .st-inner{flex:1;min-height:0;display:flex;flex-direction:column;}
 
-  /* 전환 애니메이션 — 카드 자체가 슬라이드해 들어옴.
-     빠르게 진입 → 끝에서 자석처럼 붙는 곡선 */
-  @keyframes cardFromRight{
-    from{transform:translateX(64px) scale(.97);opacity:0}
-    to{transform:none;opacity:1}
-  }
-  @keyframes cardFromLeft{
-    from{transform:translateX(-64px) scale(.97);opacity:0}
-    to{transform:none;opacity:1}
-  }
-  .card-stage.from-right{animation:cardFromRight .36s cubic-bezier(.22,1,.36,1) both;}
-  .card-stage.from-left{animation:cardFromLeft .36s cubic-bezier(.22,1,.36,1) both;}
-  @media (prefers-reduced-motion: reduce){
-    .card-stage.from-right,.card-stage.from-left{animation:none;}
-  }
-
-  /* 카드가 드나드는 창. 그림자를 여기로 올려 클리핑돼도 입체감 유지 */
+  /* 카드가 지나가는 창(트랙). 컨테이너 안쪽에 파인 홈처럼 */
   .stage-viewport{
-    overflow:hidden;min-width:0;
-    border-radius:20px;box-shadow:var(--shadow-lg);
+    position:relative;overflow:hidden;min-width:0;
+    height:404px;border-radius:13px;background:var(--surface-2);
+  }
+
+  /* 나가는 카드와 들어오는 카드가 동시에 움직여야 트랙처럼 읽힘 */
+  @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  @keyframes slideInLeft{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+  @keyframes slideOutLeft{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+  @keyframes slideOutRight{from{transform:translateX(0)}to{transform:translateX(100%)}}
+
+  .card-stage.enter-right{animation:slideInRight .42s cubic-bezier(.22,1,.36,1) both;}
+  .card-stage.enter-left{animation:slideInLeft .42s cubic-bezier(.22,1,.36,1) both;}
+  .card-stage.exit-left{animation:slideOutLeft .42s cubic-bezier(.22,1,.36,1) both;}
+  .card-stage.exit-right{animation:slideOutRight .42s cubic-bezier(.22,1,.36,1) both;}
+
+  @media (prefers-reduced-motion: reduce){
+    .card-stage.enter-right,.card-stage.enter-left,
+    .card-stage.exit-left,.card-stage.exit-right{animation-duration:.01s;}
   }
 
   /* hero */
@@ -162,7 +167,7 @@
   .st-detail::-webkit-scrollbar-thumb{background:var(--ghost);border-radius:6px;}
   .st-detail .em{color:var(--ink);font-weight:650;}
 
-  .st-foot{flex:none;padding-top:16px;border-top:1px solid var(--line-soft);}
+  .st-foot{flex:none;padding:14px 2px 0;}
   .progress{height:3px;background:var(--line-soft);border-radius:3px;overflow:hidden;}
   .progress span{display:block;height:100%;background:var(--indigo);border-radius:3px;transition:width .3s ease;}
   .st-keys{margin-top:10px;font-size:11.5px;color:var(--ink-3);text-align:center;}
@@ -313,7 +318,9 @@
     .stage-shell{grid-template-columns:1fr;}
     .nav-btn{display:none;}
     .mobile-nav{display:flex;}
-    .card-stage{padding:20px 17px 16px;height:560px;}
+    .stage-frame{padding:15px 14px 12px;}
+    .stage-viewport{height:452px;}
+    .card-stage{padding:18px 16px 16px;}
     .st-time{font-size:46px;}
     .st-time .approx{font-size:28px;}
     .st-title{font-size:22px;}
@@ -378,8 +385,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
 
-      <div class="stage-viewport">
-        <article class="card-stage st-card" id="stcard" aria-live="polite"></article>
+      <div class="stage-frame">
+        <div class="st-top" id="sttop"></div>
+        <div class="stage-viewport" id="viewport" aria-live="polite"></div>
+        <div class="st-foot" id="stfoot"></div>
       </div>
 
       <button class="nav-btn" id="next" type="button" aria-label="다음 일정">
@@ -644,15 +653,13 @@
   /* ── STAGE ── */
   var cur = 0;
 
-  function renderStage(dir){
-    var item = FLAT[cur], ev = item.e, day = item.d;
-    var card = $('stcard');
-    card.className = 'card-stage st-card' + (ev.fixed ? ' is-fixed' : '');
-    card.innerHTML =
-      '<div class="st-top">' +
-        '<span class="st-day">DAY ' + day.n + ' · ' + day.date + ' ' + day.dow.charAt(0) + '</span>' +
-        '<span class="st-count">' + (cur + 1) + ' / ' + FLAT.length + '</span>' +
-      '</div>' +
+  var cardEl = null;
+
+  function buildCard(item){
+    var ev = item.e;
+    var el = document.createElement('article');
+    el.className = 'card-stage st-card' + (ev.fixed ? ' is-fixed' : '');
+    el.innerHTML =
       '<div class="st-inner">' +
         '<div class="st-hero">' +
           '<span class="st-badge"><svg class="st-icon"><use href="#ic-' + ev.icon + '"/></svg></span>' +
@@ -664,17 +671,41 @@
         '</div>' +
         statsHtml(ev.stats, 'st-stats', 'st-stat') +
         '<div class="st-detail">' + (ev.detail || '') + '</div>' +
-      '</div>' +
-      '<div class="st-foot">' +
-        '<div class="progress"><span style="width:' + ((cur + 1) / FLAT.length * 100) + '%"></span></div>' +
-        '<div class="st-keys"><kbd>←</kbd> <kbd>→</kbd> 로도 이동</div>' +
       '</div>';
+    return el;
+  }
 
-    // 카드 자체 슬라이드 — className을 새로 쓴 뒤 리플로우를 강제해야 재생됨
-    if (dir) {
-      void card.offsetWidth;
-      card.classList.add(dir < 0 ? 'from-left' : 'from-right');
+  function renderStage(dir){
+    var item = FLAT[cur], day = item.d;
+    var vp = $('viewport');
+    var next = buildCard(item);
+
+    // 직전 전환이 안 끝났으면 즉시 치움 — 연타 시 카드가 쌓이는 것 방지
+    Array.prototype.forEach.call(vp.querySelectorAll('.exit-left,.exit-right'), function(el){
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+
+    if (!cardEl || !dir) {
+      vp.innerHTML = '';
+      vp.appendChild(next);
+    } else {
+      var out = cardEl;
+      next.classList.add(dir > 0 ? 'enter-right' : 'enter-left');
+      out.classList.add(dir > 0 ? 'exit-left' : 'exit-right');
+      vp.appendChild(next);
+      var drop = function(){ if (out && out.parentNode) out.parentNode.removeChild(out); };
+      out.addEventListener('animationend', drop, { once: true });
+      setTimeout(drop, 700);   // 애니메이션 미발화 환경 대비
     }
+    cardEl = next;
+
+    // 컨테이너에 붙어 움직이지 않는 부분
+    $('sttop').innerHTML =
+      '<span class="st-day">DAY ' + day.n + ' · ' + day.date + ' ' + day.dow.charAt(0) + '</span>' +
+      '<span class="st-count">' + (cur + 1) + ' / ' + FLAT.length + '</span>';
+    $('stfoot').innerHTML =
+      '<div class="progress"><span style="width:' + ((cur + 1) / FLAT.length * 100) + '%"></span></div>' +
+      '<div class="st-keys"><kbd>←</kbd> <kbd>→</kbd> 로도 이동</div>';
 
     $('prev').disabled = cur === 0;
     $('next').disabled = cur === FLAT.length - 1;
