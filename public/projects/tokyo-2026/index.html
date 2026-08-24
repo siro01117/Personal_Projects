@@ -82,10 +82,32 @@
 
   .card-stage{
     background:var(--surface);border:1px solid var(--line);border-radius:20px;
-    box-shadow:var(--shadow-lg);padding:34px 34px 30px;
-    min-height:430px;display:flex;flex-direction:column;
+    box-shadow:var(--shadow-lg);padding:26px 30px 22px;
+    height:520px;display:flex;flex-direction:column;overflow:hidden;
   }
-  .st-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;}
+  .st-top{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding-bottom:16px;border-bottom:1px solid var(--line-soft);flex:none;
+  }
+
+  /* 전환 애니메이션 — 빠르게 들어와 자석처럼 붙는 곡선 */
+  .st-inner{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:20px;}
+  @keyframes stFromRight{from{transform:translateX(38px);opacity:0}to{transform:none;opacity:1}}
+  @keyframes stFromLeft{from{transform:translateX(-38px);opacity:0}to{transform:none;opacity:1}}
+  .st-inner.from-right{animation:stFromRight .34s cubic-bezier(.22,1,.36,1) both;}
+  .st-inner.from-left{animation:stFromLeft .34s cubic-bezier(.22,1,.36,1) both;}
+  @media (prefers-reduced-motion: reduce){
+    .st-inner.from-right,.st-inner.from-left{animation:none;}
+  }
+
+  /* hero */
+  .st-hero{display:flex;gap:18px;align-items:flex-start;flex:none;}
+  .st-badge{
+    width:62px;height:62px;border-radius:18px;flex:none;
+    background:var(--indigo-soft);display:grid;place-items:center;
+  }
+  .st-card.is-fixed .st-badge{background:var(--accent-soft);}
+  .st-headline{display:block;min-width:0;flex:1;}
   .st-day{
     font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
     font-size:11px;letter-spacing:.16em;color:var(--indigo);
@@ -93,34 +115,40 @@
   }
   .st-count{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;}
 
-  .st-icon{width:44px;height:44px;color:var(--indigo);margin-bottom:16px;}
+  .st-icon{width:30px;height:30px;color:var(--indigo);}
   .st-card.is-fixed .st-icon{color:var(--accent);}
 
   .st-time{
+    display:block;
     font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
-    font-size:62px;line-height:1;font-weight:600;letter-spacing:-.04em;
-    font-variant-numeric:tabular-nums;margin-bottom:6px;
+    font-size:50px;line-height:1;font-weight:600;letter-spacing:-.04em;
+    font-variant-numeric:tabular-nums;
   }
-  .st-time .approx{color:var(--ghost);font-size:38px;vertical-align:6px;margin-right:2px;}
-  .st-title{font-size:27px;font-weight:750;letter-spacing:-.025em;line-height:1.25;margin:10px 0 0;text-wrap:balance;}
-  .st-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;}
+  .st-time .approx{color:var(--ghost);font-size:30px;vertical-align:5px;margin-right:2px;}
+  .st-title{font-size:24px;font-weight:750;letter-spacing:-.025em;line-height:1.28;margin:8px 0 0;text-wrap:balance;}
+  .st-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;}
 
   .st-stats{
     display:flex;gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);
-    border-radius:11px;overflow:hidden;margin-top:20px;flex-wrap:wrap;
+    border-radius:11px;overflow:hidden;margin-top:18px;flex-wrap:wrap;flex:none;
   }
-  .st-stat{background:var(--surface-2);padding:11px 16px;flex:1 1 120px;display:flex;flex-direction:column;gap:2px;}
+  .st-stat{background:var(--surface-2);padding:10px 15px;flex:1 1 118px;display:flex;flex-direction:column;gap:2px;}
   .st-stat dt{
     font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
     font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
   }
   .st-stat dd{margin:0;font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;}
 
-  .st-detail{margin-top:20px;font-size:14px;color:var(--ink-2);line-height:1.65;}
+  .st-detail{
+    margin-top:16px;font-size:14px;color:var(--ink-2);line-height:1.65;
+    flex:1;min-height:0;overflow-y:auto;padding-right:4px;
+    scrollbar-width:thin;scrollbar-color:var(--ghost) transparent;
+  }
+  .st-detail::-webkit-scrollbar{width:6px;}
+  .st-detail::-webkit-scrollbar-thumb{background:var(--ghost);border-radius:6px;}
   .st-detail .em{color:var(--ink);font-weight:650;}
-  .st-detail br + br{content:"";display:block;height:6px;}
 
-  .st-foot{margin-top:auto;padding-top:22px;}
+  .st-foot{flex:none;padding-top:16px;border-top:1px solid var(--line-soft);}
   .progress{height:3px;background:var(--line-soft);border-radius:3px;overflow:hidden;}
   .progress span{display:block;height:100%;background:var(--indigo);border-radius:3px;transition:width .3s ease;}
   .st-keys{margin-top:10px;font-size:11.5px;color:var(--ink-3);text-align:center;}
@@ -143,11 +171,46 @@
   .insight{display:none;}
   .insight.on{display:block;}
 
+  /* sticky nav */
+  .ins-nav{
+    position:sticky;top:0;z-index:20;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:10px 0 11px;margin-bottom:14px;
+    background:var(--paper);border-bottom:1px solid var(--line);
+  }
+  .ins-nav .spacer{flex:1;}
+  .navpill{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:10.5px;letter-spacing:.1em;
+    padding:6px 11px;border-radius:999px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .navpill:hover{border-color:var(--indigo);color:var(--indigo);}
+  .navpill[aria-current="true"]{background:var(--indigo);border-color:var(--indigo);color:#fff;}
+  .navpill.ghost{color:var(--ink-3);}
+  .navpill:focus-visible{outline:2px solid var(--indigo);outline-offset:2px;}
+
   .ins-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start;}
   .tree{display:flex;flex-direction:column;gap:16px;min-width:0;}
   .daybox,.panelbox,.detail{min-width:0;}
-  .daybox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;box-shadow:var(--shadow);}
-  .daybox-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid var(--line-soft);}
+  .daybox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;box-shadow:var(--shadow);scroll-margin-top:64px;}
+  .daybox.collapsed{padding-bottom:16px;}
+  .daybox.collapsed .node{display:none;}
+  .daybox-head{
+    display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+    padding:0 0 10px;margin:0 0 8px;border-bottom:1px solid var(--line-soft);
+    width:100%;background:none;border-left:0;border-right:0;border-top:0;
+    text-align:left;font:inherit;color:inherit;cursor:pointer;
+  }
+  .daybox.collapsed .daybox-head{border-bottom-color:transparent;padding-bottom:0;margin-bottom:0;}
+  .daybox-head:hover .db-date{color:var(--indigo);}
+  .db-count{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:10.5px;
+    color:var(--ink-3);background:var(--surface-2);border:1px solid var(--line-soft);
+    border-radius:999px;padding:2px 8px;
+  }
+  .db-caret{margin-left:auto;color:var(--ink-3);width:16px;height:16px;flex:none;transition:transform .18s;}
+  .daybox.collapsed .db-caret{transform:rotate(-90deg);}
   .db-no{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:10.5px;letter-spacing:.16em;color:var(--indigo);background:var(--indigo-soft);padding:3px 7px;border-radius:5px;}
   .db-date{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
   .db-dow{font-size:13px;color:var(--ink-2);font-weight:600;}
@@ -178,7 +241,7 @@
   .node[aria-current="true"] .node-title{color:var(--indigo);}
 
   /* detail panel */
-  .panelbox{position:sticky;top:20px;}
+  .panelbox{position:sticky;top:66px;}
   .detail{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);padding:20px;}
   .detail .d-ico{width:28px;height:28px;color:var(--indigo);}
   .detail.is-fixed .d-ico{color:var(--accent);}
@@ -236,7 +299,7 @@
     .stage-shell{grid-template-columns:1fr;}
     .nav-btn{display:none;}
     .mobile-nav{display:flex;}
-    .card-stage{padding:24px 20px 22px;min-height:0;}
+    .card-stage{padding:20px 17px 16px;height:560px;}
     .st-time{font-size:46px;}
     .st-time .approx{font-size:28px;}
     .st-title{font-size:22px;}
@@ -318,6 +381,10 @@
 
   <!-- ══════ INSIGHT ══════ -->
   <section class="insight" id="insight" aria-label="인사이트 모드">
+    <nav class="ins-nav" id="insnav" aria-label="날짜 이동">
+      <span class="spacer"></span>
+      <button class="navpill ghost" type="button" id="toggleall">모두 접기</button>
+    </nav>
     <div class="ins-layout">
       <div class="tree" id="tree"></div>
       <div class="panelbox" id="panelbox">
@@ -561,21 +628,28 @@
   /* ── STAGE ── */
   var cur = 0;
 
-  function renderStage(){
+  function renderStage(dir){
     var item = FLAT[cur], ev = item.e, day = item.d;
     var card = $('stcard');
+    var anim = dir === 0 ? '' : (dir < 0 ? ' from-left' : ' from-right');
     card.className = 'card-stage st-card' + (ev.fixed ? ' is-fixed' : '');
     card.innerHTML =
       '<div class="st-top">' +
         '<span class="st-day">DAY ' + day.n + ' · ' + day.date + ' ' + day.dow.charAt(0) + '</span>' +
         '<span class="st-count">' + (cur + 1) + ' / ' + FLAT.length + '</span>' +
       '</div>' +
-      '<svg class="st-icon"><use href="#ic-' + ev.icon + '"/></svg>' +
-      '<div class="st-time">' + timeHtml(ev) + '</div>' +
-      '<h3 class="st-title">' + esc(ev.title) + '</h3>' +
-      (ev.chips ? '<div class="st-chips">' + chipsHtml(ev.chips) + '</div>' : '') +
-      statsHtml(ev.stats, 'st-stats', 'st-stat') +
-      (ev.detail ? '<div class="st-detail">' + ev.detail + '</div>' : '') +
+      '<div class="st-inner' + anim + '">' +
+        '<div class="st-hero">' +
+          '<span class="st-badge"><svg class="st-icon"><use href="#ic-' + ev.icon + '"/></svg></span>' +
+          '<span class="st-headline">' +
+            '<span class="st-time">' + timeHtml(ev) + '</span>' +
+            '<h3 class="st-title">' + esc(ev.title) + '</h3>' +
+            (ev.chips ? '<span class="st-chips">' + chipsHtml(ev.chips) + '</span>' : '') +
+          '</span>' +
+        '</div>' +
+        statsHtml(ev.stats, 'st-stats', 'st-stat') +
+        '<div class="st-detail">' + (ev.detail || '') + '</div>' +
+      '</div>' +
       '<div class="st-foot">' +
         '<div class="progress"><span style="width:' + ((cur + 1) / FLAT.length * 100) + '%"></span></div>' +
         '<div class="st-keys"><kbd>←</kbd> <kbd>→</kbd> 로도 이동</div>' +
@@ -592,8 +666,11 @@
   }
 
   function go(n){
-    cur = Math.max(0, Math.min(FLAT.length - 1, n));
-    renderStage();
+    var next = Math.max(0, Math.min(FLAT.length - 1, n));
+    if (next === cur) return;
+    var dir = next > cur ? 1 : -1;
+    cur = next;
+    renderStage(dir);
   }
 
   DAYS.forEach(function(d, i){
@@ -626,21 +703,86 @@
           '<span class="node-title">' + esc(ev.title) + '</span></span>' +
           '</button>';
       }).join('');
-      return '<section class="daybox">' +
-        '<div class="daybox-head"><span class="db-no">DAY ' + d.n + '</span>' +
+      return '<section class="daybox" id="daybox-' + di + '">' +
+        '<button class="daybox-head" type="button" data-di="' + di + '" aria-expanded="true" aria-controls="daybox-' + di + '">' +
+        '<span class="db-no">DAY ' + d.n + '</span>' +
         '<span class="db-date">' + d.date + '</span><span class="db-dow">' + d.dow + '</span>' +
-        '<span class="db-tag">' + d.tag + '</span></div>' + nodes + '</section>';
+        '<span class="db-count">' + d.events.length + '건</span>' +
+        '<svg class="db-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>' +
+        '<span class="db-tag">' + d.tag + '</span></button>' + nodes + '</section>';
     }).join('');
     $('tree').innerHTML = html;
 
     Array.prototype.forEach.call($('tree').querySelectorAll('.node'), function(btn){
       btn.addEventListener('click', function(){ selectNode(+btn.dataset.i); });
     });
+    Array.prototype.forEach.call($('tree').querySelectorAll('.daybox-head'), function(btn){
+      btn.addEventListener('click', function(){ toggleDay(+btn.dataset.di); });
+    });
+  }
+
+  function toggleDay(di, force){
+    var box = $('daybox-' + di);
+    var head = box.querySelector('.daybox-head');
+    var collapsed = typeof force === 'boolean' ? force : !box.classList.contains('collapsed');
+    box.classList.toggle('collapsed', collapsed);
+    head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    syncToggleAll();
+  }
+
+  function syncToggleAll(){
+    var boxes = $('tree').querySelectorAll('.daybox');
+    var openCount = 0;
+    Array.prototype.forEach.call(boxes, function(b){ if (!b.classList.contains('collapsed')) openCount++; });
+    $('toggleall').textContent = openCount === 0 ? '모두 펼치기' : '모두 접기';
+  }
+
+  function buildNav(){
+    var nav = $('insnav');
+    DAYS.forEach(function(d, di){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'navpill';
+      b.setAttribute('aria-current', 'false');
+      b.textContent = 'DAY ' + d.n + ' · ' + d.date;
+      b.addEventListener('click', function(){
+        toggleDay(di, false);
+        $('daybox-' + di).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        markNav(di);
+      });
+      nav.insertBefore(b, nav.querySelector('.spacer'));
+    });
+
+    $('toggleall').addEventListener('click', function(){
+      var anyOpen = false;
+      Array.prototype.forEach.call($('tree').querySelectorAll('.daybox'), function(b){
+        if (!b.classList.contains('collapsed')) anyOpen = true;
+      });
+      DAYS.forEach(function(_, di){ toggleDay(di, anyOpen); });
+    });
+  }
+
+  function markNav(di){
+    Array.prototype.forEach.call($('insnav').querySelectorAll('.navpill:not(.ghost)'), function(b, i){
+      b.setAttribute('aria-current', i === di ? 'true' : 'false');
+    });
+  }
+
+  function watchScroll(){
+    if (!('IntersectionObserver' in window)) return;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting) markNav(+en.target.id.replace('daybox-', ''));
+      });
+    }, { rootMargin: '-64px 0px -70% 0px', threshold: 0 });
+    Array.prototype.forEach.call($('tree').querySelectorAll('.daybox'), function(b){ io.observe(b); });
   }
 
   function selectNode(i){
     sel = i;
     var item = FLAT[i], ev = item.e, day = item.d;
+    toggleDay(item.di, false);
+    markNav(item.di);
     var d = $('detail');
     d.className = 'detail' + (ev.fixed ? ' is-fixed' : '');
     d.innerHTML =
@@ -686,8 +828,12 @@
 
   $('footcount').textContent = '일정 ' + FLAT.length + '개 · 예약 1건 대기 · 리스크 6';
 
-  renderStage();
+  renderStage(0);
   renderTree();
+  buildNav();
+  markNav(0);
+  syncToggleAll();
+  watchScroll();
 })();
 </script>
 </body>
