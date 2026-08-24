@@ -82,7 +82,7 @@
 
   .card-stage{
     background:var(--surface);border:1px solid var(--line);border-radius:20px;
-    box-shadow:var(--shadow-lg);padding:26px 30px 22px;
+    padding:26px 30px 22px;
     height:520px;display:flex;flex-direction:column;overflow:hidden;
   }
   .st-top{
@@ -90,14 +90,28 @@
     padding-bottom:16px;border-bottom:1px solid var(--line-soft);flex:none;
   }
 
-  /* 전환 애니메이션 — 빠르게 들어와 자석처럼 붙는 곡선 */
   .st-inner{flex:1;min-height:0;display:flex;flex-direction:column;padding-top:20px;}
-  @keyframes stFromRight{from{transform:translateX(38px);opacity:0}to{transform:none;opacity:1}}
-  @keyframes stFromLeft{from{transform:translateX(-38px);opacity:0}to{transform:none;opacity:1}}
-  .st-inner.from-right{animation:stFromRight .34s cubic-bezier(.22,1,.36,1) both;}
-  .st-inner.from-left{animation:stFromLeft .34s cubic-bezier(.22,1,.36,1) both;}
+
+  /* 전환 애니메이션 — 카드 자체가 슬라이드해 들어옴.
+     빠르게 진입 → 끝에서 자석처럼 붙는 곡선 */
+  @keyframes cardFromRight{
+    from{transform:translateX(64px) scale(.97);opacity:0}
+    to{transform:none;opacity:1}
+  }
+  @keyframes cardFromLeft{
+    from{transform:translateX(-64px) scale(.97);opacity:0}
+    to{transform:none;opacity:1}
+  }
+  .card-stage.from-right{animation:cardFromRight .36s cubic-bezier(.22,1,.36,1) both;}
+  .card-stage.from-left{animation:cardFromLeft .36s cubic-bezier(.22,1,.36,1) both;}
   @media (prefers-reduced-motion: reduce){
-    .st-inner.from-right,.st-inner.from-left{animation:none;}
+    .card-stage.from-right,.card-stage.from-left{animation:none;}
+  }
+
+  /* 카드가 드나드는 창. 그림자를 여기로 올려 클리핑돼도 입체감 유지 */
+  .stage-viewport{
+    overflow:hidden;min-width:0;
+    border-radius:20px;box-shadow:var(--shadow-lg);
   }
 
   /* hero */
@@ -364,7 +378,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
 
-      <article class="card-stage st-card" id="stcard" aria-live="polite"></article>
+      <div class="stage-viewport">
+        <article class="card-stage st-card" id="stcard" aria-live="polite"></article>
+      </div>
 
       <button class="nav-btn" id="next" type="button" aria-label="다음 일정">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
@@ -631,14 +647,13 @@
   function renderStage(dir){
     var item = FLAT[cur], ev = item.e, day = item.d;
     var card = $('stcard');
-    var anim = dir === 0 ? '' : (dir < 0 ? ' from-left' : ' from-right');
     card.className = 'card-stage st-card' + (ev.fixed ? ' is-fixed' : '');
     card.innerHTML =
       '<div class="st-top">' +
         '<span class="st-day">DAY ' + day.n + ' · ' + day.date + ' ' + day.dow.charAt(0) + '</span>' +
         '<span class="st-count">' + (cur + 1) + ' / ' + FLAT.length + '</span>' +
       '</div>' +
-      '<div class="st-inner' + anim + '">' +
+      '<div class="st-inner">' +
         '<div class="st-hero">' +
           '<span class="st-badge"><svg class="st-icon"><use href="#ic-' + ev.icon + '"/></svg></span>' +
           '<span class="st-headline">' +
@@ -654,6 +669,12 @@
         '<div class="progress"><span style="width:' + ((cur + 1) / FLAT.length * 100) + '%"></span></div>' +
         '<div class="st-keys"><kbd>←</kbd> <kbd>→</kbd> 로도 이동</div>' +
       '</div>';
+
+    // 카드 자체 슬라이드 — className을 새로 쓴 뒤 리플로우를 강제해야 재생됨
+    if (dir) {
+      void card.offsetWidth;
+      card.classList.add(dir < 0 ? 'from-left' : 'from-right');
+    }
 
     $('prev').disabled = cur === 0;
     $('next').disabled = cur === FLAT.length - 1;
