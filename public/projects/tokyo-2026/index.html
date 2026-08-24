@@ -103,8 +103,52 @@
     height:404px;border-radius:13px;background:var(--surface-2);
     transition:height .32s cubic-bezier(.22,1,.36,1);
   }
-  .stage-viewport.compact{height:224px;}
+  /* ── 컴팩트 = 훑어보기 레이아웃 (단순 축소가 아니라 재구성) ── */
+  .stage-viewport.compact{height:212px;}
   .stage-viewport.compact .st-detail{display:none;}
+  .stage-viewport.compact .st-more{display:none;}
+
+  /* 세로 스택 → 가로 한 줄 */
+  .stage-viewport.compact .st-hero{align-items:center;gap:15px;}
+  .stage-viewport.compact .st-badge{width:50px;height:50px;border-radius:15px;}
+  .stage-viewport.compact .st-icon{width:25px;height:25px;}
+  .stage-viewport.compact .st-time{
+    display:inline;font-size:33px;letter-spacing:-.03em;margin-right:11px;
+  }
+  .stage-viewport.compact .st-time .approx{font-size:21px;vertical-align:3px;}
+  .stage-viewport.compact .st-title{display:inline;font-size:18px;font-weight:700;}
+  .stage-viewport.compact .st-chips{display:inline-flex;margin:0 0 0 8px;vertical-align:2px;}
+
+  /* 박스 stats → 인라인 한 줄 */
+  .stage-viewport.compact .st-stats{
+    display:block;background:none;border:0;border-radius:0;
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);
+  }
+  .stage-viewport.compact .st-stat{display:inline;background:none;padding:0;}
+  .stage-viewport.compact .st-stat dt{
+    display:inline;font-size:9.5px;margin-right:5px;
+  }
+  .stage-viewport.compact .st-stat dd{
+    display:inline;font-size:14px;margin-right:16px;
+  }
+
+  /* 컴팩트에서만 보이는 다음 일정 미리보기 */
+  .st-next{display:none;}
+  .stage-viewport.compact .st-next{
+    display:flex;align-items:center;gap:8px;margin-top:auto;
+    padding-top:12px;border-top:1px solid var(--line-soft);
+    font-size:12.5px;color:var(--ink-3);min-width:0;
+  }
+  .st-next .lbl{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    font-size:9.5px;letter-spacing:.14em;flex:none;
+  }
+  .st-next .nt{
+    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    color:var(--ink-2);font-variant-numeric:tabular-nums;flex:none;
+  }
+  .st-next .nn{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  .st-next svg{width:13px;height:13px;flex:none;margin-left:auto;}
   @media (prefers-reduced-motion: reduce){ .stage-viewport{transition:none;} }
 
   /* 카드 전체가 상세 토글 스위치 */
@@ -682,6 +726,19 @@
   var detailOpen = true;   // 카드 클릭으로 토글, 다음 카드에도 유지
 
   var CARET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  var ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg>';
+
+  // 컴팩트 모드에서 흐름이 보이도록 다음 일정을 한 줄 미리보기
+  function nextPeek(item){
+    var nx = FLAT[item.i + 1];
+    if (!nx) return '<div class="st-next"><span class="lbl">END</span>' +
+      '<span class="nn">마지막 일정 — 여행 종료</span></div>';
+    var sameDay = nx.di === item.di;
+    return '<div class="st-next">' +
+      '<span class="lbl">NEXT' + (sameDay ? '' : ' · DAY ' + nx.d.n) + '</span>' +
+      '<span class="nt">' + (nx.e.est ? '≈' : '') + esc(nx.e.t) + '</span>' +
+      '<span class="nn">' + esc(nx.e.title) + '</span>' + ARROW + '</div>';
+  }
 
   function buildCard(item){
     var ev = item.e;
@@ -689,7 +746,7 @@
     el.className = 'card-stage st-card' + (ev.fixed ? ' is-fixed' : '');
     el.tabIndex = 0;
     el.setAttribute('role', 'button');
-    el.setAttribute('aria-label', ev.title + ' — 눌러서 상세 접기/펼치기');
+    el.setAttribute('aria-label', ev.title + ' — 눌러서 훑어보기/자세히 전환');
     el.innerHTML =
       '<div class="st-inner">' +
         '<div class="st-hero">' +
@@ -703,6 +760,7 @@
         statsHtml(ev.stats, 'st-stats', 'st-stat') +
         '<div class="st-detail">' + (ev.detail || '') + '</div>' +
         (ev.detail ? '<div class="st-more">상세 ' + CARET + '</div>' : '') +
+        nextPeek(item) +
       '</div>';
 
     el.addEventListener('click', function(e){
@@ -721,7 +779,7 @@
     var t = $('sttoggle');
     if (t){
       t.setAttribute('aria-expanded', open ? 'true' : 'false');
-      t.firstChild.nodeValue = open ? '상세 접기 ' : '상세 펼치기 ';
+      t.firstChild.nodeValue = open ? '훑어보기 ' : '자세히 ';
     }
   }
 
@@ -753,7 +811,7 @@
     $('sttop').innerHTML =
       '<span class="st-day">DAY ' + day.n + ' · ' + day.date + ' ' + day.dow.charAt(0) + '</span>' +
       '<button class="st-toggle" type="button" id="sttoggle" aria-expanded="' + (detailOpen ? 'true' : 'false') + '">' +
-        (detailOpen ? '상세 접기 ' : '상세 펼치기 ') + CARET + '</button>' +
+        (detailOpen ? '훑어보기 ' : '자세히 ') + CARET + '</button>' +
       '<span class="st-count">' + (cur + 1) + ' / ' + FLAT.length + '</span>';
     $('sttoggle').addEventListener('click', function(e){ e.stopPropagation(); setDetail(!detailOpen); });
     $('stfoot').innerHTML =
