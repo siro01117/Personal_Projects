@@ -1,0 +1,11 @@
+{
+  "name": "스터디큐브 · 독서실 관리 (라이브 데모)",
+  "desc": "실제 배포 중인 관리 앱의 좌석 콕핏을 실코드 그대로 옮긴 데모. 출결·순찰·벌점을 직접 조작해볼 수 있다. 데이터는 전부 더미로, 새로고침하면 초기화된다.",
+  "stack": ["실제 서비스 코드", "Next.js", "출결·순찰·벌점"],
+  "public": true,
+  "order": 0,
+  "color": "#4f46e5",
+  "icon": "grid",
+  "section": "Portfolio",
+  "embedUrl": "/studycube-demo"
+}
