@@ -10,7 +10,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:'Satoshi','Pretendard',-apple-system,sans-serif;
-  -webkit-font-smoothing:antialiased;overflow-x:clip;padding-bottom:44px;line-height:1.5}
+  -webkit-font-smoothing:antialiased;overflow-x:clip;line-height:1.5}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input{font-family:inherit}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
@@ -180,13 +180,6 @@ svg.ic{stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;strok
 .srow.shead{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--line);border-radius:0;padding-bottom:9px;margin-bottom:3px}
 .srow.shead b{color:var(--faint)}
 @media(max-width:560px){.srow{grid-template-columns:1.2fr .9fr .5fr .5fr;font-size:12px}.srow .sseen{display:none}}
-
-/* ===== 역방향 마퀴 ===== */
-.marquee{position:fixed;left:0;right:0;bottom:0;height:44px;z-index:5;overflow:hidden;pointer-events:none;
-  border-top:1px solid var(--line);background:rgba(18,19,24,.62);backdrop-filter:blur(6px);display:flex;align-items:center}
-.mtrack{display:inline-flex;white-space:nowrap;animation:rev 64s linear infinite;will-change:transform}
-.mseg{font-family:var(--tick);font-weight:600;font-size:14px;line-height:1;letter-spacing:.42em;color:rgba(255,255,255,.78)}
-@keyframes rev{from{transform:translateX(-50%)}to{transform:translateX(0)}}
 
 /* ===== toast ===== */
 .toast{position:fixed;left:50%;bottom:60px;transform:translateX(-50%) translateY(14px);background:var(--fg);color:#101116;font-weight:600;font-size:13px;padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.3s var(--ease);z-index:85}
