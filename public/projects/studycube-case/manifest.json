@@ -1,0 +1,10 @@
+{
+  "name": "스터디큐브 · 독서실 운영 시스템",
+  "desc": "실제 독서실에 배포한 운영 플랫폼 케이스 스터디. 좌석 콕핏 라이브 데모, 설계 의도, 디버깅 기록, 4주 운영 데이터 추이.",
+  "stack": ["Next.js", "Supabase", "멀티테넌트 RBAC", "케이스 스터디"],
+  "public": true,
+  "order": 0,
+  "color": "#2dd4bf",
+  "icon": "grid",
+  "section": "Portfolio"
+}

@@ -24,9 +24,8 @@ const Icon = ({ k }) => (<svg className="ic" viewBox="0 0 24 24" dangerouslySetI
 const Chevron = () => (<svg className="ic" viewBox="0 0 24 24"><path d="M5 9l7 7 7-7" /></svg>);
 const Arrow = () => (<svg className="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
 
-const MARQ = Array(40).fill('RA_KAN' + String.fromCharCode(160).repeat(4)).join('');
-
 const SECTIONS = [
+  { key: 'Portfolio', label: 'Portfolio', sub: '포트폴리오' },
   { key: 'Personal', label: 'Personal', sub: '개인 도구' },
   { key: 'Display', label: 'Display', sub: '디자인 · 레퍼런스' },
   { key: 'Study', label: 'Study', sub: '학습' },
@@ -155,10 +154,6 @@ export default function PortalClient({ projects = [] }) {
           )}
         </section>
       )}
-
-      <div className="marquee"><div className="mtrack">
-        <span className="mseg">{MARQ}</span><span className="mseg">{MARQ}</span>
-      </div></div>
 
       <div className={'toast' + (toast ? ' show' : '')}>{toast}</div>
     </div>
