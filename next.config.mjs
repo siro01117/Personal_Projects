@@ -4,5 +4,6 @@ const nextConfig = {
   // 폴더 스캔(lib/scan.js)은 빌드 시점에 실행 → push마다 재빌드되며 신규 프로젝트 반영.
   output: 'export',
   images: { unoptimized: true },
+  turbopack: { root: import.meta.dirname },
 };
 export default nextConfig;
