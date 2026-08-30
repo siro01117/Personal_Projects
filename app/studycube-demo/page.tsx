@@ -1,10 +1,13 @@
 "use client";
-// 시드 데이터(src/lib/seed.ts)가 "지금 시각"을 기준으로 생성되므로 서버(SSR)와 클라이언트가 각각
-// 다른 시각에 평가하면 하이드레이션 불일치가 난다 — ssr:false 로 완전히 클라이언트에서만 평가·렌더한다.
-import dynamic from "next/dynamic";
 
-const DemoClient = dynamic(() => import("./DemoClient"), { ssr: false });
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function StudyCubeDemoPage() {
-  return <DemoClient />;
+// 구 데모 경로 — 새 아키텍처(app/m/*)로 이전됨. 들어오는 링크 보호용 리다이렉트만 남겨둠.
+export default function StudycubeDemoRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/m/seat");
+  }, [router]);
+  return null;
 }

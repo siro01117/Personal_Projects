@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+/* StudyCube 기본 테마 — 화이트 고정 (모노톤 + 인디고 1색)
+   원본 src/app/globals.css 를 그대로 이식. Next App Router는 CSS를 라우트 세그먼트 단위로
+   로드/해제하므로(app/m/layout.tsx 에서만 import), 포털 홈(/)에는 이 스타일이 실리지 않는다 —
+   다만 실제로 그런지는 반드시 브라우저로 눈으로 확인한다(작업 지시서 8번 항목). */
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --ink: #171a22;
+  --sub: #565d6e;
+  --faint: #98a2b3;
+  --line: #e4e6ee;
+  --accent: #4f46e5;
+  --accent-soft: #eef0ff;
+  --danger: #d75590;
+  --shadow: 0 1px 2px rgba(20, 22, 30, 0.05);
+
+  --panel: #ffffff;
+  --panel2: #f1f3f7;
+  --txt: #171a22;
+  --dim: #565d6e;
+  --ok: #12b886;
+  --ok-soft: #e3f7f0;
+  --warn: #f59e0b;
+  --warn-soft: #fef3e2;
+  --shadow-lg: 0 10px 40px rgba(20, 22, 30, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Pretendard", "Malgun Gothic", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── A(구 레포)에서 이식한 공용 컴포넌트 클래스 ─────────────────── */
+.ic {
+  width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.7; fill: none;
+  stroke-linecap: round; stroke-linejoin: round; flex: none;
+}
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background .12s, border-color .12s, box-shadow .12s, transform .08s ease;
+}
+.btn:hover { border-color: #cdd2dd; background: #fafbfc; }
+.btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-accent:hover { background: #4338ca; border-color: #4338ca; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(.96); }
+
+/* 눌림 피드백 — 클릭 시 살짝 눌리는 느낌 (버튼 전반) */
+button { transition: transform .08s ease; }
+button:active:not(:disabled) { transform: scale(.97); }
+
+/* 터치(태블릿) — 탭 지연·더블탭 확대 제거, 롱프레스 시 선택/콜아웃 억제. 핀치 확대는 유지 */
+.seatbox, .touchable {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button, .chip, [role="button"] { touch-action: manipulation; }
+.input {
+  width: 100%; height: 46px; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  font-size: 15px; outline: none; transition: border-color .12s, box-shadow .12s;
+}
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input::placeholder { color: var(--faint); }
+.chip {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 11px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--panel2);
+  font-size: 12px; color: var(--sub); transition: background .12s, border-color .12s, transform .08s ease;
+}
+.chip:active { transform: scale(.94); }
+.label { font-size: 12px; color: var(--faint); letter-spacing: .02em; margin-bottom: 6px; display: block; }
+
+/* '더보기'는 폰 하단 탭 전용 — 데스크톱 레일에서는 숨김.
+   버튼 인라인 style(display:flex)을 이겨야 해서 !important. */
+.rail-more { display: none !important; }
+
+/* 폰 전용 진입 버튼(예: 순찰 시작 바로가기) — 기본(데스크톱)은 숨기고 640px 이하에서만 노출.
+   .hide-mobile 의 반대 짝 — 아래 폰 대응 미디어쿼리에서 다시 보이도록 override. */
+.mobile-only { display: none !important; }
+
+/* ── 폰 대응 ────────────────────────────────────────────────
+   데스크톱 축소가 아니라 재배치: 좌측 레일 → 하단 탭 5개(+더보기 시트), 본문 16px 기준.
+   경계 640px — 태블릿(768↑)은 데스크톱 레이아웃 유지. */
+@media (max-width: 640px) {
+  .app-shell { flex-direction: column; }
+
+  .nav-rail {
+    width: 100% !important; height: auto !important;
+    position: fixed !important; bottom: 0; left: 0; right: 0; top: auto !important;
+    z-index: 30;
+    flex-direction: row !important;
+    border-right: none !important; border-top: 1px solid var(--line);
+    padding: 0 !important; overflow: visible !important;
+  }
+  .nav-rail .rail-brand, .nav-rail .rail-foot { display: none !important; }
+  .nav-rail .rail-list {
+    flex-direction: row !important; overflow: visible !important;
+    gap: 0 !important; width: 100%;
+    padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
+  }
+  .nav-rail .rail-item[data-primary="0"] { display: none !important; }
+  .nav-rail .rail-item[data-primary="1"], .nav-rail .rail-more {
+    flex: 1 1 0; width: auto !important; min-width: 0; padding: 4px 2px !important;
+  }
+  .nav-rail .rail-item span:last-child, .nav-rail .rail-more span:last-child {
+    font-size: 11px !important; white-space: nowrap; max-width: 100% !important;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .nav-rail .rail-more { display: flex !important; }
+
+  .app-main { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+  .app-main > main { height: auto !important; min-height: calc(100dvh - 60px - env(safe-area-inset-bottom)); }
+
+  .px-5 { padding-left: 16px !important; padding-right: 16px !important; }
+
+  .input, input, select, textarea { font-size: 16px !important; }
+  .btn { min-height: 48px; font-size: 15px; }
+
+  .hide-mobile { display: none !important; }
+  .mobile-only { display: inline-flex !important; }
+  .grid-collapse { grid-template-columns: 1fr !important; }
+  .pad-mobile { padding: 12px !important; }
+  .tabbar-scroll { overflow-x: auto; padding-left: 12px !important; padding-right: 12px !important; }
+  .split { flex-direction: column !important; }
+  .split-side {
+    width: 100% !important; height: auto !important; max-height: 38vh;
+    border-right: none !important; border-bottom: 1px solid var(--line);
+  }
+
+  /* 데모 바 — 폰 폭에선 하단 탭바로 옮겨간 레일 안에서는 어차피 숨는 rail-brand/foot 묶음이라 함께 숨김 */
+  .nav-rail [title*="데모 모드"] { display: none !important; }
+}
