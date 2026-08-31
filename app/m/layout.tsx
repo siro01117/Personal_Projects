@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { MODULE_ROUTES } from "@/lib/modules";
 import NavRail from "./NavRail";
 import type { NavModule } from "./NavRail";
+import BootProgress from "./_shared/BootProgress";
 import "./sq.css";
 
 // 원본은 서버 컴포넌트였다. 브라우저 전용 PGlite 위에서 돌리기 위해 데이터 로딩을
@@ -43,7 +44,7 @@ function ModuleLayoutImpl({ children }: { children: React.ReactNode }) {
   }, [load]);
 
   if (!me || !modules) {
-    return <div className="app-shell" style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center", color: "var(--dim)" }}>불러오는 중…</div>;
+    return <div className="app-shell" style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center" }}><BootProgress /></div>;
   }
 
   return (

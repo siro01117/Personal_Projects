@@ -6,6 +6,7 @@ import { getMe, can } from "@/lib/auth";
 import { ready } from "@/lib/bootstrap";
 import { db } from "@/lib/db";
 import { MODULE_ROUTES } from "@/lib/modules";
+import BootProgress from "@/app/m/_shared/BootProgress";
 
 // 원본은 서버 컴포넌트(항상 redirect)였다. 브라우저 전용 PGlite 위에서 돌리기 위해 판정을
 // useEffect로 옮기고 'use client' + dynamic(ssr:false)로 감싼다. 로직은 원본과 동일 —
@@ -40,7 +41,7 @@ function HomePageImpl() {
   useEffect(() => { load(); }, [load]);
 
   if (!noModules) {
-    return <main style={{ display: "grid", placeItems: "center", minHeight: "100dvh", color: "var(--dim)" }}>불러오는 중…</main>;
+    return <main style={{ display: "grid", placeItems: "center", minHeight: "100dvh" }}><BootProgress /></main>;
   }
 
   return (

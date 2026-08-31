@@ -1,11 +1,13 @@
 // 코어 스키마 + 시드 (로컬 개발용, 멱등 — 여러 번 돌려도 안전).
 // 배포 때는 같은 내용을 Supabase 마이그레이션 SQL로 옮김.
-import { db } from "./db";
+import { db, markBootReady } from "./db";
 import { hashPin } from "./hash";
 import { PERMISSIONS } from "./perms";
 import { MODULES } from "./modules";
 import { MODULE_SQL } from "./schema.modules";
 import { seedDemo, seedDemoExpansion } from "./seed-demo"; // 브라우저 데모 전용 — 좌석·학생 표본 데이터(별도 파일로 분리)
+import { correctDemoDates } from "./demo-date-shift";
+import { todayKey } from "./date";
 
 const CORE_SQL = `
 -- gen_random_uuid() 는 Postgres 13+ 코어 내장 (pgcrypto 불필요)
@@ -99,10 +101,13 @@ let booted: Promise<void> | null = null;
  *  같은 옛 에러만 계속 던져서 "고쳤는데도 안 되는" 상태가 된다. */
 export function ready(): Promise<void> {
   if (!booted) {
-    const p: Promise<void> = (booted = boot().catch((e) => {
-      if (booted === p) booted = null; // 다음 요청에서 재시도 (boot()은 멱등)
-      throw e;
-    }));
+    const p: Promise<void> = (booted = boot()
+      .then(() => correctDemoDates()) // 덤프 복원이든 실시간 시드든 항상 "오늘" 기준으로 맞춘다
+      .then(() => markBootReady()) // 로딩 화면에 "완료" 신호
+      .catch((e) => {
+        if (booted === p) booted = null; // 다음 요청에서 재시도 (boot()은 멱등)
+        throw e;
+      }));
   }
   return booted;
 }
@@ -219,6 +224,14 @@ async function boot() {
     `insert into app_meta(key,value) values ('schema_version',$1)
      on conflict (key) do update set value=excluded.value, updated_at=now()`,
     [SCHEMA_VERSION],
+  );
+  // 시드가 "오늘" 기준 상대 날짜로 채워진 날 — demo-date-shift.ts가 이후 방문 시점과 비교해
+  // 데이터 날짜를 신선하게 유지하는 기준점이 된다(Node 빌드 스크립트가 만든 덤프도 동일 경로를
+  // 타므로 별도 처리 불필요).
+  await db.query(
+    `insert into app_meta(key,value) values ('demo_seed_date',$1)
+     on conflict (key) do update set value=excluded.value, updated_at=now()`,
+    [todayKey()],
   );
 
   await seedDemo(); // 데모 표본 데이터(방·좌석·학생) — 멱등, 자체 플래그로 1회만 실행
