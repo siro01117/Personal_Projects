@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /* ---------------------------------------------------------------------------
-   Ra_Kan 포털 — 살아있는 색인
-   왼쪽: 프로젝트 색인(행). 오른쪽: 가리키는 프로젝트의 실제 화면(iframe).
-   프로젝트 목록은 lib/scan.js 가 public/projects/* 를 빌드 시점에 스캔해 넘겨준다 —
-   여기서 하드코딩하는 목록은 없다.
+   Ra_Kan 포털 v2 — 목록이 곧 화면.
+   프로젝트 목록은 lib/scan.js 가 public/projects/* 를 빌드 시점에 스캔해 넘겨준다.
+   (v1 의 라이브 iframe 프리뷰는 걷어냈다 — 폰에서는 보이지도 않고, 무거운 모듈은
+    미리보기가 제대로 뜨지도 않아 값을 못 했다. 대신 카드를 크고 읽기 쉽게.)
 --------------------------------------------------------------------------- */
 
 // 관리자 비밀번호는 SHA-256 해시로만 둔다. 다만 정적 사이트라 검증이 전부 브라우저에서
@@ -14,9 +14,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // "가림막"이다. 진짜 보호가 필요해지면 Supabase RPC 로 옮길 것.
 const ADMIN_HASH = 'aec8e4a6445e4be673e2fcf948cfa2e759595cf43721e3edf5d78a2a4deb15ba';
 const AUTH_KEY = 'rakan.admin.v1';
+const THEME_KEY = 'rakan.theme';
 const AUTH_DAYS = 30;
 
-const PALETTE = ['#8a7cf7', '#2dd4bf', '#e0a356', '#ef7aa7', '#7c8794', '#6aa0f7'];
+const PALETTE = ['#7c6cf0', '#1f9c8c', '#c07a2a', '#c8548a', '#5b7ecb', '#6a7482'];
 
 const SECTIONS = [
   { key: 'Portfolio', label: 'Portfolio', sub: '포트폴리오' },
@@ -30,7 +31,6 @@ const ICONS = {
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
   motion: '<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="M5 15.5l.7 1.8 1.8.7-1.8.7L5 20.5l-.7-1.8L2.5 18l1.8-.7z"/>',
-  database: '<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   chart: '<path d="M3 21h18M6 21v-7M11 21V6M16 21v-10"/>',
   book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19a1 1 0 0 1 1 1v14H6a2 2 0 0 0-2 2z"/><path d="M4 20a2 2 0 0 1 2-2h14"/><path d="M8 7h8M8 10.5h6"/>',
   layout: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/>',
@@ -38,6 +38,8 @@ const ICONS = {
   lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>',
   unlock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 7.6-1.7"/>',
   nodes: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7l2.4 8.8M15.7 8.9L13 15.6"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8.2 8.2 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/>',
   alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16.2v.1"/>',
   default: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>',
 };
@@ -48,11 +50,6 @@ const Icon = ({ k }) => (
 const Arrow = () => (
   <svg className="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 );
-
-function clockStr() {
-  const d = new Date(), p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
 
 async function sha256(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -72,30 +69,38 @@ function readAuth() {
 
 export default function PortalClient({ projects = [] }) {
   const [hydrated, setHydrated] = useState(false);
+  const [theme, setTheme] = useState('dark');
   const [admin, setAdmin] = useState(false);
   const [expiry, setExpiry] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [activeId, setActiveId] = useState(null);
-  const [loadingPv, setLoadingPv] = useState(false);
-  const [clock, setClock] = useState('');
   const [toast, setToast] = useState('');
 
-  const frameRef = useRef(null);
   const inputRef = useRef(null);
-  const hoverT = useRef(null);
   const toastT = useRef(null);
 
   useEffect(() => {
     setHydrated(true);
-    setClock(clockStr());
+    // 테마는 layout.js 의 인라인 스크립트가 이미 <html> 에 박아뒀다 — 여기선 읽어서 맞추기만.
+    setTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
     const exp = readAuth();
     if (exp) { setAdmin(true); setExpiry(exp); }
-    const t = setInterval(() => setClock(clockStr()), 30000);
-    return () => { clearInterval(t); clearTimeout(hoverT.current); clearTimeout(toastT.current); };
+    return () => clearTimeout(toastT.current);
   }, []);
+
+  function showToast(m) {
+    setToast(m); clearTimeout(toastT.current);
+    toastT.current = setTimeout(() => setToast(''), 1900);
+  }
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
+  }
 
   const visible = useMemo(
     () => (admin ? projects : projects.filter((p) => p.public)),
@@ -107,53 +112,15 @@ export default function PortalClient({ projects = [] }) {
       .filter((g) => g.items.length),
     [visible],
   );
-
   const colorOf = useCallback(
-    (p) => p.color || PALETTE[Math.max(0, visible.findIndex((v) => v.id === p.id)) % PALETTE.length],
-    [visible],
+    (p, i) => p.color || PALETTE[i % PALETTE.length],
+    [],
   );
-
-  // 활성 항목: 아직 아무것도 안 가리켰으면 미리보기가 뜨는 첫 프로젝트를 기본값으로 —
-  // 처음 열었을 때 오른쪽이 빈 안내판이면 이 화면의 요점이 안 보인다.
-  // 관리자 전환으로 목록이 바뀌어 활성 항목이 사라져도 같은 기본값으로 되돌아간다.
-  const canPreview = (p) => /^\/projects\//.test(p?.embedUrl || '');
-  const active = visible.find((p) => p.id === activeId)
-    || visible.find(canPreview) || visible[0] || null;
-  const sig = active ? colorOf(active) : PALETTE[0];
-
-  // 프리뷰는 포털이 직접 서빙하는 정적 프로젝트(/projects/*)만 띄운다.
-  // 앱 라우트(/studycube-demo 등)는 브라우저 DB를 부팅해서 미리보기로 돌리기엔 무겁다.
-  const previewable = canPreview(active);
-
-  useEffect(() => { if (previewable) setLoadingPv(true); }, [active?.id, previewable]);
-
-  // iframe 을 1280px 기준으로 그린 뒤 패널 폭에 맞춰 축소 — 모바일 레이아웃이 아닌
-  // 데스크톱 화면 그대로가 보여야 미리보기의 의미가 있다.
-  useEffect(() => {
-    const el = frameRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const fit = () => {
-      const f = el.querySelector('iframe');
-      if (f) f.style.transform = `scale(${el.clientWidth / 1280})`;
-    };
-    const ro = new ResizeObserver(fit);
-    ro.observe(el); fit();
-    return () => ro.disconnect();
-  }, [hydrated, previewable, active?.id]);
-
-  function point(id) {                       // hover/focus → 잠깐 머무를 때만 프리뷰 교체
-    clearTimeout(hoverT.current);
-    hoverT.current = setTimeout(() => setActiveId(id), 90);
-  }
-  function showToast(m) {
-    setToast(m); clearTimeout(toastT.current);
-    toastT.current = setTimeout(() => setToast(''), 1800);
-  }
 
   function openAuth() {
     if (admin) {                              // 로그아웃은 즉시 — 저장된 세션도 함께 삭제
       try { localStorage.removeItem(AUTH_KEY); } catch {}
-      setAdmin(false); setExpiry(null); setActiveId(null); showToast('관리자 모드를 껐어요');
+      setAdmin(false); setExpiry(null); showToast('관리자 모드를 껐어요');
       return;
     }
     setPw(''); setErr(''); setAuthOpen(true);
@@ -176,7 +143,6 @@ export default function PortalClient({ projects = [] }) {
     } finally { setBusy(false); }
   }
 
-  // 모달: 열리면 입력으로 포커스, Esc 로 닫기
   useEffect(() => {
     if (!authOpen) return;
     inputRef.current?.focus();
@@ -191,18 +157,20 @@ export default function PortalClient({ projects = [] }) {
   const privateCount = projects.length - projects.filter((p) => p.public).length;
 
   return (
-    <div className="app" style={{ '--sig': sig }}>
-      <a className="skip" href="#index">본문으로 건너뛰기</a>
+    <div className="app">
+      <a className="skip" href="#list">본문으로 건너뛰기</a>
 
       <header className="head">
         <div className="wrap">
           <a className="brand" href="#top">Ra<i>_</i>Kan</a>
           <div className="hr">
-            <span className="clock">{clock}</span>
-            <button className={'lockbtn' + (admin ? ' on' : '')} onClick={openAuth}
-              aria-pressed={admin}
-              title={admin ? `관리자 모드 · ${daysLeft}일 남음 (누르면 해제)` : '관리자로 로그인'}>
-              <Icon k={admin ? 'unlock' : 'lock'} />{admin ? 'Admin' : 'Lock'}
+            <button className="iconbtn" onClick={toggleTheme}
+              aria-label={theme === 'dark' ? '밝은 화면으로 바꾸기' : '어두운 화면으로 바꾸기'}>
+              <Icon k={theme === 'dark' ? 'sun' : 'moon'} />
+            </button>
+            <button className={'iconbtn' + (admin ? ' on' : '')} onClick={openAuth} aria-pressed={admin}
+              aria-label={admin ? `관리자 모드 · ${daysLeft}일 남음. 누르면 해제` : '관리자로 로그인'}>
+              <Icon k={admin ? 'unlock' : 'lock'} />
             </button>
           </div>
         </div>
@@ -210,104 +178,57 @@ export default function PortalClient({ projects = [] }) {
 
       <section className="mast wrap" id="top">
         <div className="eyebrow">Personal Projects</div>
-        <h1 className="mega" aria-label="Ra_Kan">
-          {['R', 'a', '_', 'K', 'a', 'n'].map((ch, i) => (
-            <span key={i} className={'lt' + (ch === '_' ? ' us' : '')}
-              style={{ animationDelay: `${0.06 * i}s` }} aria-hidden="true">{ch}</span>
-          ))}
-        </h1>
-        <p className="lede">
-          직접 만들어 쓰고 있는 것들의 <b>색인</b>입니다. 목록에서 하나를 가리키면
-          오른쪽에 그 프로젝트의 <b>실제 화면</b>이 그대로 뜹니다.
-        </p>
+        <h1 className="mega">Ra<i>_</i>Kan</h1>
+        <p className="lede">직접 만들어 쓰고 있는 것들. <b>눌러서 바로 들어가세요.</b></p>
         <div className="mstats">
-          <span><b>{visible.length}</b> 프로젝트</span>
-          <span><b>{groups.length}</b> 분류</span>
-          <span>{admin ? <>비공개 <b>{privateCount}</b>개 포함 · {daysLeft}일 유지</> : <>공개 목록{privateCount ? ` · 비공개 ${privateCount}개 숨김` : ''}</>}</span>
+          <span className="pill"><b>{visible.length}</b> 프로젝트</span>
+          {admin
+            ? <><span className="pill">비공개 <b>{privateCount}</b> 포함</span>
+                <span className="pill">관리자 <b>{daysLeft}</b>일 남음</span></>
+            : privateCount > 0 && <span className="pill">비공개 <b>{privateCount}</b> 숨김</span>}
         </div>
       </section>
 
-      <div className="body wrap" id="index">
-        <div>
-          {groups.length === 0 ? (
-            <div className="empty">표시할 프로젝트가 없어요.</div>
-          ) : groups.map((g) => (
-            <section className="sec" key={g.key} aria-label={g.label}>
-              <div className="sec-h">
-                <h2 className="sec-label">{g.label}</h2>
-                <span className="sec-sub">{g.sub}</span>
-                <span className="sec-n">{String(g.items.length).padStart(2, '0')}</span>
-              </div>
+      <main className="body wrap" id="list">
+        {groups.length === 0 ? (
+          <div className="empty">표시할 프로젝트가 없어요.</div>
+        ) : groups.map((g) => (
+          <section className="sec" key={g.key} aria-label={g.label}>
+            <div className="sec-h">
+              <h2 className="sec-label">{g.label}</h2>
+              <span className="sec-sub">{g.sub}</span>
+              <span className="sec-n">{g.items.length}</span>
+            </div>
+            <div className="grid">
               {g.items.map((p, i) => {
-                const c = colorOf(p);
-                const on = active && active.id === p.id;
-                const cls = 'row' + (on ? ' on' : '') + (p.public ? '' : ' muted');
+                const c = colorOf(p, i);
                 const inner = (
                   <>
-                    <span className="rn">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="rtile"><Icon k={p.icon} /></span>
-                    <span className="rmain">
-                      <span className="rname">
+                    <span className="ctile"><Icon k={p.icon} /></span>
+                    <span className="cmain">
+                      <span className="cname">
                         {p.name}
                         {!p.public && <span className="badge priv">비공개</span>}
                       </span>
-                      {p.desc && <span className="rdesc">{p.desc}</span>}
+                      {p.desc && <span className="cdesc">{p.desc}</span>}
+                      {p.stack?.length > 0 && (
+                        <span className="chips">{p.stack.slice(0, 3).map((s) => <span key={s}>{s}</span>)}</span>
+                      )}
                     </span>
-                    <span className="rgo"><Arrow /></span>
+                    <span className="cgo"><Arrow /></span>
                   </>
                 );
                 return p.embedUrl ? (
-                  <a key={p.id} className={cls} style={{ '--c': c }} href={p.embedUrl}
-                    onMouseEnter={() => point(p.id)} onFocus={() => point(p.id)}>
-                    {inner}
-                  </a>
+                  <a key={p.id} className="card" style={{ '--c': c }} href={p.embedUrl}>{inner}</a>
                 ) : (
-                  <button key={p.id} className={cls} style={{ '--c': c }} type="button"
-                    onMouseEnter={() => point(p.id)} onFocus={() => point(p.id)}
-                    onClick={() => showToast('아직 준비 중이에요')}>
-                    {inner}
-                  </button>
+                  <button key={p.id} className="card" style={{ '--c': c }} type="button"
+                    onClick={() => showToast('아직 준비 중이에요')}>{inner}</button>
                 );
               })}
-            </section>
-          ))}
-        </div>
-
-        {active && (
-          <aside className="pv" aria-label="선택한 프로젝트 미리보기">
-            <div ref={frameRef} className={'pvframe' + (loadingPv && previewable ? ' loading' : '')}>
-              {previewable ? (
-                <>
-                  <iframe key={active.id} src={active.embedUrl} title={`${active.name} 미리보기`}
-                    tabIndex={-1} aria-hidden="true" loading="lazy" scrolling="no"
-                    onLoad={() => setLoadingPv(false)} />
-                  <div className="pvfade" />
-                </>
-              ) : (
-                <div className="pvnone">
-                  <span className="big"><Icon k={active.icon} /></span>
-                  직접 실행되는 앱이라 미리보기를 띄우지 않아요.<br />열기를 눌러 확인해 주세요.
-                </div>
-              )}
             </div>
-
-            <div className="pvmeta">
-              <div className="pvkick">{sectionOf(active)}</div>
-              <div className="pvname">{active.name}</div>
-              {active.desc && <p className="pvdesc">{active.desc}</p>}
-              {active.stack?.length > 0 && (
-                <div className="chips">{active.stack.map((s) => <span key={s}>{s}</span>)}</div>
-              )}
-              {active.embedUrl ? (
-                <a className="pvgo" href={active.embedUrl}>열기 <Arrow /></a>
-              ) : (
-                <div className="pvhint">아직 화면이 없는 항목이에요.</div>
-              )}
-              {previewable && <div className="pvhint">미리보기는 조작되지 않아요 — 열기를 눌러 사용하세요.</div>}
-            </div>
-          </aside>
-        )}
-      </div>
+          </section>
+        ))}
+      </main>
 
       {authOpen && (
         <div className="scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) setAuthOpen(false); }}>
@@ -316,11 +237,9 @@ export default function PortalClient({ projects = [] }) {
             <p>비공개 프로젝트까지 목록에 표시됩니다.</p>
             <label className="fld" htmlFor="pw">비밀번호</label>
             <input ref={inputRef} id="pw" className="ipt" type="password" value={pw}
-              autoComplete="current-password"
+              autoComplete="current-password" inputMode="text"
               onChange={(e) => { setPw(e.target.value); if (err) setErr(''); }} />
-            {err && (
-              <div className="err" role="alert"><Icon k="alert" />{err}</div>
-            )}
+            {err && <div className="err" role="alert"><Icon k="alert" />{err}</div>}
             <div className="mrow">
               <button type="submit" className="btn fill" disabled={!pw || busy}>
                 {busy ? '확인 중…' : '로그인'}
@@ -328,7 +247,7 @@ export default function PortalClient({ projects = [] }) {
               <button type="button" className="btn ghost" onClick={() => setAuthOpen(false)}>취소</button>
             </div>
             <p className="note">
-              이 브라우저에서 {AUTH_DAYS}일간 로그인이 유지됩니다. 헤더의 Admin 버튼을 다시 누르면 해제돼요.
+              이 브라우저에서 {AUTH_DAYS}일간 로그인이 유지됩니다. 헤더의 자물쇠를 다시 누르면 해제돼요.
             </p>
           </form>
         </div>
