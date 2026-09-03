@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "tsx scripts/build-demo-db.ts && next build --webpack",
-    "start": "next start -p 3100"
+    "start": "next start -p 3100",
+    "preview": "npm run build && python -m http.server 3200 --directory out"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
