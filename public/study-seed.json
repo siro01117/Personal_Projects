@@ -1,0 +1,1275 @@
+{
+  "version": 1,
+  "semester": {
+    "id": "2026-2",
+    "label": "1학년 2학기",
+    "start": "2026-09-02",
+    "end": "2026-12-18",
+    "weeks": 15,
+    "holidays": [
+      {
+        "date": "2026-09-24",
+        "name": "추석 연휴"
+      },
+      {
+        "date": "2026-09-25",
+        "name": "추석"
+      },
+      {
+        "date": "2026-10-09",
+        "name": "한글날"
+      }
+    ]
+  },
+  "courses": [
+    {
+      "id": "sanghup",
+      "name": "상법",
+      "professor": "서지민",
+      "category": "전공기초",
+      "credits": 3,
+      "room": "516-201",
+      "meetings": [
+        {
+          "day": "화",
+          "start": "13:30",
+          "end": "14:45"
+        },
+        {
+          "day": "목",
+          "start": "13:30",
+          "end": "14:45"
+        }
+      ],
+      "confirmed": true,
+      "textbook": "최준선, 『상법총칙·상행위법』 제13판, 삼영사, 2025",
+      "grading": [
+        {
+          "item": "중간고사",
+          "weight": 35
+        },
+        {
+          "item": "기말고사",
+          "weight": 45
+        },
+        {
+          "item": "출석",
+          "weight": 20
+        }
+      ],
+      "syllabus": [
+        {
+          "week": 1,
+          "title": "표절·부정행위 예방교육 / 교과목·평가 설명 / 법의 개념과 목적 / 민상법의 특색, 법원, 효력범위, 상법의 역사와 무역학의 관계",
+          "note": ""
+        },
+        {
+          "week": 2,
+          "title": "상법의 적용기준, 상인의 의의, 상인 자격의 취득과 상실",
+          "note": ""
+        },
+        {
+          "week": 3,
+          "title": "영업의 제한, 상업사용인",
+          "note": ""
+        },
+        {
+          "week": 4,
+          "title": "상업사용인, 상호",
+          "note": ""
+        },
+        {
+          "week": 5,
+          "title": "상호, 명의대여자책임",
+          "note": ""
+        },
+        {
+          "week": 6,
+          "title": "상업장부, 영업소",
+          "note": ""
+        },
+        {
+          "week": 7,
+          "title": "상업등기, 영업양도",
+          "note": ""
+        },
+        {
+          "week": 8,
+          "title": "중간고사",
+          "note": ""
+        },
+        {
+          "week": 9,
+          "title": "상행위법 각칙, 민법 채권편 특칙",
+          "note": ""
+        },
+        {
+          "week": 10,
+          "title": "상사매매",
+          "note": ""
+        },
+        {
+          "week": 11,
+          "title": "유가증권, 상호계산, 익명조합",
+          "note": ""
+        },
+        {
+          "week": 12,
+          "title": "대리상, 중개업",
+          "note": ""
+        },
+        {
+          "week": 13,
+          "title": "위탁매매업, 운송업",
+          "note": ""
+        },
+        {
+          "week": 14,
+          "title": "운송주선업, 공중접객업",
+          "note": ""
+        },
+        {
+          "week": 15,
+          "title": "(지정보강주) 창고업, 특수한 상거래",
+          "note": ""
+        },
+        {
+          "week": 16,
+          "title": "기말고사",
+          "note": ""
+        }
+      ],
+      "professorStyle": "강의평 기준 약 100건(21~26년). 말 속도가 매우 빠름 — 녹음 필수가 최다 반복 조언. 강의력 평가는 높은 편(무역학부 상위권이라는 평 반복). 교과서를 빠르게 읽어나가며 추가 설명이 필요한 부분을 칠판 판서 → 판서에서 시험 출제된다는 후기 반복. PPT 자료는 거의 없다는 최신 후기(26년 2학기) 있음. 진도량이 많음(한 학기에 교재 전체). 출결은 거의 안 부르며 가끔 직접 호명 또는 PLATO 전자출결(제한시간 짧음). 소통(쪽지·메일)이 늦거나 없다는 불만 반복, 중간고사 점수를 안 알려준다는 불만이 24~25년에 특히 많음.",
+      "examInfo": "계획서: 중간 35% + 기말 45%(2회). 강의평 기준 유형은 객관식/단답형/OX/약술형이며 학기마다 구성이 다름. 객관식은 판서에서, 단답형은 수업 중 반복 언급된 부분에서 출제된다는 후기. 사례·판례 위주 출제가 반복 언급됨. 범위가 매우 넓다는 평이 압도적. 성적 자체는 후하게 준다는 평이 다수.",
+      "cautions": [
+        "매 강의 녹음 — 가장 많이 반복된 조언",
+        "앞자리 착석 — 판서 글씨를 뒤에서 사진 찍으면 안 보임",
+        "판서는 사진으로 남기기 — 시험 출제원",
+        "당일 복습 — 한 번 놓치면 계속 놓친다는 표현 반복",
+        "출석 20%인데 거의 안 부름 — 갑자기 하는 전자출결 주의",
+        "중간고사 점수를 안 알려줄 가능성이 높음 — 자체 복기 필수"
+      ],
+      "strategy": "말 속도가 빨라 녹음과 판서 사진이 필수. 판서·교재 중심으로 출제되므로 당일 복습으로 진도를 놓치지 않는 것이 핵심.",
+      "materials": [
+        {
+          "group": "자료",
+          "items": [
+            {
+              "name": "상법 강의계획서 2026-2.xls",
+              "size": "24 KB"
+            }
+          ]
+        },
+        {
+          "group": "intel",
+          "items": [
+            {
+              "name": "에브리타임 강의평.md",
+              "size": "22 KB"
+            }
+          ]
+        }
+      ],
+      "sessions": [
+        {
+          "date": "2026-09-03",
+          "week": 1,
+          "topic": "상법의 의의 · 민상법의 특색과 법원",
+          "memo": "녹음 파일명이 46241.m4a 였음. 메타데이터 시각(KST 22:25)은 내보낸 시각이라 강의 시각이 아님. 앞부분 전사로 내용 확인: 형식적/실질적 의의의 상법, 상법전. 계획서 제1주와 일치. 날짜는 추정이므로 확인 필요.",
+          "status": "대기",
+          "hasAudio": true,
+          "files": [
+            {
+              "name": "2026-09-03_상법_녹음.m4a",
+              "kind": "audio",
+              "size": "33.3 MB"
+            }
+          ],
+          "summary": null,
+          "note": null
+        },
+        {
+          "date": "2026-09-08",
+          "week": 2,
+          "topic": "상인의 의의 · 당연상인과 의제상인",
+          "memo": "녹음 파일명이 46241 2.m4a 였음. 앞부분 전사로 내용 확인: 당연상인·의제상인, 상법 제4조·제5조, 교과서 98p, \"지난 시간에 의제한다는 말을 설명드렸다\"는 발언 있음. 계획서 제2주와 일치. 날짜는 추정이므로 확인 필요.",
+          "status": "대기",
+          "hasAudio": true,
+          "files": [
+            {
+              "name": "2026-09-08_상법_녹음.m4a",
+              "kind": "audio",
+              "size": "63.3 MB"
+            }
+          ],
+          "summary": null,
+          "note": null
+        }
+      ]
+    },
+    {
+      "id": "tonggye",
+      "name": "통계학",
+      "professor": "김동진",
+      "category": "전공기초",
+      "credits": 3,
+      "room": "516-303",
+      "meetings": [
+        {
+          "day": "화",
+          "start": "12:00",
+          "end": "13:15"
+        },
+        {
+          "day": "목",
+          "start": "12:00",
+          "end": "13:15"
+        }
+      ],
+      "confirmed": true,
+      "textbook": "강금식, 『4차 산업혁명시대의 EXCEL 활용 통계학』 제6판, 박영사",
+      "grading": [
+        {
+          "item": "중간고사",
+          "weight": 50
+        },
+        {
+          "item": "기말고사",
+          "weight": 50
+        }
+      ],
+      "syllabus": [
+        {
+          "week": 1,
+          "title": "표절·부정행위 예방교육 / 통계학의 개념 및 산업 응용사례",
+          "note": ""
+        },
+        {
+          "week": 2,
+          "title": "자료 해석 방법 및 기본적인 통계분석",
+          "note": ""
+        },
+        {
+          "week": 3,
+          "title": "확률 이론 및 응용",
+          "note": "계획서 원문은 \"확귤 이론\" — 오타로 보임"
+        },
+        {
+          "week": 4,
+          "title": "이산 확률 분포 및 응용",
+          "note": ""
+        },
+        {
+          "week": 5,
+          "title": "연속 확률 분포 및 응용",
+          "note": ""
+        },
+        {
+          "week": 6,
+          "title": "표본 분포 및 구간 추정",
+          "note": ""
+        },
+        {
+          "week": 7,
+          "title": "확률을 이용한 의사 결정",
+          "note": ""
+        },
+        {
+          "week": 8,
+          "title": "중간고사",
+          "note": ""
+        },
+        {
+          "week": 9,
+          "title": "가설 검정 개념 및 응용",
+          "note": ""
+        },
+        {
+          "week": 10,
+          "title": "두 모집단 가설 검정 기법 및 응용 (1)",
+          "note": ""
+        },
+        {
+          "week": 11,
+          "title": "두 모집단 가설 검정 기법 및 응용 (2)",
+          "note": ""
+        },
+        {
+          "week": 12,
+          "title": "상관 분석 및 분산 분석",
+          "note": ""
+        },
+        {
+          "week": 13,
+          "title": "회귀 분석 기법 및 응용",
+          "note": ""
+        },
+        {
+          "week": 14,
+          "title": "통계적 기법을 이용한 의사 결정",
+          "note": ""
+        },
+        {
+          "week": 15,
+          "title": "(지정보강주) 강의 요약",
+          "note": ""
+        },
+        {
+          "week": 16,
+          "title": "기말고사",
+          "note": ""
+        }
+      ],
+      "professorStyle": "강의평 기준 56건(16~25년). 목소리가 작다는 지적이 가장 많이 반복됨(중요한 부분일수록 더 작아진다는 언급) → 앞자리 착석이 반복 조언. 판서 위주로 단원 시작마다 칠판에 개념을 정리하고 진도를 나감. 판서 후 예시 설명, PPT로 재확인하는 방식이라는 후기. 속도 평가는 갈리지만 공통점은 \"한 번 놓치면 따라가기 어렵다\". 출결은 거의 안 부름(후반부로 갈수록 더). 예고 없는 쪽지시험·돌발 퀴즈 언급 몇 건. 성적은 후하다는 평이 압도적. 25년 2학기 후기 1건: 교수가 다음부터 이 과목을 안 맡는다는 언급 — 확인 필요, 반영하지 말 것.",
+      "examInfo": "계획서: 중간 50% + 기말 50%. 강의평 기준 유형은 주관식+OX+객관식. 중간은 무난, 기말은 난이도가 급상승한다는 대비가 가장 일관된 패턴. 중간 범위는 고등학교 확률과 통계와 상당 부분 겹침. 기말은 고등학교 지식만으로는 못 푼다는 후기 반복. 계산 과정은 안 보고 답만 채점한다는 후기 다수.",
+      "cautions": [
+        "앞자리 필수 — 목소리 문제, 녹음도 잘 안 들린다는 후기",
+        "기말을 미리 준비 — 범위가 넓고 난이도가 뛴다는 경고가 가장 많이 반복됨",
+        "중간에서 점수를 확보해 두면 기말이 망해도 커버된다는 후기 다수",
+        "결석 1회 = 최종점수 -1점 — 강의평의 \"출석 반영 안 함\"을 믿지 말 것",
+        "흐름을 놓치면 회복이 어려움 — 수업 후 30분 복습 권장",
+        "예고 없는 퀴즈 가능성"
+      ],
+      "strategy": "중간에서 확실히 점수를 확보하고, 범위가 넓고 어려운 기말을 교재 연습문제 반복 풀이로 미리 대비하는 것이 핵심.",
+      "materials": [
+        {
+          "group": "자료",
+          "items": [
+            {
+              "name": "통계학 강의계획서 2026-2.xls",
+              "size": "23 KB"
+            }
+          ]
+        },
+        {
+          "group": "intel",
+          "items": [
+            {
+              "name": "에브리타임 강의평.md",
+              "size": "14 KB"
+            }
+          ]
+        }
+      ],
+      "sessions": []
+    },
+    {
+      "id": "global-leadership",
+      "name": "글로벌경제와 리더십(II)",
+      "professor": "김경민",
+      "category": "전공기초",
+      "credits": null,
+      "room": "516-301",
+      "meetings": [
+        {
+          "day": "화",
+          "start": "15:30",
+          "end": "17:00"
+        }
+      ],
+      "confirmed": false,
+      "textbook": "",
+      "grading": [],
+      "syllabus": [],
+      "professorStyle": "강의평 미수집. 확인 필요.",
+      "examInfo": "확인 필요.",
+      "cautions": [
+        "강의계획서 미확보 — 강의시간·평가·교재 전부 확인 필요",
+        "PLATO에 2주차까지 학습활동 없음, 공지 2건만 등록됨(9월 1일 수업 안내 / 9월 8일 수업 안내) — 공지 내용 직접 확인 필요",
+        "강의계획서를 PLATO 또는 학사시스템에서 받아 채울 것"
+      ],
+      "strategy": "강의계획서 확보가 최우선.",
+      "materials": [],
+      "sessions": []
+    },
+    {
+      "id": "college-english",
+      "name": "대학영어",
+      "professor": "GRANDMASON Matthew 외 (김정윤·윤희정)",
+      "category": "효원핵심교양",
+      "credits": 2,
+      "room": "210-406",
+      "meetings": [
+        {
+          "day": "월",
+          "start": "14:00",
+          "end": "16:00"
+        }
+      ],
+      "confirmed": false,
+      "textbook": "Evolve 3, Second Edition (Cambridge), ISBN 9781009551182 — 반드시 새 책 구매(DIGITAL PACK 코드 필요, 1회용, 유효기간 18개월)",
+      "grading": [
+        {
+          "item": "중간고사",
+          "weight": 20
+        },
+        {
+          "item": "기말고사",
+          "weight": 20
+        },
+        {
+          "item": "Oral Presentation (조별 영상)",
+          "weight": 10
+        },
+        {
+          "item": "PLATO 온라인 영상 시청",
+          "weight": 10
+        },
+        {
+          "item": "Cambridge One 온라인 과제",
+          "weight": 10
+        },
+        {
+          "item": "Speaking Assignment 2회",
+          "weight": 20
+        },
+        {
+          "item": "출석",
+          "weight": 10
+        }
+      ],
+      "syllabus": [
+        {
+          "week": 1,
+          "title": "실러버스·수업 규칙 안내 (교재 구매, DIGITAL PACK 로그인 생성)",
+          "note": ""
+        },
+        {
+          "week": 2,
+          "title": "Unit 1 (PLATO Unit 1 영상 + Unit 1 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 3,
+          "title": "Unit 2 (PLATO Unit 2 영상 + Unit 2 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 4,
+          "title": "Unit 3, Oral Presentation 시작 (PLATO Unit 3 영상 + Unit 3 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 5,
+          "title": "Unit 4 (PLATO Unit 4 영상 + Unit 4 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 6,
+          "title": "Unit 5, Oral Presentation 마무리 (PLATO Unit 5 영상 + Unit 5 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 7,
+          "title": "Unit 6, 중간고사 예고 (Speaking Test 1 + Unit 6 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 8,
+          "title": "중간고사 (Units 1-6)",
+          "note": "Units 1-6 DIGITAL PACK 완료"
+        },
+        {
+          "week": 9,
+          "title": "Unit 7 (PLATO Unit 7 영상 + Unit 7 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 10,
+          "title": "Unit 8 (PLATO Unit 8 영상 + Unit 8 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 11,
+          "title": "Unit 9 (PLATO Unit 9 영상 + Unit 9 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 12,
+          "title": "Unit 10 (PLATO Unit 10 영상 + Unit 10 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 13,
+          "title": "Unit 11 (PLATO Unit 11 영상 + Unit 11 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 14,
+          "title": "Unit 12, 기말고사 예고 (Speaking Test 2 + Unit 12 DIGITAL PACK)",
+          "note": ""
+        },
+        {
+          "week": 15,
+          "title": "보강 및 Speaking Test 보충 (지각 과제·출결 서류 전부 마감, Units 7-12 DIGITAL PACK 완료)",
+          "note": ""
+        },
+        {
+          "week": 16,
+          "title": "기말고사 (Units 7-12 + Units 1-6 복습 문항)",
+          "note": ""
+        }
+      ],
+      "professorStyle": "강의평 기준 386건(23~26년). 원어민 교수, 대면 강의. 유쾌하고 친절하다는 평가가 압도적. 매 시간 옆자리·조원과 영어로 대화하는 활동이 수업의 큰 비중(\"수업의 절반\"이라는 표현 반복). 한 명씩 지목해 영어로 질문 — 모든 학생을 빠짐없이 돌린다는 후기, 틀려도 부드럽게 정정해 준다는 평. 항상 100분 풀강이라는 불만 반복. 다른 분반보다 과제가 많다는 평이 가장 일관된 지적. 출결은 수기 명단 + PLATO 전자출결 이중 체크, 인원수도 비교(출튀·대리출석 불가).",
+      "examInfo": "실러버스: 중간(Units 1-6) / 기말(Units 7-12 + 1-6 복습). 객관식 + 영상 듣기 문항, 전부 교재에서 출제. 강의평 기준 난이도는 매우 쉬움(고등학교 수준 이하라는 표현 반복). 대신 평균이 매우 높아 한 문제 실수가 등급을 가름(중간 40점 만점에 평균 38점이라는 후기 1건). 상대평가라 시험만으로는 변별이 안 됨 — 과제 점수가 실질적 승부처.",
+      "cautions": [
+        "새 교재를 사야 함 — 중고책에는 DIGITAL PACK 코드가 없어 온라인 과제 10점을 못 받음",
+        "PLATO 온라인 영상은 매주, 유닛당 90% 이상 시청. 안 보면 유닛당 -1점, 출석으로도 인정 안 됨. 3주차 영상이 09-15부터 시작",
+        "Cambridge One 과제는 몰아서 하지 말 것 — 마감이 중간·기말 시험 주 직전",
+        "내향적이면 아는 친구와 같이 앉을 것 — 첫 수업 파트너 선택이 학기 전체를 좌우한다는 후기 반복",
+        "AI 번역기 사용 금지 명시(파파고·ChatGPT·Gemini·구글번역)",
+        "PLATO 메시지로 교수에게 연락하지 말 것 — 이메일 또는 카카오톡, 이름·분반·학번 포함",
+        "조별 영상 과제는 개인별 채점 — 팀에 묻어가는 구조가 아님",
+        "결석 1회 = 총점 -1점, 지각 3회 = 결석 1회, 5분 초과 = 지각",
+        "6회 결석 시 F (규칙 4항에는 5회 초과 표기 — 첫 수업에서 확인 필요)"
+      ],
+      "strategy": "시험은 쉬운 편이라 실수 관리가 관건이며, 상대평가에서는 과제(PLATO 시청·Cambridge One·Oral Presentation)를 밀리지 않는 것이 실질적 승부처.",
+      "materials": [
+        {
+          "group": "자료",
+          "items": [
+            {
+              "name": "Cambridge One 사용안내.pptx",
+              "size": "9.9 MB"
+            },
+            {
+              "name": "대학영어 실러버스 2026-2.pdf",
+              "size": "385 KB"
+            }
+          ]
+        },
+        {
+          "group": "intel",
+          "items": [
+            {
+              "name": "에브리타임 강의평.md",
+              "size": "88 KB"
+            }
+          ]
+        }
+      ],
+      "sessions": []
+    },
+    {
+      "id": "open-thinking",
+      "name": "열린사고와표현",
+      "professor": "조수미",
+      "category": "효원핵심교양",
+      "credits": 2,
+      "room": "516-305",
+      "meetings": [
+        {
+          "day": "수",
+          "start": "16:00",
+          "end": "17:40"
+        }
+      ],
+      "confirmed": true,
+      "textbook": "『열린사고와 표현』, 부산대학교출판문화원, 2021 (강의평 다수: 교재를 안 사도 된다고 안내한 학기가 여러 번 있었음 — 첫 수업 안내 확인 후 구매 결정)",
+      "grading": [
+        {
+          "item": "시험",
+          "weight": 30
+        },
+        {
+          "item": "글쓰기",
+          "weight": 30
+        },
+        {
+          "item": "토론",
+          "weight": 30
+        },
+        {
+          "item": "출석·참여도",
+          "weight": 10
+        }
+      ],
+      "syllabus": [
+        {
+          "week": 1,
+          "title": "표절·부정행위 예방교육 / 현대사회와 소통의 중요성: 소통, 열린생각과 표현",
+          "note": ""
+        },
+        {
+          "week": 2,
+          "title": "토론의 기초 1 — 토론의 개념과 논제 개발",
+          "note": ""
+        },
+        {
+          "week": 3,
+          "title": "토론의 기초 2 — 토론의 절차와 방법, 논거 자료 찾기(도서·사이트·영상)",
+          "note": ""
+        },
+        {
+          "week": 4,
+          "title": "토론의 실제 — 입론서 작성 안내, 토론 평가서 작성 안내",
+          "note": ""
+        },
+        {
+          "week": 5,
+          "title": "토론 ① [2부 실전편] 공통 선택",
+          "note": ""
+        },
+        {
+          "week": 6,
+          "title": "토론 ② [2부 실전편] 공통 선택",
+          "note": ""
+        },
+        {
+          "week": 7,
+          "title": "중간고사",
+          "note": ""
+        },
+        {
+          "week": 8,
+          "title": "토론 ③ [2부 실전편] 공통 선택",
+          "note": ""
+        },
+        {
+          "week": 9,
+          "title": "토론 ④ [2부 실전편] 자유 선택",
+          "note": ""
+        },
+        {
+          "week": 10,
+          "title": "토론 ⑤ [2부 실전편] 자유 선택",
+          "note": ""
+        },
+        {
+          "week": 11,
+          "title": "글쓰기의 기초 1",
+          "note": ""
+        },
+        {
+          "week": 12,
+          "title": "글쓰기의 기초 2",
+          "note": ""
+        },
+        {
+          "week": 13,
+          "title": "글쓰기의 실제 1 — 학술적 글쓰기",
+          "note": ""
+        },
+        {
+          "week": 14,
+          "title": "글쓰기의 실제 2 — 학술적 글쓰기",
+          "note": ""
+        },
+        {
+          "week": 15,
+          "title": "(지정보강주) 토론과 글쓰기 강평",
+          "note": ""
+        },
+        {
+          "week": 16,
+          "title": "기말고사",
+          "note": ""
+        }
+      ],
+      "professorStyle": "강의평 기준 332건(19~26년). 평가가 압도적으로 긍정적(\"열사표는 조수미 교수님\"이 여러 학기 반복). 글쓰기 과제 피드백이 매우 꼼꼼함 — 가장 많이 반복된 칭찬, 첨삭 수준의 피드백을 학생 전원에게 준다는 후기. 주석(완전주석·약식주석·내각주)과 참고문헌 작성법을 자세히 가르침. 토론은 칼포퍼식, 입론서·토론 평가서 양식을 미리 안내. 매 시간 풀강이 가장 많이 반복된 불만. 시험에 나올 부분을 수업 중 상당 부분 알려준다는 후기 반복.",
+      "examInfo": "계획서: 시험 30%, 7주차 중간고사 + 16주차 기말고사. 강의평에서는 시험을 1회만 치른 학기가 많음(중간만 보고 기말은 토론으로 대체, 또는 그 반대) — 이번 학기 운영은 첫 수업에서 확인 필요. 출제 범위는 주석 작성(완전주석/약식주석/내각주)이 가장 많이 언급됨, 참고문헌 작성, 칼포퍼식 토론 순서·좌석 배치·논제의 요건. 서술형 포함, 난이도는 낮은 편이나 실수 하나가 크다는 경고 반복.",
+      "cautions": [
+        "출석 감점이 큼 — 결석 1회에 2점 감점, 토론 승패 차(1~2점)보다 결석 한 번이 더 큼",
+        "토론은 변별력이 낮음 — 토론에 과투자하지 말 것",
+        "성적을 가르는 것은 글쓰기 과제와 시험",
+        "토론은 조원 운을 탐 — 조 편성 직후 역할 분담을 문서로 확정해 둘 것",
+        "글쓰기 과제 마감이 시험기간과 겹친 학기가 여러 번 있었음",
+        "AI 사용 금지가 계획서에 명시됨, 표절 시 불이익",
+        "상대평가 — 후한 성적을 전제하지 말 것"
+      ],
+      "strategy": "토론에는 최소한만 투자하고, 실질적 변별이 크게 갈리는 글쓰기 과제와 시험(주석·참고문헌 작성법)에 집중.",
+      "materials": [
+        {
+          "group": "자료",
+          "items": [
+            {
+              "name": "강의 슬라이드 26-2.pptx",
+              "size": "561 KB"
+            },
+            {
+              "name": "교재자료 26-2.hwp",
+              "size": "60 KB"
+            },
+            {
+              "name": "열린사고와표현 강의계획서 2026-2.xls",
+              "size": "21 KB"
+            },
+            {
+              "name": "학습자료실 원본 20260908.zip",
+              "size": "594 KB"
+            }
+          ]
+        },
+        {
+          "group": "intel",
+          "items": [
+            {
+              "name": "에브리타임 강의평.md",
+              "size": "65 KB"
+            }
+          ]
+        }
+      ],
+      "sessions": []
+    },
+    {
+      "id": "multimedia",
+      "name": "멀티미디어의이해와활용",
+      "professor": "이호창",
+      "category": "효원창의교양",
+      "credits": 3,
+      "room": "314-110",
+      "meetings": [
+        {
+          "day": "월",
+          "start": "10:30",
+          "end": "11:45"
+        },
+        {
+          "day": "수",
+          "start": "10:30",
+          "end": "11:45"
+        }
+      ],
+      "confirmed": true,
+      "textbook": "최윤철·임순범, 『IT융합 시대의 멀티미디어 배움터 2.0』, 생능출판 (+ 자체 강의자료)",
+      "grading": [
+        {
+          "item": "출석",
+          "weight": 20
+        },
+        {
+          "item": "중간고사",
+          "weight": 20
+        },
+        {
+          "item": "기말고사",
+          "weight": 40
+        },
+        {
+          "item": "과제물·프로젝트",
+          "weight": 20
+        }
+      ],
+      "syllabus": [
+        {
+          "week": 1,
+          "title": "표절·부정행위 예방교육 / IT 교육의 필요성, 현 시대의 IT 현황",
+          "note": ""
+        },
+        {
+          "week": 2,
+          "title": "멀티미디어와 정보화사회",
+          "note": ""
+        },
+        {
+          "week": 3,
+          "title": "멀티미디어 시스템의 환경",
+          "note": ""
+        },
+        {
+          "week": 4,
+          "title": "이미지와 그래픽 기술 / 편집툴 선택툴 활용 1",
+          "note": ""
+        },
+        {
+          "week": 5,
+          "title": "사운드 처리 기술 / 편집툴 선택툴 활용 2",
+          "note": "과제1"
+        },
+        {
+          "week": 6,
+          "title": "애니메이션 기술 1 / 성형 관련 툴 사용",
+          "note": ""
+        },
+        {
+          "week": 7,
+          "title": "애니메이션 기술 2 / 영상(사진)편집 기본 원리 / 이미지 변경 기법",
+          "note": ""
+        },
+        {
+          "week": 8,
+          "title": "중간고사",
+          "note": ""
+        },
+        {
+          "week": 9,
+          "title": "비디오 처리 기술 / 이미지 변경 기법",
+          "note": ""
+        },
+        {
+          "week": 10,
+          "title": "인터넷 환경과 멀티미디어 1",
+          "note": "과제2"
+        },
+        {
+          "week": 11,
+          "title": "인터넷 환경과 멀티미디어 2 / 동영상 편집의 기본 원리",
+          "note": ""
+        },
+        {
+          "week": 12,
+          "title": "모바일 멀티미디어 / 동영상 콘텐츠 생성 및 편집",
+          "note": ""
+        },
+        {
+          "week": 13,
+          "title": "가상환경과 멀티미디어 / 디지털 콘텐츠와 멀티미디어",
+          "note": "과제3"
+        },
+        {
+          "week": 14,
+          "title": "멀티미디어 환경변화와 미래",
+          "note": ""
+        },
+        {
+          "week": 15,
+          "title": "(지정보강주) 기말고사",
+          "note": ""
+        }
+      ],
+      "professorStyle": "강의평 기준 240건(20~26년). 이론+실습 병행(대략 1:1 비율). 이론 파트는 지루하다는 평이 압도적, 전달력이 좋지 않고 뒷자리에서 잘 안 들린다는 언급. 사담(주식·경제·정치)이 많다는 반복 언급, 이론 설명보다 사담 시간이 길다는 후기도 있음. 실습(포토샵·프리미어)은 재미있고 유용하다는 평이 압도적이나 진행이 빠름 — 잠깐 놓치면 다음 단계로 넘어가 있다는 경고 반복. 성적은 후한 편. 출결은 PLATO 전자출결 + 인원수 직접 카운트, 대리출석·출튀가 잡힌다는 후기 반복.",
+      "examInfo": "계획서: 중간 20% + 기말 40%. 강의평 기준 실기 시험은 없고 이론만 출제(OX/단답식/짧은 서술형), 교재 연습문제에서 나온다는 후기 다수. 수업 중 \"중요하다\"고 짚어준 부분에서 서술형이 나온다는 후기 반복. 난이도는 쉽다는 평이 압도적이나 PPT 분량이 많아 범위가 넓다는 지적도 있음. 계획서와 강의평이 어긋남 — 계획서엔 중간고사 20%가 있으나 강의평에서는 중간고사를 과제로 대체한 학기가 20~26년 내내 압도적 다수. 이번 학기 운영은 확인 필요, 확정 전까지는 중간고사가 있다고 가정하고 준비.",
+      "cautions": [
+        "출석이 20%인데 실제로 깐깐함 — 전자출결 후 인원수를 셈, 출석인정확인서가 반려된 사례 다수",
+        "실습 시간에 집중 — 진행이 빨라 한 번 놓치면 과제 때 막힘",
+        "포토샵·프리미어를 처음 다루면 과제 부담이 큼(개인 라이선스 문제로 애먹었다는 후기 다수)",
+        "과제 마감 관리는 본인 몫 — PLATO에만 올라오고 따로 안내하지 않는다는 후기",
+        "기말 비중이 40%로 가장 큼 — 과제만 잘 내고 시험 공부를 안 해서 학점을 망쳤다는 후기 반복"
+      ],
+      "strategy": "실습 시간에 그 자리에서 완성하는 것이 핵심이며, 비중이 가장 큰 기말고사(이론) 대비를 과제에 밀려 소홀히 하지 않는 것이 관건.",
+      "materials": [
+        {
+          "group": "자료",
+          "items": [
+            {
+              "name": "멀티미디어 강의계획서 2026-2.xls",
+              "size": "20 KB"
+            }
+          ]
+        },
+        {
+          "group": "자료/교재",
+          "items": [
+            {
+              "name": "1장 멀티미디어와 정보화사회.pdf",
+              "size": "621 KB"
+            },
+            {
+              "name": "2장 멀티미디어 시스템의 환경.pdf",
+              "size": "1.7 MB"
+            },
+            {
+              "name": "3장 이미지와 그래픽.pdf",
+              "size": "2.8 MB"
+            },
+            {
+              "name": "4장 사운드 처리기술.pdf",
+              "size": "1.1 MB"
+            },
+            {
+              "name": "5장 애니메이션.pdf",
+              "size": "1.6 MB"
+            },
+            {
+              "name": "6장 비디오.pdf",
+              "size": "1.2 MB"
+            },
+            {
+              "name": "7장 인터넷 환경과 멀티미디어.pdf",
+              "size": "1.4 MB"
+            }
+          ]
+        },
+        {
+          "group": "자료/실습-포토샵",
+          "items": [
+            {
+              "name": "01 포토샵의 개요.pptx",
+              "size": "1.0 MB"
+            },
+            {
+              "name": "02 실습1.pptx",
+              "size": "909 KB"
+            },
+            {
+              "name": "03 실습2.pptx",
+              "size": "1.2 MB"
+            },
+            {
+              "name": "04 실습3.pptx",
+              "size": "2.6 MB"
+            },
+            {
+              "name": "05 사진 보정하기.pptx",
+              "size": "15.4 MB"
+            },
+            {
+              "name": "예제이미지 - 사진보정하기.zip",
+              "size": "4.5 MB"
+            },
+            {
+              "name": "예제이미지 - 성형·색채우기·복제툴.zip",
+              "size": "2.3 MB"
+            },
+            {
+              "name": "예제이미지 - 이동선택자르기.zip",
+              "size": "876 KB"
+            }
+          ]
+        },
+        {
+          "group": "자료/실습-프리미어",
+          "items": [
+            {
+              "name": "01 영상 편집 소개.pdf",
+              "size": "2.1 MB"
+            },
+            {
+              "name": "02 프리미어 프로 CC 시작.pdf",
+              "size": "3.0 MB"
+            },
+            {
+              "name": "05 키프레임을 이용한 편집.pdf",
+              "size": "5.1 MB"
+            },
+            {
+              "name": "예제 - 자막 텍스트.zip",
+              "size": "1 KB"
+            },
+            {
+              "name": "예제파일1.zip",
+              "size": "308.8 MB"
+            },
+            {
+              "name": "예제파일2.zip",
+              "size": "111.0 MB"
+            },
+            {
+              "name": "예제파일3.zip",
+              "size": "3.0 MB"
+            },
+            {
+              "name": "텍스트(자막) 편집.pdf",
+              "size": "1017 KB"
+            }
+          ]
+        },
+        {
+          "group": "intel",
+          "items": [
+            {
+              "name": "에브리타임 강의평.md",
+              "size": "60 KB"
+            }
+          ]
+        }
+      ],
+      "sessions": [
+        {
+          "date": "2026-09-02",
+          "week": 1,
+          "topic": "강의 소개 · ICT를 공부해야 하는 이유",
+          "memo": "1주차 강의자료 2개. 녹음 없음.",
+          "status": "대기",
+          "hasAudio": false,
+          "files": [
+            {
+              "name": "1주차 ICT를 공부해야 하는 이유.pptx",
+              "kind": "materials",
+              "size": "3.5 MB"
+            },
+            {
+              "name": "1주차 강의소개.pptx",
+              "kind": "materials",
+              "size": "752 KB"
+            }
+          ],
+          "summary": null,
+          "note": null
+        }
+      ]
+    },
+    {
+      "id": "ip-tech",
+      "name": "미래공학기술과 지식재산",
+      "professor": "박근태·박철우 (팀티칭)",
+      "category": "효원창의교양",
+      "credits": null,
+      "room": "105-3212",
+      "meetings": [
+        {
+          "day": "월",
+          "start": "13:00",
+          "end": "14:30"
+        },
+        {
+          "day": "수",
+          "start": "13:00",
+          "end": "14:30"
+        }
+      ],
+      "confirmed": false,
+      "textbook": "『2024년 지식재산 첫걸음』 (PDF 배포됨, 09-01, 17.4MB)",
+      "grading": [],
+      "syllabus": [],
+      "professorStyle": "강의평 미수집. 확인 필요. 박근태·박철우 두 교수 팀티칭 — 담당 주차 구분 확인 필요.",
+      "examInfo": "확인 필요.",
+      "cautions": [
+        "강의계획서 미확보 — 강의시간·평가·진도 전부 확인 필요",
+        "PLATO에 2주차까지 공지·학습활동 없음, 교재 PDF만 배포됨",
+        "팀티칭이므로 평가 주체·기준이 교수별로 나뉠 가능성 — 첫 수업 안내 확인",
+        "강의계획서를 받아 채울 것"
+      ],
+      "strategy": "강의계획서 확보 및 팀티칭 담당 구분 확인이 최우선.",
+      "materials": [
+        {
+          "group": "자료",
+          "items": [
+            {
+              "name": "교재 - 2024 지식재산 첫걸음.pdf",
+              "size": "17.4 MB"
+            }
+          ]
+        }
+      ],
+      "sessions": []
+    }
+  ],
+  "todos": [
+    {
+      "id": "lib-edu",
+      "title": "도서관 신입생 이용교육 이수",
+      "course": null,
+      "due": null,
+      "priority": "high",
+      "detail": "미이수 시 1학년 2학기부터 열람실 이용·도서 대출 제한. 동영상 100% 시청 → 도서관 홈페이지/앱 로그인 → 대시보드 하단 \"신입생 이용교육을 이수하셨나요?\" 확인 버튼 클릭 시 즉시 해제(미클릭 시 익일 9:30 자동 해제). 문의 051-510-3159 / edulibrary@pusan.ac.kr",
+      "done": false
+    },
+    {
+      "id": "eng-survey",
+      "title": "Student Survey 제출",
+      "course": "college-english",
+      "due": null,
+      "priority": "high",
+      "detail": "PLATO 공지 09-01. 미제출 항목으로 표시됨.",
+      "done": false
+    },
+    {
+      "id": "eng-textbook",
+      "title": "Evolve 3 (2nd Ed.) 새 책 구매",
+      "course": "college-english",
+      "due": null,
+      "priority": "high",
+      "detail": "중고책에는 DIGITAL PACK 코드가 없어 온라인 과제 10점을 통째로 못 받음. ISBN 9781009551182",
+      "done": false
+    },
+    {
+      "id": "eng-cambridge-one",
+      "title": "Cambridge One 계정 생성 + Class Key 등록",
+      "course": "college-english",
+      "due": null,
+      "priority": "high",
+      "detail": "PLATO 공지 09-01(Class Key & Help PPT). 교재 코드는 1회용.",
+      "done": false
+    },
+    {
+      "id": "gl-syllabus",
+      "title": "글로벌경제와 리더십(II) 강의계획서 확보",
+      "course": "global-leadership",
+      "due": null,
+      "priority": "high",
+      "detail": "평가 비중·교재·진도 전부 미상.",
+      "done": false
+    },
+    {
+      "id": "ip-syllabus",
+      "title": "미래공학기술과 지식재산 강의계획서 확보",
+      "course": "ip-tech",
+      "due": null,
+      "priority": "high",
+      "detail": "평가 비중·교재·진도 전부 미상. 팀티칭이라 교수별 담당 주차·평가 주체도 확인.",
+      "done": false
+    },
+    {
+      "id": "monday-conflict-check",
+      "title": "월요일 시간표 충돌 확인",
+      "course": null,
+      "due": null,
+      "priority": "high",
+      "detail": "미래공학 13:00-14:30과 대학영어 14:00-16:00이 30분 겹침. 둘 다 미확인 값.",
+      "done": false
+    },
+    {
+      "id": "eng-plato-video",
+      "title": "대학영어 PLATO 온라인 영상 시청 (매주 반복)",
+      "course": "college-english",
+      "due": "2026-09-15",
+      "priority": "medium",
+      "detail": "3주차 영상이 09-15 시작. 유닛당 90% 이상 시청해야 인정, 안 보면 유닛당 -1점. 출석과 별개 항목(10점).",
+      "done": false
+    },
+    {
+      "id": "eng-cambridge-digitalpack",
+      "title": "대학영어 Cambridge One DIGITAL PACK 해당 유닛",
+      "course": "college-english",
+      "due": null,
+      "priority": "medium",
+      "detail": "마감은 중간·기말 주 직전이지만 밀리면 양이 큼.",
+      "done": false
+    },
+    {
+      "id": "sanghup-recording",
+      "title": "상법 매 강의 녹음 (반복)",
+      "course": "sanghup",
+      "due": null,
+      "priority": "medium",
+      "detail": "강의평에서 가장 많이 반복된 조언. 말 속도 때문에 실시간 필기 불가.",
+      "done": false
+    },
+    {
+      "id": "sanghup-board-photo",
+      "title": "상법 판서 사진 촬영 + 당일 복습 (반복)",
+      "course": "sanghup",
+      "due": null,
+      "priority": "medium",
+      "detail": "판서에서 객관식이 나온다는 후기 반복.",
+      "done": false
+    },
+    {
+      "id": "tonggye-front-seat",
+      "title": "통계학 앞자리 착석 (반복)",
+      "course": "tonggye",
+      "due": null,
+      "priority": "medium",
+      "detail": "목소리가 작아 뒷자리에서 안 들린다는 지적이 다수.",
+      "done": false
+    },
+    {
+      "id": "multimedia-practice-focus",
+      "title": "멀티미디어 실습 시간 집중 (반복)",
+      "course": "multimedia",
+      "due": null,
+      "priority": "medium",
+      "detail": "진행이 빨라 그 자리에서 못 따라가면 과제 때 막힘.",
+      "done": false
+    },
+    {
+      "id": "eng-oral-presentation-team",
+      "title": "대학영어 Oral Presentation 팀 구성 시작",
+      "course": "college-english",
+      "due": "2026-09-22",
+      "priority": "medium",
+      "detail": "실러버스상 4주차에 시작, 6주차에 마무리. 3~4인, 4~6분 영상 + PPT, 개인별 채점. 주제는 추후 공지.",
+      "done": false
+    },
+    {
+      "id": "open-thinking-debate-team",
+      "title": "열린사고와표현 토론 조 편성 대비",
+      "course": "open-thinking",
+      "due": "2026-09-22",
+      "priority": "medium",
+      "detail": "4주차가 입론서·토론 평가서 작성 안내, 5주차부터 실전 토론. 조원 운을 탄다는 후기가 많음 → 조가 정해지면 역할 분담을 문서로 확정.",
+      "done": false
+    },
+    {
+      "id": "multimedia-hw3",
+      "title": "멀티미디어 「연습문제 3장 과제」 제출",
+      "course": "multimedia",
+      "due": "2026-09-29",
+      "priority": "medium",
+      "detail": "PLATO 등록됨.",
+      "done": false
+    },
+    {
+      "id": "multimedia-photo-hw",
+      "title": "멀티미디어 「사진 보정하기 과제」 제출",
+      "course": "multimedia",
+      "due": "2026-10-06",
+      "priority": "medium",
+      "detail": "포토샵. 실습 자료 작업\\lectures\\courses\\멀티미디어의이해와활용\\자료\\실습-포토샵\\05 사진 보정하기.pptx + 예제이미지 zip.",
+      "done": false
+    },
+    {
+      "id": "eng-oral-presentation-submit",
+      "title": "대학영어 Oral Presentation 영상 제출",
+      "course": "college-english",
+      "due": "2026-10-06",
+      "priority": "medium",
+      "detail": "실러버스상 6주차 마무리.",
+      "done": false
+    },
+    {
+      "id": "eng-speaking-test-1",
+      "title": "대학영어 Speaking Test 1",
+      "course": "college-english",
+      "due": "2026-10-13",
+      "priority": "medium",
+      "detail": "",
+      "done": false
+    },
+    {
+      "id": "open-thinking-midterm",
+      "title": "열린사고와표현 중간고사",
+      "course": "open-thinking",
+      "due": "2026-10-13",
+      "priority": "high",
+      "detail": "계획서상 7주차, 다른 과목보다 한 주 이름. 출제 항목은 주석(완전/약식/내각주)·참고문헌 작성·칼포퍼식 토론 절차가 반복 언급됨.",
+      "done": false
+    },
+    {
+      "id": "midterms-week8",
+      "title": "중간고사 주간 (상법·통계학·대학영어·멀티미디어)",
+      "course": null,
+      "due": "2026-10-20",
+      "priority": "high",
+      "detail": "상법 35%(1~7주차) / 통계학 50%(1~7주차) / 대학영어 20%(Units 1-6, 객관식+영상 듣기) / 멀티미디어 20%(확인 필요, 계획서엔 있으나 과거 학기는 대부분 과제 대체 → 첫 수업 안내 확인).",
+      "done": false
+    },
+    {
+      "id": "multimedia-video-hw",
+      "title": "멀티미디어 「동영상 제작 과제」 제출",
+      "course": "multimedia",
+      "due": "2026-11-10",
+      "priority": "medium",
+      "detail": "프리미어. 실습 자료 작업\\lectures\\courses\\멀티미디어의이해와활용\\자료\\실습-프리미어\\ + 예제파일 zip.",
+      "done": false
+    },
+    {
+      "id": "eng-speaking-test-2",
+      "title": "대학영어 Speaking Test 2",
+      "course": "college-english",
+      "due": null,
+      "priority": "medium",
+      "detail": "14주차.",
+      "done": false
+    },
+    {
+      "id": "eng-final-deadline",
+      "title": "대학영어 모든 지각 과제·출결 서류 최종 마감",
+      "course": "college-english",
+      "due": null,
+      "priority": "medium",
+      "detail": "15주차. 공결 서류는 14주차 이후 접수 불가.",
+      "done": false
+    }
+  ],
+  "conflicts": [
+    {
+      "week": null,
+      "date": null,
+      "detail": "월요일 미래공학기술과 지식재산(13:00-14:30)과 대학영어(14:00-16:00)가 30분 겹침 — 둘 다 미확인 값, 실제 시간을 학사시스템에서 확인할 것"
+    },
+    {
+      "week": 6,
+      "date": "2026-10-06",
+      "detail": "멀티미디어 사진 보정 과제와 대학영어 발표 영상 마감이 겹친다. 둘 다 편집 작업이라 시간 소모가 크다."
+    },
+    {
+      "week": 7,
+      "date": "2026-10-13",
+      "detail": "열린사고와표현 중간고사와 대학영어 스피킹 테스트가 8주차 중간고사 직전에 몰린다. 실질 시험기간이 2주다."
+    }
+  ],
+  "syncedAt": "2026-09-08T17:18:39.132Z"
+}
