@@ -137,63 +137,36 @@ function Retrieval({ items }) {
   );
 }
 
+function Bullets({ items }) {
+  return <ul className="rk-bul">{items.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+}
+
 function Recap({ lesson: l }) {
   const [showRt, setShowRt] = useState(false);
-  const [showSum, setShowSum] = useState(false);
-  const has = l.frame || l.naming.length || l.compress.length || l.contrast.length
-    || l.retrieval.length || l.summary || l.keyPoints.length || l.needsCheck.length;
+  const [showAsk, setShowAsk] = useState(false);
+  const has = l.flow.length || l.context.length || l.principles.length || l.keyTerms.length
+    || l.retrieval.length || l.asks.length || l.needsCheck.length;
   if (!has) return null;
 
   return (
     <div className="rk-recap">
-      {/* 1. 이 시간이 어떤 사고방식 위에 서 있는가 — 세부보다 먼저 온다 */}
-      {l.frame && (
-        <>
-          <div className="rk-recap-h">이 시간의 사고방식</div>
-          <p className="rk-frame">{l.frame}</p>
-        </>
+      {l.flow.length > 0 && (
+        <><div className="rk-recap-h">내 생각 흐름</div><Bullets items={l.flow} /></>
       )}
-
-      {/* 2. 명명 체계 — 왜 그 이름인가. 이름이 붙으면 압축이 된다 */}
-      {l.naming.length > 0 && (
+      {l.context.length > 0 && (
+        <><div className="rk-recap-k">배경과 목적</div><Bullets items={l.context} /></>
+      )}
+      {l.principles.length > 0 && (
+        <><div className="rk-recap-k">핵심 원리</div><Bullets items={l.principles} /></>
+      )}
+      {l.keyTerms.length > 0 && (
         <>
-          <div className="rk-recap-k">이름의 뜻</div>
+          <div className="rk-recap-k">주요 개념</div>
           <dl className="rk-cmp">
-            {l.naming.map((n) => (
-              <div key={n.id}><dt>{n.term}</dt><dd>{n.why}</dd></div>
-            ))}
+            {l.keyTerms.map((t) => (<div key={t.id}><dt>{t.term}</dt><dd>{t.def}</dd></div>))}
           </dl>
         </>
       )}
-
-      {/* 3. 한 줄 압축 */}
-      {l.compress.length > 0 && (
-        <>
-          <div className="rk-recap-k">한 줄로</div>
-          <dl className="rk-cmp">
-            {l.compress.map((c) => (
-              <div key={c.id}><dt>{c.term}</dt><dd>{c.line}</dd></div>
-            ))}
-          </dl>
-        </>
-      )}
-
-      {/* 4. 비교·대조 — 본질은 차이에서 드러난다 */}
-      {l.contrast.length > 0 && (
-        <>
-          <div className="rk-recap-k">비교 · 대조</div>
-          <ul className="rk-ctr">
-            {l.contrast.map((c) => (
-              <li key={c.id}>
-                <b>{c.pair}</b>
-                {c.axis && <em>{c.axis}</em>}
-                <span>{c.diff}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
       {l.needsCheck.length > 0 && (
         <>
           <div className="rk-recap-k rk-recap-w">확인 필요</div>
@@ -201,32 +174,32 @@ function Recap({ lesson: l }) {
         </>
       )}
 
-      {/* 5. 인출 — 시험 대비 단계. 지금은 접어둔다 */}
       {l.retrieval.length > 0 && (
         <div className="rk-more">
-          <button type="button" className="rk-more-b" onClick={() => setShowRt((v) => !v)}
-            aria-expanded={showRt}>
-            {showRt ? '접기' : `스스로 답해보기 ${l.retrieval.length}문 · 시험 대비용`}
+          <button type="button" className="rk-more-b" onClick={() => setShowRt((v) => !v)} aria-expanded={showRt}>
+            {showRt ? '접기' : `시험 대비 문답 ${l.retrieval.length}`}
             <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
           </button>
           {showRt && <Retrieval items={l.retrieval} />}
         </div>
       )}
 
-      {(l.summary || l.keyPoints.length > 0) && (
+      {/* 대화 기록은 대조용이다 — 읽는 내용이 아니라 근거. 접어둔다. */}
+      {l.asks.length > 0 && (
         <div className="rk-more">
-          <button type="button" className="rk-more-b" onClick={() => setShowSum((v) => !v)}
-            aria-expanded={showSum}>
-            {showSum ? '접기' : '요약 · 교수 강조'}
+          <button type="button" className="rk-more-b" onClick={() => setShowAsk((v) => !v)} aria-expanded={showAsk}>
+            {showAsk ? '접기' : `그날 질문 기록 ${l.asks.length} · 대조용`}
             <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
           </button>
-          {showSum && (
-            <>
-              {l.summary && <p className="rk-recap-s">{l.summary}</p>}
-              {l.keyPoints.length > 0 && (
-                <ul className="rk-recap-l">{l.keyPoints.map((k, i) => <li key={i}>{k}</li>)}</ul>
-              )}
-            </>
+          {showAsk && (
+            <ol className="rk-asks-l">
+              {l.asks.map((x) => (
+                <li key={x.id}>
+                  <p className="rk-asks-q">{x.q}</p>
+                  {x.a.trim() && <p className="rk-asks-a">{x.a}</p>}
+                </li>
+              ))}
+            </ol>
           )}
         </div>
       )}
@@ -282,8 +255,6 @@ function Progress({ course, week }) {
                         {l.hasAudio ? '녹음' : '녹음 없음'}
                       </span>
                     </header>
-
-                    <Asks lesson={l} />
 
                     <Recap lesson={l} />
                   </section>

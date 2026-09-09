@@ -598,3 +598,8 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   font-size: 13px; line-height: 1.8;
   background: var(--panel); border-left: 2px solid var(--s5); border-radius: 0 8px 8px 0;
 }
+
+/* 불릿 — 짧은 항목 나열 */
+.rk-bul { margin: 0 0 4px; padding-left: 17px; max-width: 62ch; }
+.rk-bul li { font-size: 13px; line-height: 1.7; margin-bottom: 5px; color: var(--fg); }
+.rk-bul li::marker { color: var(--faint); }
