@@ -458,3 +458,33 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
     transition-duration:.001ms!important}
   .rk-card:active,.rk-ccard:active,.rk-btn:active,.rk-ses:active{transform:none}
 }
+
+/* 차시 — 내 노트 + 녹음 유무, 그 아래 정리 결과(읽기 전용) */
+.rk-lesson { padding: 12px 0; border-top: 1px solid var(--line); }
+.rk-lesson:first-of-type { border-top: 0; }
+.rk-lesson-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.rk-lesson-d { font-size: 12px; color: var(--mut); }
+.rk-lesson-t { font-size: 13px; font-weight: 550; }
+.rk-mic {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; padding: 2px 7px; border-radius: 999px;
+  color: var(--faint); border: 1px solid var(--line);
+}
+.rk-mic.on { color: var(--s5); border-color: color-mix(in oklab, var(--s5) 45%, transparent); }
+.rk-empty-line { font-size: 12px; padding: 4px 0 8px; }
+
+.rk-recap {
+  margin-top: 10px; padding: 12px 14px;
+  background: var(--panel2); border-radius: 10px;
+}
+.rk-recap-h { font-size: 11px; font-weight: 620; color: var(--faint); letter-spacing: .03em; margin-bottom: 8px; }
+.rk-recap-s { font-size: 13px; line-height: 1.6; margin: 0 0 10px; }
+.rk-recap-k { font-size: 11px; font-weight: 620; color: var(--mut); margin: 10px 0 4px; }
+.rk-recap-w { color: var(--warn); }
+.rk-recap-l { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.65; color: var(--mut); }
+.rk-recap-l li { margin-bottom: 3px; }
+.rk-recap-c { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rk-chip {
+  font-size: 11px; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--mut);
+}

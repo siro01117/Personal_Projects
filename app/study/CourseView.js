@@ -106,7 +106,8 @@ function Progress({ course, week, patch }) {
         const isNow = week === r.week;
         const isOpen = open === r.week;
         const lessons = course.lessons.filter((l) => l.week === r.week);
-        const undone = lessons.filter((l) => !l.summary).length;
+        // 배지는 '내가 아직 안 적은 차시' 를 가리킨다 (정리 결과 유무가 아니다).
+        const undone = lessons.filter((l) => !l.note.trim()).length;
         return (
           <div key={r.week} className={'rk-wrow' + (isNow ? ' is-now' : '') + (isOpen ? ' is-open' : '')}>
             <button type="button" className="rk-wrow-h" onClick={() => setOpen(isOpen ? null : r.week)}
@@ -114,60 +115,64 @@ function Progress({ course, week, patch }) {
               <span className="rk-wrow-n rk-num">{r.week}</span>
               <span className="rk-wrow-t">{r.topic || <i className="rk-faint">주제 미정</i>}</span>
               {isNow && <Tag tone="now">이번 주</Tag>}
-              {undone > 0 && <Tag tone="warn">미정리 {undone}</Tag>}
+              {undone > 0 && <Tag tone="warn">노트 없음 {undone}</Tag>}
               <ChevronDown size={16} strokeWidth={1.5} className="rk-wrow-c" aria-hidden="true" />
             </button>
 
             {isOpen && (
               <div className="rk-wrow-b">
-                <label className="rk-lab" htmlFor={`t${r.week}`}>주제</label>
-                <input id={`t${r.week}`} className="rk-input" type="text" value={r.topic}
-                  onChange={(e) => setWeek(r.week, { topic: e.target.value })} />
-
-                {lessons.length > 0 && (
-                  <>
-                    <div className="rk-lab">차시</div>
-                    <ul className="rk-lessons">
-                      {lessons.map((l) => (
-                        <li key={l.id}>
-                          <div className="rk-lesson-h">
-                            <span className="rk-num rk-lesson-d">{l.date || '-'}</span>
-                            <span className="rk-lesson-t">{l.topic || '주제 미정'}</span>
-                            {l.hasAudio && (
-                              <span className="rk-lesson-a" title="녹음 있음">
-                                <Mic size={13} strokeWidth={1.5} aria-hidden="true" />
-                              </span>
-                            )}
-                            {l.status && <Tag>{l.status}</Tag>}
-                          </div>
-                          <textarea
-                            className="rk-input rk-area" rows={3} value={l.summary}
-                            placeholder="이 차시에서 정리할 내용 — 여기 적으면 시험대비 요약 카드로 올라갑니다"
-                            onChange={(e) => setLesson(l.id, { summary: e.target.value })}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </>
+                {lessons.length === 0 && (
+                  <p className="rk-faint rk-empty-line">아직 이 주차의 차시가 없습니다.</p>
                 )}
 
-                <label className="rk-lab" htmlFor={`n${r.week}`}>주차 노트</label>
-                <textarea id={`n${r.week}`} className="rk-input rk-area" rows={3} value={r.note}
-                  onChange={(e) => setWeek(r.week, { note: e.target.value })} />
+                {lessons.map((l) => (
+                  <section key={l.id} className="rk-lesson">
+                    <header className="rk-lesson-h">
+                      <span className="rk-num rk-lesson-d">{l.date || '-'}</span>
+                      <span className="rk-lesson-t">{l.topic || '주제 미정'}</span>
+                      <span className={'rk-mic' + (l.hasAudio ? ' on' : '')}
+                        title={l.hasAudio ? '녹음 있음' : '녹음 없음'}>
+                        <Mic size={13} strokeWidth={1.5} aria-hidden="true" />
+                        {l.hasAudio ? '녹음' : '녹음 없음'}
+                      </span>
+                    </header>
 
-                <label className="rk-check">
-                  <input type="checkbox" checked={!!r.done}
-                    onChange={(e) => setWeek(r.week, { done: e.target.checked })} />
-                  정리 완료
-                </label>
+                    <textarea
+                      className="rk-input rk-area" rows={5} value={l.note}
+                      placeholder="공부하면서 직접 적는 칸"
+                      aria-label={`${l.date} 내 노트`}
+                      onChange={(e) => setLesson(l.id, { note: e.target.value })}
+                    />
 
-                <div className="rk-lab">필기</div>
-                <InkCanvas
-                  key={`${course.id}-w${r.week}`}
-                  value={r.ink}
-                  onChange={(ink) => setWeek(r.week, { ink })}
-                  label={`${r.week}주차 필기`}
-                />
+                    {(l.summary || l.keyPoints.length > 0 || l.needsCheck.length > 0) && (
+                      <div className="rk-recap">
+                        <div className="rk-recap-h">요약 · 복기</div>
+                        {l.summary && <p className="rk-recap-s">{l.summary}</p>}
+                        {l.keyPoints.length > 0 && (
+                          <>
+                            <div className="rk-recap-k">교수 강조</div>
+                            <ul className="rk-recap-l">
+                              {l.keyPoints.map((k, i) => <li key={i}>{k}</li>)}
+                            </ul>
+                          </>
+                        )}
+                        {l.needsCheck.length > 0 && (
+                          <>
+                            <div className="rk-recap-k rk-recap-w">확인 필요</div>
+                            <ul className="rk-recap-l">
+                              {l.needsCheck.map((k, i) => <li key={i}>{k}</li>)}
+                            </ul>
+                          </>
+                        )}
+                        {l.concepts.length > 0 && (
+                          <div className="rk-recap-c">
+                            {l.concepts.map((c, i) => <span key={i} className="rk-chip">{c}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                ))}
               </div>
             )}
           </div>
