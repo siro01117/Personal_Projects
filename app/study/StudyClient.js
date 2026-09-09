@@ -22,8 +22,7 @@ import AuthGate from '../_ui/AuthGate';
 import Shell from '../_ui/Shell';
 import {
   DEFAULT_SEMESTER, currentWeek, dayName, flushPending, fmtTime, listSemesters,
-  loadSemester, saveSemester,
-} from '../../lib/study';
+  loadSemester, saveSemester, writePending } from '../../lib/study';
 import Dashboard from './Dashboard';
 import CourseView from './CourseView';
 import { Dot, Empty, Notice, SaveState, Tag } from './parts';
@@ -145,6 +144,23 @@ function StudyApp({ session }) {
   }, [flush]);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  // 강의 중 타이핑 도중 노트북을 덮거나 탭을 닫으면 디바운스(650ms) 안에 있던 입력이
+  // 그대로 사라진다. 화면이 숨겨지는 순간 대기 중인 내용을 localStorage 에 동기로 적어둔다.
+  // 다음 접속 때 flushPending 이 서버로 올린다.
+  useEffect(() => {
+    const stash = () => {
+      const next = pendingRef.current;
+      if (next) writePending(route.s, next);
+    };
+    const onHide = () => { if (document.visibilityState === 'hidden') stash(); };
+    window.addEventListener('pagehide', stash);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', stash);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [route.s]);
 
   const patchCourse = useCallback((courseId, patch) => {
     commit((prev) => ({

@@ -10,7 +10,7 @@
 // 진도 탭은 progress 를 뼈대로 두고 그 주차의 lessons 를 붙여 보여준다.
 import { useState } from 'react';
 import {
-  ArrowLeft, BookOpen, ChevronDown, ExternalLink, FileText, Info, Mic, Target, TriangleAlert,
+  ArrowLeft, BookOpen, ChevronDown, ExternalLink, FileText, Info, Mic, Target, TriangleAlert, HelpCircle, X,
 } from 'lucide-react';
 import { dayName, fmtTime } from '../../lib/study';
 import InkCanvas from '../_ui/InkCanvas';
@@ -84,6 +84,160 @@ function Overview({ course }) {
   );
 }
 
+/* ------------------------------------------------- 수업 중 의문 (내 질문)
+
+   수업을 들으며 자연히 드는 의문을 그 자리에서 한 줄씩 적는다. 이 질문들이
+   나중에 복기 카드가 된다 — 남이 만든 질문보다 자기 질문이 인출 자극이 세다.
+   답은 나중에 채워도 되고, 비워두면 "아직 답 못 찾음"으로 남는다.            */
+
+function Asks({ lesson: l, onChange }) {
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    const q = draft.trim();
+    if (!q) return;
+    const at = new Date().toTimeString().slice(0, 5);
+    onChange([...l.asks, { id: `ask${Date.now()}`, q, a: '', at }]);
+    setDraft('');
+  };
+  const set = (id, next) => onChange(l.asks.map((x) => (x.id === id ? { ...x, ...next } : x)));
+  const del = (id) => onChange(l.asks.filter((x) => x.id !== id));
+  const open = l.asks.filter((x) => !x.a.trim()).length;
+
+  return (
+    <div className="rk-asks">
+      <div className="rk-asks-h">
+        <HelpCircle size={14} strokeWidth={1.5} aria-hidden="true" />
+        수업 중 의문
+        {open > 0 && <span className="rk-asks-n">답 없음 {open}</span>}
+      </div>
+
+      <div className="rk-asks-add">
+        <input
+          className="rk-input" type="text" value={draft} placeholder="지금 든 의문 한 줄"
+          aria-label="의문 추가"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+        />
+        <button type="button" className="rk-btn" onClick={add} disabled={!draft.trim()}>추가</button>
+      </div>
+
+      {l.asks.length > 0 && (
+        <ul className="rk-asks-l">
+          {l.asks.map((x) => (
+            <li key={x.id} className={x.a.trim() ? 'is-done' : ''}>
+              <div className="rk-asks-q">
+                {x.at && <span className="rk-num rk-asks-t">{x.at}</span>}
+                <span>{x.q}</span>
+                <button type="button" className="rk-x" onClick={() => del(x.id)} aria-label="삭제">
+                  <X size={13} strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              </div>
+              <textarea
+                className="rk-input rk-area" rows={2} value={x.a}
+                placeholder="찾은 답 (비워두면 답 없음으로 남습니다)"
+                aria-label={`${x.q} 의 답`}
+                onChange={(e) => set(x.id, { a: e.target.value })}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* --------------------------------------------------- 요약·복기 (인출 중심)
+
+   답을 먼저 펼쳐 주면 읽고 넘어가게 된다. 질문만 보이고 답은 눌러야 나온다.
+   순서도 의도적이다: 스스로 답해보기 → 한 줄 압축 → 비교·대조 → (접힌) 요약.
+   한 번에 보이는 양을 줄여야 작업기억에 여유가 생긴다.                           */
+
+function Retrieval({ items }) {
+  const [open, setOpen] = useState({});
+  return (
+    <ol className="rk-rt">
+      {items.map((it) => (
+        <li key={it.id} className={open[it.id] ? 'is-open' : ''}>
+          <button type="button" className="rk-rt-q" onClick={() => setOpen((o) => ({ ...o, [it.id]: !o[it.id] }))}
+            aria-expanded={!!open[it.id]}>
+            <span>{it.q}</span>
+            <ChevronDown size={15} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          {open[it.id] && it.a && <p className="rk-rt-a">{it.a}</p>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Recap({ lesson: l }) {
+  const [showSum, setShowSum] = useState(false);
+  const has = l.retrieval.length || l.compress.length || l.contrast.length
+    || l.summary || l.keyPoints.length || l.needsCheck.length;
+  if (!has) return null;
+  return (
+    <div className="rk-recap">
+      {l.retrieval.length > 0 && (
+        <>
+          <div className="rk-recap-h">스스로 답해보기</div>
+          <Retrieval items={l.retrieval} />
+        </>
+      )}
+
+      {l.compress.length > 0 && (
+        <>
+          <div className="rk-recap-k">한 줄로</div>
+          <dl className="rk-cmp">
+            {l.compress.map((c) => (
+              <div key={c.id}><dt>{c.term}</dt><dd>{c.line}</dd></div>
+            ))}
+          </dl>
+        </>
+      )}
+
+      {l.contrast.length > 0 && (
+        <>
+          <div className="rk-recap-k">비교 · 대조</div>
+          <ul className="rk-ctr">
+            {l.contrast.map((c) => (
+              <li key={c.id}>
+                <b>{c.pair}</b>
+                {c.axis && <em>{c.axis}</em>}
+                <span>{c.diff}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {l.needsCheck.length > 0 && (
+        <>
+          <div className="rk-recap-k rk-recap-w">확인 필요</div>
+          <ul className="rk-recap-l">{l.needsCheck.map((k, i) => <li key={i}>{k}</li>)}</ul>
+        </>
+      )}
+
+      {(l.summary || l.keyPoints.length > 0) && (
+        <div className="rk-more">
+          <button type="button" className="rk-more-b" onClick={() => setShowSum((v) => !v)}
+            aria-expanded={showSum}>
+            {showSum ? '요약 접기' : '요약 · 교수 강조 펼치기'}
+            <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          {showSum && (
+            <>
+              {l.summary && <p className="rk-recap-s">{l.summary}</p>}
+              {l.keyPoints.length > 0 && (
+                <ul className="rk-recap-l">{l.keyPoints.map((k, i) => <li key={i}>{k}</li>)}</ul>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ 진도 */
 
 function Progress({ course, week, patch }) {
@@ -144,33 +298,9 @@ function Progress({ course, week, patch }) {
                       onChange={(e) => setLesson(l.id, { note: e.target.value })}
                     />
 
-                    {(l.summary || l.keyPoints.length > 0 || l.needsCheck.length > 0) && (
-                      <div className="rk-recap">
-                        <div className="rk-recap-h">요약 · 복기</div>
-                        {l.summary && <p className="rk-recap-s">{l.summary}</p>}
-                        {l.keyPoints.length > 0 && (
-                          <>
-                            <div className="rk-recap-k">교수 강조</div>
-                            <ul className="rk-recap-l">
-                              {l.keyPoints.map((k, i) => <li key={i}>{k}</li>)}
-                            </ul>
-                          </>
-                        )}
-                        {l.needsCheck.length > 0 && (
-                          <>
-                            <div className="rk-recap-k rk-recap-w">확인 필요</div>
-                            <ul className="rk-recap-l">
-                              {l.needsCheck.map((k, i) => <li key={i}>{k}</li>)}
-                            </ul>
-                          </>
-                        )}
-                        {l.concepts.length > 0 && (
-                          <div className="rk-recap-c">
-                            {l.concepts.map((c, i) => <span key={i} className="rk-chip">{c}</span>)}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <Asks lesson={l} onChange={(asks) => setLesson(l.id, { asks })} />
+
+                    <Recap lesson={l} />
                   </section>
                 ))}
               </div>
