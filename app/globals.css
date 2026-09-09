@@ -557,3 +557,44 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   color: var(--faint); border-radius: 5px;
 }
 .rk-x:hover { color: var(--danger); background: var(--panel3); }
+
+/* ── 읽기 중심 조정 ───────────────────────────────────────────────
+   사이트는 보는 곳이다. 입력 UI가 없어졌으므로 읽기 편의에 맞춘다.
+   본문 폭을 문장 길이(한글 40~45자)에 맞추고 행간을 넉넉히. */
+
+.rk-asks { margin-top: 12px; padding: 14px 16px; }
+.rk-asks-n2 {
+  font-size: 10.5px; padding: 2px 7px; border-radius: 999px;
+  color: var(--faint); border: 1px solid var(--line);
+}
+.rk-asks-l { list-style: none; counter-reset: ask; margin: 0; padding: 0; }
+.rk-asks-l li { counter-increment: ask; padding: 10px 0; border-top: 1px solid var(--line); }
+.rk-asks-l li:first-child { border-top: 0; padding-top: 2px; }
+.rk-asks-q {
+  margin: 0 0 5px; font-size: 13px; line-height: 1.55; font-weight: 550;
+  display: flex; gap: 8px;
+}
+.rk-asks-q::before {
+  content: counter(ask); flex: 0 0 auto; min-width: 17px; height: 17px;
+  display: grid; place-items: center; margin-top: 2px;
+  font-family: var(--mono); font-size: 10px; color: var(--faint);
+  border: 1px solid var(--line); border-radius: 5px;
+}
+.rk-asks-a { margin: 0 0 0 25px; font-size: 12.5px; line-height: 1.7; color: var(--mut); }
+.rk-asks-a.is-none { color: var(--warn); font-size: 12px; }
+
+/* 읽기 폭·행간 */
+.rk-recap-s, .rk-rt-a, .rk-ctr span, .rk-cmp dd { max-width: 62ch; }
+.rk-recap-s { line-height: 1.75; }
+.rk-rt-a { line-height: 1.75; }
+.rk-recap { padding: 16px 18px; }
+.rk-recap-h { font-size: 11.5px; margin-bottom: 10px; }
+.rk-recap-k { margin: 16px 0 6px; }
+.rk-rt-q { padding: 12px 0; line-height: 1.6; }
+
+/* 과목 사고방식 — 세부보다 먼저 오는 틀 */
+.rk-frame {
+  margin: 0 0 4px; padding: 12px 14px; max-width: 62ch;
+  font-size: 13px; line-height: 1.8;
+  background: var(--panel); border-left: 2px solid var(--s5); border-radius: 0 8px 8px 0;
+}

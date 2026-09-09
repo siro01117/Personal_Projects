@@ -245,7 +245,6 @@ function StudyApp({ session }) {
       <CourseView
         course={course} week={week} tab={route.t}
         onTab={(t) => go({ t })} onBack={backToDash}
-        patch={(p) => patchCourse(course.id, p)}
       />
     );
   } else if (route.v === 'courses') {

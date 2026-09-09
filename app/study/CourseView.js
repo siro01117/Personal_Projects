@@ -13,7 +13,6 @@ import {
   ArrowLeft, BookOpen, ChevronDown, ExternalLink, FileText, Info, Mic, Target, TriangleAlert, HelpCircle, X,
 } from 'lucide-react';
 import { dayName, fmtTime } from '../../lib/study';
-import InkCanvas from '../_ui/InkCanvas';
 import { Dot, Empty, Tag, WeightBar } from './parts';
 
 const TABS = [
@@ -90,58 +89,26 @@ function Overview({ course }) {
    나중에 복기 카드가 된다 — 남이 만든 질문보다 자기 질문이 인출 자극이 세다.
    답은 나중에 채워도 되고, 비워두면 "아직 답 못 찾음"으로 남는다.            */
 
-function Asks({ lesson: l, onChange }) {
-  const [draft, setDraft] = useState('');
-  const add = () => {
-    const q = draft.trim();
-    if (!q) return;
-    const at = new Date().toTimeString().slice(0, 5);
-    onChange([...l.asks, { id: `ask${Date.now()}`, q, a: '', at }]);
-    setDraft('');
-  };
-  const set = (id, next) => onChange(l.asks.map((x) => (x.id === id ? { ...x, ...next } : x)));
-  const del = (id) => onChange(l.asks.filter((x) => x.id !== id));
+function Asks({ lesson: l }) {
+  if (!l.asks.length) return null;
   const open = l.asks.filter((x) => !x.a.trim()).length;
-
   return (
     <div className="rk-asks">
       <div className="rk-asks-h">
         <HelpCircle size={14} strokeWidth={1.5} aria-hidden="true" />
-        수업 중 의문
+        그날 내가 물어본 것
+        <span className="rk-asks-n2">{l.asks.length}</span>
         {open > 0 && <span className="rk-asks-n">답 없음 {open}</span>}
       </div>
-
-      <div className="rk-asks-add">
-        <input
-          className="rk-input" type="text" value={draft} placeholder="지금 든 의문 한 줄"
-          aria-label="의문 추가"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-        />
-        <button type="button" className="rk-btn" onClick={add} disabled={!draft.trim()}>추가</button>
-      </div>
-
-      {l.asks.length > 0 && (
-        <ul className="rk-asks-l">
-          {l.asks.map((x) => (
-            <li key={x.id} className={x.a.trim() ? 'is-done' : ''}>
-              <div className="rk-asks-q">
-                {x.at && <span className="rk-num rk-asks-t">{x.at}</span>}
-                <span>{x.q}</span>
-                <button type="button" className="rk-x" onClick={() => del(x.id)} aria-label="삭제">
-                  <X size={13} strokeWidth={1.5} aria-hidden="true" />
-                </button>
-              </div>
-              <textarea
-                className="rk-input rk-area" rows={2} value={x.a}
-                placeholder="찾은 답 (비워두면 답 없음으로 남습니다)"
-                aria-label={`${x.q} 의 답`}
-                onChange={(e) => set(x.id, { a: e.target.value })}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      <ol className="rk-asks-l">
+        {l.asks.map((x) => (
+          <li key={x.id} className={x.a.trim() ? '' : 'is-open'}>
+            <p className="rk-asks-q">{x.q}</p>
+            {x.a.trim() ? <p className="rk-asks-a">{x.a}</p>
+              : <p className="rk-asks-a is-none">아직 답을 못 찾음</p>}
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
@@ -171,19 +138,35 @@ function Retrieval({ items }) {
 }
 
 function Recap({ lesson: l }) {
+  const [showRt, setShowRt] = useState(false);
   const [showSum, setShowSum] = useState(false);
-  const has = l.retrieval.length || l.compress.length || l.contrast.length
-    || l.summary || l.keyPoints.length || l.needsCheck.length;
+  const has = l.frame || l.naming.length || l.compress.length || l.contrast.length
+    || l.retrieval.length || l.summary || l.keyPoints.length || l.needsCheck.length;
   if (!has) return null;
+
   return (
     <div className="rk-recap">
-      {l.retrieval.length > 0 && (
+      {/* 1. 이 시간이 어떤 사고방식 위에 서 있는가 — 세부보다 먼저 온다 */}
+      {l.frame && (
         <>
-          <div className="rk-recap-h">스스로 답해보기</div>
-          <Retrieval items={l.retrieval} />
+          <div className="rk-recap-h">이 시간의 사고방식</div>
+          <p className="rk-frame">{l.frame}</p>
         </>
       )}
 
+      {/* 2. 명명 체계 — 왜 그 이름인가. 이름이 붙으면 압축이 된다 */}
+      {l.naming.length > 0 && (
+        <>
+          <div className="rk-recap-k">이름의 뜻</div>
+          <dl className="rk-cmp">
+            {l.naming.map((n) => (
+              <div key={n.id}><dt>{n.term}</dt><dd>{n.why}</dd></div>
+            ))}
+          </dl>
+        </>
+      )}
+
+      {/* 3. 한 줄 압축 */}
       {l.compress.length > 0 && (
         <>
           <div className="rk-recap-k">한 줄로</div>
@@ -195,6 +178,7 @@ function Recap({ lesson: l }) {
         </>
       )}
 
+      {/* 4. 비교·대조 — 본질은 차이에서 드러난다 */}
       {l.contrast.length > 0 && (
         <>
           <div className="rk-recap-k">비교 · 대조</div>
@@ -217,11 +201,23 @@ function Recap({ lesson: l }) {
         </>
       )}
 
+      {/* 5. 인출 — 시험 대비 단계. 지금은 접어둔다 */}
+      {l.retrieval.length > 0 && (
+        <div className="rk-more">
+          <button type="button" className="rk-more-b" onClick={() => setShowRt((v) => !v)}
+            aria-expanded={showRt}>
+            {showRt ? '접기' : `스스로 답해보기 ${l.retrieval.length}문 · 시험 대비용`}
+            <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          {showRt && <Retrieval items={l.retrieval} />}
+        </div>
+      )}
+
       {(l.summary || l.keyPoints.length > 0) && (
         <div className="rk-more">
           <button type="button" className="rk-more-b" onClick={() => setShowSum((v) => !v)}
             aria-expanded={showSum}>
-            {showSum ? '요약 접기' : '요약 · 교수 강조 펼치기'}
+            {showSum ? '접기' : '요약 · 교수 강조'}
             <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
           </button>
           {showSum && (
@@ -240,7 +236,7 @@ function Recap({ lesson: l }) {
 
 /* ------------------------------------------------------------------ 진도 */
 
-function Progress({ course, week, patch }) {
+function Progress({ course, week }) {
   const [open, setOpen] = useState(null);
   const total = Math.max(course.progress.length, 16);
   // 계획에 빠진 주차가 있어도 표는 끝까지 채운다 — 빈 칸이 곧 "아직 안 채운 곳"이다.
@@ -249,10 +245,6 @@ function Progress({ course, week, patch }) {
     return course.progress.find((w) => w.week === n) || { week: n, topic: '', note: '', done: false, ink: [] };
   });
 
-  const setWeek = (n, next) => patch({ progress: rows.map((r) => (r.week === n ? { ...r, ...next } : r)) });
-  const setLesson = (id, next) => patch({
-    lessons: course.lessons.map((l) => (l.id === id ? { ...l, ...next } : l)),
-  });
 
   return (
     <div className="rk-weeks">
@@ -291,14 +283,7 @@ function Progress({ course, week, patch }) {
                       </span>
                     </header>
 
-                    <textarea
-                      className="rk-input rk-area" rows={5} value={l.note}
-                      placeholder="공부하면서 직접 적는 칸"
-                      aria-label={`${l.date} 내 노트`}
-                      onChange={(e) => setLesson(l.id, { note: e.target.value })}
-                    />
-
-                    <Asks lesson={l} onChange={(asks) => setLesson(l.id, { asks })} />
+                    <Asks lesson={l} />
 
                     <Recap lesson={l} />
                   </section>
@@ -343,7 +328,7 @@ function Materials({ course }) {
 
 /* -------------------------------------------------------------- 시험대비 */
 
-function Exam({ course, patch }) {
+function Exam({ course }) {
   const [open, setOpen] = useState(() => new Set());
   const e = course.exam || {};
   const hasFields = e.type || e.scope || e.difficulty || e.date;
@@ -398,28 +383,13 @@ function Exam({ course, patch }) {
         )}
       </section>
 
-      <section className="rk-sub">
-        <h3 className="rk-h3">오답 · 헷갈림 메모</h3>
-        <textarea
-          className="rk-input rk-area" rows={6} value={course.memo}
-          placeholder="틀린 이유, 헷갈리는 개념, 다시 볼 것"
-          onChange={(ev) => patch({ memo: ev.target.value })}
-        />
-        <div className="rk-lab">필기 메모</div>
-        <InkCanvas
-          key={`${course.id}-memo`}
-          value={course.ink}
-          onChange={(ink) => patch({ ink })}
-          label={`${course.name} 시험대비 필기`}
-        />
-      </section>
     </>
   );
 }
 
 /* ------------------------------------------------------------------ 본체 */
 
-export default function CourseView({ course, week, tab, onTab, onBack, patch }) {
+export default function CourseView({ course, week, tab, onTab, onBack }) {
   const active = TABS.some((t) => t.key === tab) ? tab : 'overview';
   const times = (course.meetings || []).filter((m) => m.day != null);
 
@@ -452,9 +422,9 @@ export default function CourseView({ course, week, tab, onTab, onBack, patch }) 
 
       <div className="rk-tabpanel" role="tabpanel">
         {active === 'overview' && <Overview course={course} />}
-        {active === 'progress' && <Progress course={course} week={week} patch={patch} />}
+        {active === 'progress' && <Progress course={course} week={week} />}
         {active === 'materials' && <Materials course={course} />}
-        {active === 'exam' && <Exam course={course} patch={patch} />}
+        {active === 'exam' && <Exam course={course} />}
       </div>
     </div>
   );
