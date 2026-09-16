@@ -5,12 +5,11 @@
 
    목표는 하나: **지금 뭘 해야 하는지 바로 안다.**
    맨 위 한 문장이 지금 할 일이다. 수업 중이면 언제 끝나는지, 준비할 때면 언제 나가야 하는지,
-   비어 있으면 이 틈에 할 만한 것. 그 아래 '다음'이 몇 분 뒤에 무엇이 오는지, 맨 아래가
-   오늘 전체 흐름이다. 개요의 '오늘' 칸은 요약만 두고 자세한 건 여기서 본다.
+   비어 있으면 이 틈에 할 만한 것. 그 아래가 오늘 전체 흐름이다('다음' 목록은 흐름과 겹쳐 뺐다). 개요의 '오늘' 칸은 요약만 두고 자세한 건 여기서 본다.
 --------------------------------------------------------------------------- */
 
 import { useMemo } from 'react';
-import { ArrowRight, CircleDot, Plus } from 'lucide-react';
+import { CircleDot, Plus } from 'lucide-react';
 import { addDaysISO, diffDaysISO, dowOf, expand, fmtTime, todayISO } from '../../lib/plan-core';
 import { mealSlots, travelBlocks } from '../../lib/plan-suggest';
 import { Empty, Tag } from '../study/parts';
@@ -157,25 +156,6 @@ export default function TodayStage({
 
       <div className="rk-pl-today-cols">
         <div className="rk-pl-today-main">
-          {upcoming.length > 0 && (
-            <section className="rk-block">
-              <h2 className="rk-h2">다음</h2>
-              <ol className="rk-pl-next">
-                {upcoming.map((s, i) => (
-                  <li key={`${s.kind}-${s.start}-${i}`} className={`is-${s.kind}`}>
-                    <span className="rk-pl-next-at rk-num">{fmtTime(s.start)}</span>
-                    <span className="rk-pl-next-t">
-                      {s.kind !== 'occ' && <ArrowRight size={13} strokeWidth={1.5} aria-hidden="true" />}
-                      {segName(s)}
-                      {s.kind === 'occ' && s.place && <span className="rk-pl-next-p">{s.place}</span>}
-                    </span>
-                    <span className="rk-pl-next-in rk-num">{dur(s.start - now)} 뒤</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-
           <section className="rk-block">
             <h2 className="rk-h2">오늘 흐름</h2>
             {todayOcc.length === 0 ? (

@@ -1063,20 +1063,6 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-today-main, .rk-pl-today-side { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
 .rk-pl-today-main > .rk-block, .rk-pl-today-side > .rk-block { margin-bottom: 0; }
 
-/* 다음 — 시각 · 무엇 · 몇 분 뒤 */
-.rk-pl-next { list-style: none; display: flex; flex-direction: column; }
-.rk-pl-next li { display: flex; align-items: baseline; gap: 12px; padding: 9px 2px;
-  border-bottom: 1px solid var(--line); min-width: 0; }
-.rk-pl-next li:last-child { border-bottom: 0; }
-.rk-pl-next-at { flex: 0 0 auto; width: 44px; font-size: var(--pl-sm); font-weight: 700; color: var(--fg); }
-.rk-pl-next-t { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: baseline; gap: 6px;
-  font-size: var(--pl-md); font-weight: 700; color: var(--fg); }
-.rk-pl-next-t svg { flex: 0 0 auto; align-self: center; color: var(--faint); }
-.rk-pl-next li:not(.is-occ) .rk-pl-next-t { font-weight: 500; color: var(--mut); }
-.rk-pl-next-p { font-size: var(--pl-xs); font-weight: 500; color: var(--mut);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rk-pl-next-in { flex: 0 0 auto; margin-left: auto; font-size: var(--pl-xs); color: var(--mut); }
-
 .rk-pl-today-tasks { list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .rk-pl-today-tasks li { display: flex; align-items: center; gap: 10px; padding: 6px 2px; }
 .rk-pl-today-tasks button { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; }
