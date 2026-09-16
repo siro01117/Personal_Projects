@@ -8,8 +8,9 @@ import {
   ArrowRight, CalendarDays, CalendarHeart, ChevronDown, ChevronRight, ClipboardList, Clock, Plus,
 } from 'lucide-react';
 import {
-  addDaysISO, diffDaysISO, dowOf, expand, fmtTime, nowMinutes, todayISO, weekDays,
+  addDaysISO, diffDaysISO, dowOf, expand, fmtTime, nowMinutes, todayISO, weekDays, weekLabel,
 } from '../../lib/plan-core';
+import WeekNav from './WeekNav';
 import { suggest } from '../../lib/plan-suggest';
 import { shortDate, shortSlot } from './format';
 import { Empty, Tag } from '../study/parts';
@@ -37,7 +38,7 @@ function dDay(dateISO) {
 
 export default function Overview({
   data, classes, shifts, onOccClick, onAddEvent, onAddTask, onToggleTask, onQuickPlaceTask,
-  onQuickAddTask, onGoLater, onGoWeek, onEditTask,
+  onQuickAddTask, onGoLater, onGoWeek, onEditTask, weekOffset = 0, onWeekOffset,
 }) {
   const today = todayISO();
   const [, forceTick] = useState(0);
@@ -48,10 +49,14 @@ export default function Overview({
   const now = nowMinutes();
   const settings = data.settings;
 
-  // 이번 주(월~일) — 오늘을 맨 앞에 두지 않고 요일 자리를 고정한다. 지난 요일은 흐리게 남는다
-  const week7 = useMemo(() => weekDays(today), [today]);
+  // 주 띠는 월~일 고정. 오늘을 맨 앞에 두지 않고, ‹ › 로 다음 주·지난 주를 본다
+  const week7 = useMemo(() => weekDays(addDaysISO(today, 7 * weekOffset)), [today, weekOffset]);
   const weekOcc = useMemo(() => expand(data, classes, week7[0], week7[6], shifts), [data, classes, shifts, week7]);
-  const todayOcc = useMemo(() => weekOcc.filter((o) => o.date === today).sort((a, b) => (a.start ?? -1) - (b.start ?? -1)), [weekOcc, today]);
+  // 오늘 타임라인은 보고 있는 주와 무관하게 늘 오늘 — 주를 넘겨도 비면 안 된다
+  const todayOcc = useMemo(
+    () => expand(data, classes, today, today, shifts).sort((a, b) => (a.start ?? -1) - (b.start ?? -1)),
+    [data, classes, shifts, today],
+  );
   const importantOcc = useMemo(
     () => expand(data, classes, today, addDaysISO(today, 180), shifts).filter((o) => o.important).slice(0, 8),
     [data, classes, shifts, today],
@@ -266,7 +271,8 @@ export default function Overview({
 
         <section className="rk-block">
           <h2 className="rk-h2">
-            <CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" />이번 주 일정
+            <CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" />{weekLabel(weekOffset)} 일정
+            <WeekNav offset={weekOffset} onChange={onWeekOffset} />
             <button type="button" className="rk-h2-link" onClick={onGoWeek}>
               시간표로 보기<ChevronRight size={13} strokeWidth={1.5} aria-hidden="true" />
             </button>

@@ -2,7 +2,7 @@
 // lib/plan-core.js 와 lib/plan-suggest.js 만 import 한다(supabase 없이 node 에서 바로 돈다).
 import {
   normalize, expand, moveOnce, moveFollowing, removeOnce, removeFollowing,
-  addDaysISO, dowOf, todayISO, weekDays,
+  addDaysISO, dowOf, todayISO, weekDays, weekLabel,
 } from '../lib/plan-core.js';
 import {
   dayCapacity, freeIntervals, lateHours, restBetween, suggest, travelBlocks,
@@ -334,6 +334,24 @@ const D = (n) => addDaysISO(T, n);
   ok('월요일이면 그대로 시작', weekDays('2026-09-14')[0] === '2026-09-14');
   ok('일요일은 그 주의 끝으로 본다(다음 주 시작 아님)', weekDays('2026-09-20')[0] === '2026-09-14');
   ok('달이 바뀌어도 맞다', weekDays('2026-10-01')[0] === '2026-09-28');
+}
+
+{
+  ok('주 이동 머리말', weekLabel(0) === '이번 주' && weekLabel(1) === '다음 주'
+    && weekLabel(-1) === '지난 주' && weekLabel(3) === '3주 뒤' && weekLabel(-2) === '2주 전');
+  // 수요일에서 다음 주로 넘기면 다음 월요일(9/21)이 들어온다 — 창성이형 밥약이 빠졌던 경우
+  const next = weekDays(addDaysISO('2026-09-16', 7));
+  ok('다음 주로 넘기면 다음 월요일부터', next[0] === '2026-09-21' && next.includes('2026-09-21'));
+}
+
+{
+  // 자정을 넣으려다 00:00(0)이나 12:00(720)이 들어간 경우
+  ok('하루 끝이 시작보다 앞이면 자정으로 본다', normalize({ settings: { dayStart: 480, dayEnd: 0 } }).settings.dayEnd === 1440);
+  ok('정오처럼 시작보다 뒤면 그대로 둔다', normalize({ settings: { dayStart: 480, dayEnd: 720 } }).settings.dayEnd === 720);
+  ok('자정(1440)은 그대로', normalize({ settings: { dayStart: 480, dayEnd: 1440 } }).settings.dayEnd === 1440);
+  ok('하루를 넘는 값은 자정으로 자른다', normalize({ settings: { dayStart: 480, dayEnd: 2000 } }).settings.dayEnd === 1440);
+  const free = freeIntervals([], '2026-09-16', normalize({ settings: { dayStart: 480, dayEnd: 0 } }).settings);
+  ok('그래서 빈 시간이 다시 나온다', free.length === 1 && free[0].end === 1440, JSON.stringify(free));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -21,7 +21,7 @@ import Shell from '../_ui/Shell';
 import {
   addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime,
   moveFollowing, moveOnce, normalize, removeFollowing, removeOnce, replaceEvent, replaceTask,
-  todayISO, uid, weekDays,
+  todayISO, uid, weekDays, weekLabel,
 } from '../../lib/plan-core';
 import {
   flushPendingPlan, loadClassesForSemester, loadPlan, loadWork, savePlan, writePending,
@@ -33,6 +33,7 @@ import WeekGrid from './WeekGrid';
 import EditSheet from './EditSheet';
 import MoveSheet from './MoveSheet';
 import PlacesSettings from './PlacesSettings';
+import WeekNav from './WeekNav';
 
 const VIEWS = [
   { key: 'dash', label: '개요', icon: CalendarDays },
@@ -41,6 +42,15 @@ const VIEWS = [
   { key: 'settings', label: '설정', icon: Settings },
 ];
 const SAVE_DELAY = 650;
+// 하루 시작·끝 선택지(분). 끝은 자정(24:00)까지 — 시간 입력칸은 24:00 을 못 받아 정오와 헷갈렸다
+const HOURS_START = [300, 360, 420, 480, 540, 600, 660, 720];
+const HOURS_END = [1080, 1140, 1200, 1260, 1320, 1380, 1440];
+const hourLabel = (m) => {
+  if (m === 1440) return '자정 (24:00)';
+  if (m === 720) return '정오 (12:00)';
+  const h = Math.floor(m / 60), mm = m % 60;
+  return `${h < 12 ? '오전' : '오후'} ${h > 12 ? h - 12 : h}시${mm ? ` ${mm}분` : ''}`;
+};
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
 function readRoute() {
@@ -141,6 +151,8 @@ function whenLabel(dateISO, start) {
 
 function PlanApp({ session, fixtureMode }) {
   const [route, setRoute] = useState(SSR_ROUTE);
+  // 개요의 주 띠와 시간표 페이지가 같은 주를 본다 — 넘겨두고 탭을 바꿔도 이어지게
+  const [weekOffset, setWeekOffset] = useState(0);
   const [data, setData] = useState(null);
   const [classes, setClasses] = useState([]);
   const [work, setWork] = useState({ shifts: [] }); // 스큐 근무(읽기 전용) — kv 'work'
@@ -374,10 +386,13 @@ function PlanApp({ session, fixtureMode }) {
 
   let body;
   if (route.v === 'week') {
-    const days = weekDays(today);
+    const days = weekDays(addDaysISO(today, 7 * weekOffset));
     body = (
       <section className="rk-block rk-pl-week-page">
-        <h2 className="rk-h2"><CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />이번 주</h2>
+        <h2 className="rk-h2">
+          <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />{weekLabel(weekOffset)}
+          <WeekNav offset={weekOffset} onChange={setWeekOffset} days={days} />
+        </h2>
         <WeekGrid occurrences={expand(data, classes, days[0], days[6], shifts)} days={days} settings={data.settings} rowH={44}
           onSlotClick={(date, start) => setSheet({ kind: 'event', defaultDate: date, defaultStart: start })}
           onOccClick={(occ, rect) => setMenu({ occ, rect })} />
@@ -439,12 +454,20 @@ function PlanApp({ session, fixtureMode }) {
         <h2 className="rk-h2"><Settings size={16} strokeWidth={1.5} aria-hidden="true" />설정</h2>
         <dl className="rk-fields">
           <div className="rk-field"><dt>하루 시작</dt><dd>
-            <input className="rk-input" type="time" value={minToHHMM(data.settings.dayStart)}
-              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dayStart: hhmmToMin(e.target.value) } }))} />
+            <select className="rk-input rk-select" value={data.settings.dayStart}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dayStart: Number(e.target.value) } }))}>
+              {HOURS_START.map((m) => <option key={m} value={m}>{hourLabel(m)}</option>)}
+            </select>
           </dd></div>
           <div className="rk-field"><dt>하루 끝</dt><dd>
-            <input className="rk-input" type="time" value={minToHHMM(data.settings.dayEnd)}
-              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dayEnd: hhmmToMin(e.target.value) } }))} />
+            <select className="rk-input rk-select" value={data.settings.dayEnd}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dayEnd: Number(e.target.value) } }))}>
+              {HOURS_END.filter((m) => m > data.settings.dayStart).map((m) => <option key={m} value={m}>{hourLabel(m)}</option>)}
+              {!HOURS_END.includes(data.settings.dayEnd) && (
+                <option value={data.settings.dayEnd}>{hourLabel(data.settings.dayEnd)} (지금 값)</option>
+              )}
+            </select>
+            <p className="rk-pl-hint">빈 시간을 찾고 제안할 때만 씁니다. 이 밖에 있는 일정도 화면에는 그대로 보입니다.</p>
           </dd></div>
           <div className="rk-field"><dt>여유(버퍼)</dt><dd>
             <select className="rk-input rk-select" value={data.settings.buffer}
@@ -511,6 +534,7 @@ function PlanApp({ session, fixtureMode }) {
     body = (
       <Overview
         data={data} classes={classes} shifts={shifts}
+        weekOffset={weekOffset} onWeekOffset={setWeekOffset}
         onOccClick={(occ, rect) => setMenu({ occ, rect })}
         onAddEvent={(prefill) => setSheet({
           kind: 'event', defaultDate: prefill?.date, defaultStart: prefill?.start,
@@ -612,16 +636,6 @@ function syncedAtLabel(iso) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${d.getMonth() + 1}월 ${d.getDate()}일(${DOW[d.getDay()]}) ${hh}:${mm}`;
-}
-
-function minToHHMM(min) {
-  const h = String(Math.floor(min / 60)).padStart(2, '0');
-  const m = String(min % 60).padStart(2, '0');
-  return `${h}:${m}`;
-}
-function hhmmToMin(hhmm) {
-  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
-  return m ? Number(m[1]) * 60 + Number(m[2]) : 480;
 }
 
 export default function PlanClient() {

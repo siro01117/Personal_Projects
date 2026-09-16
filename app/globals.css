@@ -1006,3 +1006,11 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-sec-chev { flex: 0 0 auto; color: var(--faint); transition: transform var(--t) var(--ease); }
 .rk-sec-fold[open] .rk-sec-chev { transform: rotate(180deg); }
 .rk-sec-fold:not([open]) > summary { margin-bottom: 0; }
+
+/* 주 이동 ‹ › — 제목 줄 안에 붙는다 */
+.rk-pl-weeknav { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; }
+.rk-pl-weeknav button { display: inline-grid; place-items: center; min-width: 30px; height: 30px;
+  padding: 0 6px; border-radius: 8px; color: var(--mut); font-size: var(--pl-xs); font-weight: 700; }
+.rk-pl-weeknav button:hover { color: var(--fg); background: var(--panel2); }
+.rk-pl-weeknav-now { color: var(--fg) !important; }
+.rk-pl-weeknav-r { font-size: var(--pl-xs); font-weight: 600; color: var(--mut); margin-right: 4px; }

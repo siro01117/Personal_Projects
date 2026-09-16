@@ -27,22 +27,28 @@ function layoutDay(blocks) {
   return out;
 }
 
-// 그 주 occurrence 들이 실제로 걸쳐 있는 [start,end] — 없으면 09~18 기본값.
-function visibleRange(occurrences, dayStart, dayEnd) {
+// 그 주 occurrence 들이 실제로 걸쳐 있는 [start,end] — 없으면 설정의 하루 범위(기본 09~18).
+// 하루 시작·끝(settings)은 제안에 쓰는 선호일 뿐이라 여기서 경계로 쓰지 않는다 — 그 밖에 있는
+// 일정을 잘라내면 화면에서 사라진다(하루 끝을 12:00 으로 잘못 넣었을 때 오후 일정이 전부 안 보였다).
+// 경계는 하루 그 자체(0~24시)뿐이고, 시각 눈금이 딱 떨어지게 정시로 맞춘다.
+export function visibleRange(occurrences, dayStart, dayEnd) {
   let lo = Infinity, hi = -Infinity;
   for (const o of occurrences) {
     if (o.allDay || o.start == null || o.end == null) continue;
     if (o.start < lo) lo = o.start;
     if (o.end > hi) hi = o.end;
   }
-  if (lo === Infinity) return [Math.max(dayStart, 540), Math.min(dayEnd, 1080)];
-  lo = Math.max(dayStart, lo - 60);
-  hi = Math.min(dayEnd, hi + 60);
+  if (lo === Infinity) {
+    const a = Math.max(0, dayStart ?? 540), b = Math.min(1440, dayEnd ?? 1080);
+    return b - a >= 60 ? [a, b] : [540, 1080];
+  }
+  lo = Math.max(0, Math.floor((lo - 60) / 60) * 60);
+  hi = Math.min(1440, Math.ceil((hi + 60) / 60) * 60);
   if (hi - lo < MIN_SPAN) {
     const mid = (lo + hi) / 2;
-    lo = Math.max(dayStart, mid - MIN_SPAN / 2);
-    hi = Math.min(dayEnd, lo + MIN_SPAN);
-    lo = Math.max(dayStart, hi - MIN_SPAN);
+    lo = Math.max(0, Math.floor((mid - MIN_SPAN / 2) / 60) * 60);
+    hi = Math.min(1440, lo + MIN_SPAN);
+    lo = Math.max(0, hi - MIN_SPAN);
   }
   return [lo, hi];
 }
