@@ -55,6 +55,10 @@ export function buildFixture() {
       { id: 'fx-a', title: '무역학개론', place: '본관 201', date: T, start: 540, end: 650, allDay: false, repeat: null, exceptions: {}, color: 1, important: false },
       { id: 'fx-b', title: '학과 상담', place: '학과 사무실', date: T, start: 620, end: 700, allDay: false, repeat: null, exceptions: {}, color: 4, important: false },
       { id: 'fx-c', title: '헬스장', place: '학교 체육관', date: T, start: 1080, end: 1140, allDay: false, repeat: null, exceptions: {}, color: 3, important: false },
+      // '앞으로' 줄을 확인하려면 important 가 붙은 먼 약속이 있어야 한다
+      { id: 'fx-d', title: '가족 모임', place: '본가', date: D(4), start: 660, end: 780, allDay: false, repeat: null, exceptions: {}, color: 2, important: true },
+      { id: 'fx-e', title: '민준 결혼식', place: '해운대 웨딩홀', date: D(20), start: 720, end: 840, allDay: false, repeat: null, exceptions: {}, color: 5, important: true },
+      { id: 'fx-f', title: '치과 정기검진', place: '학교 앞 치과', date: D(45), start: 900, end: 960, allDay: false, repeat: null, exceptions: {}, color: 6, important: true },
     ],
     tasks: [
       { id: 'fx-t1', title: '무역학개론 과제 3', duration: 90, due: D(-2), done: false, slot: null, priority: 2 },

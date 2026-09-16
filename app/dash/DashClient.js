@@ -1,34 +1,27 @@
 'use client';
 
 /* ---------------------------------------------------------------------------
-   /dash — 병렬로 벌여둔 작업을 한 화면에서 본다.
+   /dash — 지금 뭘 해야 하는지 판단하는 한 화면.
 
-   읽기만 한다. 수집기(10분)가 올린 기계적 사실 + /plan 의 일정·할 일 + "여기까지"
-   시점에 기록된 세션 서술을 합쳐 보여주고, "놓친 것"은 lib/dash-rules.js 가
-   그 자리에서 계산한다(규칙을 고쳐도 수집기를 다시 돌릴 필요가 없다).
+   목표는 하나다: **지금 뭘 해야 하는가**. 그걸 못 돕는 건 내리거나 접었다.
+   - 한 항목은 한 문장. 제목+부연 두 줄로 쪼개지 않는다(문장은 lib/dash-rules.js 가 만든다)
+   - 급한 정도는 색 띠가 아니라 글자 굵기·색으로 준다
+   - 저장소 상태처럼 평소엔 안 봐도 되는 건 접어둔다
+   - 읽기 전용. 수집기(10분)와 dash-say 가 쓰고 여기서는 읽기만 한다
 --------------------------------------------------------------------------- */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  AlertTriangle, CalendarDays, CircleAlert, FolderGit2, Info, LoaderCircle,
-  NotebookPen, RefreshCw, Workflow,
-} from 'lucide-react';
+import { ChevronDown, LoaderCircle, RefreshCw } from 'lucide-react';
 import AuthGate from '../_ui/AuthGate';
 import Shell from '../_ui/Shell';
-import { Empty, Notice, Tag } from '../study/parts';
+import { Empty } from '../study/parts';
 import { loadDash } from '../../lib/dash';
-import { findMisses, countBySeverity, ageDays } from '../../lib/dash-rules';
-import { addDaysISO, expand, fmtTime, todayISO } from '../../lib/plan-core';
+import { findMisses, countBySeverity, ageDays, josa } from '../../lib/dash-rules';
+import { addDaysISO, diffDaysISO, expand, fmtTime, todayISO } from '../../lib/plan-core';
 
 const POLL_MS = 120000; // 수집기가 10분 주기라 그보다 촘촘하면 의미가 없다
 
-const SEV = {
-  high: { icon: CircleAlert, label: '급함', tone: 'bad' },
-  warn: { icon: AlertTriangle, label: '확인', tone: 'warn' },
-  info: { icon: Info, label: '참고', tone: null },
-};
-
-const fmtAgo = (at, now) => {
+const ago = (at, now) => {
   const d = ageDays(at, now);
   if (d == null) return '';
   if (d < 1 / 24) return '방금';
@@ -36,65 +29,20 @@ const fmtAgo = (at, now) => {
   return `${Math.floor(d)}일 전`;
 };
 
-/* ------------------------------------------------------------------ 조각 */
+// "3시간 20분 뒤" — 헤드라인 한 문장에 그대로 들어간다
+const until = (mins) => {
+  if (mins <= 0) return '지금';
+  if (mins < 60) return `${mins}분 뒤`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}시간 ${m}분 뒤` : `${h}시간 뒤`;
+};
 
-function MissRow({ miss, now }) {
-  const s = SEV[miss.severity] || SEV.info;
-  const Icon = s.icon;
+function Section({ title, count, children }) {
   return (
-    <li className={`rk-ds-miss is-${miss.severity}`}>
-      <Icon size={15} strokeWidth={1.5} aria-hidden="true" />
-      <div className="rk-ds-miss-body">
-        <div className="rk-ds-miss-t">{miss.title}</div>
-        {miss.detail && <div className="rk-ds-miss-d">{miss.detail}</div>}
-      </div>
-      {miss.at && <span className="rk-ds-ago rk-num">{fmtAgo(miss.at, now)}</span>}
-    </li>
-  );
-}
-
-function RepoRow({ repo, now }) {
-  const clean = !repo.ahead && !repo.behind && !repo.dirty?.n;
-  return (
-    <li className="rk-ds-repo">
-      <div className="rk-ds-repo-head">
-        <span className="rk-ds-repo-n">{repo.name}</span>
-        <span className="rk-ds-repo-b rk-num">{repo.branch}</span>
-        {clean ? <Tag>깨끗</Tag> : (
-          <>
-            {repo.ahead > 0 && <Tag tone="warn">미푸시 {repo.ahead}</Tag>}
-            {repo.behind > 0 && <Tag tone="bad">뒤처짐 {repo.behind}</Tag>}
-            {repo.dirty?.n > 0 && <Tag>변경 {repo.dirty.n}</Tag>}
-          </>
-        )}
-      </div>
-      {repo.lastCommit && (
-        <div className="rk-ds-repo-c">
-          <span className="rk-ds-repo-s">{repo.lastCommit.subject}</span>
-          <span className="rk-ds-ago rk-num">{fmtAgo(repo.lastCommit.at, now)}</span>
-        </div>
-      )}
-    </li>
-  );
-}
-
-function SessionRow({ s, now }) {
-  return (
-    <li className={`rk-ds-sess is-${s.status}`}>
-      <div className="rk-ds-sess-head">
-        <span className="rk-ds-sess-t">{s.title}</span>
-        {s.repo && <span className="rk-ds-sess-r">{s.repo}</span>}
-        <span className="rk-ds-ago rk-num">{fmtAgo(s.at, now)}</span>
-      </div>
-      {s.note && <div className="rk-ds-sess-n">{s.note}</div>}
-      {s.blocked && <div className="rk-ds-sess-b">막힘 — {s.blocked}</div>}
-      {s.awaiting && <div className="rk-ds-sess-a">답 대기 — {s.awaiting}</div>}
-      {s.next?.length > 0 && (
-        <ul className="rk-ds-sess-next">
-          {s.next.map((n, i) => <li key={i}>{n}</li>)}
-        </ul>
-      )}
-    </li>
+    <section className="rk-ds-sec">
+      <h2 className="rk-ds-h2">{title}{count != null && <span>{count}</span>}</h2>
+      {children}
+    </section>
   );
 }
 
@@ -130,25 +78,41 @@ function Dash({ session, fixtureMode }) {
   const today = todayISO();
   const { snapshot, sessions, plan } = state.data || {};
 
-  const week = useMemo(
-    () => (plan ? expand(plan, [], today, addDaysISO(today, 6)) : []),
+  const horizon = useMemo(
+    () => (plan ? expand(plan, [], today, addDaysISO(today, 180)) : []),
     [plan, today],
   );
-  const todayOcc = useMemo(() => week.filter((o) => o.date === today), [week, today]);
+  const todayOcc = useMemo(() => horizon.filter((o) => o.date === today), [horizon, today]);
 
   const misses = useMemo(
     () => findMisses({ snapshot, plan, occurrences: todayOcc, sessions, now, today }),
     [snapshot, plan, todayOcc, sessions, now, today],
   );
+
+  const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes();
+  const timed = todayOcc.filter((o) => !o.allDay && o.start != null).sort((a, b) => a.start - b.start);
+  const current = timed.find((o) => nowMin >= o.start && nowMin < o.end);
+  const next = timed.find((o) => o.start > nowMin);
+  const remaining = timed.filter((o) => o.end > nowMin);
+
+  // 7일 밖까지 포함한 약속 + 마감 있는 할 일을 한 줄짜리 목록으로 합친다
+  const ahead = useMemo(() => {
+    const rows = horizon
+      .filter((o) => o.important && o.date >= today)
+      .map((o) => ({ key: o.key, date: o.date, title: o.title, sub: o.place || '' }));
+    for (const t of plan?.tasks || []) {
+      if (t.done || !t.due || t.due < today) continue;
+      rows.push({ key: `t:${t.id}`, date: t.due, title: t.title, sub: '마감' });
+    }
+    return rows.sort((a, b) => (a.date < b.date ? -1 : 1)).slice(0, 6);
+  }, [horizon, plan, today]);
+
   const counts = countBySeverity(misses);
   const active = (sessions?.list || []).filter((s) => s.status !== 'done');
-  const openItems = (snapshot?.vault?.openItems || []).filter((i) => !i.done);
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-  const remaining = todayOcc.filter((o) => o.allDay || o.end == null || o.end > nowMin);
 
   if (state.loading) {
     return (
-      <Shell session={session} wide>
+      <Shell session={session}>
         <div className="rk-boot" role="status" aria-live="polite">
           <LoaderCircle size={20} strokeWidth={1.5} className="rk-spin" aria-hidden="true" />
           <span>현황을 불러오는 중</span>
@@ -157,115 +121,118 @@ function Dash({ session, fixtureMode }) {
     );
   }
 
-  return (
-    <Shell session={session} wide>
-      <div className="rk-ds-root">
-        {fixtureMode && <Notice>개발용 픽스처 화면입니다 — 실제 수집 결과가 아닙니다.</Notice>}
-        <div className="rk-ds-toolbar">
-          <div>
-            <h1 className="rk-ds-h1">현황</h1>
-            <p className="rk-ds-sub">
-              {counts.high > 0 && <b className="rk-ds-c-high">급함 {counts.high}</b>}
-              {counts.warn > 0 && <b className="rk-ds-c-warn">확인 {counts.warn}</b>}
-              <span>벌여둔 일 {active.length} · 오늘 남은 일정 {remaining.length} · 볼트 미결 {openItems.length}</span>
-            </p>
-          </div>
-          <button type="button" className="rk-btn" onClick={fetchAll}>
-            <RefreshCw size={15} strokeWidth={1.5} aria-hidden="true" />다시 읽기
-          </button>
-        </div>
+  const headline = current
+    ? `${current.title} 중입니다.`
+    : next
+      ? `${until(next.start - nowMin)} ${josa(next.title, '이', '가')} 있습니다.`
+      : '오늘 남은 일정이 없습니다.';
 
-        <section className="rk-block">
-          <h2 className="rk-h2">
-            <AlertTriangle size={16} strokeWidth={1.5} aria-hidden="true" />놓치고 있던 것
-            <span className="rk-h2-note">{misses.length}</span>
-          </h2>
+  return (
+    <Shell session={session}>
+      <div className="rk-ds-root">
+        {fixtureMode && (
+          <p className="rk-ds-fixture">개발용 픽스처 화면입니다 — 실제 수집 결과가 아닙니다.</p>
+        )}
+
+        <header className="rk-ds-now">
+          <h1>{headline}</h1>
+          <p>
+            {counts.high > 0 && <b>급한 것 {counts.high}가지</b>}
+            <span>챙길 것 {misses.length} · 남은 일정 {remaining.length} · 벌여둔 일 {active.length}</span>
+            <button type="button" className="rk-ds-refresh" onClick={fetchAll} aria-label="다시 읽기">
+              <RefreshCw size={14} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </p>
+        </header>
+
+        <Section title="챙길 것" count={misses.length || null}>
           {misses.length === 0 ? (
-            <Empty title="걸리는 게 없습니다" hint="미푸시 커밋·방치된 미결·마감 임박·겹친 일정을 규칙으로 계속 보고 있습니다." />
+            <Empty title="걸리는 게 없습니다" hint="마감·방치된 메모·올리지 않은 작업을 계속 보고 있습니다." />
           ) : (
-            <ul className="rk-ds-misses">
-              {misses.map((m) => <MissRow key={m.id} miss={m} now={now} />)}
+            <ul className="rk-ds-list">
+              {misses.map((m) => (
+                <li key={m.id} className={`rk-ds-item is-${m.severity}`}>
+                  <span className="rk-ds-item-t">{m.text}</span>
+                </li>
+              ))}
             </ul>
           )}
-        </section>
+        </Section>
 
-        <div className="rk-ds-cols">
-          <section className="rk-block">
-            <h2 className="rk-h2">
-              <Workflow size={16} strokeWidth={1.5} aria-hidden="true" />벌여둔 일
-              <span className="rk-h2-note">{active.length}</span>
-            </h2>
-            {active.length === 0 ? (
-              <Empty title="기록된 작업 축이 없습니다" hint="작업을 멈출 때 dash-say 로 한 줄 남기면 여기 쌓입니다." />
-            ) : (
-              <ul className="rk-ds-sesses">
-                {active.map((s) => <SessionRow key={s.id} s={s} now={now} />)}
-              </ul>
-            )}
-          </section>
+        <Section title="오늘" count={remaining.length || null}>
+          {remaining.length === 0 ? (
+            <Empty title="남은 일정이 없습니다" />
+          ) : (
+            <ul className="rk-ds-list">
+              {remaining.map((o) => (
+                <li key={o.key} className={'rk-ds-item' + (o === current ? ' is-live' : '')}>
+                  <span className="rk-ds-at rk-num">{fmtTime(o.start)}</span>
+                  <span className="rk-ds-item-t">{o.title}</span>
+                  {o.place && <span className="rk-ds-item-s">{o.place}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
 
-          <section className="rk-block">
-            <h2 className="rk-h2">
-              <FolderGit2 size={16} strokeWidth={1.5} aria-hidden="true" />저장소
-              <a className="rk-h2-link" href="/plan">일정 보기</a>
-            </h2>
-            {!snapshot?.repos?.length ? (
-              <Empty title="수집된 저장소가 없습니다" hint="scripts/dash-collect.mjs 가 도는지 확인하세요." />
-            ) : (
-              <ul className="rk-ds-repos">
-                {snapshot.repos.map((r) => <RepoRow key={r.name} repo={r} now={now} />)}
-              </ul>
-            )}
-          </section>
-
-          <section className="rk-block">
-            <h2 className="rk-h2">
-              <CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" />오늘
-              <span className="rk-h2-note">{remaining.length}</span>
-            </h2>
-            {remaining.length === 0 ? (
-              <Empty title="남은 일정이 없습니다" />
-            ) : (
-              <ul className="rk-ds-occs">
-                {remaining.map((o) => (
-                  <li key={o.key}>
-                    <span className="rk-ds-occ-t rk-num">{o.allDay ? '종일' : fmtTime(o.start)}</span>
-                    <span className="rk-ds-occ-n">{o.title}</span>
-                    {o.place && <span className="rk-ds-occ-p">{o.place}</span>}
+        <Section title="앞으로">
+          {ahead.length === 0 ? (
+            <Empty title="잡아둔 약속이 없습니다" />
+          ) : (
+            <ul className="rk-ds-list">
+              {ahead.map((a) => {
+                const d = diffDaysISO(today, a.date);
+                return (
+                  <li key={a.key} className="rk-ds-item">
+                    <span className="rk-ds-at rk-num">{d === 0 ? '오늘' : `${d}일 뒤`}</span>
+                    <span className="rk-ds-item-t">{a.title}</span>
+                    {a.sub && <span className="rk-ds-item-s">{a.sub}</span>}
                   </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                );
+              })}
+            </ul>
+          )}
+        </Section>
 
-          <section className="rk-block">
-            <h2 className="rk-h2">
-              <NotebookPen size={16} strokeWidth={1.5} aria-hidden="true" />볼트 미결
-              <span className="rk-h2-note">{openItems.length}</span>
-            </h2>
-            {openItems.length === 0 ? (
-              <Empty title="미결로 잡힌 항목이 없습니다" />
-            ) : (
-              <ul className="rk-ds-open">
-                {openItems.slice(0, 12).map((i, n) => (
-                  <li key={`${i.path}:${n}`}>
-                    <span className="rk-ds-open-n">{i.note}</span>
-                    <span className="rk-ds-open-t">{i.text}</span>
-                    <span className="rk-ds-ago rk-num">{fmtAgo(i.mtime, now)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {openItems.length > 12 && (
-              <p className="rk-ds-more">오래 방치된 것부터 12개. 나머지 {openItems.length - 12}개는 볼트에서.</p>
-            )}
-          </section>
-        </div>
+        <Section title="벌여둔 일" count={active.length || null}>
+          {active.length === 0 ? (
+            <Empty title="벌여둔 일이 없습니다" hint="작업을 멈출 때 한 줄 남기면 여기 쌓입니다." />
+          ) : (
+            <ul className="rk-ds-list">
+              {active.map((s) => (
+                <li key={s.id} className="rk-ds-item">
+                  <span className="rk-ds-item-t">{s.title}</span>
+                  {(s.next?.[0] || s.note) && (
+                    <span className="rk-ds-item-s">{s.next?.[0] ? `다음은 ${s.next[0]}` : s.note}</span>
+                  )}
+                  <span className="rk-ds-when rk-num">{ago(s.at, now)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {/* 평소엔 안 봐도 되는 것. 문제가 있으면 위 '챙길 것'이 이미 문장으로 말한다 */}
+        <details className="rk-ds-more">
+          <summary>
+            <ChevronDown size={14} strokeWidth={1.5} aria-hidden="true" />
+            저장소 {snapshot?.repos?.length || 0}곳
+          </summary>
+          <ul className="rk-ds-list">
+            {(snapshot?.repos || []).map((r) => (
+              <li key={r.name} className="rk-ds-item">
+                <span className="rk-ds-item-t">{r.name}</span>
+                <span className="rk-ds-item-s">
+                  {r.lastCommit ? r.lastCommit.subject : '기록 없음'}
+                </span>
+                <span className="rk-ds-when rk-num">{ago(r.lastCommit?.at, now)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
 
         <p className="rk-ds-foot">
-          {snapshot?.at
-            ? `수집 ${fmtAgo(snapshot.at, now)}${snapshot.host ? ` · ${snapshot.host}` : ''}`
-            : '수집 기록 없음'}
+          {snapshot?.at ? `${ago(snapshot.at, now)}에 모은 내용입니다` : '아직 모은 내용이 없습니다'}
           {state.error && ' · 마지막 불러오기 실패'}
         </p>
       </div>
