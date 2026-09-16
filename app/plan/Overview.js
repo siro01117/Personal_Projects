@@ -14,7 +14,7 @@ import WeekNav from './WeekNav';
 import { shortDate, shortSlot } from './format';
 import { Empty, Tag } from '../study/parts';
 import WeekStrip from './WeekStrip';
-import { OccRow, dur, pickGapSuggestion, useNow, useSomeday, useSomedaySuggestions } from './todayShared';
+import { OccRow, PlaceTag, dur, pickGapSuggestion, useNow, useSomeday, useSomedaySuggestions } from './todayShared';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -205,7 +205,7 @@ export default function Overview({
             <ul className="rk-pl-someday">
               {someday.slice(0, 6).map((t) => (
                 <SomedayRow
-                  key={t.id} task={t} candidates={somedaySuggestions.get(t.id) || []}
+                  key={t.id} task={t} candidates={somedaySuggestions.get(t.id) || []} settings={settings}
                   onToggleTask={onToggleTask} onQuickPlaceTask={onQuickPlaceTask} onEditTask={onEditTask}
                 />
               ))}
@@ -221,7 +221,7 @@ export default function Overview({
   );
 }
 
-function SomedayRow({ task: t, candidates, onToggleTask, onQuickPlaceTask, onEditTask }) {
+function SomedayRow({ task: t, candidates, settings, onToggleTask, onQuickPlaceTask, onEditTask }) {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState(false);
   const [customDate, setCustomDate] = useState(todayISO());
@@ -247,6 +247,7 @@ function SomedayRow({ task: t, candidates, onToggleTask, onQuickPlaceTask, onEdi
           <span className="rk-pl-sd-t">{t.title}</span>
           <span className="rk-pl-sd-m">
             <span className="rk-num">{t.duration}분</span>
+            <PlaceTag settings={settings} item={t} />
             {t.due && <Tag tone={due.tone}>{due.text}</Tag>}
             {t.priority === 'high' && <Tag tone="bad">중요</Tag>}
           </span>

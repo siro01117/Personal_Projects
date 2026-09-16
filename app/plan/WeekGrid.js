@@ -239,13 +239,16 @@ export default function WeekGrid({
                 const height = Math.max(16, yPx(b.end) - top - 2);
                 const w = 100 / b.cols;
                 const isPast = isPastDay || (isToday && b.end <= nowMin);
+                // 높이별로 보여줄 양을 나눈다 — 작으면 제목 한 줄만, 크면 2~3줄. 올리면 펼쳐서 전부 보인다
+                const tier = height < 26 ? ' is-s' : height < 44 ? ' is-m' : height < 66 ? ' is-l' : ' is-xl';
                 return (
                   <button
                     key={b.key}
                     type="button"
-                    className={'rk-pl-block' + (b.important ? ' is-important' : '') + (isPast ? ' is-past' : '')}
+                    className={'rk-pl-block' + tier + (b.important ? ' is-important' : '') + (isPast ? ' is-past' : '')}
                     style={{
                       '--c': `var(--s${(b.color % 7) + 1})`,
+                      '--h': `${height}px`,
                       top, height,
                       left: `calc(${b.col * w}% + 1px)`,
                       width: `calc(${w}% - 2px)`,
@@ -255,7 +258,7 @@ export default function WeekGrid({
                     title={`${b.title} ${fmtTime(b.start)}–${fmtTime(b.end)}`}
                   >
                     <span className="rk-pl-block-t">{b.title}</span>
-                    {height >= 34 && <span className="rk-pl-block-time rk-num">{fmtTime(b.start)}</span>}
+                    <span className="rk-pl-block-time rk-num">{fmtTime(b.start)}–{fmtTime(b.end)}{b.place ? ` · ${b.place}` : ''}</span>
                   </button>
                 );
               })}

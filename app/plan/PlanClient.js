@@ -36,7 +36,7 @@ import PlacesSettings from './PlacesSettings';
 import WeekNav from './WeekNav';
 import TodayStage from './TodayStage';
 import PlaceTray, { DRAG_TYPE } from './PlaceTray';
-import { useSomeday } from './todayShared';
+import { PlaceTag, useSomeday } from './todayShared';
 import { checkSlot, suggest } from '../../lib/plan-suggest';
 
 const VIEWS = [
@@ -531,21 +531,23 @@ function PlanApp({ session, fixtureMode }) {
             <ul className="rk-todos">
               {open.map((t) => (
                 <li key={t.id}>
-                  <label className="rk-todo">
-                    <input type="checkbox" checked={false} onChange={() => toggleTask(t.id)} />
-                    <span className="rk-todo-body">
+                  {/* 완료는 체크박스만. 줄 전체가 완료 버튼이면 수정하려다 끝내 버린다 */}
+                  <div className="rk-todo rk-pl-todo">
+                    <label className="rk-pl-todo-check">
+                      <input type="checkbox" checked={false} onChange={() => toggleTask(t.id)} aria-label={`${t.title} 완료`} />
+                    </label>
+                    <button type="button" className="rk-todo-body rk-pl-todo-body" onClick={() => setSheet({ kind: 'task', initial: t })}>
                       <span className="rk-todo-t">{t.title}</span>
                       <span className="rk-todo-m">
                         <span className="rk-num">{t.duration}분</span>
-                        {t.due && <Tag tone="warn">{t.due}</Tag>}
+                        <PlaceTag settings={data.settings} item={t} />
+                        {t.due && <Tag tone="warn">{t.due.slice(5).replace('-', '/')} 마감</Tag>}
                         {t.priority === 'high' && <Tag tone="bad">중요</Tag>}
-                        {t.slot && <Tag>{t.slot.date} 배치됨</Tag>}
+                        {t.slot && <Tag>{t.slot.date.slice(5).replace('-', '/')} {fmtTime(t.slot.start)} 배치</Tag>}
                       </span>
-                    </span>
-                    <button type="button" className="rk-icon" onClick={(e) => { e.preventDefault(); setSheet({ kind: 'task', initial: t }); }} aria-label="수정">
-                      <Pencil size={15} strokeWidth={1.5} aria-hidden="true" />
                     </button>
-                  </label>
+                    <Pencil size={15} strokeWidth={1.5} className="rk-pl-todo-edit" aria-hidden="true" />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -555,10 +557,12 @@ function PlanApp({ session, fixtureMode }) {
                 <ul className="rk-todos is-done">
                   {done.map((t) => (
                     <li key={t.id}>
-                      <label className="rk-todo">
-                        <input type="checkbox" checked readOnly onChange={() => toggleTask(t.id)} />
+                      <div className="rk-todo rk-pl-todo">
+                        <label className="rk-pl-todo-check">
+                          <input type="checkbox" checked onChange={() => toggleTask(t.id)} aria-label={`${t.title} 완료 취소`} />
+                        </label>
                         <span className="rk-todo-body"><span className="rk-todo-t">{t.title}</span></span>
-                      </label>
+                      </div>
                     </li>
                   ))}
                 </ul>

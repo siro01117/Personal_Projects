@@ -3,10 +3,24 @@
 // 개요와 오늘 탭이 함께 쓰는 것 — 현재 시각, 언젠가 할 일 정렬·제안, 오늘 흐름(타임라인).
 // 두 화면이 따로 계산하면 같은 빈 시간에 서로 다른 할 일을 권하게 되므로 한곳에 둔다.
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, Utensils } from 'lucide-react';
+import { ArrowRight, ChevronDown, MapPin, Utensils } from 'lucide-react';
 import { addDaysISO, expand, fmtTime, nowMinutes } from '../../lib/plan-core';
 import { mealSlots, suggest, travelBlocks } from '../../lib/plan-suggest';
 import { shortSlot } from './format';
+
+/* ------------------------------------------------------------ 장소 태그 */
+
+// 지점 이름을 앞에, 상세를 뒤에 — "스터디큐브 · 카운터". 둘 다 없으면 안 그린다.
+export function PlaceTag({ settings, item }) {
+  const pl = item?.placeId ? (settings?.places || []).find((p) => p.id === item.placeId) : null;
+  const text = [pl?.name, item?.place].filter(Boolean).join(' · ');
+  if (!text) return null;
+  return (
+    <span className="rk-tag rk-pl-place-tag">
+      <MapPin size={11} strokeWidth={1.75} aria-hidden="true" />{text}
+    </span>
+  );
+}
 
 /* ------------------------------------------------------------ 현재 시각 */
 

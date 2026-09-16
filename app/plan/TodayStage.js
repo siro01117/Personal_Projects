@@ -14,7 +14,7 @@ import { addDaysISO, diffDaysISO, dowOf, expand, fmtTime, todayISO } from '../..
 import { mealSlots, travelBlocks } from '../../lib/plan-suggest';
 import { Empty, Tag } from '../study/parts';
 import {
-  TodayTimeline, buildTimeline, dur, pickGapSuggestion, useNow, useSomeday, useSomedaySuggestions,
+  PlaceTag, TodayTimeline, buildTimeline, dur, pickGapSuggestion, useNow, useSomeday, useSomedaySuggestions,
 } from './todayShared';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
@@ -189,6 +189,7 @@ export default function TodayStage({
                         <span className="rk-pl-today-task-t">{t.title}</span>
                         <span className="rk-pl-today-task-m rk-num">
                           {t.slot ? `${fmtTime(t.slot.start)} · ` : ''}{dur(t.duration)}
+                          <PlaceTag settings={settings} item={t} />
                           {d != null && d < 0 && <Tag tone="bad">{-d}일 지남</Tag>}
                           {d === 0 && <Tag tone="warn">오늘까지</Tag>}
                         </span>

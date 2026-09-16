@@ -637,7 +637,34 @@ const D = (n) => addDaysISO(T, n);
 
   ok('빈 자리면 넣을 수 있다', chk(900, 60).ok === true);
   ok('일정과 겹치면 막는다', chk(690, 60).why === '다른 일정과 겹침');
-  ok('장소 없는 할 일이 출근 시간과 겹치면 막는다', chk(1170, 20).why === '오가는 길·준비 시간과 겹침', JSON.stringify(chk(1170, 20)));
+  {
+    // 장소 없는 할 일이 출근 시간과 겹치면 막지 않고 준비·출근을 그 앞으로 당긴다
+    const r = chk(1170, 20);
+    ok('출근과 겹치는 장소 없는 할 일도 넣을 수 있다', r.ok === true, JSON.stringify(r));
+    ok('당겨진 준비·출근 시각을 알려준다',
+      r.reasons.includes('외출 준비 18:20으로 당김') && r.reasons.includes('출근 18:55로 당김'), JSON.stringify(r.reasons));
+    const b = travelBlocks([...occ, { key: 't', date: D0, start: 1170, end: 1190, allDay: false, title: 't' }], D0, st);
+    ok('실제로 준비·출근이 할 일 앞으로 옮겨진다',
+      b.some((x) => x[2] === '출근' && x[0] === 1135 && x[1] === 1170)
+      && b.some((x) => x[2] === '외출 준비' && x[0] === 1100 && x[1] === 1135), JSON.stringify(b));
+  }
+  {
+    // 귀가와 겹치면 귀가를 그 뒤로 늦춘다 (근무 21:30 끝 → 21:40 할 일)
+    const r = chk(1300, 30);
+    ok('귀가와 겹치면 귀가를 늦춘다', r.ok && r.reasons.includes('귀가 22:10으로 늦춤'), JSON.stringify(r));
+  }
+  {
+    // 수업(12:00 끝) 바로 뒤에 할 일을 두면 수업 뒤 귀가가 할 일 뒤로 밀린다 (학교에서 하고 온다)
+    const r = chk(725, 30);
+    ok('수업 뒤 귀가도 할 일 뒤로 밀린다', r.ok && r.reasons.some((x) => x.startsWith('귀가 12:35')), JSON.stringify(r));
+  }
+  {
+    // 옮길 틈이 없으면 막는다: 수업 10:00–12:00 · 학교→스큐 70 · 12:30 근무. 12:05 할 일이면
+    // 출근을 할 일 앞(12:05)으로 당겨야 하는데 그러면 수업 중에 나서야 한다
+    const tight = [ev('class', 600, 720, 'pnu'), ev('work', 750, 800, 'cube')];
+    const r = checkSlot({ occurrences: tight, date: D0, start: 725, duration: 20, settings: st, target: {}, todayISO: '2026-09-17' });
+    ok('준비·이동을 옮길 틈이 없으면 막는다', r.ok === false && r.why === '준비·이동을 옮길 틈이 없음', JSON.stringify(r));
+  }
   ok('지난 날은 막는다', checkSlot({ occurrences: occ, date: '2026-09-16', start: 900, duration: 30, settings: st, target: {}, todayISO: '2026-09-17' }).why === '지난 시간');
   ok('오늘 지난 시각도 막는다', chk(600, 30, {}, { todayISO: D0, nowMin: 700 }).why === '지난 시간');
   ok('하루 범위 밖이어도 사람이 고르면 허용', chk(420, 30).ok === true, JSON.stringify(chk(420, 30)));
