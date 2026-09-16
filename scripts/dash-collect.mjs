@@ -25,7 +25,11 @@ const SEP = ''; // git --format 구분자. 커밋 메시지에 안 나오는 �
 
 const git = (cwd, args) => {
   try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8', timeout: 20000, windowsHide: true }).trim();
+    // 뒤쪽 개행만 턴다. trim() 을 쓰면 `git status --porcelain` 첫 줄의 앞 칸(" M path")
+    // 공백까지 먹어서 경로가 한 글자 잘린다.
+    // core.quotepath=false 는 한글 경로가 \xxx 8진 이스케이프로 나오는 걸 막는다.
+    return execFileSync('git', ['-c', 'core.quotepath=false', ...args],
+      { cwd, encoding: 'utf8', timeout: 20000, windowsHide: true }).replace(/\s+$/, '');
   } catch {
     return null; // 레포가 없거나 origin 이 없을 때 — 전체를 실패시키지 않는다
   }
@@ -145,6 +149,18 @@ async function main() {
     repos: REPOS.map(readRepo).filter(Boolean),
     vault: readVault(),
   };
+
+  // 올리지 않고 원본을 그대로 내보낸다 — 키가 없을 때 다른 경로로 넣거나 디버깅할 때 쓴다
+  if (process.argv.includes('--json')) {
+    const i = process.argv.indexOf('--trim');
+    if (i >= 0) {
+      const n = Number(process.argv[i + 1]) || 15;
+      snapshot.vault.openItems = snapshot.vault.openItems.filter((x) => !x.done).slice(0, n)
+        .map((x) => ({ ...x, text: x.text.slice(0, 70) }));
+    }
+    console.log(JSON.stringify(snapshot));
+    return;
+  }
 
   if (process.argv.includes('--dry')) {
     const v = snapshot.vault;
