@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react';
 import {
-  Archive, ArrowRight, BookOpen, CalendarCheck, ChartNoAxesColumn, CircleCheckBig,
+  Archive, ArrowRight, BookOpen, CalendarCheck, CalendarClock, ChartNoAxesColumn, CircleCheckBig,
   GraduationCap, Grid2x2, LayoutDashboard, Layers, Sparkles, UsersRound, Utensils,
   Waypoints, Wallet, ClipboardList, MapPin, ShieldAlert,
 } from 'lucide-react';
@@ -69,6 +69,24 @@ function Home({ session, projects }) {
       title="Ra_Kan"
       sub="직접 만들어 쓰는 것들. 학습이 먼저, 만들어 둔 것이 뒤."
     >
+      <section className="rk-sec" aria-labelledby="sec-plan">
+        <div className="rk-sec-h">
+          <CalendarClock size={17} strokeWidth={1.5} aria-hidden="true" />
+          <h2 className="rk-sec-t" id="sec-plan">일정</h2>
+          <span className="rk-sec-n">1</span>
+        </div>
+        <div className="rk-grid">
+          <Card
+            href="/plan"
+            icon={CalendarClock}
+            name="일정"
+            desc="오늘 · 7일 시간 그리드 · 특별한 약속 · 언젠가 할 일."
+            chips={['오늘', '7일', '할 일']}
+            accent={accentAt(5)}
+          />
+        </div>
+      </section>
+
       <section className="rk-sec" aria-labelledby="sec-study">
         <div className="rk-sec-h">
           <GraduationCap size={17} strokeWidth={1.5} aria-hidden="true" />

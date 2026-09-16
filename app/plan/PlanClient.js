@@ -1,0 +1,573 @@
+'use client';
+
+/* ---------------------------------------------------------------------------
+   /plan — 일정 모듈. app/study/StudyClient.js 와 같은 뼈대를 따른다:
+   AuthGate + Shell, 쿼리스트링 라우팅(location.search + pushState, SSR_ROUTE 로
+   첫 렌더 고정), 낙관적 저장(commit → 디바운스 flush, pagehide 시 stash), SaveState.
+
+   개발용 픽스처(?fixture=1, NODE_ENV==='development'): Supabase 를 건너뛰고 화면만 확인한다.
+   이 분기는 아래에서 항상 `if (process.env.NODE_ENV === 'development')` 로 감싸 프로덕션
+   번들에서 완전히 빠지게 한다(동적 import 이므로 코드 스플리팅으로도 빠진다).
+--------------------------------------------------------------------------- */
+
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  CalendarClock, CalendarDays, CheckCheck, ClipboardList, LoaderCircle, Pencil, Plus,
+  RotateCcw, Settings, Trash2, Undo2,
+} from 'lucide-react';
+import AuthGate from '../_ui/AuthGate';
+import Shell from '../_ui/Shell';
+import {
+  addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime,
+  moveFollowing, moveOnce, removeFollowing, removeOnce, replaceEvent, replaceTask,
+  todayISO, uid,
+} from '../../lib/plan-core';
+import {
+  flushPendingPlan, loadClassesForSemester, loadPlan, savePlan, writePending,
+} from '../../lib/plan';
+import { listSemesters } from '../../lib/study';
+import { Empty, Notice, SaveState, Tag } from '../study/parts';
+import Overview from './Overview';
+import WeekGrid from './WeekGrid';
+import EditSheet from './EditSheet';
+import MoveSheet from './MoveSheet';
+
+const VIEWS = [
+  { key: 'dash', label: '개요', icon: CalendarDays },
+  { key: 'week', label: '7일', icon: CalendarClock },
+  { key: 'later', label: '할 일', icon: ClipboardList },
+  { key: 'settings', label: '설정', icon: Settings },
+];
+const SAVE_DELAY = 650;
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+
+function readRoute() {
+  if (typeof window === 'undefined') return { v: 'dash' };
+  const q = new URLSearchParams(window.location.search);
+  return { v: q.get('v') || 'dash' };
+}
+function routeToUrl(r) {
+  const q = new URLSearchParams();
+  if (r.v && r.v !== 'dash') q.set('v', r.v);
+  const qs = q.toString();
+  return `/plan${qs ? `?${qs}` : ''}`;
+}
+const SSR_ROUTE = { v: 'dash' };
+
+/* -------------------------------------------------------------- 액션 메뉴 */
+// 클릭한 항목 옆에 뜨는 작은 팝오버. 포털로 body 에 그려 overflow 컨테이너(카드·그리드)에
+// 잘리지 않게 하고, 첫 렌더 뒤 실제 크기를 재서 화면 밖으로 안 나가게 보정한다.
+function ActionMenu({ occ, anchorRect, onEdit, onMove, onRemove, onToggleDone, onUnslot, onClose }) {
+  const ref = useRef(null);
+  const [pos, setPos] = useState(() => (
+    anchorRect ? { top: anchorRect.bottom + 6, left: anchorRect.left } : { top: 80, left: 80 }
+  ));
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let { top, left } = pos;
+    if (left + r.width > vw - 8) left = Math.max(8, vw - r.width - 8);
+    if (top + r.height > vh - 8) top = anchorRect ? Math.max(8, anchorRect.top - r.height - 6) : Math.max(8, vh - r.height - 8);
+    if (left < 8) left = 8;
+    if (top < 8) top = 8;
+    if (top !== pos.top || left !== pos.left) setPos({ top, left });
+    el.querySelector('button')?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onDown);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onDown); };
+  }, [onClose]);
+
+  const timeLabel = occ.allDay ? '종일' : (occ.start != null ? `${fmtTime(occ.start)}–${fmtTime(occ.end)}` : '');
+
+  return createPortal(
+    <div className="rk-pl-popover" ref={ref} role="menu" style={{ top: pos.top, left: pos.left }}>
+      <div className="rk-pl-popover-h">
+        <p className="rk-pl-popover-t">{occ.title}</p>
+        {timeLabel && <p className="rk-pl-popover-m rk-num">{timeLabel}</p>}
+      </div>
+      {occ.source === 'task' && (
+        <>
+          <button type="button" className="rk-menu-item" onClick={onToggleDone} role="menuitem">
+            <CheckCheck size={16} strokeWidth={1.5} aria-hidden="true" />완료
+          </button>
+          <button type="button" className="rk-menu-item" onClick={onUnslot} role="menuitem">
+            <RotateCcw size={16} strokeWidth={1.5} aria-hidden="true" />다시 언젠가로
+          </button>
+        </>
+      )}
+      {occ.source !== 'class' && (
+        <button type="button" className="rk-menu-item" onClick={onEdit} role="menuitem">
+          <Pencil size={16} strokeWidth={1.5} aria-hidden="true" />수정
+        </button>
+      )}
+      <button type="button" className="rk-menu-item" onClick={onMove} role="menuitem">
+        <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />옮기기
+      </button>
+      <button type="button" className="rk-menu-item" onClick={onRemove} role="menuitem">
+        <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />없애기
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
+// 요일·시각 포함 사람이 읽는 짧은 문구 — 옮기기/없애기 되돌리기 토스트에 쓴다.
+function whenLabel(dateISO, start) {
+  const d = `${Number(dateISO.slice(5, 7))}/${Number(dateISO.slice(8, 10))}(${DOW[dowOf(dateISO)]})`;
+  return start == null ? d : `${d} ${fmtTime(start)}`;
+}
+
+function PlanApp({ session, fixtureMode }) {
+  const [route, setRoute] = useState(SSR_ROUTE);
+  const [data, setData] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [source, setSource] = useState('');
+  const [loadErr, setLoadErr] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const [semesters, setSemesters] = useState([]);
+  const [sheet, setSheet] = useState(null);   // { kind:'event'|'task', initial, occ, defaultDate, defaultStart }
+  const [moving, setMoving] = useState(null); // occurrence
+  const [menu, setMenu] = useState(null);     // occurrence (액션 메뉴)
+  const [undo, setUndo] = useState(null);     // { snapshot }
+  const [fabOpen, setFabOpen] = useState(false); // 모바일 떠있는 추가 버튼
+
+  const timerRef = useRef(0);
+  const pendingRef = useRef(null);
+  const okRef = useRef(0);
+  const undoTimerRef = useRef(0);
+
+  useEffect(() => {
+    const sync = () => setRoute((prev) => {
+      const next = readRoute();
+      return routeToUrl(next) === routeToUrl(prev) ? prev : next;
+    });
+    sync();
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
+  const go = useCallback((patch) => {
+    setRoute((prev) => {
+      const next = { ...prev, ...patch };
+      window.history.pushState(null, '', routeToUrl(next));
+      return next;
+    });
+  }, []);
+
+  // 초기 적재
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (fixtureMode) {
+        const { buildFixture } = await import('./fixture');
+        const fx = buildFixture();
+        if (!alive) return;
+        setData(fx.doc);
+        setClasses(fx.classes);
+        setSource('fixture');
+        return;
+      }
+      await flushPendingPlan();
+      const res = await loadPlan();
+      if (!alive) return;
+      setData(res.data);
+      setSource(res.source);
+      setLoadErr(res.error || null);
+      listSemesters().then(setSemesters).catch(() => {});
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixtureMode]);
+
+  // 수업 연동 — 학기가 바뀌면(또는 showClasses 토글) 다시 읽는다.
+  useEffect(() => {
+    if (!data) return;
+    if (fixtureMode) return; // 픽스처는 자체 classes 를 이미 갖고 있다
+    if (!data.settings.showClasses) { setClasses([]); return; }
+    let alive = true;
+    loadClassesForSemester(data.settings.semester).then((cls) => { if (alive) setClasses(cls); });
+    return () => { alive = false; };
+  }, [data?.settings.semester, data?.settings.showClasses, fixtureMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ------------------------------------------------------------ 저장 */
+
+  const flush = useCallback(async () => {
+    const next = pendingRef.current;
+    if (!next || fixtureMode) return;
+    pendingRef.current = null;
+    setSaveStatus('saving');
+    const res = await savePlan(next);
+    if (res.ok) {
+      setSaveStatus('saved');
+      const token = ++okRef.current;
+      setTimeout(() => { if (okRef.current === token) setSaveStatus('idle'); }, 2200);
+    } else {
+      setSaveStatus('error');
+    }
+  }, [fixtureMode]);
+
+  const commit = useCallback((updater) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (!fixtureMode) {
+        pendingRef.current = next;
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(flush, SAVE_DELAY);
+      }
+      return next;
+    });
+  }, [flush, fixtureMode]);
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  useEffect(() => {
+    if (fixtureMode) return undefined;
+    const stash = () => { const next = pendingRef.current; if (next) writePending(next); };
+    const onHide = () => { if (document.visibilityState === 'hidden') stash(); };
+    window.addEventListener('pagehide', stash);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', stash);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [fixtureMode]);
+
+  /* --------------------------------------------------------- 되돌리기 */
+
+  const pushUndo = useCallback((snapshot, message) => {
+    clearTimeout(undoTimerRef.current);
+    setUndo({ snapshot, message });
+    undoTimerRef.current = setTimeout(() => setUndo(null), 5000);
+  }, []);
+  const doUndo = useCallback(() => {
+    if (!undo) return;
+    clearTimeout(undoTimerRef.current);
+    commit(() => undo.snapshot);
+    setUndo(null);
+  }, [undo, commit]);
+
+  /* -------------------------------------------------------- 변경 동작 */
+
+  const openEditForOcc = useCallback((occ) => {
+    if (occ.source === 'task') {
+      const t = data.tasks.find((x) => x.id === occ.id);
+      setSheet({ kind: 'task', initial: t });
+    } else if (occ.source === 'event') {
+      const ev = data.events.find((x) => x.id === occ.id);
+      setSheet({ kind: 'event', initial: ev, occ });
+    }
+    setMenu(null);
+  }, [data]);
+
+  const saveEvent = useCallback((payload) => {
+    commit((prev) => {
+      if (payload.mode === 'new') return addEvent(prev, payload.event);
+      if (payload.mode === 'series') return replaceEvent(prev, payload.id, payload.patch);
+      return payload.scope === 'following'
+        ? editEventFollowing(prev, payload.occ, payload.patch)
+        : editEventOnce(prev, payload.occ, payload.patch);
+    });
+    setSheet(null);
+  }, [commit]);
+
+  const saveTask = useCallback((payload) => {
+    commit((prev) => (payload.mode === 'new' ? addTask(prev, payload.task) : replaceTask(prev, payload.id, payload.patch)));
+    setSheet(null);
+  }, [commit]);
+
+  const toggleTask = useCallback((id) => {
+    commit((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((t) => (t.id === id ? { ...t, done: !t.done, doneAt: !t.done ? todayISO() : null, slot: !t.done ? null : t.slot } : t)),
+    }));
+  }, [commit]);
+
+  const quickPlaceTask = useCallback((id, slot) => {
+    commit((prev) => replaceTask(prev, id, { slot }));
+  }, [commit]);
+
+  const quickAddTask = useCallback((title, duration) => {
+    commit((prev) => addTask(prev, {
+      id: uid('tk'), title, note: '', duration, priority: 'normal', due: null, slot: null, done: false, doneAt: null,
+    }));
+  }, [commit]);
+
+  const unslotTask = useCallback((id) => {
+    commit((prev) => replaceTask(prev, id, { slot: null }));
+    setMenu(null);
+  }, [commit]);
+
+  const doMove = useCallback(({ scope, to }) => {
+    if (!moving) return;
+    const message = `${moving.title}을(를) ${whenLabel(to.date, to.start)}으로 옮겼어요`;
+    commit((prev) => {
+      pushUndo(prev, message);
+      return scope === 'following' ? moveFollowing(prev, moving, to) : moveOnce(prev, moving, to);
+    });
+    setMoving(null);
+  }, [moving, commit, pushUndo]);
+
+  const doRemove = useCallback(({ scope }) => {
+    if (!moving) return;
+    const message = moving.source === 'task' ? `${moving.title}을(를) 다시 언젠가로 돌렸어요` : `${moving.title}을(를) 없앴어요`;
+    commit((prev) => {
+      pushUndo(prev, message);
+      return scope === 'following' ? removeFollowing(prev, moving) : removeOnce(prev, moving);
+    });
+    setMoving(null);
+  }, [moving, commit, pushUndo]);
+
+  /* ------------------------------------------------------------ 렌더 */
+
+  const nav = (
+    <nav className="rk-topnav" aria-label="일정 메뉴">
+      {VIEWS.map((v) => (
+        <button key={v.key} type="button" className={'rk-topnav-i' + (route.v === v.key ? ' is-on' : '')}
+          onClick={() => go({ v: v.key })}>{v.label}</button>
+      ))}
+    </nav>
+  );
+
+  if (!data) {
+    return (
+      <Shell session={session} wide nav={nav}>
+        <div className="rk-boot" role="status" aria-live="polite">
+          <LoaderCircle size={20} strokeWidth={1.5} className="rk-spin" aria-hidden="true" />
+          <span>일정 데이터를 불러오는 중</span>
+        </div>
+      </Shell>
+    );
+  }
+
+  const today = todayISO();
+  const rangeOcc = expand(data, classes, today, addDaysISO(today, 14));
+
+  let body;
+  if (route.v === 'week') {
+    const days = Array.from({ length: 7 }, (_, i) => addDaysISO(today, i));
+    body = (
+      <section className="rk-block rk-pl-week-page">
+        <h2 className="rk-h2"><CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />7일</h2>
+        <WeekGrid occurrences={expand(data, classes, days[0], days[6])} days={days} settings={data.settings} rowH={44}
+          onSlotClick={(date, start) => setSheet({ kind: 'event', defaultDate: date, defaultStart: start })}
+          onOccClick={(occ, rect) => setMenu({ occ, rect })} />
+      </section>
+    );
+  } else if (route.v === 'later') {
+    const open = data.tasks.filter((t) => !t.done);
+    const done = data.tasks.filter((t) => t.done);
+    body = (
+      <section className="rk-block">
+        <h2 className="rk-h2"><ClipboardList size={16} strokeWidth={1.5} aria-hidden="true" />할 일{open.length > 0 && <span className="rk-h2-note rk-num">{open.length}</span>}</h2>
+        {data.tasks.length === 0 ? (
+          <Empty title="할 일이 없습니다" hint="[+ 할 일] 로 마감 없는 일도 등록해 보세요." />
+        ) : (
+          <>
+            <ul className="rk-todos">
+              {open.map((t) => (
+                <li key={t.id}>
+                  <label className="rk-todo">
+                    <input type="checkbox" checked={false} onChange={() => toggleTask(t.id)} />
+                    <span className="rk-todo-body">
+                      <span className="rk-todo-t">{t.title}</span>
+                      <span className="rk-todo-m">
+                        <span className="rk-num">{t.duration}분</span>
+                        {t.due && <Tag tone="warn">{t.due}</Tag>}
+                        {t.priority === 'high' && <Tag tone="bad">중요</Tag>}
+                        {t.slot && <Tag>{t.slot.date} 배치됨</Tag>}
+                      </span>
+                    </span>
+                    <button type="button" className="rk-icon" onClick={(e) => { e.preventDefault(); setSheet({ kind: 'task', initial: t }); }} aria-label="수정">
+                      <Pencil size={15} strokeWidth={1.5} aria-hidden="true" />
+                    </button>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {done.length > 0 && (
+              <details className="rk-done">
+                <summary>완료 <b className="rk-num">{done.length}</b></summary>
+                <ul className="rk-todos is-done">
+                  {done.map((t) => (
+                    <li key={t.id}>
+                      <label className="rk-todo">
+                        <input type="checkbox" checked readOnly onChange={() => toggleTask(t.id)} />
+                        <span className="rk-todo-body"><span className="rk-todo-t">{t.title}</span></span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )}
+      </section>
+    );
+  } else if (route.v === 'settings') {
+    body = (
+      <section className="rk-block">
+        <h2 className="rk-h2"><Settings size={16} strokeWidth={1.5} aria-hidden="true" />설정</h2>
+        <dl className="rk-fields">
+          <div className="rk-field"><dt>하루 시작</dt><dd>
+            <input className="rk-input" type="time" value={minToHHMM(data.settings.dayStart)}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dayStart: hhmmToMin(e.target.value) } }))} />
+          </dd></div>
+          <div className="rk-field"><dt>하루 끝</dt><dd>
+            <input className="rk-input" type="time" value={minToHHMM(data.settings.dayEnd)}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dayEnd: hhmmToMin(e.target.value) } }))} />
+          </dd></div>
+          <div className="rk-field"><dt>여유(버퍼)</dt><dd>
+            <select className="rk-input rk-select" value={data.settings.buffer}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, buffer: Number(e.target.value) } }))}>
+              {[0, 10, 15, 20, 30].map((v) => <option key={v} value={v}>{v}분</option>)}
+            </select>
+          </dd></div>
+          <div className="rk-field"><dt>수업 표시</dt><dd>
+            <label className="rk-check">
+              <input type="checkbox" checked={data.settings.showClasses}
+                onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, showClasses: e.target.checked } }))} />
+              7일 그리드·오늘 타임라인에 수업 시간표를 함께 보여줍니다
+            </label>
+          </dd></div>
+          {!fixtureMode && (
+            <div className="rk-field"><dt>학기</dt><dd>
+              <select className="rk-input rk-select" value={data.settings.semester}
+                onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, semester: e.target.value } }))}>
+                {(semesters.length ? semesters : [data.settings.semester]).map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </dd></div>
+          )}
+          <div className="rk-field"><dt>데이터 출처</dt><dd className="rk-num">{source || '-'}</dd></div>
+        </dl>
+      </section>
+    );
+  } else {
+    body = (
+      <Overview
+        data={data} classes={classes}
+        onOccClick={(occ, rect) => setMenu({ occ, rect })}
+        onAddEvent={(prefill) => setSheet({
+          kind: 'event', defaultDate: prefill?.date, defaultStart: prefill?.start,
+          defaultRepeat: prefill?.repeat, defaultImportant: prefill?.important,
+        })}
+        onAddTask={() => setSheet({ kind: 'task' })}
+        onToggleTask={toggleTask}
+        onQuickPlaceTask={quickPlaceTask}
+        onQuickAddTask={quickAddTask}
+        onGoLater={() => go({ v: 'later' })}
+        onGoWeek={() => go({ v: 'week' })}
+        onEditTask={(t) => setSheet({ kind: 'task', initial: t })}
+      />
+    );
+  }
+
+  return (
+    <Shell session={session} wide nav={nav} title={null} sub={null}>
+      <div className="rk-pl-root">
+        {(undo || saveStatus !== 'idle') && (
+          <div className="rk-statusbar">
+            {undo && (
+              <span className="rk-pl-undo">
+                {undo.message || '변경했습니다'}
+                <button type="button" onClick={doUndo}><Undo2 size={13} strokeWidth={1.5} aria-hidden="true" />되돌리기</button>
+              </span>
+            )}
+            <SaveState state={saveStatus} onRetry={flush} />
+          </div>
+        )}
+        {fixtureMode && <Notice>개발용 픽스처 화면입니다 — 저장은 이 브라우저 메모리에만 남습니다.</Notice>}
+        {source === 'empty' && !fixtureMode && route.v !== 'dash' && (
+          <Notice>일정 데이터가 아직 없습니다. 개요 화면에서 바로 시작할 수 있습니다.</Notice>
+        )}
+        {loadErr && (
+          <Notice>{source === 'cache' ? '서버에서 불러오지 못해 이 기기에 저장된 내용을 보여주고 있습니다.' : '서버에 연결하지 못했습니다. 편집한 내용은 연결되면 저장됩니다.'}</Notice>
+        )}
+        {body}
+
+        {fabOpen && (
+          <div className="rk-pl-fab-menu">
+            <button type="button" className="rk-pl-fab-item" onClick={() => { setSheet({ kind: 'event' }); setFabOpen(false); }}>
+              <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />일정 추가
+            </button>
+            <button type="button" className="rk-pl-fab-item" onClick={() => { setSheet({ kind: 'task' }); setFabOpen(false); }}>
+              <ClipboardList size={16} strokeWidth={1.5} aria-hidden="true" />할 일 추가
+            </button>
+          </div>
+        )}
+        <button type="button" className="rk-pl-fab" onClick={() => setFabOpen((v) => !v)} aria-label="추가">
+          <Plus size={22} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+
+        <nav className="rk-tabbar" aria-label="일정 메뉴">
+          {VIEWS.map((v) => (
+            <button key={v.key} type="button" className={'rk-tabbar-i' + (route.v === v.key ? ' is-on' : '')}
+              aria-current={route.v === v.key ? 'page' : undefined} onClick={() => go({ v: v.key })}>
+              <v.icon size={19} strokeWidth={1.5} aria-hidden="true" />
+              <span>{v.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {sheet && (
+          <EditSheet
+            kind={sheet.kind} initial={sheet.initial} occ={sheet.occ}
+            defaultDate={sheet.defaultDate} defaultStart={sheet.defaultStart}
+            defaultRepeat={sheet.defaultRepeat} defaultImportant={sheet.defaultImportant}
+            onSaveEvent={saveEvent} onSaveTask={saveTask} onClose={() => setSheet(null)}
+          />
+        )}
+        {moving && (
+          <MoveSheet
+            occ={moving} occurrences={rangeOcc} events={data.events} settings={data.settings}
+            onMove={doMove} onRemove={doRemove} onClose={() => setMoving(null)}
+          />
+        )}
+        {menu && (
+          <ActionMenu
+            occ={menu.occ} anchorRect={menu.rect}
+            onEdit={() => openEditForOcc(menu.occ)}
+            onMove={() => { setMoving(menu.occ); setMenu(null); }}
+            onRemove={() => { setMoving(menu.occ); setMenu(null); }}
+            onToggleDone={() => { toggleTask(menu.occ.id); setMenu(null); }}
+            onUnslot={() => unslotTask(menu.occ.id)}
+            onClose={() => setMenu(null)}
+          />
+        )}
+      </div>
+    </Shell>
+  );
+}
+
+function minToHHMM(min) {
+  const h = String(Math.floor(min / 60)).padStart(2, '0');
+  const m = String(min % 60).padStart(2, '0');
+  return `${h}:${m}`;
+}
+function hhmmToMin(hhmm) {
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 480;
+}
+
+export default function PlanClient() {
+  const [fixtureMode, setFixtureMode] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get('fixture') === '1') setFixtureMode(true);
+    }
+  }, []);
+
+  if (fixtureMode) return <PlanApp session={null} fixtureMode />;
+  return <AuthGate>{(session) => <PlanApp session={session} fixtureMode={false} />}</AuthGate>;
+}
