@@ -213,6 +213,7 @@ function PlanApp({ session, fixtureMode }) {
       setLoadErr(res.error || null);
       listSemesters().then(setSemesters).catch(() => {});
       // 근무는 곁다리 — loadWork 는 throw 하지 않지만 그래도 화면을 막지 않게 따로 띄운다.
+      // 열 때마다 스큐에서 새로 받는다(loadWork 기본값). 돌아올 때 다시 받는 건 아래 effect.
       loadWork().then((w) => { if (alive) setWork(w); }).catch(() => {});
     })();
     return () => { alive = false; };
@@ -260,6 +261,20 @@ function PlanApp({ session, fixtureMode }) {
   }, [flush, fixtureMode]);
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  // 스큐에서 근무를 고치고 이 탭으로 돌아오면 그 자리에서 다시 받는다(볼 때 받는다).
+  // 너무 잦은 전환에 매번 부르지 않게 20초 안에는 건너뛴다.
+  useEffect(() => {
+    if (fixtureMode) return undefined;
+    let last = Date.now();
+    const onShow = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 20000) return;
+      last = Date.now();
+      loadWork().then(setWork).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [fixtureMode]);
 
   useEffect(() => {
     if (fixtureMode) return undefined;
@@ -510,12 +525,12 @@ function PlanApp({ session, fixtureMode }) {
             <label className="rk-check">
               <input type="checkbox" checked={data.settings.showWork}
                 onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, showWork: e.target.checked } }))} />
-              스터디큐브에서 동기화한 근무를 함께 보여줍니다 (여기서는 고칠 수 없습니다)
+              스터디큐브 근무를 함께 보여줍니다. 이 화면을 열거나 다시 돌아올 때마다 새로 받아옵니다 (여기서는 고칠 수 없습니다)
             </label>
             <p className="rk-pl-hint">
               {work?.syncedAt
-                ? `마지막 동기화 ${syncedAtLabel(work.syncedAt)} · 근무 ${shifts.length}건`
-                : '아직 동기화된 근무가 없습니다.'}
+                ? `${work.live ? '열 때 스큐에서 받음' : '스큐 응답이 없어 마지막으로 받은 근무'} · ${syncedAtLabel(work.syncedAt)} · ${shifts.length}건`
+                : '아직 받아온 근무가 없습니다.'}
             </p>
           </dd></div>
           {!fixtureMode && (
