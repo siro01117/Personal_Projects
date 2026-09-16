@@ -168,8 +168,12 @@ function PlanApp({ session, fixtureMode }) {
 
   const timerRef = useRef(0);
   const pendingRef = useRef(null);
-  // 이 탭이 마지막으로 서버와 맞춘 문서 — 저장할 때 '이 탭이 바꾼 것'을 가려내는 기준(mergePlan)
+  // 이 탭이 마지막으로 서버와 맞춘 문서 — 저장할 때 '이 탭이 바꾼 것'을 가려내는 기준(mergePlan).
+  // 불변식: baseRef 는 언제나 지금 화면 데이터(와 pendingRef)의 조상이어야 한다. 그래서 둘은
+  // 반드시 같은 setData 업데이트 안에서 함께 바꾼다. 기준본만 먼저 최신으로 바꿔 두면, 그 사이
+  // 옛 화면 위에서 만든 수정이 '밖에서 넣은 일정을 이 탭이 지웠다'로 읽혀 실제로 지워진다(겪음).
   const baseRef = useRef(null);
+  const savingRef = useRef(false); // 저장은 한 번에 하나만 — 동시에 두 번 돌면 기준본이 엇갈린다
   const okRef = useRef(0);
   const undoTimerRef = useRef(0);
 
@@ -210,8 +214,10 @@ function PlanApp({ session, fixtureMode }) {
       await flushPendingPlan();
       const res = await loadPlan();
       if (!alive) return;
-      baseRef.current = res.source === 'kv' || res.source === 'empty' ? res.data : null;
-      setData(res.data);
+      setData(() => {
+        baseRef.current = res.source === 'kv' || res.source === 'empty' ? res.data : null;
+        return res.data;
+      });
       setSource(res.source);
       setLoadErr(res.error || null);
       listSemesters().then(setSemesters).catch(() => {});
@@ -236,19 +242,22 @@ function PlanApp({ session, fixtureMode }) {
   /* ------------------------------------------------------------ 저장 */
 
   const flush = useCallback(async () => {
+    if (fixtureMode || savingRef.current) return; // 진행 중인 저장이 끝나면 아래에서 다시 부른다
     const next = pendingRef.current;
-    if (!next || fixtureMode) return;
+    if (!next) return;
+    savingRef.current = true;
     pendingRef.current = null;
     setSaveStatus('saving');
     const res = await savePlan(next, baseRef.current);
+    savingRef.current = false;
     if (res.ok) {
       const merged = res.data;
-      baseRef.current = merged;
       // 서버에서 합쳐진 것(다른 곳에서 넣은 일정 등)을 화면에도 반영한다. 저장하는 사이에 또 고친 게
-      // 있으면 그 수정을 합쳐진 문서 위에 다시 얹는다 — 안 그러면 다음 저장 때 밖에서 넣은 걸
-      // '이 탭이 지운 것'으로 잘못 읽는다.
-      setData((cur) => {
+      // 있으면 그 수정(= next 위에서 만든 것)을 합쳐진 문서 위에 다시 얹는다.
+      // 기준본은 여기서, 데이터와 **같은 업데이트 안에서** 바꾼다(위 불변식).
+      setData(() => {
         const again = pendingRef.current;
+        baseRef.current = merged;
         if (!again) return merged;
         const rebased = mergePlan(next, again, merged);
         pendingRef.current = rebased;
@@ -258,9 +267,18 @@ function PlanApp({ session, fixtureMode }) {
       const token = ++okRef.current;
       setTimeout(() => { if (okRef.current === token) setSaveStatus('idle'); }, 2200);
     } else {
+      // 실패한 수정은 버리지 않는다 — 그 뒤에 또 고친 게 없으면 다시 대기열로
+      if (!pendingRef.current) pendingRef.current = next;
       setSaveStatus('error');
     }
+    // 저장하는 동안 들어온 수정이 있으면 이어서 올린다
+    if (pendingRef.current && res.ok) {
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => flushRef.current?.(), SAVE_DELAY);
+    }
   }, [fixtureMode]);
+  const flushRef = useRef(null);
+  flushRef.current = flush;
 
   const commit = useCallback((updater) => {
     setData((prev) => {
@@ -287,11 +305,14 @@ function PlanApp({ session, fixtureMode }) {
       last = Date.now();
       loadWork().then(setWork).catch(() => {});
       // 일정 문서도 다른 곳에서 바뀌었을 수 있다. 저장 대기 중인 수정이 없을 때만 갈아끼운다
-      if (!pendingRef.current) {
+      if (!pendingRef.current && !savingRef.current) {
         loadPlan().then((res) => {
-          if (pendingRef.current || res.source !== 'kv') return;
-          baseRef.current = res.data;
-          setData(res.data);
+          if (res.source !== 'kv') return;
+          setData((cur) => {
+            if (pendingRef.current || savingRef.current) return cur;
+            baseRef.current = res.data;
+            return res.data;
+          });
         }).catch(() => {});
       }
     };
@@ -313,15 +334,17 @@ function PlanApp({ session, fixtureMode }) {
 
   /* --------------------------------------------------------- 되돌리기 */
 
-  const pushUndo = useCallback((snapshot, message) => {
+  // 되돌리기는 스냅샷을 통째로 되살리지 않는다 — 그 사이 합쳐진 일정까지 지워지기 때문.
+  // 그 동작 직후 문서(after) 대비 동작 직전(snapshot)으로 바뀐 부분만 지금 문서에 얹는다.
+  const pushUndo = useCallback((snapshot, message, after) => {
     clearTimeout(undoTimerRef.current);
-    setUndo({ snapshot, message });
+    setUndo({ snapshot, after, message });
     undoTimerRef.current = setTimeout(() => setUndo(null), 5000);
   }, []);
   const doUndo = useCallback(() => {
     if (!undo) return;
     clearTimeout(undoTimerRef.current);
-    commit(() => undo.snapshot);
+    commit((cur) => (undo.after ? mergePlan(undo.after, undo.snapshot, cur) : undo.snapshot));
     setUndo(null);
   }, [undo, commit]);
 
@@ -380,8 +403,9 @@ function PlanApp({ session, fixtureMode }) {
     if (!moving) return;
     const message = `${moving.title}을(를) ${whenLabel(to.date, to.start)}으로 옮겼어요`;
     commit((prev) => {
-      pushUndo(prev, message);
-      return scope === 'following' ? moveFollowing(prev, moving, to) : moveOnce(prev, moving, to);
+      const after = scope === 'following' ? moveFollowing(prev, moving, to) : moveOnce(prev, moving, to);
+      pushUndo(prev, message, after);
+      return after;
     });
     setMoving(null);
   }, [moving, commit, pushUndo]);
@@ -390,8 +414,9 @@ function PlanApp({ session, fixtureMode }) {
     if (!moving) return;
     const message = moving.source === 'task' ? `${moving.title}을(를) 다시 언젠가로 돌렸어요` : `${moving.title}을(를) 없앴어요`;
     commit((prev) => {
-      pushUndo(prev, message);
-      return scope === 'following' ? removeFollowing(prev, moving) : removeOnce(prev, moving);
+      const after = scope === 'following' ? removeFollowing(prev, moving) : removeOnce(prev, moving);
+      pushUndo(prev, message, after);
+      return after;
     });
     setMoving(null);
   }, [moving, commit, pushUndo]);
@@ -531,6 +556,16 @@ function PlanApp({ session, fixtureMode }) {
             </select>
             <p className="rk-pl-hint">
               앞뒤 일정과 이만큼은 띄우고 싶다는 뜻입니다. 위의 여유(버퍼)가 &lsquo;아예 못 넣는 거리&rsquo;라면 이쪽은 &lsquo;넣을 수는 있지만 빡빡한 거리&rsquo;입니다.
+            </p>
+          </dd></div>
+          <div className="rk-field"><dt>식사 시간</dt><dd>
+            <select className="rk-input rk-select" value={data.settings.mealMin}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, mealMin: Number(e.target.value) } }))}>
+              <option value={0}>추천 안 함</option>
+              {[20, 30, 40, 50, 60].map((v) => <option key={v} value={v}>{v}분</option>)}
+            </select>
+            <p className="rk-pl-hint">
+              점심(11–14시)·저녁(17–20시 반) 안에서 비는 자리에 이만큼을 추천합니다. 고정 일정이 아니라 일정이 바뀌면 따라 옮겨가고, 할 일을 제안할 때 식사 자리를 없애는 시간은 뒤로 미룹니다.
             </p>
           </dd></div>
           <PlacesSettings

@@ -42,7 +42,8 @@ export default function MoveSheet({ occ, occurrences, events, settings, onMove, 
   const others = occurrences.filter((o) => o.key !== occ.key);
   const candidates = suggest({
     occurrences: others, duration, fromISO: occ.date, days: 14, settings,
-    nowISO: occ.date, target: { date: occ.date, start: occ.start }, limit: 3,
+    nowISO: occ.date,
+    target: { date: occ.date, start: occ.start, placeId: occ.placeId, travelMin: occ.travelMin }, limit: 3,
   });
 
   function toMin(hhmm) {

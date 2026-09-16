@@ -5,7 +5,7 @@
 // .rk-pl-ov 가 그리드 순서를 맡고, 여기서는 DOM 순서만 모바일 기준으로 둔다 — order 로 PC 만 조정).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight, CalendarDays, CalendarHeart, ChevronDown, ChevronRight, ClipboardList, Clock, Plus,
+  ArrowRight, CalendarDays, CalendarHeart, ChevronDown, ChevronRight, ClipboardList, Clock, Plus, Utensils,
 } from 'lucide-react';
 import {
   addDaysISO, diffDaysISO, dowOf, expand, fmtTime, nowMinutes, todayISO, weekDays, weekLabel,
@@ -15,7 +15,7 @@ import { suggest } from '../../lib/plan-suggest';
 import { shortDate, shortSlot } from './format';
 import { Empty, Tag } from '../study/parts';
 import WeekStrip from './WeekStrip';
-import { travelBlocks } from '../../lib/plan-suggest';
+import { mealSlots, travelBlocks } from '../../lib/plan-suggest';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -84,10 +84,17 @@ export default function Overview({
     for (const t of someday) {
       const cands = suggest({
         occurrences: [...base, ...virtual], duration: t.duration, fromISO: today, days: 14,
-        settings, nowISO: today, nowMin: now, target: { due: t.due, priority: t.priority }, limit: 3,
+        settings, nowISO: today, nowMin: now,
+        target: { due: t.due, priority: t.priority, placeId: t.placeId, travelMin: t.travelMin }, limit: 3,
       });
       out.set(t.id, cands);
-      if (cands[0]) virtual.push({ date: cands[0].date, start: cands[0].start, end: cands[0].end, allDay: false });
+      // 다음 할 일이 이 자리의 동선까지 알도록 장소를 같이 싣는다
+      if (cands[0]) {
+        virtual.push({
+          key: `virtual:${t.id}`, date: cands[0].date, start: cands[0].start, end: cands[0].end,
+          allDay: false, placeId: t.placeId || '', travelMin: t.travelMin,
+        });
+      }
     }
     return out;
   }, [someday, data, classes, shifts, today, settings, now]);
@@ -126,6 +133,8 @@ export default function Overview({
     const rows = [
       ...timed.map((o) => ({ type: 'occ', occ: o, start: o.start, end: o.end })),
       ...travelBlocks(todayOcc, today, settings).map(([a, b, label]) => ({ type: 'travel', start: a, end: b, label })),
+      // 식사는 고정 일정이 아니지만 빈 시간을 나눠 보여준다(그 시간엔 먹는다)
+      ...mealSlots(todayOcc, today, settings).filter((m) => !m.covered).map((m) => ({ type: 'meal', ...m })),
     ].sort((a, b) => a.start - b.start || (a.type === 'travel' ? -1 : 1));
 
     let prevEnd = settings.dayStart;
@@ -233,6 +242,19 @@ export default function Overview({
               )}
 
               {timeline.remaining.map((row, i) => {
+                if (row.type === 'meal') {
+                  return (
+                    <div key={`ml-${row.key}`} className={'rk-pl-meal-row' + (row.missing ? ' is-missing' : '')}>
+                      <span className="rk-pl-travel-at rk-num">{row.missing ? '' : fmtTime(row.start)}</span>
+                      <Utensils size={13} strokeWidth={1.5} aria-hidden="true" />
+                      <span>
+                        {row.missing
+                          ? `${row.label} 먹을 틈이 없습니다`
+                          : <>{row.label} 추천 <b className="rk-num">{row.end - row.start}</b>분{row.short ? ' · 짧게' : ''}</>}
+                      </span>
+                    </div>
+                  );
+                }
                 if (row.type === 'travel') {
                   const mins = row.end - row.start;
                   return (

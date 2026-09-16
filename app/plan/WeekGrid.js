@@ -8,7 +8,7 @@
 // dayStart/dayEnd 를 넘지 않게)로 잘라 불필요하게 긴 그리드를 없앤다 — 중첩 스크롤의 원인이었다.
 import { useMemo, useState } from 'react';
 import { dowOf, fmtTime, nowMinutes, todayISO } from '../../lib/plan-core';
-import { travelBlocks } from '../../lib/plan-suggest';
+import { mealSlots, travelBlocks } from '../../lib/plan-suggest';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const MIN_SPAN = 8 * 60;
@@ -58,6 +58,11 @@ export default function WeekGrid({ occurrences, days, settings, onSlotClick, onO
   // 출근·귀가·외출 준비 — 일정 칸 뒤에 옅게 깐다(칸 나누기에는 끼지 않는다)
   const moves = useMemo(
     () => new Map(days.map((d) => [d, travelBlocks(occurrences, d, settings)])),
+    [occurrences, days, settings],
+  );
+  // 식사 추천 — 점선 테두리만. 고정이 아니라 일정에 맞춰 옮겨 다닌다
+  const meals = useMemo(
+    () => new Map(days.map((d) => [d, mealSlots(occurrences, d, settings).filter((m) => !m.missing && !m.covered)])),
     [occurrences, days, settings],
   );
   const { dayStart: fullStart, dayEnd: fullEnd, step } = settings;
@@ -143,6 +148,18 @@ export default function WeekGrid({ occurrences, days, settings, onSlotClick, onO
               {isToday && nowMin >= dayStart && nowMin <= dayEnd && (
                 <div className="rk-pl-now" style={{ top: yPx(nowMin) }} />
               )}
+              {(meals.get(d) || []).map((m) => {
+                const top = yPx(m.start);
+                const height = Math.max(10, yPx(m.end) - top);
+                return (
+                  <div
+                    key={`ml-${m.key}`} className="rk-pl-meal" style={{ top, height }}
+                    title={`${m.label} 추천 ${fmtTime(m.start)}–${fmtTime(m.end)} (고정 아님)`} aria-hidden="true"
+                  >
+                    {height >= 16 && <span>{m.label}</span>}
+                  </div>
+                );
+              })}
               {(moves.get(d) || []).map(([a, e, label]) => {
                 const top = yPx(a);
                 const height = Math.max(4, yPx(e) - top);

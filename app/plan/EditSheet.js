@@ -115,42 +115,14 @@ function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, def
         </div>
       )}
 
-      <Field label="장소">
-        {(settings?.places || []).length > 0 && (
-          <div className="rk-pl-chips" role="group" aria-label="지점">
-            {settings.places.map((pl) => (
-              <button
-                key={pl.id} type="button"
-                className={'rk-pl-chip' + (placeId === pl.id ? ' is-on' : '')}
-                aria-pressed={placeId === pl.id}
-                onClick={() => setPlaceId(placeId === pl.id ? '' : pl.id)}
-              >{pl.name}</button>
-            ))}
-          </div>
-        )}
-        <input
-          className="rk-input" value={place} placeholder="상세 (본관 201 · 3층 …)"
-          style={(settings?.places || []).length ? { marginTop: 8 } : undefined}
-          onChange={(e) => setPlace(e.target.value)}
-        />
-      </Field>
-
-      {!allDay && (
-        <Field label="이동시간 (선택)">
-          <div className="rk-pl-travel-one">
-            <input
-              className="rk-input rk-pl-travel-i" inputMode="numeric" value={travelRaw} placeholder="0"
-              onChange={(e) => setTravelRaw(e.target.value.replace(/[^\d]/g, ''))}
-            />
-            <span className="rk-pl-travel-u">분</span>
-          </div>
-          <p className="rk-pl-hint">
-            {placeId
-              ? '적으면 지점 사이 이동시간 대신 이 값을 씁니다.'
-              : '지점에 없는 곳이면 여기 적어주세요. 시작 전 그만큼이 이동으로 잡힙니다.'}
-          </p>
-        </Field>
-      )}
+      <PlaceFields
+        settings={settings} placeId={placeId} setPlaceId={setPlaceId}
+        place={place} setPlace={setPlace} travelRaw={travelRaw} setTravelRaw={setTravelRaw}
+        showTravel={!allDay}
+        hint={placeId
+          ? '적으면 지점 사이 이동시간 대신 이 값을 씁니다.'
+          : '지점에 없는 곳이면 여기 적어주세요. 시작 전 그만큼이 이동으로 잡힙니다.'}
+      />
       <Field label="메모"><textarea className="rk-input rk-area" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
 
       <Field label="특별한 약속">
@@ -211,20 +183,67 @@ function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, def
   );
 }
 
-function TaskForm({ initial, onSave, onClose }) {
+// 일정·할 일이 같이 쓰는 장소 칸 — 지점 칩(이동 계산용) + 상세 + 필요하면 직접 적는 이동시간.
+function PlaceFields({ settings, placeId, setPlaceId, place, setPlace, travelRaw, setTravelRaw, hint, showTravel = true }) {
+  const places = settings?.places || [];
+  return (
+    <>
+      <Field label="장소">
+        {places.length > 0 && (
+          <div className="rk-pl-chips" role="group" aria-label="지점">
+            {places.map((pl) => (
+              <button
+                key={pl.id} type="button"
+                className={'rk-pl-chip' + (placeId === pl.id ? ' is-on' : '')}
+                aria-pressed={placeId === pl.id}
+                onClick={() => setPlaceId(placeId === pl.id ? '' : pl.id)}
+              >{pl.name}</button>
+            ))}
+          </div>
+        )}
+        <input
+          className="rk-input" value={place} placeholder="상세 (본관 201 · 3층 …)"
+          style={places.length ? { marginTop: 8 } : undefined}
+          onChange={(e) => setPlace(e.target.value)}
+        />
+      </Field>
+      {showTravel && (
+        <Field label="이동시간 (선택)">
+          <div className="rk-pl-travel-one">
+            <input
+              className="rk-input rk-pl-travel-i" inputMode="numeric" value={travelRaw} placeholder="0"
+              onChange={(e) => setTravelRaw(e.target.value.replace(/[^\d]/g, ''))}
+            />
+            <span className="rk-pl-travel-u">분</span>
+          </div>
+          <p className="rk-pl-hint">{hint}</p>
+        </Field>
+      )}
+    </>
+  );
+}
+
+function TaskForm({ initial, settings, onSave, onClose }) {
   const t = initial;
   const [title, setTitle] = useState(t?.title || '');
   const [durationRaw, setDurationRaw] = useState(String(t?.duration ?? 60));
   const [due, setDue] = useState(t?.due || '');
   const [priority, setPriority] = useState(t?.priority || 'normal');
   const [note, setNote] = useState(t?.note || '');
+  const [placeId, setPlaceId] = useState(t?.placeId || '');
+  const [place, setPlace] = useState(t?.place || '');
+  const [travelRaw, setTravelRaw] = useState(t?.travelMin != null ? String(t.travelMin) : '');
   const [err, setErr] = useState('');
 
   function submit(e) {
     e.preventDefault();
     if (!title.trim()) { setErr('제목을 입력해 주세요.'); return; }
     const duration = Math.max(5, Number(durationRaw) || 60);
-    const patch = { title: title.trim(), duration, due: due || null, priority, note };
+    const travelMin = travelRaw.trim() === '' ? null : Math.max(0, Number(travelRaw) || 0);
+    const patch = {
+      title: title.trim(), duration, due: due || null, priority, note,
+      placeId, place: place.trim(), travelMin,
+    };
     if (t) onSave({ mode: 'edit', id: t.id, patch });
     else onSave({ mode: 'new', task: { id: uid('tk'), ...patch, slot: null, done: false, doneAt: null } });
   }
@@ -259,6 +278,13 @@ function TaskForm({ initial, onSave, onClose }) {
         </Field>
       </div>
 
+      <PlaceFields
+        settings={settings} placeId={placeId} setPlaceId={setPlaceId}
+        place={place} setPlace={setPlace} travelRaw={travelRaw} setTravelRaw={setTravelRaw}
+        hint={placeId || travelRaw
+          ? '언제 할지 제안할 때 앞뒤 일정과의 동선까지 따져서, 가는 길에 할 수 있는 시간을 먼저 권합니다.'
+          : '장소가 정해져 있으면 고르세요. 어디서든 할 수 있으면 비워 두면 됩니다.'}
+      />
       <Field label="메모"><textarea className="rk-input rk-area" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
 
       {err && <p className="rk-err" role="alert">{err}</p>}
@@ -296,7 +322,7 @@ export default function EditSheet({
               settings={settings} onSave={onSaveEvent} onClose={onClose}
             />
           )
-          : <TaskForm initial={initial} onSave={onSaveTask} onClose={onClose} />}
+          : <TaskForm initial={initial} settings={settings} onSave={onSaveTask} onClose={onClose} />}
       </div>
     </div>
   );

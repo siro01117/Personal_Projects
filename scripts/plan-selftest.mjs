@@ -5,7 +5,7 @@ import {
   addDaysISO, dowOf, todayISO, weekDays, weekLabel, mergePlan,
 } from '../lib/plan-core.js';
 import {
-  dayCapacity, freeIntervals, lateHours, restBetween, suggest, travelBlocks,
+  dayCapacity, freeIntervals, lateHours, mealRoom, mealSlots, restBetween, routeFit, suggest, travelBlocks,
 } from '../lib/plan-suggest.js';
 
 let pass = 0, fail = 0;
@@ -375,13 +375,30 @@ const D = (n) => addDaysISO(T, n);
     ok('귀가는 근무 끝나고 35분', b[2][0] === 1290 && b[2][1] === 1325);
   }
   {
-    // 학교 → 근무: 집에서 한 번만 나간다 → 준비도 한 번
-    const b = travelBlocks([ev('class', 600, 700, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
+    // 학교 → 근무(수요일처럼 17:40 끝 → 20:00): 틈이 짧아 집에 안 들르고 바로 간다 → 준비도 한 번
+    const b = travelBlocks([ev('class', 900, 1060, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
     ok('집에서 한 번 나가면 준비도 한 번', b.filter((x) => x[2] === '외출 준비').length === 1, JSON.stringify(b));
     ok('학교→스큐 이동은 출근', b.some((x) => x[2] === '출근' && x[1] === 1200 && x[0] === 1130));
-    ok('학교 지점을 안 정했으면 학교로 가는 건 그냥 이동', b.some((x) => x[2] === '이동' && x[1] === 600));
+    ok('학교 지점을 안 정했으면 학교로 가는 건 그냥 이동', b.some((x) => x[2] === '이동' && x[1] === 900));
     const b2 = travelBlocks([ev('class', 600, 700, 'pnu')], D0, { ...st, schoolPlaceId: 'pnu' });
     ok('학교 지점을 정하면 등교', b2.some((x) => x[2] === '등교' && x[1] === 600), JSON.stringify(b2));
+  }
+  {
+    // 오전 수업(11:40 끝) → 저녁 근무(20:00): 틈이 길어 집에 들렀다 다시 나간다
+    const b = travelBlocks([ev('class', 600, 700, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
+    const labels = b.map((x) => x[2]).join(',');
+    ok('긴 틈이면 집에 들렀다 간다', labels === '외출 준비,이동,귀가,외출 준비,출근,귀가', labels);
+    ok('집에서 다시 나올 땐 집→스큐 35분', b.some((x) => x[2] === '출근' && x[0] === 1165 && x[1] === 1200));
+  }
+  {
+    // 같은 곳 연강 사이 공강(11:45 끝 → 13:30)은 집에 가도 머물 시간이 없어 학교에 남는다
+    const b = travelBlocks([ev('c1', 630, 705, 'pnu'), ev('c2', 810, 885, 'pnu')], D0, st);
+    ok('짧은 공강엔 학교에 남는다', b.filter((x) => x[2] === '귀가').length === 1, JSON.stringify(b));
+  }
+  {
+    // 같은 곳이라도 틈이 아주 길면 집에 들른다
+    const b = travelBlocks([ev('c1', 540, 600, 'pnu'), ev('c2', 1080, 1140, 'pnu')], D0, st);
+    ok('같은 곳 사이 긴 틈은 집에 들른다', b.filter((x) => x[2] === '외출 준비').length === 2, JSON.stringify(b));
   }
   {
     // 오전 학교 → 집 들렀다 → 저녁 근무: 두 번 나가므로 준비도 두 번
@@ -464,6 +481,144 @@ const D = (n) => addDaysISO(T, n);
     const m = mergePlan(null, pending, server);
     ok('기준본을 모르면 지우지 않는다', ['a', 'x1', 'n1'].every((id) => m.events.some((e) => e.id === id)), m.events.map((e) => e.id).join());
   }
+}
+
+/* ------------------------------------------------ 13. 장소 있는 할 일 · 동선 */
+{
+  // 실제 설정 모양: 집·스큐 35 / 집·부산대 30 / 스큐·부산대 70 / 본가는 어디서든 100 넘게
+  const st = normalize({ settings: {
+    dayStart: 480, dayEnd: 1440, buffer: 0, homeId: 'home', workPlaceId: 'cube', schoolPlaceId: 'pnu', prepMin: 35,
+    places: [{ id: 'home', name: '집' }, { id: 'cube', name: '스터디큐브' }, { id: 'pnu', name: '부산대' }, { id: 'bon', name: '본가' }],
+    travel: { 'cube|home': 35, 'home|pnu': 30, 'cube|pnu': 70, 'bon|home': 120, 'bon|cube': 103, 'bon|pnu': 100 },
+  } }).settings;
+  const D0 = '2026-09-16';
+  const ev = (key, start, end, placeId) => ({ key, date: D0, start, end, allDay: false, placeId, title: key });
+  const day = [ev('class', 600, 720, 'pnu'), ev('work', 1200, 1290, 'cube')];
+  const fit = (start, dur, placeId) => routeFit({ date: D0, start, end: start + dur },
+    { occurrences: day, settings: st, target: { placeId } });
+
+  {
+    const doc = normalize({ settings: st, tasks: [{ id: 't', title: '모니터 교체', duration: 30, placeId: 'cube', slot: { date: D0, start: 1140 } }] });
+    const occ = expand(doc, [], D0, D0);
+    ok('배치된 할 일에 장소가 붙는다', occ[0]?.placeId === 'cube' && doc.tasks[0].placeId === 'cube');
+  }
+  {
+    // 스큐 할 일을 근무 직전(19:00~19:30)에 → 어차피 스큐로 가는 길
+    const r = fit(1140, 30, 'cube');
+    ok('근무 직전 스큐 할 일은 가는 길에', r.reason === '가는 길에' && r.score > 0, JSON.stringify(r));
+  }
+  {
+    // 수업 끝나고 바로(12:30) 스큐 할 일 → 학교→스큐 70분이 수업(~12:00)과 부딪침
+    const r = fit(750, 30, 'cube');
+    ok('이동이 수업과 부딪치는 시간은 뺀다', r.score === -Infinity, JSON.stringify(r));
+  }
+  {
+    // 본가 할 일을 수업과 근무 사이(15:00)에.
+    // 넣기 전: 수업 뒤 집에 들렀다(귀가 30 + 준비 35 + 출근 35) 근무 → 틈 동선 100
+    // 넣은 뒤: 학교→본가 100 + 본가→스큐 103 (집에 들를 틈이 안 남음) → 203 ⇒ +103
+    const r = fit(900, 60, 'bon');
+    ok('멀리 도는 동선은 늘어난 만큼 감점', r.score < 0 && r.reason === '이동 +103분', JSON.stringify(r));
+  }
+  {
+    // 스큐 할 일을 오후 2시에 넣으면 그 뒤 근무까지 틈이 길어 집에 한 번 더 다녀와야 한다 → 손해
+    const early = fit(840, 30, 'cube');
+    const late = fit(1140, 30, 'cube');
+    ok('학원 할 일은 오후 대기보다 근무 직전이 낫다', early.score < late.score, `${JSON.stringify(early)} vs ${JSON.stringify(late)}`);
+  }
+  {
+    const r = fit(900, 60, '');
+    ok('장소 없는 할 일은 동선을 안 본다', r === null);
+  }
+  {
+    // 제안 전체: 스큐 할 일은 근무 날 근무 직전이 1순위로 나와야 한다
+    const occ = [...day];
+    const sug = suggest({
+      occurrences: occ, duration: 30, fromISO: D0, days: 1, settings: st, nowISO: D0,
+      target: { placeId: 'cube' }, limit: 3,
+    });
+    ok('제안 1순위가 가는 길에', sug[0]?.reasons.includes('가는 길에'), JSON.stringify(sug.map((c) => [c.start, c.reasons])));
+    ok('수업 직후처럼 못 가는 시간은 제안에 없다', !sug.some((c) => c.start >= 720 && c.start < 790), JSON.stringify(sug.map((c) => c.start)));
+  }
+}
+
+/* ------------------------------------------------------------ 14. 식사 추천 */
+{
+  const st = normalize({ settings: {
+    dayStart: 480, dayEnd: 1440, buffer: 0, homeId: 'home', workPlaceId: 'cube', schoolPlaceId: 'pnu', prepMin: 35, mealMin: 40,
+    places: [{ id: 'home', name: '집' }, { id: 'cube', name: '스터디큐브' }, { id: 'pnu', name: '부산대' }],
+    travel: { 'cube|home': 35, 'home|pnu': 30, 'cube|pnu': 70 },
+  } }).settings;
+  const D0 = '2026-09-16';
+  const ev = (key, start, end, placeId) => ({ key, date: D0, start, end, allDay: false, placeId, title: key });
+
+  {
+    // 실제 수요일: 10:30–11:45, 13:30–14:45, 16:00–17:40 (학교) → 20:00 근무
+    const day = [ev('a', 630, 705, 'pnu'), ev('b', 810, 885, 'pnu'), ev('c', 960, 1060, 'pnu'), ev('w', 1200, 1290, 'cube')];
+    const m = mealSlots(day, D0, st);
+    const lunch = m.find((x) => x.key === 'lunch'), dinner = m.find((x) => x.key === 'dinner');
+    ok('점심은 공강(11:45–13:30) 안 12:00 에 40분', lunch && !lunch.missing && lunch.start === 720 && lunch.end === 760, JSON.stringify(lunch));
+    // 17:40 수업 끝 → 18:50 출근 출발. 저녁은 그 사이, 18:00 선호
+    ok('저녁은 수업 끝과 출근 사이', dinner && !dinner.missing && dinner.start >= 1060 && dinner.end <= 1130, JSON.stringify(dinner));
+  }
+  {
+    // 11:00–14:00 을 꽉 채운 날 → 점심 틈 없음
+    const day = [ev('a', 650, 850, 'pnu')];
+    const lunch = mealSlots(day, D0, st).find((x) => x.key === 'lunch');
+    ok('점심 창이 꽉 차면 틈 없음', lunch.missing === true, JSON.stringify(lunch));
+  }
+  {
+    // 25분만 비면 짧게라도 잡는다
+    const day = [ev('a', 660, 780, 'pnu'), ev('b', 805, 900, 'pnu')];
+    const lunch = mealSlots(day, D0, st).find((x) => x.key === 'lunch');
+    ok('짧은 틈이면 짧게 표시', lunch && lunch.short && lunch.end - lunch.start === 25, JSON.stringify(lunch));
+  }
+  {
+    ok('일정 없는 날은 추천 안 함', mealSlots([], D0, st).length === 0);
+    // 밥약·회식 같은 일정이 창에 걸치면 그 끼니는 해결
+    const m = mealSlots([{ ...ev('x', 720, 790, ''), title: '창성이형 밥약' }, { ...ev('y', 1140, 1260, ''), title: '동아리 회식' }], D0, st);
+    ok('밥약은 점심, 회식은 저녁으로 친다', m.every((x) => x.covered) && m[0].by === '창성이형 밥약' && m[1].by === '동아리 회식', JSON.stringify(m));
+    const plain = mealSlots([{ ...ev('z', 720, 790, ''), title: '학과 상담' }], D0, st).find((x) => x.key === 'lunch');
+    ok('식사와 무관한 일정은 끼니로 안 친다', !plain.covered);
+    ok('식사 0분이면 추천 안 함', mealSlots([ev('a', 600, 700, 'pnu')], D0, { ...st, mealMin: 0 }).length === 0);
+  }
+  {
+    // 점심 창 안 유일한 틈을 할 일로 막으면 감점, 딴 데 넣으면 무감점
+    const day = [ev('a', 630, 705, 'pnu'), ev('b', 780, 885, 'pnu')];
+    const ctx = { occurrences: day, settings: st, target: {} };
+    const blocking = mealRoom({ date: D0, start: 710, end: 770 }, ctx);
+    const elsewhere = mealRoom({ date: D0, start: 900, end: 930 }, ctx);
+    ok('식사 자리를 없애는 시간은 감점', blocking.score < 0, JSON.stringify(blocking));
+    ok('식사와 상관없는 시간은 감점 없음', elsewhere.score === 0, JSON.stringify(elsewhere));
+  }
+}
+
+{
+  // 실제로 겪은 연속 저장 사고 재현: 할 일을 연달아 넣는 동안 첫 저장이 서버 일정 8개를 합쳐 왔다.
+  const ev = (id) => ({ id, title: id, date: '2026-09-18', start: 600, end: 660, allDay: false });
+  const base0 = normalize({ events: [ev('a')], tasks: [] });
+  const A1 = normalize({ ...base0, tasks: [{ id: 't1', title: '상법 정리' }] });          // 첫 저장분
+  const server = normalize({ ...base0, events: [ev('a'), ev('x1'), ev('x2')] });            // 밖에서 넣은 일정
+  const merged1 = mergePlan(base0, A1, server);                                              // 첫 저장 결과
+  const A2 = normalize({ ...A1, tasks: [...A1.tasks, { id: 't2', title: '통계 정리' }] });   // 옛 화면 위의 두 번째 수정
+
+  // 틀린 순서: 기준본만 먼저 merged1 로 바꾸고 A2 를 그대로 저장 → 일정이 지워진다(버그)
+  const wrong = mergePlan(merged1, A2, merged1);
+  ok('기준본만 먼저 바꾸면 밖의 일정이 지워진다(재현)', wrong.events.length === 1);
+
+  // 고친 순서: 기준본과 함께 A2 를 merged1 위로 다시 얹은 뒤 저장
+  const rebased = mergePlan(A1, A2, merged1);
+  const right = mergePlan(merged1, rebased, merged1);
+  ok('다시 얹으면 밖의 일정과 두 할 일이 다 남는다',
+    right.events.length === 3 && right.tasks.map((t) => t.id).sort().join() === 't1,t2',
+    JSON.stringify({ e: right.events.map((e) => e.id), t: right.tasks.map((t) => t.id) }));
+
+  // 되돌리기: 옮기기 직후(after) 대비 직전(snapshot)만 되돌리고, 그 사이 들어온 일정은 둔다
+  const snapshot = normalize({ events: [ev('a')] });
+  const after = normalize({ events: [{ ...ev('a'), date: '2026-09-19' }] });
+  const now = normalize({ events: [{ ...ev('a'), date: '2026-09-19' }, ev('x1')] });
+  const undone = mergePlan(after, snapshot, now);
+  ok('되돌리기는 그 동작만 되돌린다', undone.events.find((e) => e.id === 'a').date === '2026-09-18'
+    && undone.events.some((e) => e.id === 'x1'), JSON.stringify(undone.events));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
