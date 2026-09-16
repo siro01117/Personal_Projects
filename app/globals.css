@@ -995,3 +995,14 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-travel-row { display: flex; align-items: center; gap: 6px; padding: 3px 10px;
   font-size: var(--pl-xs); color: var(--faint); }
 .rk-pl-travel-row b { color: var(--mut); font-weight: 700; }
+
+/* 포털 홈 — 접히는 섹션(헤리티지). 머리줄 전체가 토글이다 */
+.rk-sec-fold > summary { cursor: pointer; list-style: none; margin: 0 -10px; padding: 8px 10px;
+  border-radius: 10px; }
+.rk-sec-fold > summary::-webkit-details-marker { display: none; }
+.rk-sec-fold > summary:hover { background: var(--panel2); }
+.rk-sec-fold > summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.rk-sec-fold .rk-sec-n { margin-left: auto; }
+.rk-sec-chev { flex: 0 0 auto; color: var(--faint); transition: transform var(--t) var(--ease); }
+.rk-sec-fold[open] .rk-sec-chev { transform: rotate(180deg); }
+.rk-sec-fold:not([open]) > summary { margin-bottom: 0; }

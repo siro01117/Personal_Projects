@@ -10,9 +10,9 @@
    필요 없다 — 여기까지 들어온 사람은 이미 로그인한 사람이다.
 --------------------------------------------------------------------------- */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Archive, ArrowRight, BookOpen, CalendarCheck, CalendarClock, ChartNoAxesColumn, CircleCheckBig,
+  Archive, ArrowRight, BookOpen, CalendarCheck, CalendarClock, ChartNoAxesColumn, ChevronDown, CircleCheckBig,
   Gauge, GraduationCap, Grid2x2, LayoutDashboard, Layers, Sparkles, UsersRound, Utensils,
   Waypoints, Wallet, ClipboardList, MapPin, ShieldAlert,
 } from 'lucide-react';
@@ -33,6 +33,15 @@ const MODULE_ICONS = {
   student: UsersRound, seat: Grid2x2, patrol: MapPin, penalty: ShieldAlert,
   schedule: CalendarCheck, lunch: Utensils, payment: Wallet, attendance: ClipboardList,
 };
+
+// 멈춘 앱 라우트. 코드와 주소는 그대로 두고 홈에서만 헤리티지로 내린다.
+const PAUSED = [
+  {
+    href: '/dash', icon: Gauge, name: '현황',
+    desc: '벌여둔 일·오늘·챙길 것을 한 문장씩. 2026-09-16 멈춤, 자동 수집도 꺼둠.',
+    chips: ['챙길 것', '오늘', '벌여둔 일'],
+  },
+];
 
 function Card({ href, icon: Ico, name, desc, chips, accent, badge }) {
   return (
@@ -69,25 +78,6 @@ function Home({ session, projects }) {
       title="Ra_Kan"
       sub="직접 만들어 쓰는 것들. 학습이 먼저, 만들어 둔 것이 뒤."
     >
-      {/* 현황이 맨 위 — 병렬로 벌여둔 걸 먼저 보고 어디로 들어갈지 정하는 자리다 */}
-      <section className="rk-sec" aria-labelledby="sec-dash">
-        <div className="rk-sec-h">
-          <Gauge size={17} strokeWidth={1.5} aria-hidden="true" />
-          <h2 className="rk-sec-t" id="sec-dash">현황</h2>
-          <span className="rk-sec-n">1</span>
-        </div>
-        <div className="rk-grid">
-          <Card
-            href="/dash"
-            icon={Gauge}
-            name="현황"
-            desc="벌여둔 작업 · 저장소 · 오늘 · 볼트 미결, 그리고 놓치고 있던 것."
-            chips={['놓친 것', '저장소', '미결']}
-            accent={accentAt(2)}
-          />
-        </div>
-      </section>
-
       <section className="rk-sec" aria-labelledby="sec-plan">
         <div className="rk-sec-h">
           <CalendarClock size={17} strokeWidth={1.5} aria-hidden="true" />
@@ -124,11 +114,18 @@ function Home({ session, projects }) {
         </div>
       </section>
 
-      <section className="rk-sec" aria-labelledby="sec-heritage">
-        <div className="rk-sec-h">
+      {/* 헤리티지는 기본으로 접어둔다 — 멈췄거나 만들어만 둔 것이라 평소 화면에서 뺀다 */}
+      <details className="rk-sec rk-sec-fold">
+        <summary className="rk-sec-h">
           <Archive size={17} strokeWidth={1.5} aria-hidden="true" />
-          <h2 className="rk-sec-t" id="sec-heritage">헤리티지</h2>
-          <span className="rk-sec-n">{modules.length + projects.length}</span>
+          <h2 className="rk-sec-t">헤리티지</h2>
+          <span className="rk-sec-n">{modules.length + projects.length + PAUSED.length}</span>
+          <ChevronDown size={16} strokeWidth={1.5} className="rk-sec-chev" aria-hidden="true" />
+        </summary>
+
+        <h3 className="rk-sub-t">멈춘 라칸 기능</h3>
+        <div className="rk-grid">
+          {PAUSED.map((p, i) => <Card key={p.href} {...p} accent={accentAt(i + 2)} badge="멈춤" />)}
         </div>
 
         <h3 className="rk-sub-t">스터디큐브 모듈</h3>
@@ -159,11 +156,18 @@ function Home({ session, projects }) {
             ))}
           </div>
         )}
-      </section>
+      </details>
     </Shell>
   );
 }
 
 export default function PortalClient({ projects = [] }) {
+  // 개발용: ?fixture=1 이면 로그인 없이 홈 배치만 확인한다(/plan·/dash 와 같은 방식).
+  const [fixtureMode, setFixtureMode] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    if (new URLSearchParams(window.location.search).get('fixture') === '1') setFixtureMode(true);
+  }, []);
+  if (fixtureMode) return <Home session={null} projects={projects} />;
   return <AuthGate>{(session) => <Home session={session} projects={projects} />}</AuthGate>;
 }
