@@ -32,6 +32,7 @@ import Overview from './Overview';
 import WeekGrid from './WeekGrid';
 import EditSheet from './EditSheet';
 import MoveSheet from './MoveSheet';
+import PlacesSettings from './PlacesSettings';
 
 const VIEWS = [
   { key: 'dash', label: '개요', icon: CalendarDays },
@@ -449,6 +450,10 @@ function PlanApp({ session, fixtureMode }) {
               {[0, 10, 15, 20, 30].map((v) => <option key={v} value={v}>{v}분</option>)}
             </select>
           </dd></div>
+          <PlacesSettings
+            settings={data.settings}
+            onChange={(fn) => commit((p) => ({ ...p, settings: fn(p.settings) }))}
+          />
           <div className="rk-field"><dt>수업 표시</dt><dd>
             <label className="rk-check">
               <input type="checkbox" checked={data.settings.showClasses}
@@ -552,7 +557,7 @@ function PlanApp({ session, fixtureMode }) {
             kind={sheet.kind} initial={sheet.initial} occ={sheet.occ}
             defaultDate={sheet.defaultDate} defaultStart={sheet.defaultStart}
             defaultRepeat={sheet.defaultRepeat} defaultImportant={sheet.defaultImportant}
-            onSaveEvent={saveEvent} onSaveTask={saveTask} onClose={() => setSheet(null)}
+            settings={data.settings} onSaveEvent={saveEvent} onSaveTask={saveTask} onClose={() => setSheet(null)}
           />
         )}
         {moving && (

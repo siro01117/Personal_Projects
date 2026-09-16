@@ -5,7 +5,7 @@
 // .rk-pl-ov 가 그리드 순서를 맡고, 여기서는 DOM 순서만 모바일 기준으로 둔다 — order 로 PC 만 조정).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CalendarDays, CalendarHeart, ChevronDown, ChevronRight, ClipboardList, Clock, Plus,
+  ArrowRight, CalendarDays, CalendarHeart, ChevronDown, ChevronRight, ClipboardList, Clock, Plus,
 } from 'lucide-react';
 import {
   addDaysISO, diffDaysISO, dowOf, expand, fmtTime, nowMinutes, todayISO,
@@ -14,6 +14,7 @@ import { suggest } from '../../lib/plan-suggest';
 import { shortDate, shortSlot } from './format';
 import { Empty, Tag } from '../study/parts';
 import WeekStrip from './WeekStrip';
+import { travelBlocks } from '../../lib/plan-suggest';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -114,12 +115,23 @@ export default function Overview({
       remaining.push({ type: 'gap', start: from, end, sug: gapSuggestion(from, end) });
     };
 
+    // 이동 구간도 줄 하나로 세운다. 빈 시간처럼 보이면 안 되고(실제로는 못 쓰는 시간),
+    // 제안 엔진이 쓰는 계산(plan-suggest 의 travelBlocks)과 같은 걸 써야 화면과 제안이 어긋나지 않는다.
+    const rows = [
+      ...timed.map((o) => ({ type: 'occ', occ: o, start: o.start, end: o.end })),
+      ...travelBlocks(todayOcc, today, settings).map(([a, b]) => ({ type: 'travel', start: a, end: b })),
+    ].sort((a, b) => a.start - b.start || (a.type === 'travel' ? -1 : 1));
+
     let prevEnd = settings.dayStart;
-    for (const o of timed) {
-      if (o.end <= now) { past.push({ type: 'occ', occ: o }); prevEnd = Math.max(prevEnd, o.end); continue; }
-      pushGap(prevEnd, o.start);
-      remaining.push({ type: 'occ', occ: o });
-      prevEnd = Math.max(prevEnd, o.end);
+    for (const row of rows) {
+      if (row.end <= now) {
+        if (row.type === 'occ') past.push(row);   // 지난 이동까지 접힌 목록에 넣으면 시끄럽다
+        prevEnd = Math.max(prevEnd, row.end);
+        continue;
+      }
+      pushGap(prevEnd, row.start);
+      remaining.push(row);
+      prevEnd = Math.max(prevEnd, row.end);
     }
     pushGap(prevEnd, settings.dayEnd);
     return { allDay, past, remaining };
@@ -215,6 +227,15 @@ export default function Overview({
               )}
 
               {timeline.remaining.map((row, i) => {
+                if (row.type === 'travel') {
+                  const mins = row.end - row.start;
+                  return (
+                    <div key={`tv-${i}`} className="rk-pl-travel-row">
+                      <ArrowRight size={13} strokeWidth={1.5} aria-hidden="true" />
+                      <span>이동 <b className="rk-num">{mins}</b>분</span>
+                    </div>
+                  );
+                }
                 if (row.type === 'gap') {
                   const mins = row.end - row.start;
                   const h = Math.floor(mins / 60), m = mins % 60;

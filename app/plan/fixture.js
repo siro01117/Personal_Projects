@@ -12,15 +12,27 @@ export function buildFixture() {
 
   const doc = {
     version: 1,
-    settings: { dayStart: 480, dayEnd: 1380, step: 30, buffer: 15, showClasses: true, showWork: true, semester: '2026-2' },
+    settings: {
+      dayStart: 480, dayEnd: 1380, step: 30, buffer: 15, showClasses: true, showWork: true, semester: '2026-2',
+      // 4지점 → 쌍 6개. 이동시간 화면과 빈 시간 계산을 같이 확인하려고 다 채워둔다
+      places: [
+        { id: 'home', name: '집' }, { id: 'sch', name: '부산대' },
+        { id: 'cube', name: '스터디큐브 본점' }, { id: 'gym', name: '체육관' },
+      ],
+      travel: {
+        'home|sch': 25, 'cube|home': 20, 'gym|home': 10,
+        'cube|sch': 15, 'gym|sch': 20, 'cube|gym': 25,
+      },
+      homeId: 'home',
+    },
     events: [
       {
-        id: 'fx-gym', title: '헬스장', place: '학교 체육관', note: '',
+        id: 'fx-gym', title: '헬스장', place: '학교 체육관', placeId: 'gym', note: '',
         important: false, date: mon, start: 1080, end: 1140, allDay: false,
         repeat: { freq: 'weekly', days: [1, 3], until: null }, exceptions: {}, color: 3,
       },
       {
-        id: 'fx-dinner', title: '동아리 회식', place: '남포동', note: '2차는 자율',
+        id: 'fx-dinner', title: '동아리 회식', place: '남포동', travelMin: 40, note: '2차는 자율',
         important: false, date: D(1), start: 1140, end: 1260, allDay: false,
         repeat: null, exceptions: {}, color: 5,
       },

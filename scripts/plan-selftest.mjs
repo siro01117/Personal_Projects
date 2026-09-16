@@ -4,7 +4,7 @@ import {
   normalize, expand, moveOnce, moveFollowing, removeOnce, removeFollowing,
   addDaysISO, dowOf, todayISO,
 } from '../lib/plan-core.js';
-import { freeIntervals, suggest } from '../lib/plan-suggest.js';
+import { freeIntervals, suggest, travelBlocks } from '../lib/plan-suggest.js';
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -199,6 +199,68 @@ const D = (n) => addDaysISO(T, n);
   });
   ok('suggest never proposes a slot overlapping work', sug.every((c) => c.end <= 1200 || c.start >= 1290),
     JSON.stringify(sug.map((c) => c.start)));
+}
+
+/* ------------------------------------------------- 8. 이동시간 (지점 행렬) */
+{
+  // 집 --20-- 학교 --10-- 체육관 (집↔체육관은 안 적음 = 0)
+  const settings = {
+    dayStart: 480, dayEnd: 1380, step: 30, buffer: 0,
+    homeId: 'home',
+    places: [{ id: 'home', name: '집' }, { id: 'sch', name: '학교' }, { id: 'gym', name: '체육관' }],
+    travel: { 'home|sch': 20, 'gym|sch': 10 },
+  };
+  const occ = (key, start, end, placeId, travelMin = null) => ({
+    key, date: D(0), start, end, allDay: false, placeId, travelMin, title: key,
+  });
+
+  {
+    const b = travelBlocks([occ('a', 600, 660, 'sch')], D(0), settings);
+    // 집 → 학교 20분, 끝나고 학교 → 집 20분
+    ok('집에서 나가고 돌아오는 이동이 잡힌다',
+      b.length === 2 && b[0][0] === 580 && b[0][1] === 600 && b[1][0] === 660 && b[1][1] === 680,
+      JSON.stringify(b));
+  }
+  {
+    const b = travelBlocks([occ('a', 600, 660, 'sch'), occ('b', 700, 760, 'sch')], D(0), settings);
+    // 같은 지점으로 이어지면 중간 이동이 없다 — 나갈 때와 돌아올 때 둘뿐
+    ok('같은 지점끼리는 이동이 없다', b.length === 2, JSON.stringify(b));
+  }
+  {
+    const b = travelBlocks([occ('a', 600, 660, 'sch'), occ('b', 700, 760, 'gym')], D(0), settings);
+    ok('지점이 바뀌면 사이에 이동이 낀다',
+      b.some(([x, y]) => x === 690 && y === 700), JSON.stringify(b));
+    // 체육관 → 집은 행렬에 없다. 모르는 값을 지어내지 않는다
+    ok('행렬에 없는 쌍은 0 으로 둔다', b.length === 2, JSON.stringify(b));
+  }
+  {
+    const b = travelBlocks([occ('a', 600, 660, 'sch', 45)], D(0), settings);
+    ok('일정에 적은 이동시간이 행렬을 이긴다',
+      b[0][0] === 555 && b[0][1] === 600, JSON.stringify(b));
+  }
+  {
+    const b = travelBlocks([occ('a', 600, 660, '', 30)], D(0), settings);
+    ok('지점 없이 이동시간만 적어도 잡힌다', b.length === 1 && b[0][0] === 570, JSON.stringify(b));
+  }
+  {
+    const b = travelBlocks([occ('a', 600, 660, 'sch')], D(0), { ...settings, homeId: '' });
+    ok('집을 안 정하면 왕복을 세지 않는다', b.length === 0, JSON.stringify(b));
+  }
+  {
+    const free = freeIntervals([occ('a', 600, 660, 'sch')], D(0), settings);
+    // 08:00 ~ 09:40(580) · 11:20(680) 이후
+    ok('빈 시간에서 이동시간이 빠진다',
+      free[0].end === 580 && free[1].start === 680, JSON.stringify(free));
+  }
+  {
+    const sug = suggest({
+      occurrences: [occ('a', 600, 660, 'sch')], duration: 30, fromISO: D(0), days: 1,
+      settings, nowISO: D(0), target: null, limit: 20,
+    });
+    ok('이동 구간에는 후보를 두지 않는다',
+      sug.every((c) => c.end <= 580 || c.start >= 680),
+      JSON.stringify(sug.filter((c) => c.end > 580 && c.start < 680)));
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

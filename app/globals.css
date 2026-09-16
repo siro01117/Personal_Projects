@@ -971,3 +971,36 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-ds-more { font-size: var(--pl-xs); color: var(--faint); margin-top: 7px; }
 
 .rk-ds-foot { font-size: var(--pl-xs); color: var(--faint); margin-top: 4px; }
+
+
+/* -------------------------------------------------- 설정 > 지점·이동시간 */
+.rk-pl-places { list-style: none; display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+.rk-pl-places li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rk-pl-places .rk-input { flex: 1 1 auto; min-width: 0; }
+.rk-pl-home { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; min-height: 38px;
+  padding: 0 10px; border: 1px solid var(--line2); border-radius: 9px;
+  font-size: var(--pl-xs); font-weight: 700; color: var(--faint); }
+.rk-pl-home:hover { color: var(--fg); }
+.rk-pl-home.is-on { border-color: var(--fg); color: var(--fg); background: var(--panel2); }
+.rk-pl-place-x { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px;
+  display: grid; place-items: center; color: var(--faint); }
+.rk-pl-place-x:hover { color: var(--danger); background: var(--panel2); }
+.rk-pl-place-add { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+  font-size: var(--pl-sm); font-weight: 700; color: var(--mut); }
+.rk-pl-place-add:hover { color: var(--fg); }
+
+/* 쌍 목록 — 이름은 늘어나고 분 입력칸은 고정 폭으로 오른쪽에 줄맞춤 */
+.rk-pl-travel { list-style: none; display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+.rk-pl-travel li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rk-pl-travel-n { flex: 1 1 auto; min-width: 0; font-size: var(--pl-sm);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-pl-travel-n i { font-style: normal; color: var(--faint); margin: 0 2px; }
+.rk-pl-travel-i { flex: 0 0 auto; width: 72px; text-align: right;
+  font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.rk-pl-travel-u { flex: 0 0 auto; font-size: var(--pl-sm); color: var(--faint); }
+.rk-pl-travel-one { display: flex; align-items: center; gap: 8px; }
+
+/* 오늘 타임라인의 이동 줄 — 빈 시간(rk-pl-gap)과 헷갈리지 않게 선 없이 낮게 깐다 */
+.rk-pl-travel-row { display: flex; align-items: center; gap: 6px; padding: 3px 10px;
+  font-size: var(--pl-xs); color: var(--faint); }
+.rk-pl-travel-row b { color: var(--mut); font-weight: 700; }

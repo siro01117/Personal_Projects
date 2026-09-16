@@ -36,7 +36,7 @@ function Field({ label, children }) {
   );
 }
 
-function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, defaultImportant, onSave, onClose }) {
+function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, defaultImportant, settings, onSave, onClose }) {
   const ev = initial;
   const editingOccurrence = !!occ && !!ev?.repeat; // 반복 회차 편집 — 반복 패턴 자체는 여기서 건드리지 않는다
   const [title, setTitle] = useState(ev?.title || '');
@@ -47,6 +47,9 @@ function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, def
   const [startRaw, setStartRaw] = useState(initStart != null ? fmtTime(initStart) : (defaultStart != null ? fmtTime(defaultStart) : '09:00'));
   const [endRaw, setEndRaw] = useState(initEnd != null ? fmtTime(initEnd) : (defaultStart != null ? fmtTime(defaultStart + 60) : '10:00'));
   const [place, setPlace] = useState(ev?.place || '');
+  const [placeId, setPlaceId] = useState(ev?.placeId || '');
+  // 행렬에 없는 일회성 장소용. 비워두면 지점 행렬을 쓴다.
+  const [travelRaw, setTravelRaw] = useState(ev?.travelMin != null ? String(ev.travelMin) : '');
   const [note, setNote] = useState(ev?.note || '');
   const [important, setImportant] = useState(ev?.important ?? defaultImportant ?? false);
   const [color, setColor] = useState(ev?.color ?? 0);
@@ -64,7 +67,11 @@ function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, def
     if (!allDay && (start == null || end == null)) { setErr('시작·종료 시각을 확인해 주세요.'); return; }
     if (!allDay && end <= start) { setErr('종료 시각이 시작보다 뒤여야 합니다.'); return; }
 
-    const common = { title: title.trim(), place: place.trim(), note, important, color, allDay };
+    const travelMin = travelRaw.trim() === '' ? null : Math.max(0, Number(travelRaw) || 0);
+    const common = {
+      title: title.trim(), place: place.trim(), placeId, travelMin,
+      note, important, color, allDay,
+    };
 
     if (editingOccurrence) {
       const patch = { ...common, date, start, end };
@@ -108,7 +115,42 @@ function EventForm({ initial, occ, defaultDate, defaultStart, defaultRepeat, def
         </div>
       )}
 
-      <Field label="장소"><input className="rk-input" value={place} onChange={(e) => setPlace(e.target.value)} /></Field>
+      <Field label="장소">
+        {(settings?.places || []).length > 0 && (
+          <div className="rk-pl-chips" role="group" aria-label="지점">
+            {settings.places.map((pl) => (
+              <button
+                key={pl.id} type="button"
+                className={'rk-pl-chip' + (placeId === pl.id ? ' is-on' : '')}
+                aria-pressed={placeId === pl.id}
+                onClick={() => setPlaceId(placeId === pl.id ? '' : pl.id)}
+              >{pl.name}</button>
+            ))}
+          </div>
+        )}
+        <input
+          className="rk-input" value={place} placeholder="상세 (본관 201 · 3층 …)"
+          style={(settings?.places || []).length ? { marginTop: 8 } : undefined}
+          onChange={(e) => setPlace(e.target.value)}
+        />
+      </Field>
+
+      {!allDay && (
+        <Field label="이동시간 (선택)">
+          <div className="rk-pl-travel-one">
+            <input
+              className="rk-input rk-pl-travel-i" inputMode="numeric" value={travelRaw} placeholder="0"
+              onChange={(e) => setTravelRaw(e.target.value.replace(/[^\d]/g, ''))}
+            />
+            <span className="rk-pl-travel-u">분</span>
+          </div>
+          <p className="rk-pl-hint">
+            {placeId
+              ? '적으면 지점 사이 이동시간 대신 이 값을 씁니다.'
+              : '지점에 없는 곳이면 여기 적어주세요. 시작 전 그만큼이 이동으로 잡힙니다.'}
+          </p>
+        </Field>
+      )}
       <Field label="메모"><textarea className="rk-input rk-area" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
 
       <Field label="특별한 약속">
@@ -230,7 +272,7 @@ function TaskForm({ initial, onSave, onClose }) {
 
 export default function EditSheet({
   kind, initial, occ, defaultDate, defaultStart, defaultRepeat, defaultImportant,
-  onSaveEvent, onSaveTask, onClose,
+  settings, onSaveEvent, onSaveTask, onClose,
 }) {
   const ref = useEscAndOutside(onClose);
   const isEvent = kind === 'event';
@@ -251,7 +293,7 @@ export default function EditSheet({
             <EventForm
               initial={initial} occ={occ} defaultDate={defaultDate} defaultStart={defaultStart}
               defaultRepeat={defaultRepeat} defaultImportant={defaultImportant}
-              onSave={onSaveEvent} onClose={onClose}
+              settings={settings} onSave={onSaveEvent} onClose={onClose}
             />
           )
           : <TaskForm initial={initial} onSave={onSaveTask} onClose={onClose} />}
