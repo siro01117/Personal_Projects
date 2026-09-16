@@ -856,12 +856,17 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-sheet-x:hover { background: var(--panel2); color: var(--fg); }
 
 /* 일정 클릭 액션 팝오버 — 포털(document.body)에 fixed 로 그려 카드/그리드의 overflow 에 잘리지 않는다 */
-.rk-pl-popover { position: fixed; z-index: 70; min-width: 200px; max-width: 260px; background: var(--panel);
+.rk-pl-popover { position: fixed; z-index: 70; min-width: 220px; max-width: 300px; background: var(--panel);
   border: 1px solid var(--line2); border-radius: 14px; box-shadow: var(--shadow); padding: 6px;
   animation: rk-fade .12s var(--ease); }
 .rk-pl-popover-h { padding: 7px 10px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
-.rk-pl-popover-t { font-size: var(--pl-md); font-weight: 700; color: var(--fg); overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; }
+.rk-pl-popover-t { font-size: var(--pl-md); font-weight: 700; line-height: 1.35; color: var(--fg);
+  word-break: keep-all; overflow-wrap: anywhere; }
+.rk-pl-popover-dl { display: flex; flex-direction: column; gap: 3px; margin-top: 7px; }
+.rk-pl-popover-dl > div { display: flex; gap: 8px; font-size: var(--pl-sm); line-height: 1.45; }
+.rk-pl-popover-dl dt { flex: 0 0 auto; width: 30px; color: var(--mut); }
+.rk-pl-popover-dl dd { min-width: 0; color: var(--fg); white-space: pre-wrap; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; }
 .rk-pl-popover-m { margin-top: 2px; font-size: var(--pl-sm); color: var(--mut); }
 .rk-pl-sheet-sub { font-size: var(--pl-sm); color: var(--mut); margin-bottom: 16px; }
 .rk-pl-sheet-sub .rk-num { color: var(--fg); font-weight: 700; }
@@ -1133,19 +1138,10 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-place-tag { display: inline-flex; align-items: center; gap: 3px; }
 .rk-pl-place-tag svg { flex: 0 0 auto; }
 
-/* 시간표 블록 — 제목만. 세로 가운데 정렬은 그대로 두고, 높이별 줄 수만 나눈다. 올리면 펼쳐서 전부 보인다 */
+/* 시간표 블록 — 제목만. 세로 가운데 정렬은 그대로 두고, 높이별 줄 수만 나눈다. 전부 보려면 눌러서 팝업 */
 .rk-pl-block-t { word-break: keep-all; overflow-wrap: anywhere; }
 .rk-pl-block.is-s { padding: 0 5px; font-size: 11.5px; line-height: 1.15; border-radius: 5px; }
 .rk-pl-block.is-l .rk-pl-block-t,
 .rk-pl-block.is-xl .rk-pl-block-t { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical;
   -webkit-line-clamp: 2; line-height: 1.25; }
 .rk-pl-block.is-xl .rk-pl-block-t { -webkit-line-clamp: 3; }
-@media (hover: hover) {
-  .rk-pl-block:hover, .rk-pl-block:focus-visible {
-    height: auto !important; min-height: var(--h); min-width: min(172px, 70vw); z-index: 6;
-    padding: 4px 7px; font-size: var(--pl-sm); line-height: 1.3;
-    filter: none; background: color-mix(in srgb, var(--c) 24%, var(--panel));
-    box-shadow: 0 8px 22px rgb(0 0 0 / .28); }
-  .rk-pl-block:hover .rk-pl-block-t, .rk-pl-block:focus-visible .rk-pl-block-t {
-    display: block; white-space: normal; -webkit-line-clamp: unset; overflow: visible; }
-}

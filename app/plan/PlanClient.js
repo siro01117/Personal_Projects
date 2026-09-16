@@ -75,7 +75,46 @@ const SSR_ROUTE = { v: 'dash' };
 /* -------------------------------------------------------------- 액션 메뉴 */
 // 클릭한 항목 옆에 뜨는 작은 팝오버. 포털로 body 에 그려 overflow 컨테이너(카드·그리드)에
 // 잘리지 않게 하고, 첫 렌더 뒤 실제 크기를 재서 화면 밖으로 안 나가게 보정한다.
-function ActionMenu({ occ, anchorRect, onEdit, onMove, onRemove, onToggleDone, onUnslot, onClose }) {
+const DOW_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+// 블록을 누르면 뜨는 팝업의 상세 줄들 — 날짜·시간, 종류, 장소, 마감, 메모
+function occDetail(occ, data) {
+  const rows = [];
+  const d = occ.date;
+  const dateText = `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}(${DOW_NAMES[dowOf(d)]})`;
+  if (occ.allDay) rows.push(['언제', `${dateText} 종일`]);
+  else if (occ.start != null) {
+    const mins = occ.end - occ.start;
+    const len = mins >= 60 ? `${Math.floor(mins / 60)}시간${mins % 60 ? ` ${mins % 60}분` : ''}` : `${mins}분`;
+    rows.push(['언제', `${dateText} ${fmtTime(occ.start)}–${fmtTime(occ.end)} · ${len}`]);
+  }
+
+  const ev = occ.source === 'event' ? data.events.find((e) => e.id === occ.id) : null;
+  const task = occ.source === 'task' ? data.tasks.find((t) => t.id === occ.id) : null;
+  let kind = '';
+  if (occ.source === 'class') kind = '대학 수업';
+  else if (occ.source === 'work') kind = '스큐 근무';
+  else if (task) kind = task.priority === 'high' ? '할 일 · 중요' : '할 일';
+  else if (ev) {
+    const r = ev.repeat;
+    const rep = !r ? '' : r.freq === 'daily' ? '매일' : `매주 ${(r.days || []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((x) => DOW_NAMES[x]).join('·')}`;
+    kind = [rep ? `반복 · ${rep}${r.until ? ` (~${Number(r.until.slice(5, 7))}/${Number(r.until.slice(8, 10))})` : ''}` : '', ev.important ? '특별한 약속' : ''].filter(Boolean).join(' · ') || '일정';
+  }
+  if (kind) rows.push(['종류', kind]);
+
+  const pl = occ.placeId ? (data.settings.places || []).find((x) => x.id === occ.placeId) : null;
+  const place = [pl?.name, occ.place].filter(Boolean).join(' · ');
+  if (place) rows.push(['장소', place]);
+  const own = ev?.travelMin ?? task?.travelMin;
+  if (own) rows.push(['이동', `편도 ${own}분(직접 적음)`]);
+
+  if (task?.due) rows.push(['마감', `${Number(task.due.slice(5, 7))}/${Number(task.due.slice(8, 10))}(${DOW_NAMES[dowOf(task.due)]})`]);
+  const note = (ev?.note || task?.note || '').trim();
+  if (note) rows.push(['메모', note]);
+  return rows;
+}
+
+function ActionMenu({ occ, anchorRect, data, onEdit, onMove, onRemove, onToggleDone, onUnslot, onClose }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(() => (
     anchorRect ? { top: anchorRect.bottom + 6, left: anchorRect.left } : { top: 80, left: 80 }
@@ -104,15 +143,19 @@ function ActionMenu({ occ, anchorRect, onEdit, onMove, onRemove, onToggleDone, o
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onDown); };
   }, [onClose]);
 
-  const timeLabel = occ.allDay ? '종일' : (occ.start != null ? `${fmtTime(occ.start)}–${fmtTime(occ.end)}` : '');
   // 근무는 원본이 스큐에 있다 — 옮기기·수정·없애기를 아예 그리지 않고 왜 못 고치는지만 한 줄 보여준다.
   const readOnly = occ.source === 'work';
+  const rows = occDetail(occ, data);
 
   return createPortal(
-    <div className="rk-pl-popover" ref={ref} role="menu" style={{ top: pos.top, left: pos.left }}>
+    <div className="rk-pl-popover" ref={ref} role="dialog" aria-label={`${occ.title} 상세`} style={{ top: pos.top, left: pos.left }}>
       <div className="rk-pl-popover-h">
         <p className="rk-pl-popover-t">{occ.title}</p>
-        {timeLabel && <p className="rk-pl-popover-m rk-num">{timeLabel}</p>}
+        <dl className="rk-pl-popover-dl">
+          {rows.map(([k, v]) => (
+            <div key={k}><dt>{k}</dt><dd className={k === '언제' ? 'rk-num' : undefined}>{v}</dd></div>
+          ))}
+        </dl>
       </div>
       {readOnly && (
         <p className="rk-pl-hint" style={{ margin: '2px 10px 8px' }}>
@@ -760,7 +803,7 @@ function PlanApp({ session, fixtureMode }) {
         )}
         {menu && (
           <ActionMenu
-            occ={menu.occ} anchorRect={menu.rect}
+            occ={menu.occ} anchorRect={menu.rect} data={data}
             onEdit={() => openEditForOcc(menu.occ)}
             onMove={() => { setMoving(menu.occ); setMenu(null); }}
             onRemove={() => { setMoving(menu.occ); setMenu(null); }}
