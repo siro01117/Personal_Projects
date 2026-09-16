@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  CalendarClock, CalendarDays, CheckCheck, ClipboardList, LoaderCircle, Pencil, Plus,
+  CalendarClock, CalendarDays, CheckCheck, CircleDot, ClipboardList, LoaderCircle, Pencil, Plus,
   RotateCcw, Settings, Trash2, Undo2,
 } from 'lucide-react';
 import AuthGate from '../_ui/AuthGate';
@@ -34,9 +34,11 @@ import EditSheet from './EditSheet';
 import MoveSheet from './MoveSheet';
 import PlacesSettings from './PlacesSettings';
 import WeekNav from './WeekNav';
+import TodayStage from './TodayStage';
 
 const VIEWS = [
   { key: 'dash', label: '개요', icon: CalendarDays },
+  { key: 'today', label: '오늘', icon: CircleDot },
   { key: 'week', label: '이번 주', icon: CalendarClock },
   { key: 'later', label: '할 일', icon: ClipboardList },
   { key: 'settings', label: '설정', icon: Settings },
@@ -511,6 +513,17 @@ function PlanApp({ session, fixtureMode }) {
         )}
       </section>
     );
+  } else if (route.v === 'today') {
+    body = (
+      <TodayStage
+        data={data} classes={classes} shifts={shifts}
+        onOccClick={(occ, rect) => setMenu({ occ, rect })}
+        onQuickPlaceTask={quickPlaceTask}
+        onToggleTask={toggleTask}
+        onEditTask={(t) => setSheet({ kind: 'task', initial: t })}
+        onAddEvent={(prefill) => setSheet({ kind: 'event', defaultDate: prefill?.date, defaultStart: prefill?.start })}
+      />
+    );
   } else if (route.v === 'settings') {
     body = (
       <section className="rk-block">
@@ -619,6 +632,7 @@ function PlanApp({ session, fixtureMode }) {
         onQuickAddTask={quickAddTask}
         onGoLater={() => go({ v: 'later' })}
         onGoWeek={() => go({ v: 'week' })}
+        onGoToday={() => go({ v: 'today' })}
         onEditTask={(t) => setSheet({ kind: 'task', initial: t })}
       />
     );
