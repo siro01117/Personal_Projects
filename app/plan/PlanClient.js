@@ -239,12 +239,15 @@ function PlanApp({ session, fixtureMode }) {
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
+  // pushState 는 updater 밖에서 — updater 는 렌더 중에 돌 수 있고, Next 가 history 를
+  // 감싸 두어서 그 안에서 부르면 Router 를 렌더 중에 갱신한다는 경고가 난다.
+  const routeRef = useRef(route);
+  routeRef.current = route;
   const go = useCallback((patch) => {
-    setRoute((prev) => {
-      const next = { ...prev, ...patch };
-      window.history.pushState(null, '', routeToUrl(next));
-      return next;
-    });
+    const next = { ...routeRef.current, ...patch };
+    routeRef.current = next;
+    window.history.pushState(null, '', routeToUrl(next));
+    setRoute(next);
   }, []);
 
   // 초기 적재
