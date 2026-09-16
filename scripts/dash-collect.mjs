@@ -181,7 +181,9 @@ async function main() {
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const { error } = await sb.from('kv')
     .upsert({ k: SNAPSHOT_KEY, v: snapshot, updated_at: snapshot.at }, { onConflict: 'k' });
-  if (error) { console.error('업로드 실패:', error.message); process.exit(1); }
+  // process.exit() 으로 끊으면 supabase 클라이언트의 열린 핸들 때문에 libuv 어설션이
+  // 로그에 찍힌다. 종료 코드만 세워두고 자연스럽게 끝나게 둔다.
+  if (error) { console.error('업로드 실패:', error.message); process.exitCode = 1; return; }
   console.log(`올림 ${snapshot.at} — 레포 ${snapshot.repos.length} · 미결 ${snapshot.vault.openItems.length}`);
 }
 

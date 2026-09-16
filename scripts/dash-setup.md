@@ -21,6 +21,15 @@ SUPABASE_SERVICE_ROLE_KEY=<Supabase 대시보드 → Project Settings → API �
 service_role 은 RLS 를 통과하는 키다. **이 파일 밖으로 나가면 안 된다** — 커밋 금지, 브라우저 코드 금지.
 키 없이 수집 내용만 확인하려면 `node scripts/dash-collect.mjs --dry`.
 
+키만으로는 부족하다. `kv` 는 `authenticated`/`postgres` 에만 GRANT 가 걸려 있어서 service_role 도
+**테이블 권한 단계에서 막힌다**(RLS 우회와 GRANT 는 별개다). 아래 마이그레이션이 이미 적용돼 있다:
+
+```sql
+grant select, insert, update on public.kv to service_role;  -- delete 는 안 준다
+```
+
+증상은 `업로드 실패: permission denied for table kv`.
+
 ## 2. 스케줄러 등록
 
 관리자 권한 없이 사용자 작업으로 등록된다.
