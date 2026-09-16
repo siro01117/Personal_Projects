@@ -164,5 +164,42 @@ const D = (n) => addDaysISO(T, n);
   ok('suggest excludes candidates after the due date', withDue.every((r) => r.date <= D(2)), JSON.stringify(withDue.map((r) => r.date)));
 }
 
+/* --------------------------------------------- 11. 스큐 근무(읽기 전용) */
+{
+  const shifts = [
+    { id: 'sc_a', date: D(1), start: 1200, end: 1290, kind: 'class', title: '공통수학1', place: '본점 1번' },
+    { id: 'sc_b', date: D(30), start: 1200, end: 1290, kind: 'counter', title: '카운터', place: '본점' }, // 범위 밖
+    null, // kv 가 이상하게 들어와도 그냥 무시돼야 한다
+  ];
+  const doc = normalize({});
+
+  ok('normalize defaults showWork to true', doc.settings.showWork === true);
+  ok('expand still works without the 5th argument (기존 호출 호환)', expand(doc, [], D(0), D(6)).length === 0);
+
+  const occs = expand(doc, [], D(0), D(6), shifts);
+  const work = occs.filter((o) => o.source === 'work');
+  ok('work shifts expand only inside the range', work.length === 1 && work[0].date === D(1) && work[0].start === 1200,
+    JSON.stringify(work.map((o) => o.date)));
+  ok('work occurrence is a plain non-recurring block with title/place kept',
+    work[0] && work[0].recurring === false && work[0].moved === false && work[0].allDay === false
+    && work[0].important === false && work[0].title === '공통수학1' && work[0].place === '본점 1번'
+    && work[0].original.date === D(1));
+
+  const off = normalize({ settings: { showWork: false } });
+  ok('showWork=false hides work entirely', expand(off, [], D(0), D(6), shifts).every((o) => o.source !== 'work'));
+
+  // 빈 시간 제안은 expand 결과를 그대로 받으므로 근무도 자동으로 바쁜 시간이 된다.
+  const settings = { dayStart: 480, dayEnd: 1380, step: 30, buffer: 0 };
+  const free = freeIntervals(expand(doc, [], D(1), D(1), shifts), D(1), settings);
+  ok('freeIntervals counts work as busy time',
+    free.some((f) => f.end === 1200) && free.some((f) => f.start === 1290), JSON.stringify(free));
+  const sug = suggest({
+    occurrences: expand(doc, [], D(1), D(1), shifts), duration: 60, fromISO: D(1), days: 1,
+    settings, nowISO: D(1), target: null, limit: 20,
+  });
+  ok('suggest never proposes a slot overlapping work', sug.every((c) => c.end <= 1200 || c.start >= 1290),
+    JSON.stringify(sug.map((c) => c.start)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

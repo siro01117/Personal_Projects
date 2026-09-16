@@ -35,7 +35,7 @@ function dDay(dateISO) {
 }
 
 export default function Overview({
-  data, classes, onOccClick, onAddEvent, onAddTask, onToggleTask, onQuickPlaceTask,
+  data, classes, shifts, onOccClick, onAddEvent, onAddTask, onToggleTask, onQuickPlaceTask,
   onQuickAddTask, onGoLater, onGoWeek, onEditTask,
 }) {
   const today = todayISO();
@@ -48,11 +48,11 @@ export default function Overview({
   const settings = data.settings;
 
   const week7 = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysISO(today, i)), [today]);
-  const weekOcc = useMemo(() => expand(data, classes, today, week7[6]), [data, classes, today, week7]);
+  const weekOcc = useMemo(() => expand(data, classes, today, week7[6], shifts), [data, classes, shifts, today, week7]);
   const todayOcc = useMemo(() => weekOcc.filter((o) => o.date === today).sort((a, b) => (a.start ?? -1) - (b.start ?? -1)), [weekOcc, today]);
   const importantOcc = useMemo(
-    () => expand(data, classes, today, addDaysISO(today, 180)).filter((o) => o.important).slice(0, 8),
-    [data, classes, today],
+    () => expand(data, classes, today, addDaysISO(today, 180), shifts).filter((o) => o.important).slice(0, 8),
+    [data, classes, shifts, today],
   );
 
   const openTasks = data.tasks.filter((t) => !t.done);
@@ -71,7 +71,7 @@ export default function Overview({
 
   // 우선순위 순으로 순차 배정 — 앞 할 일의 제안 슬롯을 가상 occurrence 로 넣고 다음 계산에 반영.
   const somedaySuggestions = useMemo(() => {
-    const base = expand(data, classes, today, addDaysISO(today, 13));
+    const base = expand(data, classes, today, addDaysISO(today, 13), shifts);
     const virtual = [];
     const out = new Map();
     for (const t of someday) {
@@ -83,7 +83,7 @@ export default function Overview({
       if (cands[0]) virtual.push({ date: cands[0].date, start: cands[0].start, end: cands[0].end, allDay: false });
     }
     return out;
-  }, [someday, data, classes, today, settings, now]);
+  }, [someday, data, classes, shifts, today, settings, now]);
 
   // 오늘 타임라인의 빈 구간([gapStart,gapEnd))에 실제로 들어맞는 '언젠가 할 일' 후보 하나 —
   // somedaySuggestions(각 할 일의 suggest() 후보들)와 같은 소스를 써서, 칩의 제안과 목록의

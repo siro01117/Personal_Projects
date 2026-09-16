@@ -12,7 +12,7 @@ export function buildFixture() {
 
   const doc = {
     version: 1,
-    settings: { dayStart: 480, dayEnd: 1380, step: 30, buffer: 15, showClasses: true, semester: '2026-2' },
+    settings: { dayStart: 480, dayEnd: 1380, step: 30, buffer: 15, showClasses: true, showWork: true, semester: '2026-2' },
     events: [
       {
         id: 'fx-gym', title: '헬스장', place: '학교 체육관', note: '',
@@ -68,7 +68,20 @@ export function buildFixture() {
     },
   ];
 
-  return { doc, classes };
+  // 스큐 근무 — kv 'work' 문서를 흉내낸 모양. 읽기 전용이라 doc 안이 아니라 밖에 따로 둔다.
+  const work = {
+    version: 1,
+    source: 'studycube',
+    person: '나한결',
+    syncedAt: new Date().toISOString(),
+    shifts: [
+      { id: 'fx-sc1', date: T, start: 1200, end: 1290, kind: 'class', title: '공통수학1', place: '본점 1번' },
+      { id: 'fx-sc2', date: D(1), start: 1080, end: 1170, kind: 'counter', title: '카운터', place: '본점' },
+      { id: 'fx-sc3', date: D(3), start: 1140, end: 1230, kind: 'counsel', title: '학부모 상담', place: '남천점 상담실' },
+    ],
+  };
+
+  return { doc, classes, work };
 }
 
 export const fixtureUid = uid;

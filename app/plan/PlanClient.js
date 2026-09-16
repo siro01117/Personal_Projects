@@ -24,7 +24,7 @@ import {
   todayISO, uid,
 } from '../../lib/plan-core';
 import {
-  flushPendingPlan, loadClassesForSemester, loadPlan, savePlan, writePending,
+  flushPendingPlan, loadClassesForSemester, loadPlan, loadWork, savePlan, writePending,
 } from '../../lib/plan';
 import { listSemesters } from '../../lib/study';
 import { Empty, Notice, SaveState, Tag } from '../study/parts';
@@ -88,6 +88,8 @@ function ActionMenu({ occ, anchorRect, onEdit, onMove, onRemove, onToggleDone, o
   }, [onClose]);
 
   const timeLabel = occ.allDay ? '종일' : (occ.start != null ? `${fmtTime(occ.start)}–${fmtTime(occ.end)}` : '');
+  // 근무는 원본이 스큐에 있다 — 옮기기·수정·없애기를 아예 그리지 않고 왜 못 고치는지만 한 줄 보여준다.
+  const readOnly = occ.source === 'work';
 
   return createPortal(
     <div className="rk-pl-popover" ref={ref} role="menu" style={{ top: pos.top, left: pos.left }}>
@@ -95,7 +97,12 @@ function ActionMenu({ occ, anchorRect, onEdit, onMove, onRemove, onToggleDone, o
         <p className="rk-pl-popover-t">{occ.title}</p>
         {timeLabel && <p className="rk-pl-popover-m rk-num">{timeLabel}</p>}
       </div>
-      {occ.source === 'task' && (
+      {readOnly && (
+        <p className="rk-pl-hint" style={{ margin: '2px 10px 8px' }}>
+          스큐에서 가져온 근무라 여기서는 못 바꿉니다.
+        </p>
+      )}
+      {!readOnly && occ.source === 'task' && (
         <>
           <button type="button" className="rk-menu-item" onClick={onToggleDone} role="menuitem">
             <CheckCheck size={16} strokeWidth={1.5} aria-hidden="true" />완료
@@ -105,17 +112,21 @@ function ActionMenu({ occ, anchorRect, onEdit, onMove, onRemove, onToggleDone, o
           </button>
         </>
       )}
-      {occ.source !== 'class' && (
+      {!readOnly && occ.source !== 'class' && (
         <button type="button" className="rk-menu-item" onClick={onEdit} role="menuitem">
           <Pencil size={16} strokeWidth={1.5} aria-hidden="true" />수정
         </button>
       )}
-      <button type="button" className="rk-menu-item" onClick={onMove} role="menuitem">
-        <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />옮기기
-      </button>
-      <button type="button" className="rk-menu-item" onClick={onRemove} role="menuitem">
-        <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />없애기
-      </button>
+      {!readOnly && (
+        <>
+          <button type="button" className="rk-menu-item" onClick={onMove} role="menuitem">
+            <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />옮기기
+          </button>
+          <button type="button" className="rk-menu-item" onClick={onRemove} role="menuitem">
+            <Trash2 size={16} strokeWidth={1.5} aria-hidden="true" />없애기
+          </button>
+        </>
+      )}
     </div>,
     document.body,
   );
@@ -131,6 +142,7 @@ function PlanApp({ session, fixtureMode }) {
   const [route, setRoute] = useState(SSR_ROUTE);
   const [data, setData] = useState(null);
   const [classes, setClasses] = useState([]);
+  const [work, setWork] = useState({ shifts: [] }); // 스큐 근무(읽기 전용) — kv 'work'
   const [source, setSource] = useState('');
   const [loadErr, setLoadErr] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -174,6 +186,7 @@ function PlanApp({ session, fixtureMode }) {
         if (!alive) return;
         setData(fx.doc);
         setClasses(fx.classes);
+        setWork(fx.work);
         setSource('fixture');
         return;
       }
@@ -184,6 +197,8 @@ function PlanApp({ session, fixtureMode }) {
       setSource(res.source);
       setLoadErr(res.error || null);
       listSemesters().then(setSemesters).catch(() => {});
+      // 근무는 곁다리 — loadWork 는 throw 하지 않지만 그래도 화면을 막지 않게 따로 띄운다.
+      loadWork().then((w) => { if (alive) setWork(w); }).catch(() => {});
     })();
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -351,7 +366,8 @@ function PlanApp({ session, fixtureMode }) {
   }
 
   const today = todayISO();
-  const rangeOcc = expand(data, classes, today, addDaysISO(today, 14));
+  const shifts = work?.shifts || [];
+  const rangeOcc = expand(data, classes, today, addDaysISO(today, 14), shifts);
 
   let body;
   if (route.v === 'week') {
@@ -359,7 +375,7 @@ function PlanApp({ session, fixtureMode }) {
     body = (
       <section className="rk-block rk-pl-week-page">
         <h2 className="rk-h2"><CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />7일</h2>
-        <WeekGrid occurrences={expand(data, classes, days[0], days[6])} days={days} settings={data.settings} rowH={44}
+        <WeekGrid occurrences={expand(data, classes, days[0], days[6], shifts)} days={days} settings={data.settings} rowH={44}
           onSlotClick={(date, start) => setSheet({ kind: 'event', defaultDate: date, defaultStart: start })}
           onOccClick={(occ, rect) => setMenu({ occ, rect })} />
       </section>
@@ -440,6 +456,18 @@ function PlanApp({ session, fixtureMode }) {
               7일 그리드·오늘 타임라인에 수업 시간표를 함께 보여줍니다
             </label>
           </dd></div>
+          <div className="rk-field"><dt>스큐 근무 표시</dt><dd>
+            <label className="rk-check">
+              <input type="checkbox" checked={data.settings.showWork}
+                onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, showWork: e.target.checked } }))} />
+              스터디큐브에서 동기화한 근무를 함께 보여줍니다 (여기서는 고칠 수 없습니다)
+            </label>
+            <p className="rk-pl-hint">
+              {work?.syncedAt
+                ? `마지막 동기화 ${syncedAtLabel(work.syncedAt)} · 근무 ${shifts.length}건`
+                : '아직 동기화된 근무가 없습니다.'}
+            </p>
+          </dd></div>
           {!fixtureMode && (
             <div className="rk-field"><dt>학기</dt><dd>
               <select className="rk-input rk-select" value={data.settings.semester}
@@ -455,7 +483,7 @@ function PlanApp({ session, fixtureMode }) {
   } else {
     body = (
       <Overview
-        data={data} classes={classes}
+        data={data} classes={classes} shifts={shifts}
         onOccClick={(occ, rect) => setMenu({ occ, rect })}
         onAddEvent={(prefill) => setSheet({
           kind: 'event', defaultDate: prefill?.date, defaultStart: prefill?.start,
@@ -547,6 +575,16 @@ function PlanApp({ session, fixtureMode }) {
       </div>
     </Shell>
   );
+}
+
+// 동기화 시각을 "9월 16일(수) 14:13" 로. syncedAt 은 타임존이 붙은 완전한 시각이라
+// new Date() 로 파싱해도 하루가 밀지 않는다 — 'YYYY-MM-DD' 날짜 문자열 금지 규칙은 그쪽 얘기다.
+function syncedAtLabel(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '알 수 없음';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getMonth() + 1}월 ${d.getDate()}일(${DOW[d.getDay()]}) ${hh}:${mm}`;
 }
 
 function minToHHMM(min) {
