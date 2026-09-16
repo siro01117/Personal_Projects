@@ -2,7 +2,7 @@
 // lib/plan-core.js 와 lib/plan-suggest.js 만 import 한다(supabase 없이 node 에서 바로 돈다).
 import {
   normalize, expand, moveOnce, moveFollowing, removeOnce, removeFollowing,
-  addDaysISO, dowOf, todayISO,
+  addDaysISO, dowOf, todayISO, weekDays,
 } from '../lib/plan-core.js';
 import {
   dayCapacity, freeIntervals, lateHours, restBetween, suggest, travelBlocks,
@@ -322,6 +322,18 @@ const D = (n) => addDaysISO(T, n);
     });
     ok('꽉 찬 날 대신 다음 날을 먼저 권한다', sug[0].date === D(2), JSON.stringify(sug.map((c) => c.date)));
   }
+}
+
+/* ------------------------------------------------ 10. 이번 주는 월요일부터 */
+{
+  const wed = '2026-09-16'; // 수요일
+  const w = weekDays(wed);
+  ok('이번 주는 월요일에서 시작한다', w[0] === '2026-09-14' && dowOf(w[0]) === 1, w.join(','));
+  ok('일요일에서 끝나고 7칸이다', w.length === 7 && w[6] === '2026-09-20' && dowOf(w[6]) === 0);
+  ok('오늘이 맨 앞이 아니라 제 요일 자리에 있다', w.indexOf(wed) === 2);
+  ok('월요일이면 그대로 시작', weekDays('2026-09-14')[0] === '2026-09-14');
+  ok('일요일은 그 주의 끝으로 본다(다음 주 시작 아님)', weekDays('2026-09-20')[0] === '2026-09-14');
+  ok('달이 바뀌어도 맞다', weekDays('2026-10-01')[0] === '2026-09-28');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

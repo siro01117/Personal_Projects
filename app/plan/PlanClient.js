@@ -21,7 +21,7 @@ import Shell from '../_ui/Shell';
 import {
   addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime,
   moveFollowing, moveOnce, normalize, removeFollowing, removeOnce, replaceEvent, replaceTask,
-  todayISO, uid,
+  todayISO, uid, weekDays,
 } from '../../lib/plan-core';
 import {
   flushPendingPlan, loadClassesForSemester, loadPlan, loadWork, savePlan, writePending,
@@ -36,7 +36,7 @@ import PlacesSettings from './PlacesSettings';
 
 const VIEWS = [
   { key: 'dash', label: '개요', icon: CalendarDays },
-  { key: 'week', label: '7일', icon: CalendarClock },
+  { key: 'week', label: '이번 주', icon: CalendarClock },
   { key: 'later', label: '할 일', icon: ClipboardList },
   { key: 'settings', label: '설정', icon: Settings },
 ];
@@ -374,10 +374,10 @@ function PlanApp({ session, fixtureMode }) {
 
   let body;
   if (route.v === 'week') {
-    const days = Array.from({ length: 7 }, (_, i) => addDaysISO(today, i));
+    const days = weekDays(today);
     body = (
       <section className="rk-block rk-pl-week-page">
-        <h2 className="rk-h2"><CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />7일</h2>
+        <h2 className="rk-h2"><CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />이번 주</h2>
         <WeekGrid occurrences={expand(data, classes, days[0], days[6], shifts)} days={days} settings={data.settings} rowH={44}
           onSlotClick={(date, start) => setSheet({ kind: 'event', defaultDate: date, defaultStart: start })}
           onOccClick={(occ, rect) => setMenu({ occ, rect })} />
@@ -480,7 +480,7 @@ function PlanApp({ session, fixtureMode }) {
             <label className="rk-check">
               <input type="checkbox" checked={data.settings.showClasses}
                 onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, showClasses: e.target.checked } }))} />
-              7일 그리드·오늘 타임라인에 수업 시간표를 함께 보여줍니다
+              이번 주 일정·오늘 타임라인에 수업 시간표를 함께 보여줍니다
             </label>
           </dd></div>
           <div className="rk-field"><dt>스큐 근무 표시</dt><dd>

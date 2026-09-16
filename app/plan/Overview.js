@@ -1,6 +1,6 @@
 'use client';
 
-// /plan 기본 화면 — 오늘 타임라인 + 7일 그리드(좌) / 특별한 약속 + 언젠가 할 일(우, 보조 패널).
+// /plan 기본 화면 — 오늘 타임라인 + 이번 주(월~일)(좌) / 특별한 약속 + 언젠가 할 일(우, 보조 패널).
 // PC(>1024) 2단, 모바일은 오늘 → 특별한 약속 → 7일 → 언젠가 할 일 순 단일 컬럼(globals.css 의
 // .rk-pl-ov 가 그리드 순서를 맡고, 여기서는 DOM 순서만 모바일 기준으로 둔다 — order 로 PC 만 조정).
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,7 +8,7 @@ import {
   ArrowRight, CalendarDays, CalendarHeart, ChevronDown, ChevronRight, ClipboardList, Clock, Plus,
 } from 'lucide-react';
 import {
-  addDaysISO, diffDaysISO, dowOf, expand, fmtTime, nowMinutes, todayISO,
+  addDaysISO, diffDaysISO, dowOf, expand, fmtTime, nowMinutes, todayISO, weekDays,
 } from '../../lib/plan-core';
 import { suggest } from '../../lib/plan-suggest';
 import { shortDate, shortSlot } from './format';
@@ -48,8 +48,9 @@ export default function Overview({
   const now = nowMinutes();
   const settings = data.settings;
 
-  const week7 = useMemo(() => Array.from({ length: 7 }, (_, i) => addDaysISO(today, i)), [today]);
-  const weekOcc = useMemo(() => expand(data, classes, today, week7[6], shifts), [data, classes, shifts, today, week7]);
+  // 이번 주(월~일) — 오늘을 맨 앞에 두지 않고 요일 자리를 고정한다. 지난 요일은 흐리게 남는다
+  const week7 = useMemo(() => weekDays(today), [today]);
+  const weekOcc = useMemo(() => expand(data, classes, week7[0], week7[6], shifts), [data, classes, shifts, week7]);
   const todayOcc = useMemo(() => weekOcc.filter((o) => o.date === today).sort((a, b) => (a.start ?? -1) - (b.start ?? -1)), [weekOcc, today]);
   const importantOcc = useMemo(
     () => expand(data, classes, today, addDaysISO(today, 180), shifts).filter((o) => o.important).slice(0, 8),
@@ -204,7 +205,7 @@ export default function Overview({
           </div>
 
           {todayOcc.length === 0 ? (
-            <Empty title="오늘은 일정이 없습니다" hint="아래 7일 그리드나 [+ 일정] 으로 추가해 보세요." />
+            <Empty title="오늘은 일정이 없습니다" hint="아래 이번 주 일정이나 [+ 일정] 으로 추가해 보세요." />
           ) : (
             <div className="rk-pl-timeline">
               {timeline.allDay.map((o) => (
@@ -265,7 +266,7 @@ export default function Overview({
 
         <section className="rk-block">
           <h2 className="rk-h2">
-            <CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" />7일 일정
+            <CalendarDays size={16} strokeWidth={1.5} aria-hidden="true" />이번 주 일정
             <button type="button" className="rk-h2-link" onClick={onGoWeek}>
               시간표로 보기<ChevronRight size={13} strokeWidth={1.5} aria-hidden="true" />
             </button>
