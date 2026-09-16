@@ -899,3 +899,75 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-bul li::marker { color: var(--faint); }
 
 .rk-pl-ov .rk-h2, .rk-pl-week-page .rk-h2 { font-size: var(--pl-lg); }
+
+/* =========================================================== /dash 현황 ==
+   읽기 전용 화면이라 밀도를 /plan 보다 높게 잡는다 — 훑는 게 목적이지
+   조작이 목적이 아니다. 폰트 토큰은 --pl-* 를 그대로 쓴다. */
+.rk-ds-root { --pl-xs: 12.5px; --pl-sm: 13.5px; --pl-md: 15px; --pl-lg: 17px; min-width: 0; }
+
+.rk-ds-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-bottom: 22px; }
+.rk-ds-h1 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+.rk-ds-sub { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 4px; font-size: var(--pl-sm); color: var(--mut); }
+.rk-ds-c-high { color: var(--danger); font-weight: 800; }
+.rk-ds-c-warn { color: var(--warn); font-weight: 800; }
+
+/* 본문은 두 단. 놓친 것만 단 위에 통으로 올린다 — 제일 먼저 읽혀야 한다 */
+.rk-ds-cols { display: grid; gap: 26px; min-width: 0; }
+@media(min-width: 900px) { .rk-ds-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rk-ds-root > .rk-block { margin-bottom: 26px; }
+.rk-ds-cols > .rk-block { margin-bottom: 0; }
+
+.rk-ds-ago { margin-left: auto; flex: 0 0 auto; font-size: var(--pl-xs); color: var(--faint); }
+
+/* 놓친 것 — 왼쪽 색 띠로 급함/확인/참고를 구분한다. 아이콘 색도 같이 간다 */
+.rk-ds-misses { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.rk-ds-miss { display: flex; align-items: flex-start; gap: 9px; padding: 9px 11px;
+  border-radius: 9px; border-left: 2px solid transparent; }
+.rk-ds-miss:hover { background: var(--panel2); }
+.rk-ds-miss > svg { flex: 0 0 auto; margin-top: 1px; color: var(--faint); }
+.rk-ds-miss.is-high { border-left-color: var(--danger); }
+.rk-ds-miss.is-high > svg { color: var(--danger); }
+.rk-ds-miss.is-warn { border-left-color: var(--warn); }
+.rk-ds-miss.is-warn > svg { color: var(--warn); }
+.rk-ds-miss-body { min-width: 0; flex: 1; }
+.rk-ds-miss-t { font-size: var(--pl-md); font-weight: 700; line-height: 1.35; }
+.rk-ds-miss-d { font-size: var(--pl-xs); color: var(--mut); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 벌여둔 일 — 세션 하나가 카드 하나 */
+.rk-ds-sesses, .rk-ds-repos { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.rk-ds-sess, .rk-ds-repo { border: 1px solid var(--line); border-radius: 11px;
+  padding: 10px 12px; background: var(--panel); min-width: 0; }
+.rk-ds-sess.is-paused { opacity: .65; }
+.rk-ds-sess-head, .rk-ds-repo-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rk-ds-sess-t { font-size: var(--pl-md); font-weight: 700; }
+.rk-ds-sess-r, .rk-ds-repo-b { font-family: var(--mono); font-size: var(--pl-xs); color: var(--faint); }
+.rk-ds-sess-n { font-size: var(--pl-sm); color: var(--mut); margin-top: 4px; }
+.rk-ds-sess-b { font-size: var(--pl-sm); color: var(--danger); margin-top: 3px; }
+.rk-ds-sess-a { font-size: var(--pl-sm); color: var(--warn); margin-top: 3px; }
+.rk-ds-sess-next { margin-top: 5px; padding-left: 15px; list-style: disc; }
+.rk-ds-sess-next li { font-size: var(--pl-sm); color: var(--mut); }
+.rk-ds-sess-next li::marker { color: var(--faint); }
+
+.rk-ds-repo-n { font-size: var(--pl-md); font-weight: 700; }
+.rk-ds-repo-c { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; min-width: 0; }
+.rk-ds-repo-s { font-size: var(--pl-xs); color: var(--mut); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 오늘·볼트 미결 — 한 줄짜리 목록 */
+.rk-ds-occs, .rk-ds-open { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.rk-ds-occs li, .rk-ds-open li { display: flex; align-items: baseline; gap: 9px;
+  padding: 6px 8px; border-radius: 8px; min-width: 0; }
+.rk-ds-occs li:hover, .rk-ds-open li:hover { background: var(--panel2); }
+.rk-ds-occ-t { flex: 0 0 auto; font-size: var(--pl-xs); color: var(--mut); width: 42px; }
+.rk-ds-occ-n { font-size: var(--pl-md); font-weight: 700; }
+.rk-ds-occ-p { font-size: var(--pl-xs); color: var(--faint); }
+.rk-ds-open-n { flex: 0 0 auto; max-width: 34%; font-size: var(--pl-xs); font-weight: 700; color: var(--mut);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-ds-open-t { font-size: var(--pl-sm); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-ds-more { font-size: var(--pl-xs); color: var(--faint); margin-top: 7px; }
+
+.rk-ds-foot { font-size: var(--pl-xs); color: var(--faint); margin-top: 4px; }

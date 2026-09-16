@@ -13,7 +13,7 @@
 import { useMemo } from 'react';
 import {
   Archive, ArrowRight, BookOpen, CalendarCheck, CalendarClock, ChartNoAxesColumn, CircleCheckBig,
-  GraduationCap, Grid2x2, LayoutDashboard, Layers, Sparkles, UsersRound, Utensils,
+  Gauge, GraduationCap, Grid2x2, LayoutDashboard, Layers, Sparkles, UsersRound, Utensils,
   Waypoints, Wallet, ClipboardList, MapPin, ShieldAlert,
 } from 'lucide-react';
 import AuthGate from './_ui/AuthGate';
@@ -69,6 +69,25 @@ function Home({ session, projects }) {
       title="Ra_Kan"
       sub="직접 만들어 쓰는 것들. 학습이 먼저, 만들어 둔 것이 뒤."
     >
+      {/* 현황이 맨 위 — 병렬로 벌여둔 걸 먼저 보고 어디로 들어갈지 정하는 자리다 */}
+      <section className="rk-sec" aria-labelledby="sec-dash">
+        <div className="rk-sec-h">
+          <Gauge size={17} strokeWidth={1.5} aria-hidden="true" />
+          <h2 className="rk-sec-t" id="sec-dash">현황</h2>
+          <span className="rk-sec-n">1</span>
+        </div>
+        <div className="rk-grid">
+          <Card
+            href="/dash"
+            icon={Gauge}
+            name="현황"
+            desc="벌여둔 작업 · 저장소 · 오늘 · 볼트 미결, 그리고 놓치고 있던 것."
+            chips={['놓친 것', '저장소', '미결']}
+            accent={accentAt(2)}
+          />
+        </div>
+      </section>
+
       <section className="rk-sec" aria-labelledby="sec-plan">
         <div className="rk-sec-h">
           <CalendarClock size={17} strokeWidth={1.5} aria-hidden="true" />
