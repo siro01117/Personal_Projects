@@ -258,7 +258,6 @@ export default function WeekGrid({
                     title={`${b.title} ${fmtTime(b.start)}–${fmtTime(b.end)}`}
                   >
                     <span className="rk-pl-block-t">{b.title}</span>
-                    <span className="rk-pl-block-time rk-num">{fmtTime(b.start)}–{fmtTime(b.end)}{b.place ? ` · ${b.place}` : ''}</span>
                   </button>
                 );
               })}
