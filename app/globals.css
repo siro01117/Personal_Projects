@@ -1072,3 +1072,48 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 /* 개요의 '오늘' 요약 — 남은 일정 몇 개를 낮은 줄로 */
 .rk-pl-today-mini { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .rk-ses.is-compact { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+
+/* ------------------------------------------------- 이번 주 시간표에 끌어넣기 */
+.rk-pl-tray { margin: 2px 0 12px; }
+.rk-pl-tray-h { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 8px;
+  font-size: var(--pl-xs); color: var(--mut); }
+.rk-pl-tray-h b { color: var(--fg); font-weight: 700; }
+.rk-pl-tray-sug { color: var(--mut); }
+.rk-pl-tray-x { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; min-height: 28px;
+  padding: 0 8px; border-radius: 8px; font-size: var(--pl-xs); font-weight: 600; color: var(--mut); }
+.rk-pl-tray-x:hover { color: var(--fg); background: var(--panel2); }
+.rk-pl-tray-list { list-style: none; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;
+  overscroll-behavior-x: contain; }
+.rk-pl-tray-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 240px;
+  padding: 0 11px 0 7px; border-radius: 10px; border: 1px solid var(--line2); background: var(--panel);
+  font-size: var(--pl-sm); color: var(--fg); cursor: grab; white-space: nowrap; transition: border-color var(--t), background var(--t); }
+.rk-pl-tray-chip:active { cursor: grabbing; }
+.rk-pl-tray-chip svg { flex: 0 0 auto; color: var(--faint); }
+.rk-pl-tray-chip:hover { border-color: var(--mut); }
+.rk-pl-tray-chip.is-on { border-color: var(--fg); background: var(--panel2); }
+.rk-pl-tray-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.rk-pl-tray-d { flex: 0 0 auto; font-size: var(--pl-xs); color: var(--mut); }
+.rk-pl-tray.is-placing .rk-pl-tray-chip:not(.is-on) { opacity: .55; }
+
+/* 배치 모드 — 기존 블록·이동·식사는 커서를 막지 않게 한다(겹치는 자리의 판정도 보여줘야 하므로) */
+.rk-pl-week-wrap.is-placing .rk-pl-col { cursor: copy; }
+.rk-pl-week-wrap.is-placing .rk-pl-block,
+.rk-pl-week-wrap.is-placing .rk-pl-move,
+.rk-pl-week-wrap.is-placing .rk-pl-meal { pointer-events: none; }
+.rk-pl-week-wrap.is-placing .rk-pl-block { opacity: .75; }
+
+.rk-pl-ghost { position: absolute; left: 2px; right: 2px; z-index: 4; pointer-events: none;
+  display: flex; flex-direction: column; gap: 1px; padding: 3px 6px; overflow: hidden; border-radius: 7px;
+  border: 1.5px solid var(--fg); background: color-mix(in srgb, var(--fg) 14%, var(--panel)); }
+.rk-pl-ghost.is-bad { border-style: dashed; border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--panel)); }
+.rk-pl-ghost-t { font-size: 11.5px; font-weight: 700; color: var(--fg); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.rk-pl-ghost-v { font-size: 11px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-pl-ghost.is-bad .rk-pl-ghost-v { color: var(--danger); font-weight: 600; }
+
+.rk-pl-cand-slot { position: absolute; left: 3px; right: 3px; z-index: 2; border-radius: 7px;
+  border: 1.5px dashed color-mix(in srgb, var(--ok) 70%, transparent);
+  background: color-mix(in srgb, var(--ok) 8%, transparent); text-align: left; overflow: hidden; }
+.rk-pl-cand-slot span { display: block; padding: 2px 5px; font-size: 11px; font-weight: 700; color: var(--ok); }
+.rk-pl-cand-slot:hover { background: color-mix(in srgb, var(--ok) 16%, transparent); }

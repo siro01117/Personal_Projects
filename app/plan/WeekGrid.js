@@ -54,7 +54,14 @@ export function visibleRange(occurrences, dayStart, dayEnd) {
   return [lo, hi];
 }
 
-export default function WeekGrid({ occurrences, days, settings, onSlotClick, onOccClick, rowH = 40 }) {
+const PLACE_SNAP = 15; // 끌어넣을 땐 30분 칸보다 촘촘하게
+
+// placing: { title, duration, candidates:[{date,start,end,reasons}], check(date,start) → {ok,why?,reasons?} }
+// 배치 모드에서는 기존 블록을 누를 수 없고(겹치는 자리도 판정을 보여줘야 하므로), 칸을 누르거나
+// 할 일을 끌어다 놓으면 onPlace(date, start) 가 불린다.
+export default function WeekGrid({
+  occurrences, days, settings, onSlotClick, onOccClick, rowH = 40, placing, onPlace, dragType,
+}) {
   // 출근·귀가·외출 준비 — 일정 칸 뒤에 옅게 깐다(칸 나누기에는 끼지 않는다)
   const moves = useMemo(
     () => new Map(days.map((d) => [d, travelBlocks(occurrences, d, settings)])),
@@ -96,17 +103,33 @@ export default function WeekGrid({ occurrences, days, settings, onSlotClick, onO
 
   const nowMin = nowMinutes();
   const [hover, setHover] = useState(null); // { day, top, height }
+  const [ghost, setGhost] = useState(null); // 배치 모드: { day, start, result }
 
-  function slotFromEvent(e, currentTarget) {
+  function slotFromEvent(e, currentTarget, snap = step) {
     const rect = currentTarget.getBoundingClientRect();
     const ratio = (e.clientY - rect.top) / rect.height;
     const raw = dayStart + ratio * (dayEnd - dayStart);
-    const snapped = Math.round(raw / step) * step;
-    return Math.min(dayEnd - step, Math.max(dayStart, snapped));
+    const snapped = Math.round(raw / snap) * snap;
+    return Math.min(dayEnd - snap, Math.max(dayStart, snapped));
   }
 
+  // 배치 모드 — 커서 자리를 블록 윗변으로 보고 판정한다
+  function trackGhost(e, d) {
+    const start = slotFromEvent(e, e.currentTarget, PLACE_SNAP);
+    if (ghost && ghost.day === d && ghost.start === start) return;
+    setGhost({ day: d, start, result: placing.check(d, start) });
+  }
+  function dropAt(d, start) {
+    const result = placing.check(d, start);
+    if (result.ok) onPlace?.(d, start);
+    else setGhost({ day: d, start, result });
+  }
+
+  // 판정 한 줄 — 넣을 수 있으면 이유표, 없으면 막힌 이유
+  const verdict = (r) => (r.ok ? (r.reasons.filter((x) => x !== '가까운 날짜').join(' · ') || '넣을 수 있음') : r.why);
+
   return (
-    <div className="rk-pl-week-wrap">
+    <div className={'rk-pl-week-wrap' + (placing ? ' is-placing' : '')}>
       <div className="rk-pl-week">
         <div className="rk-pl-axis-head" aria-hidden="true" />
         {days.map((d) => (
@@ -127,24 +150,60 @@ export default function WeekGrid({ occurrences, days, settings, onSlotClick, onO
           const blocks = byDay.get(d) || [];
           const isToday = d === today;
           const isPastDay = d < today;
-          const showHover = hover && hover.day === d;
+          const showHover = !placing && hover && hover.day === d;
+          const g = placing && ghost && ghost.day === d ? ghost : null;
+          const cands = placing ? placing.candidates.filter((c) => c.date === d) : [];
           return (
             <div
               key={d}
               className={'rk-pl-col' + (isToday ? ' is-today' : '')}
               style={{ height: totalH }}
               onMouseMove={(e) => {
+                if (placing) { trackGhost(e, d); return; }
                 if (e.target !== e.currentTarget) { setHover(null); return; }
                 const start = slotFromEvent(e, e.currentTarget);
                 setHover({ day: d, top: yPx(start), height: (step / 60) * rowH });
               }}
-              onMouseLeave={() => setHover(null)}
+              onMouseLeave={() => { setHover(null); setGhost(null); }}
               onClick={(e) => {
+                if (placing) { dropAt(d, slotFromEvent(e, e.currentTarget, PLACE_SNAP)); return; }
                 if (e.target !== e.currentTarget) return;
                 onSlotClick?.(d, slotFromEvent(e, e.currentTarget));
               }}
+              onDragOver={(e) => {
+                if (!placing || !dragType || !e.dataTransfer.types.includes(dragType)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                trackGhost(e, d);
+              }}
+              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setGhost(null); }}
+              onDrop={(e) => {
+                if (!placing) return;
+                e.preventDefault();
+                dropAt(d, slotFromEvent(e, e.currentTarget, PLACE_SNAP));
+              }}
             >
               {showHover && <div className="rk-pl-slot-hover" style={{ top: hover.top, height: hover.height }} aria-hidden="true" />}
+              {cands.map((c, i) => (
+                <button
+                  key={`cand-${c.start}`} type="button" className="rk-pl-cand-slot"
+                  style={{ top: yPx(c.start), height: Math.max(14, yPx(c.end) - yPx(c.start)) }}
+                  title={`추천 ${fmtTime(c.start)}–${fmtTime(c.end)} ${c.reasons.join(' · ')}`}
+                  onClick={(e) => { e.stopPropagation(); onPlace?.(d, c.start); }}
+                >
+                  <span>추천 {i + 1}</span>
+                </button>
+              ))}
+              {g && (
+                <div
+                  className={'rk-pl-ghost' + (g.result.ok ? '' : ' is-bad')}
+                  style={{ top: yPx(g.start), height: Math.max(16, yPx(g.start + placing.duration) - yPx(g.start)) }}
+                  aria-hidden="true"
+                >
+                  <span className="rk-pl-ghost-t">{fmtTime(g.start)} {placing.title}</span>
+                  <span className="rk-pl-ghost-v">{verdict(g.result)}</span>
+                </div>
+              )}
               {isToday && nowMin >= dayStart && nowMin <= dayEnd && (
                 <div className="rk-pl-now" style={{ top: yPx(nowMin) }} />
               )}
@@ -191,7 +250,8 @@ export default function WeekGrid({ occurrences, days, settings, onSlotClick, onO
                       left: `calc(${b.col * w}% + 1px)`,
                       width: `calc(${w}% - 2px)`,
                     }}
-                    onClick={(e) => { e.stopPropagation(); onOccClick?.(b, e.currentTarget.getBoundingClientRect()); }}
+                    tabIndex={placing ? -1 : undefined}
+                    onClick={(e) => { e.stopPropagation(); if (!placing) onOccClick?.(b, e.currentTarget.getBoundingClientRect()); }}
                     title={`${b.title} ${fmtTime(b.start)}–${fmtTime(b.end)}`}
                   >
                     <span className="rk-pl-block-t">{b.title}</span>

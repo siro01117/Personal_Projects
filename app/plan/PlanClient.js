@@ -19,7 +19,7 @@ import {
 import AuthGate from '../_ui/AuthGate';
 import Shell from '../_ui/Shell';
 import {
-  addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime,
+  addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime, nowMinutes,
   mergePlan, moveFollowing, moveOnce, normalize, removeFollowing, removeOnce, replaceEvent, replaceTask,
   todayISO, uid, weekDays, weekLabel,
 } from '../../lib/plan-core';
@@ -35,6 +35,9 @@ import MoveSheet from './MoveSheet';
 import PlacesSettings from './PlacesSettings';
 import WeekNav from './WeekNav';
 import TodayStage from './TodayStage';
+import PlaceTray, { DRAG_TYPE } from './PlaceTray';
+import { useSomeday } from './todayShared';
+import { checkSlot, suggest } from '../../lib/plan-suggest';
 
 const VIEWS = [
   { key: 'dash', label: '개요', icon: CalendarDays },
@@ -44,6 +47,7 @@ const VIEWS = [
   { key: 'settings', label: '설정', icon: Settings },
 ];
 const SAVE_DELAY = 650;
+const EMPTY = [];
 // 하루 시작·끝 선택지(분). 끝은 자정(24:00)까지 — 시간 입력칸은 24:00 을 못 받아 정오와 헷갈렸다
 const HOURS_START = [300, 360, 420, 480, 540, 600, 660, 720];
 const HOURS_END = [1080, 1140, 1200, 1260, 1320, 1380, 1440];
@@ -155,7 +159,10 @@ function PlanApp({ session, fixtureMode }) {
   const [route, setRoute] = useState(SSR_ROUTE);
   // 개요의 주 띠와 시간표 페이지가 같은 주를 본다 — 넘겨두고 탭을 바꿔도 이어지게
   const [weekOffset, setWeekOffset] = useState(0);
+  // 이번 주 시간표에 끌어넣을 할 일 id (배치 모드)
+  const [placingId, setPlacingId] = useState(null);
   const [data, setData] = useState(null);
+  const someday = useSomeday(data?.tasks || EMPTY);
   const [classes, setClasses] = useState([]);
   const [work, setWork] = useState({ shifts: [] }); // 스큐 근무(읽기 전용) — kv 'work'
   const [source, setSource] = useState('');
@@ -390,6 +397,24 @@ function PlanApp({ session, fixtureMode }) {
     commit((prev) => replaceTask(prev, id, { slot }));
   }, [commit]);
 
+  const placeFromGrid = useCallback((date, start) => {
+    const t = data?.tasks.find((x) => x.id === placingId);
+    if (!t) return;
+    commit((prev) => {
+      const after = replaceTask(prev, t.id, { slot: { date, start } });
+      pushUndo(prev, `‘${t.title}’을(를) ${whenLabel(date, start)}에 넣었어요`, after);
+      return after;
+    });
+    setPlacingId(null);
+  }, [data, placingId, commit, pushUndo]);
+
+  useEffect(() => {
+    if (!placingId) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setPlacingId(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [placingId]);
+
   const quickAddTask = useCallback((title, duration) => {
     commit((prev) => addTask(prev, {
       id: uid('tk'), title, note: '', duration, priority: 'normal', due: null, slot: null, done: false, doneAt: null,
@@ -447,18 +472,48 @@ function PlanApp({ session, fixtureMode }) {
 
   const today = todayISO();
   const shifts = work?.shifts || [];
+  const unslotted = someday;
   const rangeOcc = expand(data, classes, today, addDaysISO(today, 14), shifts);
 
   let body;
   if (route.v === 'week') {
     const days = weekDays(addDaysISO(today, 7 * weekOffset));
+    const weekOcc = expand(data, classes, days[0], days[6], shifts);
+    const placingTask = placingId ? unslotted.find((t) => t.id === placingId) : null;
+    const nowMin = nowMinutes();
+    let placing = null;
+    if (placingTask) {
+      const target = {
+        due: placingTask.due, priority: placingTask.priority,
+        placeId: placingTask.placeId, travelMin: placingTask.travelMin,
+      };
+      const from = days[0] < today ? today : days[0];
+      const span = days[6] < from ? 0 : Math.round((new Date(days[6]) - new Date(from)) / 86400000) + 1;
+      placing = {
+        title: placingTask.title,
+        duration: placingTask.duration,
+        candidates: span > 0 ? suggest({
+          occurrences: weekOcc, duration: placingTask.duration, fromISO: from, days: span,
+          settings: data.settings, nowISO: today, nowMin, target, limit: 3,
+        }) : [],
+        check: (date, start) => checkSlot({
+          occurrences: weekOcc, date, start, duration: placingTask.duration,
+          settings: data.settings, target, todayISO: today, nowMin,
+        }),
+      };
+    }
     body = (
       <section className="rk-block rk-pl-week-page">
         <h2 className="rk-h2">
           <CalendarClock size={16} strokeWidth={1.5} aria-hidden="true" />{weekLabel(weekOffset)}
           <WeekNav offset={weekOffset} onChange={setWeekOffset} days={days} />
         </h2>
-        <WeekGrid occurrences={expand(data, classes, days[0], days[6], shifts)} days={days} settings={data.settings} rowH={44}
+        <PlaceTray
+          tasks={unslotted} placingId={placingTask ? placingId : null} onPick={setPlacingId}
+          candidates={placing?.candidates} today={today}
+        />
+        <WeekGrid occurrences={weekOcc} days={days} settings={data.settings} rowH={44}
+          placing={placing} onPlace={placeFromGrid} dragType={DRAG_TYPE}
           onSlotClick={(date, start) => setSheet({ kind: 'event', defaultDate: date, defaultStart: start })}
           onOccClick={(occ, rect) => setMenu({ occ, rect })} />
       </section>

@@ -5,7 +5,7 @@ import {
   addDaysISO, dowOf, todayISO, weekDays, weekLabel, mergePlan,
 } from '../lib/plan-core.js';
 import {
-  dayCapacity, freeIntervals, lateHours, mealRoom, mealSlots, restBetween, routeFit, suggest, travelBlocks,
+  checkSlot, dayCapacity, freeIntervals, lateHours, mealRoom, mealSlots, restBetween, routeFit, suggest, travelBlocks,
 } from '../lib/plan-suggest.js';
 
 let pass = 0, fail = 0;
@@ -619,6 +619,35 @@ const D = (n) => addDaysISO(T, n);
   const undone = mergePlan(after, snapshot, now);
   ok('되돌리기는 그 동작만 되돌린다', undone.events.find((e) => e.id === 'a').date === '2026-09-18'
     && undone.events.some((e) => e.id === 'x1'), JSON.stringify(undone.events));
+}
+
+/* ---------------------------------------------- 15. 시간표에서 직접 놓기 판정 */
+{
+  const st = normalize({ settings: {
+    dayStart: 480, dayEnd: 1440, buffer: 15, homeId: 'home', workPlaceId: 'cube', schoolPlaceId: 'pnu', prepMin: 35,
+    places: [{ id: 'home', name: '집' }, { id: 'cube', name: '스터디큐브' }, { id: 'pnu', name: '부산대' }],
+    travel: { 'cube|home': 35, 'home|pnu': 30, 'cube|pnu': 70 },
+  } }).settings;
+  const D0 = '2026-09-18';
+  const ev = (key, start, end, placeId) => ({ key, date: D0, start, end, allDay: false, placeId, title: key });
+  const occ = [ev('class', 600, 720, 'pnu'), ev('work', 1200, 1290, 'cube')];
+  const chk = (start, duration, target = {}, extra = {}) => checkSlot({
+    occurrences: occ, date: D0, start, duration, settings: st, target, todayISO: '2026-09-17', ...extra,
+  });
+
+  ok('빈 자리면 넣을 수 있다', chk(900, 60).ok === true);
+  ok('일정과 겹치면 막는다', chk(690, 60).why === '다른 일정과 겹침');
+  ok('장소 없는 할 일이 출근 시간과 겹치면 막는다', chk(1170, 20).why === '오가는 길·준비 시간과 겹침', JSON.stringify(chk(1170, 20)));
+  ok('지난 날은 막는다', checkSlot({ occurrences: occ, date: '2026-09-16', start: 900, duration: 30, settings: st, target: {}, todayISO: '2026-09-17' }).why === '지난 시간');
+  ok('오늘 지난 시각도 막는다', chk(600, 30, {}, { todayISO: D0, nowMin: 700 }).why === '지난 시간');
+  ok('하루 범위 밖이어도 사람이 고르면 허용', chk(420, 30).ok === true, JSON.stringify(chk(420, 30)));
+  ok('자정을 넘기면 막는다', chk(1420, 60).why === '자정을 넘김');
+  const late = chk(900, 60, { due: '2026-09-17' });
+  ok('마감 뒤 날짜는 이유와 함께 막는다', late.ok === false && late.why === '마감이 지난 날', JSON.stringify(late));
+  const clash = chk(750, 30, { placeId: 'cube' });
+  ok('동선이 부딪치면 이유와 함께 막는다', clash.ok === false && clash.why === '오가는 길이 앞뒤 일정과 부딪침', JSON.stringify(clash));
+  const onway = chk(1110, 30, { placeId: 'cube' });
+  ok('근무 직전 스큐 할 일은 가는 길에', onway.ok && onway.reasons.includes('가는 길에'), JSON.stringify(onway));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
