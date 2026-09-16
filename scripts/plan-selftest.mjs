@@ -4,7 +4,9 @@ import {
   normalize, expand, moveOnce, moveFollowing, removeOnce, removeFollowing,
   addDaysISO, dowOf, todayISO,
 } from '../lib/plan-core.js';
-import { freeIntervals, suggest, travelBlocks } from '../lib/plan-suggest.js';
+import {
+  dayCapacity, freeIntervals, lateHours, restBetween, suggest, travelBlocks,
+} from '../lib/plan-suggest.js';
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -260,6 +262,65 @@ const D = (n) => addDaysISO(T, n);
     ok('이동 구간에는 후보를 두지 않는다',
       sug.every((c) => c.end <= 580 || c.start >= 680),
       JSON.stringify(sug.filter((c) => c.end > 580 && c.start < 680)));
+  }
+}
+
+/* --------------------------------------------------------- 9. 피로도 */
+{
+  const base = {
+    dayStart: 480, dayEnd: 1380, step: 30, buffer: 15,
+    dailyLimit: 480, minRest: 30, places: [], travel: {}, homeId: '',
+  };
+  const cand = (start, dur = 60) => ({ date: D(0), start, end: start + dur });
+
+  /* 1) 하루 총량 */
+  {
+    const light = dayCapacity(cand(600), { dayLoad: 120, settings: base });
+    const full = dayCapacity(cand(600), { dayLoad: 460, settings: base });
+    const over = dayCapacity(cand(600), { dayLoad: 700, settings: base });
+    ok('한도의 절반 아래면 밀어준다', light.score > 0 && light.reason === '여유 있는 날');
+    ok('한도를 막 넘기면 조금 깎는다', full.score < 0 && full.score > -3, String(full.score));
+    ok('많이 넘길수록 더 깎되 바닥이 있다', over.score < full.score && over.score >= -8, String(over.score));
+    ok('한도를 0 으로 두면 규칙이 꺼진다',
+      dayCapacity(cand(600), { dayLoad: 900, settings: { ...base, dailyLimit: 0 } }) === null);
+  }
+
+  /* 2) 앞뒤 간격 */
+  {
+    const ctx = (busy) => ({ busy, settings: base });
+    const tight = restBetween(cand(600), ctx([[480, 595]]));   // 앞 일정이 5분 전에 끝남
+    const loose = restBetween(cand(600), ctx([[480, 540]]));   // 60분 떨어짐
+    const both = restBetween(cand(600), ctx([[480, 595], [665, 700]])); // 앞뒤 다 붙음
+    ok('앞 일정에 붙으면 깎는다', tight.score < 0, String(tight.score));
+    ok('충분히 떨어지면 안 깎는다', loose.score === 0, String(loose.score));
+    ok('앞뒤로 다 붙으면 더 깎는다', both.score < tight.score, `${both.score} vs ${tight.score}`);
+    ok('휴식 기준을 0 으로 두면 규칙이 꺼진다',
+      restBetween(cand(600), { busy: [[480, 595]], settings: { ...base, minRest: 0 } }) === null);
+  }
+
+  /* 3) 늦은 시각 */
+  {
+    const ctx = (dayLoad) => ({ dayLoad, settings: base });
+    const noon = lateHours(cand(720), ctx(120));
+    const night = lateHours(cand(1260), ctx(120));   // 21:00~22:00
+    const nightHeavy = lateHours(cand(1260), ctx(460)); // 같은 시각인데 하루가 길었음
+    ok('이른 시각은 안 깎는다', noon.score === 0, String(noon.score));
+    ok('늦을수록 깎는다', night.score < 0, String(night.score));
+    ok('하루가 길었으면 같은 늦은 시각을 더 깎는다',
+      nightHeavy.score < night.score, `${nightHeavy.score} vs ${night.score}`);
+  }
+
+  /* 4) 합쳐서 — 꽉 찬 날보다 빈 날을 고른다 */
+  {
+    const heavy = [];
+    for (let i = 0; i < 7; i += 1) {
+      heavy.push({ key: `h${i}`, date: D(1), start: 480 + i * 70, end: 480 + i * 70 + 60, allDay: false, title: 'x' });
+    }
+    const sug = suggest({
+      occurrences: heavy, duration: 60, fromISO: D(1), days: 2,
+      settings: base, nowISO: D(1), target: null, limit: 3,
+    });
+    ok('꽉 찬 날 대신 다음 날을 먼저 권한다', sug[0].date === D(2), JSON.stringify(sug.map((c) => c.date)));
   }
 }
 

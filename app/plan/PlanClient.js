@@ -20,7 +20,7 @@ import AuthGate from '../_ui/AuthGate';
 import Shell from '../_ui/Shell';
 import {
   addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime,
-  moveFollowing, moveOnce, removeFollowing, removeOnce, replaceEvent, replaceTask,
+  moveFollowing, moveOnce, normalize, removeFollowing, removeOnce, replaceEvent, replaceTask,
   todayISO, uid,
 } from '../../lib/plan-core';
 import {
@@ -185,7 +185,9 @@ function PlanApp({ session, fixtureMode }) {
         const { buildFixture } = await import('./fixture');
         const fx = buildFixture();
         if (!alive) return;
-        setData(fx.doc);
+        // 실제 경로(loadPlan)와 똑같이 normalize 를 태운다. 안 그러면 새 설정의
+        // 기본값이 픽스처에만 빠져서 화면이 실제 동작과 갈라진다.
+        setData(normalize(fx.doc));
         setClasses(fx.classes);
         setWork(fx.work);
         setSource('fixture');
@@ -449,6 +451,26 @@ function PlanApp({ session, fixtureMode }) {
               onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, buffer: Number(e.target.value) } }))}>
               {[0, 10, 15, 20, 30].map((v) => <option key={v} value={v}>{v}분</option>)}
             </select>
+          </dd></div>
+          <div className="rk-field"><dt>하루 한도</dt><dd>
+            <select className="rk-input rk-select" value={data.settings.dailyLimit}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, dailyLimit: Number(e.target.value) } }))}>
+              <option value={0}>쓰지 않음</option>
+              {[300, 360, 420, 480, 540, 600, 660].map((v) => <option key={v} value={v}>{v / 60}시간</option>)}
+            </select>
+            <p className="rk-pl-hint">
+              일정·이동·할 일을 합쳐 하루에 이만큼까지만 채우려 합니다. 넘기는 날은 제안에서 뒤로 밀릴 뿐, 넣지 못하는 건 아닙니다.
+            </p>
+          </dd></div>
+          <div className="rk-field"><dt>일정 사이 휴식</dt><dd>
+            <select className="rk-input rk-select" value={data.settings.minRest}
+              onChange={(e) => commit((p) => ({ ...p, settings: { ...p.settings, minRest: Number(e.target.value) } }))}>
+              <option value={0}>쓰지 않음</option>
+              {[15, 30, 45, 60].map((v) => <option key={v} value={v}>{v}분</option>)}
+            </select>
+            <p className="rk-pl-hint">
+              앞뒤 일정과 이만큼은 띄우고 싶다는 뜻입니다. 위의 여유(버퍼)가 &lsquo;아예 못 넣는 거리&rsquo;라면 이쪽은 &lsquo;넣을 수는 있지만 빡빡한 거리&rsquo;입니다.
+            </p>
           </dd></div>
           <PlacesSettings
             settings={data.settings}
