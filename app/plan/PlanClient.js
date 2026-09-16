@@ -20,7 +20,7 @@ import AuthGate from '../_ui/AuthGate';
 import Shell from '../_ui/Shell';
 import {
   addDaysISO, addEvent, addTask, dowOf, editEventFollowing, editEventOnce, expand, fmtTime,
-  moveFollowing, moveOnce, normalize, removeFollowing, removeOnce, replaceEvent, replaceTask,
+  mergePlan, moveFollowing, moveOnce, normalize, removeFollowing, removeOnce, replaceEvent, replaceTask,
   todayISO, uid, weekDays, weekLabel,
 } from '../../lib/plan-core';
 import {
@@ -168,6 +168,8 @@ function PlanApp({ session, fixtureMode }) {
 
   const timerRef = useRef(0);
   const pendingRef = useRef(null);
+  // 이 탭이 마지막으로 서버와 맞춘 문서 — 저장할 때 '이 탭이 바꾼 것'을 가려내는 기준(mergePlan)
+  const baseRef = useRef(null);
   const okRef = useRef(0);
   const undoTimerRef = useRef(0);
 
@@ -208,6 +210,7 @@ function PlanApp({ session, fixtureMode }) {
       await flushPendingPlan();
       const res = await loadPlan();
       if (!alive) return;
+      baseRef.current = res.source === 'kv' || res.source === 'empty' ? res.data : null;
       setData(res.data);
       setSource(res.source);
       setLoadErr(res.error || null);
@@ -237,8 +240,20 @@ function PlanApp({ session, fixtureMode }) {
     if (!next || fixtureMode) return;
     pendingRef.current = null;
     setSaveStatus('saving');
-    const res = await savePlan(next);
+    const res = await savePlan(next, baseRef.current);
     if (res.ok) {
+      const merged = res.data;
+      baseRef.current = merged;
+      // 서버에서 합쳐진 것(다른 곳에서 넣은 일정 등)을 화면에도 반영한다. 저장하는 사이에 또 고친 게
+      // 있으면 그 수정을 합쳐진 문서 위에 다시 얹는다 — 안 그러면 다음 저장 때 밖에서 넣은 걸
+      // '이 탭이 지운 것'으로 잘못 읽는다.
+      setData((cur) => {
+        const again = pendingRef.current;
+        if (!again) return merged;
+        const rebased = mergePlan(next, again, merged);
+        pendingRef.current = rebased;
+        return rebased;
+      });
       setSaveStatus('saved');
       const token = ++okRef.current;
       setTimeout(() => { if (okRef.current === token) setSaveStatus('idle'); }, 2200);
@@ -271,6 +286,14 @@ function PlanApp({ session, fixtureMode }) {
       if (document.visibilityState !== 'visible' || Date.now() - last < 20000) return;
       last = Date.now();
       loadWork().then(setWork).catch(() => {});
+      // 일정 문서도 다른 곳에서 바뀌었을 수 있다. 저장 대기 중인 수정이 없을 때만 갈아끼운다
+      if (!pendingRef.current) {
+        loadPlan().then((res) => {
+          if (pendingRef.current || res.source !== 'kv') return;
+          baseRef.current = res.data;
+          setData(res.data);
+        }).catch(() => {});
+      }
     };
     document.addEventListener('visibilitychange', onShow);
     return () => document.removeEventListener('visibilitychange', onShow);
@@ -278,7 +301,7 @@ function PlanApp({ session, fixtureMode }) {
 
   useEffect(() => {
     if (fixtureMode) return undefined;
-    const stash = () => { const next = pendingRef.current; if (next) writePending(next); };
+    const stash = () => { const next = pendingRef.current; if (next) writePending(next, baseRef.current); };
     const onHide = () => { if (document.visibilityState === 'hidden') stash(); };
     window.addEventListener('pagehide', stash);
     document.addEventListener('visibilitychange', onHide);

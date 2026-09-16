@@ -125,7 +125,7 @@ export default function Overview({
     // 제안 엔진이 쓰는 계산(plan-suggest 의 travelBlocks)과 같은 걸 써야 화면과 제안이 어긋나지 않는다.
     const rows = [
       ...timed.map((o) => ({ type: 'occ', occ: o, start: o.start, end: o.end })),
-      ...travelBlocks(todayOcc, today, settings).map(([a, b]) => ({ type: 'travel', start: a, end: b })),
+      ...travelBlocks(todayOcc, today, settings).map(([a, b, label]) => ({ type: 'travel', start: a, end: b, label })),
     ].sort((a, b) => a.start - b.start || (a.type === 'travel' ? -1 : 1));
 
     let prevEnd = settings.dayStart;
@@ -236,9 +236,10 @@ export default function Overview({
                 if (row.type === 'travel') {
                   const mins = row.end - row.start;
                   return (
-                    <div key={`tv-${i}`} className="rk-pl-travel-row">
+                    <div key={`tv-${i}`} className={'rk-pl-travel-row' + (row.label === '외출 준비' ? ' is-prep' : '')}>
+                      <span className="rk-pl-travel-at rk-num">{fmtTime(row.start)}</span>
                       <ArrowRight size={13} strokeWidth={1.5} aria-hidden="true" />
-                      <span>이동 <b className="rk-num">{mins}</b>분</span>
+                      <span>{row.label} <b className="rk-num">{mins}</b>분</span>
                     </div>
                   );
                 }
@@ -278,7 +279,7 @@ export default function Overview({
             </button>
           </h2>
           <WeekStrip
-            occurrences={weekOcc} days={week7} today={today} now={now}
+            occurrences={weekOcc} days={week7} today={today} now={now} settings={settings}
             onOccClick={onOccClick}
             onAddSlot={(date) => onAddEvent({ date })}
           />

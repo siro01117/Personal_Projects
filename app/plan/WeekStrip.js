@@ -4,10 +4,20 @@
 // PC(>=640)는 7등분. 시간 그리드(WeekGrid)는 "시간표로 보기" 링크 뒤에 따로 둔다.
 import { Star } from 'lucide-react';
 import { dowOf, fmtTime } from '../../lib/plan-core';
+import { travelBlocks } from '../../lib/plan-suggest';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function WeekStrip({ occurrences, days, today, now, onOccClick, onAddSlot }) {
+// 일정 목록 사이에 출근·귀가·외출 준비 줄을 시각 순으로 끼운다. 목록은 훑는 용도라
+// '이동'(근무지·학교·집이 아닌 곳으로 가는 것)은 빼고 출근·등교·귀가 흐름만 남긴다.
+function mergeTravel(list, blocks) {
+  const moves = blocks
+    .filter(([, , label]) => label !== '이동')
+    .map(([start, end, label]) => ({ travel: true, start, end, label }));
+  return [...list, ...moves].sort((a, b) => a.start - b.start || (a.travel ? -1 : 1));
+}
+
+export default function WeekStrip({ occurrences, days, today, now, settings, onOccClick, onAddSlot }) {
   const byDay = new Map(days.map((d) => [d, []]));
   for (const o of occurrences) {
     if (o.allDay || o.start == null) continue;
@@ -31,7 +41,14 @@ export default function WeekStrip({ occurrences, days, today, now, onOccClick, o
                 <button type="button" className="rk-pl-ws-empty" onClick={() => onAddSlot?.(d)}>—</button>
               ) : (
                 <div className="rk-pl-ws-list">
-                  {list.map((o) => {
+                  {mergeTravel(list, settings ? travelBlocks(occurrences, d, settings) : []).map((o) => {
+                    if (o.travel) {
+                      return (
+                        <div key={`tv-${o.start}-${o.label}`} className="rk-pl-ws-move">
+                          <span className="rk-num">{fmtTime(o.start)}</span> {o.label}
+                        </div>
+                      );
+                    }
                     const isPast = isToday ? o.end <= now : d < today;
                     return (
                       <button

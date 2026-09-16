@@ -8,6 +8,7 @@
 // dayStart/dayEnd 를 넘지 않게)로 잘라 불필요하게 긴 그리드를 없앤다 — 중첩 스크롤의 원인이었다.
 import { useMemo, useState } from 'react';
 import { dowOf, fmtTime, nowMinutes, todayISO } from '../../lib/plan-core';
+import { travelBlocks } from '../../lib/plan-suggest';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const MIN_SPAN = 8 * 60;
@@ -54,11 +55,20 @@ export function visibleRange(occurrences, dayStart, dayEnd) {
 }
 
 export default function WeekGrid({ occurrences, days, settings, onSlotClick, onOccClick, rowH = 40 }) {
+  // 출근·귀가·외출 준비 — 일정 칸 뒤에 옅게 깐다(칸 나누기에는 끼지 않는다)
+  const moves = useMemo(
+    () => new Map(days.map((d) => [d, travelBlocks(occurrences, d, settings)])),
+    [occurrences, days, settings],
+  );
   const { dayStart: fullStart, dayEnd: fullEnd, step } = settings;
   const today = todayISO();
   const [dayStart, dayEnd] = useMemo(
-    () => visibleRange(occurrences.filter((o) => days.includes(o.date)), fullStart, fullEnd),
-    [occurrences, days, fullStart, fullEnd],
+    () => visibleRange([
+      ...occurrences.filter((o) => days.includes(o.date)),
+      // 출근·외출 준비가 첫 일정보다 한참 앞설 수 있다 — 범위에 같이 넣어 잘리지 않게
+      ...[...moves.values()].flat().map(([start, end]) => ({ start, end })),
+    ], fullStart, fullEnd),
+    [occurrences, days, fullStart, fullEnd, moves],
   );
   const totalH = ((dayEnd - dayStart) / 60) * rowH;
   const yPx = (m) => ((Math.max(dayStart, Math.min(dayEnd, m)) - dayStart) / 60) * rowH;
@@ -133,6 +143,21 @@ export default function WeekGrid({ occurrences, days, settings, onSlotClick, onO
               {isToday && nowMin >= dayStart && nowMin <= dayEnd && (
                 <div className="rk-pl-now" style={{ top: yPx(nowMin) }} />
               )}
+              {(moves.get(d) || []).map(([a, e, label]) => {
+                const top = yPx(a);
+                const height = Math.max(4, yPx(e) - top);
+                return (
+                  <div
+                    key={`mv-${a}-${label}`}
+                    className={'rk-pl-move' + (label === '외출 준비' ? ' is-prep' : '')}
+                    style={{ top, height }}
+                    title={`${label} ${fmtTime(a)}–${fmtTime(e)}`}
+                    aria-hidden="true"
+                  >
+                    {height >= 16 && <span>{label}</span>}
+                  </div>
+                );
+              })}
               {blocks.map((b) => {
                 const top = yPx(b.start);
                 const height = Math.max(16, yPx(b.end) - top - 2);

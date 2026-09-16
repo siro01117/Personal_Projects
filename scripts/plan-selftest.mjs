@@ -2,7 +2,7 @@
 // lib/plan-core.js 와 lib/plan-suggest.js 만 import 한다(supabase 없이 node 에서 바로 돈다).
 import {
   normalize, expand, moveOnce, moveFollowing, removeOnce, removeFollowing,
-  addDaysISO, dowOf, todayISO, weekDays, weekLabel,
+  addDaysISO, dowOf, todayISO, weekDays, weekLabel, mergePlan,
 } from '../lib/plan-core.js';
 import {
   dayCapacity, freeIntervals, lateHours, restBetween, suggest, travelBlocks,
@@ -352,6 +352,118 @@ const D = (n) => addDaysISO(T, n);
   ok('하루를 넘는 값은 자정으로 자른다', normalize({ settings: { dayStart: 480, dayEnd: 2000 } }).settings.dayEnd === 1440);
   const free = freeIntervals([], '2026-09-16', normalize({ settings: { dayStart: 480, dayEnd: 0 } }).settings);
   ok('그래서 빈 시간이 다시 나온다', free.length === 1 && free[0].end === 1440, JSON.stringify(free));
+}
+
+/* --------------------------------------------- 11. 출근 · 귀가 · 외출 준비 */
+{
+  // 집 --35-- 스큐, 집 --30-- 부산대, 스큐 --70-- 부산대 (실제 설정과 같은 모양)
+  const st = normalize({ settings: {
+    dayStart: 480, dayEnd: 1440, buffer: 0, homeId: 'home', workPlaceId: 'cube', prepMin: 35,
+    places: [{ id: 'home', name: '집' }, { id: 'cube', name: '스터디큐브' }, { id: 'pnu', name: '부산대' }],
+    travel: { 'cube|home': 35, 'home|pnu': 30, 'cube|pnu': 70 },
+  } }).settings;
+  const D0 = '2026-09-16';
+  const ev = (key, start, end, placeId) => ({ key, date: D0, start, end, allDay: false, placeId, title: key });
+
+  {
+    const b = travelBlocks([ev('work', 1200, 1290, 'cube')], D0, st);
+    const labels = b.map((x) => x[2]).join(',');
+    ok('근무만 있는 날: 외출 준비 → 출근 → 귀가', labels === '외출 준비,출근,귀가', labels);
+    // 20:00 수업 → 출근 19:25 → 준비 18:50
+    ok('준비는 출발 직전에 35분', b[0][0] === 1130 && b[0][1] === 1165 && b[1][0] === 1165 && b[1][1] === 1200,
+      JSON.stringify(b));
+    ok('귀가는 근무 끝나고 35분', b[2][0] === 1290 && b[2][1] === 1325);
+  }
+  {
+    // 학교 → 근무: 집에서 한 번만 나간다 → 준비도 한 번
+    const b = travelBlocks([ev('class', 600, 700, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
+    ok('집에서 한 번 나가면 준비도 한 번', b.filter((x) => x[2] === '외출 준비').length === 1, JSON.stringify(b));
+    ok('학교→스큐 이동은 출근', b.some((x) => x[2] === '출근' && x[1] === 1200 && x[0] === 1130));
+    ok('학교 지점을 안 정했으면 학교로 가는 건 그냥 이동', b.some((x) => x[2] === '이동' && x[1] === 600));
+    const b2 = travelBlocks([ev('class', 600, 700, 'pnu')], D0, { ...st, schoolPlaceId: 'pnu' });
+    ok('학교 지점을 정하면 등교', b2.some((x) => x[2] === '등교' && x[1] === 600), JSON.stringify(b2));
+  }
+  {
+    // 오전 학교 → 집 들렀다 → 저녁 근무: 두 번 나가므로 준비도 두 번
+    const b = travelBlocks([ev('class', 600, 700, 'pnu'), ev('rest', 800, 900, 'home'), ev('work', 1200, 1290, 'cube')], D0, st);
+    ok('집에 들렀다 다시 나가면 준비가 또 붙는다', b.filter((x) => x[2] === '외출 준비').length === 2, JSON.stringify(b));
+    ok('집으로 가는 중간 이동도 귀가', b.some((x) => x[2] === '귀가' && x[1] === 800));
+  }
+  {
+    const b = travelBlocks([ev('work', 1200, 1290, 'cube')], D0, { ...st, prepMin: 0 });
+    ok('준비 0분이면 안 붙는다', !b.some((x) => x[2] === '외출 준비'));
+  }
+  {
+    const shifts = [{ id: 'w1', date: D0, start: 1200, end: 1290, title: '공통수학1', place: '본점 1번' }];
+    const occ = expand({ ...normalize({}), settings: st }, [], D0, D0, shifts);
+    ok('스큐 근무에 근무지가 붙는다', occ[0]?.placeId === 'cube', JSON.stringify(occ[0]));
+    const free = freeIntervals(occ, D0, st);
+    ok('준비·출근·귀가가 빈 시간에서 빠진다', free.every((f) => f.end <= 1130 || f.start >= 1325), JSON.stringify(free));
+  }
+}
+
+{
+  // 수업에도 지점이 붙어야 '학교 → 스큐' 가 70분으로 잡힌다
+  const st = normalize({ settings: {
+    dayStart: 480, dayEnd: 1440, buffer: 0, homeId: 'home', workPlaceId: 'cube', schoolPlaceId: 'pnu', prepMin: 35,
+    places: [{ id: 'home', name: '집' }, { id: 'cube', name: '스터디큐브' }, { id: 'pnu', name: '부산대' }],
+    travel: { 'cube|home': 35, 'home|pnu': 30, 'cube|pnu': 70 },
+  } }).settings;
+  const D0 = '2026-09-16'; // 수요일(dow 3)
+  const classes = [{ courseId: 'c1', title: '열린사고', color: 1, startDate: '2026-09-01', endDate: '2026-12-31',
+    meetings: [{ id: 'm1', day: 3, start: 960, end: 1060 }] }];
+  const shifts = [{ id: 'w1', date: D0, start: 1200, end: 1290, title: '공통수학1' }];
+  const occ = expand({ ...normalize({}), settings: st }, classes, D0, D0, shifts);
+  ok('수업에 수업 장소가 붙는다', occ.find((o) => o.source === 'class')?.placeId === 'pnu');
+  const b = travelBlocks(occ, D0, st);
+  ok('수업 → 근무 날은 학교에서 바로 출근(70분)', b.some((x) => x[2] === '출근' && x[0] === 1130 && x[1] === 1200), JSON.stringify(b));
+  ok('준비는 아침 한 번(수업 가기 전)', b.filter((x) => x[2] === '외출 준비').length === 1
+    && b.find((x) => x[2] === '외출 준비')[1] === 930, JSON.stringify(b));
+}
+
+/* ------------------------------------------------------- 12. 저장 시 합치기 */
+{
+  const ev = (id, title, date = '2026-09-18') => ({ id, title, date, start: 600, end: 660, allDay: false });
+  const tk = (id, title) => ({ id, title });
+  const base = normalize({ events: [ev('a', '밥약')], tasks: [], settings: { prepMin: 0 } });
+
+  // 실제로 겪은 일: 밖에서 일정 8개 추가 → 열어둔 탭이 할 일 하나 추가해 저장
+  {
+    const server = normalize({ ...base, events: [...base.events, ev('x1', 'OT'), ev('x2', '아이디어톤')],
+      tasks: [tk('t9', 'IDEA TREE')], settings: { ...base.settings, prepMin: 35 } });
+    const local = normalize({ ...base, tasks: [tk('t1', '모니터 교체')] });
+    const m = mergePlan(base, local, server);
+    ok('밖에서 넣은 일정이 안 지워진다', m.events.map((e) => e.id).join() === 'a,x1,x2', m.events.map((e) => e.id).join());
+    ok('양쪽 할 일이 다 남는다', m.tasks.map((t) => t.id).sort().join() === 't1,t9', m.tasks.map((t) => t.id).join());
+    ok('밖에서 바꾼 설정이 유지된다', m.settings.prepMin === 35);
+  }
+  {
+    const server = normalize({ ...base, events: [...base.events, ev('x1', 'OT')] });
+    const local = normalize({ ...base, events: [] }); // 이 탭에서 밥약을 지움
+    const m = mergePlan(base, local, server);
+    ok('이 탭에서 지운 건 지워진다', !m.events.some((e) => e.id === 'a') && m.events.some((e) => e.id === 'x1'));
+  }
+  {
+    const server = normalize({ ...base, events: [ev('a', '밥약(밖에서 고침)')] });
+    const local = normalize({ ...base });
+    const m = mergePlan(base, local, server);
+    ok('이 탭이 안 건드린 일정은 서버 수정본을 따른다', m.events[0].title === '밥약(밖에서 고침)');
+    const local2 = normalize({ ...base, events: [ev('a', '밥약(탭에서 고침)')] });
+    ok('이 탭이 고친 일정은 탭 것이 이긴다', mergePlan(base, local2, server).events[0].title === '밥약(탭에서 고침)');
+  }
+  {
+    const server = normalize({ ...base, settings: { ...base.settings, prepMin: 35 } });
+    const local = normalize({ ...base, settings: { ...base.settings, dailyLimit: 360 } });
+    const m = mergePlan(base, local, server);
+    ok('설정은 키 단위로 합친다', m.settings.prepMin === 35 && m.settings.dailyLimit === 360);
+  }
+  {
+    // base 를 모르는 옛 대기열: 지우지 않고 얹기만
+    const server = normalize({ ...base, events: [...base.events, ev('x1', 'OT')] });
+    const pending = normalize({ ...base, events: [ev('n1', '새 일정')] });
+    const m = mergePlan(null, pending, server);
+    ok('기준본을 모르면 지우지 않는다', ['a', 'x1', 'n1'].every((id) => m.events.some((e) => e.id === id)), m.events.map((e) => e.id).join());
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

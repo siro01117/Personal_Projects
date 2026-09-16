@@ -12,6 +12,7 @@ import { Home, Plus, X } from 'lucide-react';
 import { travelKey, travelPairs, uid } from '../../lib/plan-core';
 
 const MAX = 8;
+const PREP_CHOICES = [0, 10, 15, 20, 30, 35, 40, 45, 60];
 
 export default function PlacesSettings({ settings, onChange }) {
   const places = settings.places || [];
@@ -23,7 +24,12 @@ export default function PlacesSettings({ settings, onChange }) {
     const travel = Object.fromEntries(
       Object.entries(s.travel || {}).filter(([k]) => k.split('|').every((id) => ids.has(id))),
     );
-    return { ...s, places: next, travel, homeId: ids.has(s.homeId) ? s.homeId : '' };
+    return {
+      ...s, places: next, travel,
+      homeId: ids.has(s.homeId) ? s.homeId : '',
+      workPlaceId: ids.has(s.workPlaceId) ? s.workPlaceId : '',
+      schoolPlaceId: ids.has(s.schoolPlaceId) ? s.schoolPlaceId : '',
+    };
   });
 
   const add = () => setPlaces([...places, { id: uid('pl'), name: '' }]);
@@ -77,6 +83,48 @@ export default function PlacesSettings({ settings, onChange }) {
           <p className="rk-pl-hint">
             집으로 지정한 곳이 하루의 시작·끝입니다. 지정하지 않으면 오갈 때 드는 왕복 시간을 세지 않습니다.
           </p>
+        </dd>
+      </div>
+
+      <div className="rk-field">
+        <dt>근무지</dt>
+        <dd>
+          <select
+            className="rk-input rk-select" value={settings.workPlaceId || ''}
+            onChange={(e) => onChange((s) => ({ ...s, workPlaceId: e.target.value }))}
+          >
+            <option value="">지정 안 함</option>
+            {named.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <p className="rk-pl-hint">스큐 근무를 이 지점에서 하는 걸로 봅니다. 여기로 가는 이동이 &lsquo;출근&rsquo;, 집으로 오는 이동이 &lsquo;귀가&rsquo;로 표시됩니다.</p>
+        </dd>
+      </div>
+
+      <div className="rk-field">
+        <dt>수업 장소</dt>
+        <dd>
+          <select
+            className="rk-input rk-select" value={settings.schoolPlaceId || ''}
+            onChange={(e) => onChange((s) => ({ ...s, schoolPlaceId: e.target.value }))}
+          >
+            <option value="">지정 안 함</option>
+            {named.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <p className="rk-pl-hint">대학 수업을 이 지점에서 듣는 걸로 봅니다. 학교에서 바로 출근하는 날은 학교→근무지 이동으로 계산됩니다.</p>
+        </dd>
+      </div>
+
+      <div className="rk-field">
+        <dt>외출 준비</dt>
+        <dd>
+          <select
+            className="rk-input rk-select" value={settings.prepMin || 0}
+            onChange={(e) => onChange((s) => ({ ...s, prepMin: Number(e.target.value) }))}
+          >
+            {PREP_CHOICES.map((m) => <option key={m} value={m}>{m ? `${m}분` : '안 잡음'}</option>)}
+            {!PREP_CHOICES.includes(settings.prepMin || 0) && <option value={settings.prepMin}>{settings.prepMin}분</option>}
+          </select>
+          <p className="rk-pl-hint">집에서 나갈 때마다 출발 전에 이만큼을 비워 둡니다. 집이 지정돼 있어야 잡힙니다.</p>
         </dd>
       </div>
 

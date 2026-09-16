@@ -24,6 +24,7 @@ export function buildFixture() {
         'cube|sch': 15, 'gym|sch': 20, 'cube|gym': 25,
       },
       homeId: 'home',
+      workPlaceId: 'cube', schoolPlaceId: 'sch', prepMin: 35,
     },
     events: [
       {
