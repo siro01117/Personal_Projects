@@ -301,7 +301,7 @@ export default function Overview({
             </button>
           </h2>
           <WeekStrip
-            occurrences={weekOcc} days={week7} today={today} now={now} settings={settings}
+            occurrences={weekOcc} days={week7} today={today} now={now}
             onOccClick={onOccClick}
             onAddSlot={(date) => onAddEvent({ date })}
           />
