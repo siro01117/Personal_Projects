@@ -621,6 +621,8 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 /* 개요 — PC 2단(좌: 오늘+7일 / 우: 특별한 약속+언젠가 할 일), 모바일 단일 컬럼 */
 .rk-pl-ov { display: block; min-width: 0; }
 .rk-pl-ov-main, .rk-pl-ov-side { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+/* 컬럼이 gap 으로 간격을 주므로 .rk-block 기본 하단 마진(26px)과 겹치면 52px 이 된다 — 끈다 */
+.rk-pl-ov-main > .rk-block, .rk-pl-ov-side > .rk-block { margin-bottom: 0; }
 @media(min-width: 1024px) {
   .rk-pl-ov { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 0 30px; align-items: start; }
 }
@@ -756,9 +758,11 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   min-width: 0; border-radius: 10px; padding: 6px 4px 8px; }
 @media(min-width: 640px) { .rk-pl-ws-col { width: auto; flex: 1 1 0; } }
 .rk-pl-ws-col.is-today { background: var(--panel2); }
-.rk-pl-ws-head { text-align: center; padding-bottom: 6px; }
+/* 7일 띠는 달력 격자가 아니라 요일별 목록 — 머리도 항목과 같은 좌측 스캔선에 둔다.
+   padding-left 6px = 항목(.rk-pl-ws-item)의 안쪽 패딩과 맞춘 값 */
+.rk-pl-ws-head { text-align: left; padding: 0 6px 6px; }
 .rk-pl-ws-dow { font-size: var(--pl-xs); font-weight: 700; color: var(--mut); }
-.rk-pl-ws-num { margin: 2px auto 0; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+.rk-pl-ws-num { margin: 2px 0 0; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
   border-radius: 999px; font-size: var(--pl-md); font-weight: 700; }
 .rk-pl-ws-col.is-today .rk-pl-ws-num { background: var(--fg); color: var(--bg); }
 .rk-pl-ws-list { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -772,8 +776,8 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-ws-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   font-size: var(--pl-md); font-weight: 700; line-height: 1.3; }
 .rk-pl-ws-title svg { flex: 0 0 auto; margin-right: 3px; vertical-align: -1px; color: var(--warn); }
-.rk-pl-ws-empty { flex: 1; min-height: 40px; display: flex; align-items: center; justify-content: center;
-  color: var(--mut); font-size: var(--pl-sm); width: 100%; }
+.rk-pl-ws-empty { flex: 1; min-height: 40px; display: flex; align-items: center; justify-content: flex-start;
+  padding-left: 6px; color: var(--mut); font-size: var(--pl-sm); width: 100%; }
 .rk-pl-ws-fill { flex: 1; min-height: 16px; cursor: pointer; width: 100%; }
 
 /* 7일 시간 그리드(시간표로 보기) — 머리글(축 빈칸 + 요일 7개)과 본문(시각 축 + 날짜열 7개)이
