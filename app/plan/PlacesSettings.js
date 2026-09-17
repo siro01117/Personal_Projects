@@ -124,7 +124,7 @@ export default function PlacesSettings({ settings, onChange }) {
             {PREP_CHOICES.map((m) => <option key={m} value={m}>{m ? `${m}분` : '안 잡음'}</option>)}
             {!PREP_CHOICES.includes(settings.prepMin || 0) && <option value={settings.prepMin}>{settings.prepMin}분</option>}
           </select>
-          <p className="rk-pl-hint">집에서 나갈 때마다 출발 전에 이만큼을 비워 둡니다. 집이 지정돼 있어야 잡힙니다.</p>
+          <p className="rk-pl-hint">하루 처음 집에서 나갈 때 출발 전에 이만큼을 비워 둡니다. 중간에 집에 들렀다 다시 나갈 땐 10분만 잡습니다. 밖에서 다음 일정까지 집에 50분 이상 있을 수 있으면 집에 들렀다 가는 걸로 봅니다. 집이 지정돼 있어야 잡힙니다.</p>
         </dd>
       </div>
 

@@ -375,8 +375,8 @@ const D = (n) => addDaysISO(T, n);
     ok('귀가는 근무 끝나고 35분', b[2][0] === 1290 && b[2][1] === 1325);
   }
   {
-    // 학교 → 근무(수요일처럼 17:40 끝 → 20:00): 틈이 짧아 집에 안 들르고 바로 간다 → 준비도 한 번
-    const b = travelBlocks([ev('class', 900, 1060, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
+    // 학교 → 근무(18:30 끝 → 20:00): 집에 있을 틈이 15분뿐이라 바로 간다 → 준비도 한 번
+    const b = travelBlocks([ev('class', 900, 1110, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
     ok('집에서 한 번 나가면 준비도 한 번', b.filter((x) => x[2] === '외출 준비').length === 1, JSON.stringify(b));
     ok('학교→스큐 이동은 출근', b.some((x) => x[2] === '출근' && x[1] === 1200 && x[0] === 1130));
     ok('학교 지점을 안 정했으면 학교로 가는 건 그냥 이동', b.some((x) => x[2] === '이동' && x[1] === 900));
@@ -407,6 +407,22 @@ const D = (n) => addDaysISO(T, n);
     ok('집으로 가는 중간 이동도 귀가', b.some((x) => x[2] === '귀가' && x[1] === 800));
   }
   {
+    // 오전 수업 → 집 들렀다 → 근무: 두 번째 준비는 10분
+    const b = travelBlocks([ev('class', 600, 700, 'pnu'), ev('work', 1200, 1290, 'cube')], D0, st);
+    const preps = b.filter((x) => x[2] === '외출 준비');
+    ok('아침 준비는 35분', preps[0][1] - preps[0][0] === 35, JSON.stringify(preps));
+    ok('다시 나갈 땐 준비 10분', preps[1][1] - preps[1][0] === 10 && preps[1][1] === 1165, JSON.stringify(preps));
+  }
+  {
+    // 학교 13:00 끝 → 근무 15:05: 귀가 30 + 준비 10 + 출근 35 = 75, 집에 50분 → 들른다
+    const b = travelBlocks([ev('class', 600, 780, 'pnu'), ev('work', 905, 1000, 'cube')], D0, st);
+    ok('집에 50분 있을 수 있으면 들른다', b.filter((x) => x[2] === '귀가').length === 2, JSON.stringify(b));
+    // 15:04 시작이면 49분 → 학교에서 바로 출근
+    const b2 = travelBlocks([ev('class', 600, 780, 'pnu'), ev('work', 904, 1000, 'cube')], D0, st);
+    ok('49분이면 바로 간다', b2.filter((x) => x[2] === '귀가').length === 1 && b2.some((x) => x[2] === '출근' && x[0] === 834),
+      JSON.stringify(b2));
+  }
+  {
     const b = travelBlocks([ev('work', 1200, 1290, 'cube')], D0, { ...st, prepMin: 0 });
     ok('준비 0분이면 안 붙는다', !b.some((x) => x[2] === '외출 준비'));
   }
@@ -433,8 +449,10 @@ const D = (n) => addDaysISO(T, n);
   const occ = expand({ ...normalize({}), settings: st }, classes, D0, D0, shifts);
   ok('수업에 수업 장소가 붙는다', occ.find((o) => o.source === 'class')?.placeId === 'pnu');
   const b = travelBlocks(occ, D0, st);
-  ok('수업 → 근무 날은 학교에서 바로 출근(70분)', b.some((x) => x[2] === '출근' && x[0] === 1130 && x[1] === 1200), JSON.stringify(b));
-  ok('준비는 아침 한 번(수업 가기 전)', b.filter((x) => x[2] === '외출 준비').length === 1
+  // 17:40 끝 → 20:00: 귀가 30 + 준비 10 + 출근 35 를 빼고도 집에 65분 → 들른다
+  ok('수업 → 근무 날, 틈이 있으면 집에 들렀다 출근', b.some((x) => x[2] === '귀가' && x[0] === 1060 && x[1] === 1090)
+    && b.some((x) => x[2] === '출근' && x[0] === 1165 && x[1] === 1200), JSON.stringify(b));
+  ok('준비는 아침 35분 · 다시 나갈 때 10분', b.filter((x) => x[2] === '외출 준비').map((x) => x[1] - x[0]).join() === '35,10'
     && b.find((x) => x[2] === '외출 준비')[1] === 930, JSON.stringify(b));
 }
 
@@ -514,10 +532,10 @@ const D = (n) => addDaysISO(T, n);
   }
   {
     // 본가 할 일을 수업과 근무 사이(15:00)에.
-    // 넣기 전: 수업 뒤 집에 들렀다(귀가 30 + 준비 35 + 출근 35) 근무 → 틈 동선 100
-    // 넣은 뒤: 학교→본가 100 + 본가→스큐 103 (집에 들를 틈이 안 남음) → 203 ⇒ +103
+    // 넣기 전: 수업 뒤 집에 들렀다(귀가 30 + 준비 10 + 출근 35) 근무 → 틈 동선 75
+    // 넣은 뒤: 학교→본가 100 + 본가→집 120 + 준비 10 + 출근 35 → 265 ⇒ +190
     const r = fit(900, 60, 'bon');
-    ok('멀리 도는 동선은 늘어난 만큼 감점', r.score < 0 && r.reason === '이동 +103분', JSON.stringify(r));
+    ok('멀리 도는 동선은 늘어난 만큼 감점', r.score < 0 && r.reason === '이동 +190분', JSON.stringify(r));
   }
   {
     // 스큐 할 일을 오후 2시에 넣으면 그 뒤 근무까지 틈이 길어 집에 한 번 더 다녀와야 한다 → 손해
@@ -642,11 +660,11 @@ const D = (n) => addDaysISO(T, n);
     const r = chk(1170, 20);
     ok('출근과 겹치는 장소 없는 할 일도 넣을 수 있다', r.ok === true, JSON.stringify(r));
     ok('당겨진 준비·출근 시각을 알려준다',
-      r.reasons.includes('외출 준비 18:20으로 당김') && r.reasons.includes('출근 18:55로 당김'), JSON.stringify(r.reasons));
+      r.reasons.includes('외출 준비 18:45로 당김') && r.reasons.includes('출근 18:55로 당김'), JSON.stringify(r.reasons));
     const b = travelBlocks([...occ, { key: 't', date: D0, start: 1170, end: 1190, allDay: false, title: 't' }], D0, st);
     ok('실제로 준비·출근이 할 일 앞으로 옮겨진다',
       b.some((x) => x[2] === '출근' && x[0] === 1135 && x[1] === 1170)
-      && b.some((x) => x[2] === '외출 준비' && x[0] === 1100 && x[1] === 1135), JSON.stringify(b));
+      && b.some((x) => x[2] === '외출 준비' && x[0] === 1125 && x[1] === 1135), JSON.stringify(b));
   }
   {
     // 귀가와 겹치면 귀가를 그 뒤로 늦춘다 (근무 21:30 끝 → 21:40 할 일)

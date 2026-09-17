@@ -128,6 +128,8 @@ export default function WeekGrid({
   // 판정 한 줄 — 넣을 수 있으면 이유표, 없으면 막힌 이유
   const verdict = (r) => (r.ok ? (r.reasons.filter((x) => x !== '가까운 날짜').join(' · ') || '넣을 수 있음') : r.why);
 
+  const showNow = days.includes(today) && nowMin >= dayStart && nowMin <= dayEnd;
+
   return (
     <div className={'rk-pl-week-wrap' + (placing ? ' is-placing' : '')}>
       <div className="rk-pl-week">
@@ -140,9 +142,12 @@ export default function WeekGrid({
         ))}
         <div className="rk-pl-axis" style={{ height: totalH }}>
           {hours.map((m) => (
-            <span key={m} style={{ top: yPx(m) }}>{fmtTime(m)}</span>
+            // 지금 시각 라벨과 12분 안으로 붙는 정시 라벨은 가린다(겹쳐서 둘 다 안 읽힘)
+            <span key={m} style={{ top: yPx(m) }} className={showNow && Math.abs(m - nowMin) < 12 ? 'is-hidden' : undefined}>
+              {fmtTime(m)}
+            </span>
           ))}
-          {days.includes(today) && nowMin >= dayStart && nowMin <= dayEnd && (
+          {showNow && (
             <span className="rk-pl-axis-now rk-num" style={{ top: yPx(nowMin) }}>{fmtTime(nowMin)}</span>
           )}
         </div>

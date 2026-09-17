@@ -795,6 +795,9 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 /* 7일 시간 그리드(시간표로 보기) — 머리글(축 빈칸 + 요일 7개)과 본문(시각 축 + 날짜열 7개)이
    같은 grid-template-columns 트랙을 공유한다(중첩 그리드로 나누지 않는다 — 인라인 스타일로
    트랙을 또 정의하면 머리글과 본문이 서로 다른 트랙 폭을 갖게 돼 밀린다). */
+/* 시간표 칸 안 레이어 순서(아래→위) — 식사·이동 1 < 일정 블록 2 < 추천 자리 3 < 지금 선 4 < 끌어넣기 그림자 5.
+   칸 밖: 떠 있는 버튼 34 < 시트 60 < 팝업 70 */
+.rk-pl-week-wrap { --z-flow: 1; --z-block: 2; --z-cand: 3; --z-now: 4; --z-ghost: 5; }
 .rk-pl-week-wrap { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; padding-block: 8px 14px; }
 .rk-pl-week { display: grid; grid-template-columns: 46px repeat(7, minmax(96px, 1fr)); gap: 4px; min-width: 0; }
 .rk-pl-axis-head { min-width: 0; }
@@ -806,7 +809,11 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-axis { position: relative; min-width: 0; }
 .rk-pl-axis span { position: absolute; right: 6px; transform: translateY(-7px);
   font-family: var(--mono); font-size: var(--pl-xs); color: var(--mut); }
-.rk-pl-axis-now { color: var(--fg); font-weight: 800; background: var(--bg); padding-left: 2px; z-index: 2; }
+.rk-pl-axis span.is-hidden { visibility: hidden; }
+/* 지금 시각 — 정시 라벨 자리(오른쪽 6px)를 비켜 칸 경계에 붙은 알약으로. 선과 한 줄로 이어진다 */
+.rk-pl-axis-now { right: -4px !important; transform: translateY(-50%) !important; z-index: 2;
+  padding: 1px 5px; border-radius: 999px; background: var(--fg); color: var(--bg) !important;
+  font-weight: 800; line-height: 1.35; }
 .rk-pl-col { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2);
   overflow: hidden; cursor: pointer; }
 .rk-pl-col.is-today { border-color: var(--line2); }
@@ -814,7 +821,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   background: color-mix(in srgb, var(--fg) 8%, transparent); pointer-events: none; z-index: 1; }
 .rk-pl-block { position: absolute; box-sizing: border-box; overflow: hidden; border-radius: 7px;
   display: flex; flex-direction: column; gap: 1px; justify-content: center;
-  padding: 3px 6px; font-size: var(--pl-sm); line-height: 1.3; cursor: pointer;
+  padding: 3px 6px; font-size: var(--pl-sm); line-height: 1.3; cursor: pointer; z-index: var(--z-block);
   border: 1px solid color-mix(in srgb, var(--c) 45%, var(--line));
   background: color-mix(in srgb, var(--c) var(--blk-tint), var(--blk-base)); color: var(--fg);
   transition: filter var(--t); }
@@ -823,7 +830,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-block.is-past { border-color: color-mix(in srgb, var(--c) 20%, var(--line));
   background: color-mix(in srgb, var(--c) 6%, var(--panel2)); color: var(--mut); }
 .rk-pl-block-t { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rk-pl-now { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px solid var(--fg); z-index: 3; pointer-events: none; }
+.rk-pl-now { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px solid var(--fg); z-index: var(--z-now); pointer-events: none; }
 @media(max-width: 639px) {
   .rk-pl-week-wrap { scroll-snap-type: x proximity; }
   .rk-pl-week { grid-auto-columns: minmax(96px, 1fr); min-width: max-content; }
@@ -1035,7 +1042,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 /* 출근·귀가·외출 준비 — 일정이 아니라 일정 사이의 흐름이라 낮고 옅게 */
 .rk-pl-travel-row { gap: 8px; }
 .rk-pl-travel-at { width: 38px; color: var(--mut); }
-.rk-pl-move { position: absolute; left: 1px; right: 1px; z-index: 0; border-radius: 6px;
+.rk-pl-move { position: absolute; left: 1px; right: 1px; z-index: var(--z-flow); border-radius: 6px;
   background: color-mix(in srgb, var(--fg) 8%, transparent); overflow: hidden; }
 .rk-pl-move.is-prep { background: color-mix(in srgb, var(--fg) 4%, transparent); }
 .rk-pl-move span { display: block; padding: 1px 5px; font-size: 11px; font-weight: 600; color: var(--mut); white-space: nowrap; }
@@ -1045,7 +1052,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   font-size: var(--pl-xs); color: var(--mut); }
 .rk-pl-meal-row b { color: var(--fg); font-weight: 700; }
 .rk-pl-meal-row.is-missing { color: var(--warn); }
-.rk-pl-meal { position: absolute; left: 3px; right: 3px; z-index: 0; border-radius: 6px;
+.rk-pl-meal { position: absolute; left: 3px; right: 3px; z-index: var(--z-flow); border-radius: 6px;
   border: 1px dashed var(--line2); overflow: hidden; }
 .rk-pl-meal span { display: block; padding: 1px 5px; font-size: 11px; font-weight: 600; color: var(--mut); white-space: nowrap; }
 
@@ -1113,7 +1120,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-week-wrap.is-placing .rk-pl-meal { pointer-events: none; }
 .rk-pl-week-wrap.is-placing .rk-pl-block { opacity: .75; }
 
-.rk-pl-ghost { position: absolute; left: 2px; right: 2px; z-index: 4; pointer-events: none;
+.rk-pl-ghost { position: absolute; left: 2px; right: 2px; z-index: var(--z-ghost); pointer-events: none;
   display: flex; flex-direction: column; gap: 1px; padding: 3px 6px; overflow: hidden; border-radius: 7px;
   border: 1.5px solid var(--fg); background: color-mix(in srgb, var(--fg) 14%, var(--panel)); }
 .rk-pl-ghost.is-bad { border-style: dashed; border-color: var(--danger);
@@ -1123,7 +1130,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-ghost-v { font-size: 11px; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rk-pl-ghost.is-bad .rk-pl-ghost-v { color: var(--danger); font-weight: 600; }
 
-.rk-pl-cand-slot { position: absolute; left: 3px; right: 3px; z-index: 2; border-radius: 7px;
+.rk-pl-cand-slot { position: absolute; left: 3px; right: 3px; z-index: var(--z-cand); border-radius: 7px;
   border: 1.5px dashed color-mix(in srgb, var(--ok) 70%, transparent);
   background: color-mix(in srgb, var(--ok) 8%, transparent); text-align: left; overflow: hidden; }
 .rk-pl-cand-slot span { display: block; padding: 2px 5px; font-size: 11px; font-weight: 700; color: var(--ok); }
