@@ -16,6 +16,7 @@ import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { saySig, sayUnits } from '../lib/study-say.mjs';
 import { saySig as lecSig, sayUnits as lecUnits } from '../lib/lecture.mjs';
+import { speakText } from '../lib/speak.mjs';
 
 const SUPABASE_URL = 'https://ovnabmmofgujgefuamzn.supabase.co';
 const BUCKET = 'study-audio';
@@ -111,7 +112,9 @@ async function main() {
     const work = fs.mkdtempSync(path.join(os.tmpdir(), 'study-tts-'));
     const sig = j.sig;
     console.log(`\n== ${j.course.name} ${j.id} · ${j.units.length}줄`);
-    fs.writeFileSync(path.join(work, 'units.json'), JSON.stringify(j.units), 'utf8');
+    // 읽을 글은 화면 쪽과 같은 규칙으로 만든다(lib/speak.mjs). 파이썬은 say 가 있으면 그대로 읽는다.
+    const units = j.units.map((u) => ({ ...u, say: speakText(u.text) }));
+    fs.writeFileSync(path.join(work, 'units.json'), JSON.stringify(units), 'utf8');
     run(PY, [TTS_PY, path.join(work, 'units.json'), work, ...(args['no-verify'] ? [] : ['--verify'])]);
     run('ffmpeg', ['-v', 'error', '-y', '-i', path.join(work, 'audio.wav'),
       '-ac', '1', '-c:a', 'aac', '-b:a', '64k', '-movflags', '+faststart', path.join(work, 'audio.m4a')]);

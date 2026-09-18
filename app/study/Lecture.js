@@ -4,7 +4,7 @@
 // 줄 목록과 듣기 주소는 lib/lecture.mjs 한 곳에서 나온다(화면과 소리가 어긋나지 않게).
 import { useRef, useState } from 'react';
 import { ArrowLeft, BookOpen, ChevronDown, Lightbulb } from 'lucide-react';
-import { lectureRows, saySig } from '../../lib/lecture.mjs';
+import { lectureRows, sayUnits, saySig } from '../../lib/lecture.mjs';
 import { ListenBar, ListenButton, useFollow, useListen } from './Listen';
 
 const sayProps = (say, key) => {
@@ -117,7 +117,7 @@ function Note({ row }) {
 export function LectureView({ unit, onBack }) {
   const rootRef = useRef(null);
   const fresh = unit.tts && unit.tts.sig === saySig(unit) ? unit.tts : null;
-  const say = useListen(fresh, unit.title);
+  const say = useListen({ tts: fresh, title: unit.title, units: sayUnits(unit) });
   useFollow(rootRef, say.addr);
   const rows = lectureRows(unit);
 

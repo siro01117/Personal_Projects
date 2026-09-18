@@ -14,7 +14,7 @@ import {
   HelpCircle, X,
 } from 'lucide-react';
 import { dayName, fmtTime } from '../../lib/study';
-import { SAY_PARTS, saySig } from '../../lib/study-say.mjs';
+import { SAY_PARTS, sayUnits, saySig } from '../../lib/study-say.mjs';
 import { Dot, Empty, Tag, WeightBar } from './parts';
 import { ListenBar, ListenButton, useFollow, useListen } from './Listen';
 import Lectures from './Lecture';
@@ -171,7 +171,7 @@ function Recap({ lesson: l }) {
   const rootRef = useRef(null);
   // 글이 바뀐 뒤 소리를 다시 안 만들었으면 듣기를 숨긴다 — 화면과 다른 말을 읽는 것보다 없는 편이 낫다.
   const fresh = l.tts && l.tts.sig === saySig(l) ? l.tts : null;
-  const say = useListen(fresh, l.topic);
+  const say = useListen({ tts: fresh, title: l.topic, units: sayUnits(l) });
   useFollow(rootRef, say.addr);
   const has = l.flow.length || l.context.length || l.principles.length || l.keyTerms.length
     || l.retrieval.length || l.asks.length || l.needsCheck.length;
