@@ -1184,3 +1184,44 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   .rk-pl-sd-row input[type='checkbox'], .rk-todo input[type='checkbox'] { width: 22px; height: 22px; }
   .rk-pl-sd-row { gap: 8px 10px; padding: 12px 2px; }
 }
+
+/* ================================================================ 듣기 */
+/* 읽는 줄 강조는 색을 새로 들이지 않는다 — 글자를 본문색으로 올리고 왼쪽에 과목색(없으면 본문색) 줄 하나. */
+.rk-say-bw { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
+.rk-say-b { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px;
+  border: 1px solid var(--line2); border-radius: 999px; font-size: 12.5px; font-weight: 650; color: var(--mut);
+  transition: color var(--t), background var(--t), border-color var(--t); }
+.rk-say-b:hover, .rk-say-b.is-on { color: var(--fg); background: var(--panel2); border-color: transparent; }
+@media (pointer: coarse) { .rk-say-b { min-height: 40px; padding: 0 14px; } }
+
+.rk-recap [data-say] { transition: color var(--t), background var(--t), box-shadow var(--t); border-radius: 6px; }
+.rk-recap.is-listening [data-say] { cursor: pointer; }
+.rk-recap.is-listening .rk-bul li, .rk-recap.is-listening .rk-cmp dd, .rk-recap.is-listening .rk-cmp dt { color: var(--mut); }
+.rk-recap .rk-bul li.is-say, .rk-recap .rk-cmp > div.is-say dt, .rk-recap .rk-cmp > div.is-say dd { color: var(--fg); }
+.rk-recap .rk-bul li.is-say, .rk-recap .rk-cmp > div.is-say {
+  background: var(--panel); box-shadow: -10px 0 0 var(--panel), 10px 0 0 var(--panel), -13px 0 0 var(--c, var(--fg)); }
+/* 정리 상자 바탕이 panel2 라서 읽는 줄은 panel 로 들어올린다 */
+.rk-recap .rk-recap-h.is-say, .rk-recap .rk-recap-k.is-say { color: var(--fg); }
+
+.rk-say { position: fixed; left: 0; right: 0; bottom: var(--bar); z-index: 36;
+  background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(14px);
+  border-top: 1px solid var(--line); }
+@media (min-width: 640px) {
+  .rk-say { left: 50%; right: auto; bottom: 18px; width: min(560px, calc(100vw - 32px)); transform: translateX(-50%);
+    border: 1px solid var(--line2); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+}
+.rk-say-track { position: relative; height: 14px; display: flex; align-items: flex-start; cursor: pointer; touch-action: none; }
+.rk-say-track::before { content: ''; position: absolute; left: 0; right: 0; height: 3px; background: var(--line); }
+.rk-say-track span { position: relative; height: 3px; background: var(--c, var(--fg)); }
+.rk-say-row { display: flex; align-items: center; gap: 8px; padding: 0 var(--pad-r) 8px var(--pad); }
+.rk-say-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rk-say-t { font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rk-say-c { font-size: 11.5px; color: var(--faint); }
+.rk-say-ctl { display: flex; align-items: center; gap: 2px; }
+.rk-say-ctl button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: var(--mut);
+  transition: color var(--t), background var(--t); }
+.rk-say-ctl button:hover { color: var(--fg); background: var(--panel2); }
+.rk-say-ctl button:disabled { opacity: .45; cursor: default; }
+.rk-say-ctl .rk-say-play { color: var(--fg); }
+.rk-say-ctl .rk-say-rate { font-size: 12.5px; font-weight: 700; }
+@media (max-width: 380px) { .rk-say-ctl button { width: 40px; } }

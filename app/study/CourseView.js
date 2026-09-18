@@ -8,12 +8,14 @@
 //   progress = 16주 강의계획 (주차별 주제)
 //   lessons  = 실제로 열린 차시 (2026-09-03, 1주차, 녹음 있음, 정리 여부)
 // 진도 탭은 progress 를 뼈대로 두고 그 주차의 lessons 를 붙여 보여준다.
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ArrowLeft, BookOpen, ChevronDown, ExternalLink, FileText, Info, Mic, Target, TriangleAlert, HelpCircle, X,
 } from 'lucide-react';
 import { dayName, fmtTime } from '../../lib/study';
+import { SAY_PARTS, saySig } from '../../lib/study-say.mjs';
 import { Dot, Empty, Tag, WeightBar } from './parts';
+import { ListenBar, ListenButton, useFollow, useListen } from './Listen';
 
 const TABS = [
   { key: 'overview', label: '개요', icon: Info },
@@ -137,36 +139,64 @@ function Retrieval({ items }) {
   );
 }
 
-function Bullets({ items }) {
-  return <ul className="rk-bul">{items.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+// 듣기 주소(data-say)는 lib/study-say.js 의 sayUnits 와 짝이다 — k 는 블록, i 는 그 안의 줄 번호.
+// say 가 있으면 듣는 중이다: 읽는 줄에 is-say 가 붙고, 줄을 누르면 거기부터 읽는다.
+const sayProps = (say, k, i) => {
+  const addr = `${k}:${i}`;
+  return {
+    'data-say': addr,
+    className: say?.addr === addr ? 'is-say' : undefined,
+    onClick: say?.isOpen ? () => say.seekAddr(addr) : undefined,
+  };
+};
+
+function Bullets({ items, k, say }) {
+  return <ul className="rk-bul">{items.map((x, i) => <li key={i} {...sayProps(say, k, i)}>{x}</li>)}</ul>;
+}
+
+function RecapHead({ k, say, first }) {
+  const p = sayProps(say, `h-${k}`, 0);
+  const title = SAY_PARTS.find((x) => x.k === k)?.title;
+  return (
+    <div {...p} className={(first ? 'rk-recap-h' : 'rk-recap-k') + (p.className ? ` ${p.className}` : '')}>{title}</div>
+  );
 }
 
 function Recap({ lesson: l }) {
   const [showRt, setShowRt] = useState(false);
   const [showAsk, setShowAsk] = useState(false);
+  const rootRef = useRef(null);
+  // 글이 바뀐 뒤 소리를 다시 안 만들었으면 듣기를 숨긴다 — 화면과 다른 말을 읽는 것보다 없는 편이 낫다.
+  const fresh = l.tts && l.tts.sig === saySig(l) ? l.tts : null;
+  const say = useListen(fresh, l.topic);
+  useFollow(rootRef, say.addr);
   const has = l.flow.length || l.context.length || l.principles.length || l.keyTerms.length
     || l.retrieval.length || l.asks.length || l.needsCheck.length;
   if (!has) return null;
 
   return (
-    <div className="rk-recap">
+    <div className={'rk-recap' + (say.isOpen ? ' is-listening' : '')} ref={rootRef}>
+      {say.available && <div className="rk-say-bw"><ListenButton listen={say} /></div>}
       {l.flow.length > 0 && (
-        <><div className="rk-recap-h">내 생각 흐름</div><Bullets items={l.flow} /></>
+        <><RecapHead k="flow" say={say} first /><Bullets items={l.flow} k="flow" say={say} /></>
       )}
       {l.context.length > 0 && (
-        <><div className="rk-recap-k">배경과 목적</div><Bullets items={l.context} /></>
+        <><RecapHead k="context" say={say} /><Bullets items={l.context} k="context" say={say} /></>
       )}
       {l.principles.length > 0 && (
-        <><div className="rk-recap-k">핵심 원리</div><Bullets items={l.principles} /></>
+        <><RecapHead k="principles" say={say} /><Bullets items={l.principles} k="principles" say={say} /></>
       )}
       {l.keyTerms.length > 0 && (
         <>
-          <div className="rk-recap-k">주요 개념</div>
+          <RecapHead k="keyTerms" say={say} />
           <dl className="rk-cmp">
-            {l.keyTerms.map((t) => (<div key={t.id}><dt>{t.term}</dt><dd>{t.def}</dd></div>))}
+            {l.keyTerms.map((t, i) => (
+              <div key={t.id} {...sayProps(say, 'keyTerms', i)}><dt>{t.term}</dt><dd>{t.def}</dd></div>
+            ))}
           </dl>
         </>
       )}
+      <ListenBar listen={say} title={l.topic || l.date} />
       {l.needsCheck.length > 0 && (
         <>
           <div className="rk-recap-k rk-recap-w">확인 필요</div>
