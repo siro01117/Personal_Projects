@@ -253,14 +253,16 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 
 /* 하단 탭바 — 모바일 전용 */
 .rk-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:35;display:grid;
-  grid-template-columns:repeat(4,1fr);gap:2px;
+  grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;
   padding:6px var(--pad-r) calc(6px + env(safe-area-inset-bottom)) var(--pad);
   background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(14px);
   border-top:1px solid var(--line)}
-.rk-tabbar-i{min-height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+.rk-tabbar-i{min-height:46px;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3px;border-radius:10px;font-size:11px;font-weight:700;color:var(--faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   transition:color var(--t),background var(--t)}
 .rk-tabbar-i.is-on{color:var(--fg);background:var(--panel2)}
+@media(max-width:359px){.rk-tabbar-i{font-size:10px;gap:2px}}
 @media(min-width:640px){.rk-tabbar{display:none}}
 
 /* ================================================================ 학습 본문 */
@@ -387,6 +389,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   background:var(--panel);font-size:14px}
 .rk-field dt{font-weight:700;color:var(--faint);font-size:13px}
 .rk-field dd{color:var(--fg);min-width:0;overflow-wrap:anywhere}
+@media(max-width:639px){.rk-field{grid-template-columns:minmax(0,1fr);gap:6px;padding:12px 14px}}
 
 /* 평가 비중 */
 .rk-weight-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--panel2);
@@ -728,6 +731,11 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-sd-more:hover { background: var(--panel2); color: var(--fg); }
 .rk-pl-sd-more.is-on { background: var(--panel2); color: var(--fg); }
 .rk-pl-sd-expand { display: flex; flex-direction: column; gap: 8px; padding: 0 2px 12px 33px; }
+/* 좁은 화면에선 '넣기' 제안을 제목 아래 줄로 — 옆에 두면 글자가 화면 밖으로 잘린다 */
+@media(max-width: 639px) {
+  .rk-pl-sd-actions { flex-basis: 100%; margin-left: 31px; }
+  .rk-pl-sd-sug-btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
 .rk-pl-cands { display: flex; flex-wrap: wrap; gap: 6px; }
 .rk-pl-cand { display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 116px;
   padding: 8px 10px; border-radius: 11px; border: 1px solid var(--line2); background: var(--panel2);
@@ -835,6 +843,10 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   .rk-pl-week-wrap { scroll-snap-type: x proximity; }
   .rk-pl-week { grid-auto-columns: minmax(96px, 1fr); min-width: max-content; }
   .rk-pl-col { scroll-snap-align: start; }
+  /* 가로로 밀어도 몇 시인지는 늘 보이게 — 축을 왼쪽에 붙여 둔다 */
+  .rk-pl-axis, .rk-pl-axis-head { position: sticky; left: 0; z-index: 6; background: var(--bg); }
+  .rk-pl-axis span { right: 4px; }
+  .rk-pl-axis::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 1px; background: var(--line); }
 }
 
 /* 빈 상태 안내(특별한 약속 섹션) */
@@ -1159,3 +1171,16 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-pl-block.is-xl .rk-pl-block-t { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical;
   -webkit-line-clamp: 2; line-height: 1.25; }
 .rk-pl-block.is-xl .rk-pl-block-t { -webkit-line-clamp: 3; }
+
+
+/* ------------------------------------------------------------ 손가락 기준
+   좁은 화면에서는 누를 것은 40px 이상, 글자를 넣는 칸은 16px 이상으로.
+   16px 미만이면 iOS 사파리가 칸을 누를 때마다 화면을 확대한다. */
+@media(max-width: 639px) {
+  input, select, textarea { font-size: 16px; }
+  .rk-h2-link { min-height: 36px; }
+  .rk-pl-sd-sug-btn { min-height: 40px; }
+  .rk-pl-sd-more { width: 40px; height: 40px; }
+  .rk-pl-sd-row input[type='checkbox'], .rk-todo input[type='checkbox'] { width: 22px; height: 22px; }
+  .rk-pl-sd-row { gap: 8px 10px; padding: 12px 2px; }
+}

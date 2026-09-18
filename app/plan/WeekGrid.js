@@ -6,7 +6,7 @@
 //
 // 표시 범위는 고정된 dayStart~dayEnd 가 아니라 그 주 occurrence 의 실제 범위(-1h~+1h, 최소 8시간,
 // dayStart/dayEnd 를 넘지 않게)로 잘라 불필요하게 긴 그리드를 없앤다 — 중첩 스크롤의 원인이었다.
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { dowOf, fmtTime, nowMinutes, todayISO } from '../../lib/plan-core';
 import { mealSlots, travelBlocks } from '../../lib/plan-suggest';
 
@@ -130,8 +130,21 @@ export default function WeekGrid({
 
   const showNow = days.includes(today) && nowMin >= dayStart && nowMin <= dayEnd;
 
+  // 좁은 화면에선 7일이 다 안 들어간다 — 열자마자 오늘(없으면 월요일)이 보이게 밀어 둔다.
+  const wrapRef = useRef(null);
+  const firstDay = days[0];
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || window.innerWidth >= 640) return;
+    const i = days.indexOf(today);
+    if (i <= 0) { wrap.scrollLeft = 0; return; }
+    const col = wrap.querySelectorAll('.rk-pl-col')[i];
+    const axis = wrap.querySelector('.rk-pl-axis');
+    if (col) wrap.scrollLeft = col.offsetLeft - (axis?.offsetWidth || 0) - 4;
+  }, [firstDay]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className={'rk-pl-week-wrap' + (placing ? ' is-placing' : '')}>
+    <div className={'rk-pl-week-wrap' + (placing ? ' is-placing' : '')} ref={wrapRef}>
       <div className="rk-pl-week">
         <div className="rk-pl-axis-head" aria-hidden="true" />
         {days.map((d) => (
