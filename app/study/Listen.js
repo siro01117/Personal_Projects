@@ -1,12 +1,14 @@
 'use client';
 
-// 듣기 — 글을 소리로 읽어주고, 읽는 줄을 화면에서 강조하며 따라간다. 두 가지 소리가 있다.
+// 듣기 — 글을 소리로 읽어주고, 읽는 줄을 화면에서 강조하며 따라간다. 소리가 세 가지다.
 //
-//   기기 음성 : 브라우저 내장(Web Speech). 만들어 둘 게 없어 글을 쓰자마자 바로 들린다. 소리는 투박하다.
-//   녹음      : 로컬 CosyVoice 로 미리 만든 파일. 훨씬 자연스럽지만 합성·업로드가 필요하다.
+//   자연 음성(cloud) : 누르면 서버가 줄마다 만들어 준다(Edge Function 'speak'). 자연스럽고 기다릴 필요가 없다.
+//                      한 번 만든 줄은 서버가 저장해 두니 다시 들을 땐 값이 안 나간다. 기본값.
+//   기기 음성(voice) : 브라우저 내장. 인터넷이 막혔거나 서버가 죽었을 때의 버팀목. 투박하다.
+//   녹음(file)       : 로컬 CosyVoice 로 미리 만들어 둔 한 덩어리 파일. 있는 것만 쓴다.
 //
-// 둘 다 단위가 '한 줄'이라 강조 방식이 같다. 기기 음성은 줄마다 따로 읽히므로 시작·끝 신호가 정확히 오고,
-// 녹음은 줄마다 따로 합성해 둔 시각(cues)을 쓴다. 한국어는 단어 단위 신호가 안 오지만 줄 단위면 문제없다.
+// 셋 다 단위가 '한 줄'이라 강조 방식이 같다. 앞의 둘은 줄마다 따로 재생돼 시작·끝이 정확하고,
+// 녹음은 줄마다 합성해 둔 시각(cues)을 쓴다. 한국어는 단어 단위 신호가 안 오지만 줄 단위면 문제없다.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioLines, Headphones, Loader, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +20,7 @@ const RATE_KEY = 'rakan.study.listenRate';
 const ENGINE_KEY = 'rakan.study.listenEngine';
 
 const blobCache = new Map();      // path -> object URL (탭이 살아 있는 동안)
+const lineCache = new Map();      // 읽을 글 -> object URL (클라우드 음성, 탭이 살아 있는 동안)
 let stopCurrent = null;           // 한 번에 하나만 읽는다
 
 const fmt = (sec) => {
@@ -32,6 +35,23 @@ const writeLS = (k, v) => { try { localStorage.setItem(k, String(v)); } catch {}
 const readRate = () => { const r = Number(readLS(RATE_KEY, '1')); return RATES.includes(r) ? r : 1; };
 
 const hasSpeech = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
+
+// 클라우드 음성 — Supabase Edge Function 'speak'. 키는 서버에만 있다.
+// 같은 문장은 서버가 저장해 두므로 두 번째부터는 값이 안 나가고 바로 온다.
+async function cloudUrl(text) {
+  if (lineCache.has(text)) return lineCache.get(text);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요하다');
+  const res = await fetch(`${supabase.functions.url}/speak`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`speak ${res.status}`);
+  const url = URL.createObjectURL(await res.blob());
+  lineCache.set(text, url);
+  return url;
+}
 
 async function audioUrl(path) {
   if (blobCache.has(path)) return blobCache.get(path);
@@ -73,9 +93,11 @@ export function useListen({ tts, title, units }) {
   const cues = tts?.cues || [];
   const canFile = Boolean(tts?.path && cues.length);
   const canVoice = hasSpeech() && lines.length > 0;
+  const canCloud = lines.length > 0 && !cloudDown;
   const voice = useKoVoice();
 
-  const [engine, setEngine] = useState('file');
+  const [engine, setEngine] = useState('cloud');
+  const [cloudDown, setCloudDown] = useState(false);   // 서버가 안 되면 기기 음성으로 물러난다
   const [phase, setPhase] = useState('idle');       // idle | loading | ready | error
   const [playing, setPlaying] = useState(false);
   const [idx, setIdx] = useState(-1);
@@ -88,6 +110,7 @@ export function useListen({ tts, title, units }) {
   const runRef = useRef(0);        // 취소된 낭독의 뒤늦은 onend 를 걸러낸다
   const rateRef = useRef(1);
   const voiceRef = useRef(null);
+  const speakFromRef = useRef(null);
   voiceRef.current = voice;
 
   const stopVoice = useCallback(() => {
@@ -134,6 +157,51 @@ export function useListen({ tts, title, units }) {
     }
   }, [tts, tick]);
 
+  /* --------------------------------------------------------- 자연 음성 */
+
+  // 한 줄을 받아 재생하고, 그 사이 다음 두 줄을 미리 받아 둔다 -> 줄 사이가 끊기지 않는다.
+  const playCloud = useCallback((from) => {
+    runRef.current += 1;
+    const run = runRef.current;
+    const prev = audioRef.current;
+    if (prev) { prev.pause(); prev.removeAttribute('src'); audioRef.current = null; }
+
+    const prefetch = (n) => {
+      for (let k = n; k < Math.min(lines.length, n + 3); k += 1) {
+        const t = speakText(lines[k].text);
+        if (t) cloudUrl(t).catch(() => {});
+      }
+    };
+
+    const step = async (n) => {
+      if (run !== runRef.current) return;
+      if (n >= lines.length) { setPlaying(false); setIdx(-1); return; }
+      const t = speakText(lines[n].text);
+      if (!t) { step(n + 1); return; }
+      let url;
+      try {
+        url = await cloudUrl(t);
+      } catch {
+        // 서버가 안 되면 멈추지 말고 기기 음성으로 이어 읽는다.
+        if (run !== runRef.current) return;
+        setCloudDown(true); setEngine('voice'); writeLS(ENGINE_KEY, 'voice');
+        speakFromRef.current?.(n);
+        return;
+      }
+      if (run !== runRef.current) return;
+      posRef.current = n; setIdx(n);
+      const a = new Audio(url);
+      a.playbackRate = rateRef.current;
+      audioRef.current = a;
+      a.onended = () => { if (run === runRef.current) step(n + 1); };
+      a.onerror = () => { if (run === runRef.current) step(n + 1); };
+      a.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      prefetch(n + 1);
+    };
+
+    posRef.current = from; setIdx(from); prefetch(from); step(from);
+  }, [lines]);
+
   /* ----------------------------------------------------------- 기기 음성 */
 
   const speakFrom = useCallback((from) => {
@@ -161,6 +229,7 @@ export function useListen({ tts, title, units }) {
     setIdx(from);
     step(from);
   }, [lines]);
+  speakFromRef.current = speakFrom;
 
   /* ------------------------------------------------------------------ 공통 */
 
@@ -168,16 +237,18 @@ export function useListen({ tts, title, units }) {
     if (stopCurrent && stopCurrent !== close) stopCurrent();
     stopCurrent = close;
     const saved = readLS(ENGINE_KEY, '');
-    const use = canFile && (saved !== 'voice' || !canVoice) ? 'file' : 'voice';
+    const order = [saved, 'cloud', canFile ? 'file' : '', 'voice'];
+    const ok = { cloud: canCloud, file: canFile, voice: canVoice };
+    const use = order.find((e) => ok[e]) || 'voice';
     const r = readRate();
     rateRef.current = r; setRate(r); setEngine(use);
     if (use === 'file') { await openFile(); return; }
     setPhase('ready');
-    speakFrom(0);
-  }, [canFile, canVoice, close, openFile, speakFrom]);
+    if (use === 'cloud') playCloud(0); else speakFrom(0);
+  }, [canFile, canVoice, canCloud, close, openFile, playCloud, speakFrom]);
 
   const toggle = useCallback(() => {
-    if (engine === 'file') {
+    if (engine === 'file' || engine === 'cloud') {
       const a = audioRef.current;
       if (!a) return;
       if (a.paused) a.play().catch(() => {}); else a.pause();
@@ -195,18 +266,18 @@ export function useListen({ tts, title, units }) {
   }, [tts, tick]);
 
   const seekCue = useCallback((n) => {
-    if (engine === 'voice') {
-      speakFrom(Math.max(0, Math.min(n, lines.length - 1)));
-      return;
-    }
+    const at = Math.max(0, Math.min(n, lines.length - 1));
+    if (engine === 'voice') { speakFrom(at); return; }
+    if (engine === 'cloud') { playCloud(at); return; }
     const c = cues[Math.max(0, Math.min(n, cues.length - 1))];
     if (c) seek(c.s);
-  }, [engine, cues, lines.length, seek, speakFrom]);
+  }, [engine, cues, lines.length, seek, speakFrom, playCloud]);
 
   const seekAddr = useCallback((addr) => {
-    if (engine === 'voice') {
+    if (engine !== 'file') {
       const n = lines.findIndex((l) => `${l.k}:${l.i}` === addr);
-      if (n >= 0) speakFrom(n);
+      if (n < 0) return;
+      if (engine === 'cloud') playCloud(n); else speakFrom(n);
       return;
     }
     const n = cues.findIndex((c) => `${c.k}:${c.i}` === addr);
@@ -214,49 +285,56 @@ export function useListen({ tts, title, units }) {
     seek(cues[n].s);
     const a = audioRef.current;
     if (a?.paused) a.play().catch(() => {});
-  }, [engine, cues, lines, seek, speakFrom]);
+  }, [engine, cues, lines, seek, speakFrom, playCloud]);
 
   const cycleRate = useCallback(() => {
     const next = RATES[(RATES.indexOf(rate) + 1) % RATES.length];
     setRate(next); rateRef.current = next; writeLS(RATE_KEY, next);
-    if (engine === 'file') { if (audioRef.current) audioRef.current.playbackRate = next; return; }
+    if (engine !== 'voice') { if (audioRef.current) audioRef.current.playbackRate = next; return; }
     // 기기 음성은 읽는 중에 빠르기를 못 바꾼다 — 그 줄부터 다시 읽는다.
     if (playing) speakFrom(Math.max(0, posRef.current));
   }, [rate, engine, playing, speakFrom]);
 
+  // 쓸 수 있는 소리를 차례로 돌린다.
   const switchEngine = useCallback(async () => {
-    const next = engine === 'file' ? 'voice' : 'file';
-    if (next === 'file' && !canFile) return;
-    if (next === 'voice' && !canVoice) return;
+    const list = ['cloud', 'file', 'voice'].filter((e) => ({ cloud: canCloud, file: canFile, voice: canVoice })[e]);
+    if (list.length < 2) return;
+    const next = list[(list.indexOf(engine) + 1) % list.length];
     const at = idx < 0 ? 0 : idx;
     writeLS(ENGINE_KEY, next);
-    if (engine === 'file') {
-      const a = audioRef.current;
-      if (a) { a.pause(); a.removeAttribute('src'); audioRef.current = null; }
-      cancelAnimationFrame(rafRef.current);
-      setEngine('voice'); setTime(0); setPhase('ready');
-      speakFrom(at);
+
+    // 지금 나던 소리를 끈다
+    const a = audioRef.current;
+    if (a) { a.pause(); a.removeAttribute('src'); audioRef.current = null; }
+    cancelAnimationFrame(rafRef.current);
+    stopVoice();
+    setPlaying(false); setEngine(next);
+
+    if (next === 'file') {
+      setTime(0);
+      await openFile();
+      const c = cues[Math.min(at, cues.length - 1)];
+      if (c) setTimeout(() => seek(c.s), 0);
       return;
     }
-    stopVoice(); setPlaying(false); setEngine('file');
-    await openFile();
-    const c = cues[Math.min(at, cues.length - 1)];
-    if (c) setTimeout(() => seek(c.s), 0);
-  }, [engine, canFile, canVoice, idx, openFile, seek, speakFrom, stopVoice, cues]);
+    setTime(0); setPhase('ready');
+    if (next === 'cloud') playCloud(at); else speakFrom(at);
+  }, [engine, canCloud, canFile, canVoice, idx, openFile, seek, speakFrom, playCloud, stopVoice, cues]);
 
-  const cur = engine === 'voice' ? (idx >= 0 ? lines[idx] : null) : (idx >= 0 ? cues[idx] : null);
-  const total = engine === 'voice' ? lines.length : cues.length;
+  const lineMode = engine !== 'file';
+  const cur = lineMode ? (idx >= 0 ? lines[idx] : null) : (idx >= 0 ? cues[idx] : null);
+  const total = lineMode ? lines.length : cues.length;
   return {
-    available: canFile || canVoice,
-    canFile, canVoice, engine, phase, playing, time, rate, idx, total,
+    available: canCloud || canFile || canVoice,
+    canFile, canVoice, canCloud, cloudDown, engine, lineMode, phase, playing, time, rate, idx, total,
     dur: tts?.dur || 0,
     addr: cur ? `${cur.k}:${cur.i}` : '',
     isOpen: phase !== 'idle',
-    // 기기 음성은 전체 길이를 미리 알 수 없다 — 읽은 줄 수로 대신 보여준다.
-    label: engine === 'voice'
+    // 줄마다 만들어 읽는 방식은 전체 길이를 미리 알 수 없다 — 읽은 줄 수로 보여준다.
+    label: lineMode
       ? `${Math.max(0, idx + 1)} / ${total}줄`
       : `${fmt(time)} / ${fmt(tts?.dur || 0)}`,
-    progress: engine === 'voice'
+    progress: lineMode
       ? (total ? ((idx + 1) / total) * 100 : 0)
       : (tts?.dur ? Math.min(100, (time / tts.dur) * 100) : 0),
     open, close, toggle, seek, seekCue, seekAddr, cycleRate, switchEngine,
@@ -295,18 +373,19 @@ export function ListenButton({ listen }) {
 
 export function ListenBar({ listen, title }) {
   if (!listen.isOpen) return null;
-  const voiceMode = listen.engine === 'voice';
+  const lineMode = listen.lineMode;
+  const ENGINE_LABEL = { cloud: '자연', file: '녹음', voice: '기기' };
   const onTrack = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     const f = (e.clientX - r.left) / r.width;
-    if (voiceMode) listen.seekCue(Math.floor(f * listen.total));
+    if (lineMode) listen.seekCue(Math.floor(f * listen.total));
     else listen.seek(f * listen.dur);
   };
   const onKey = (e) => {
     const back = e.key === 'ArrowLeft';
     if (!back && e.key !== 'ArrowRight') return;
     e.preventDefault();
-    if (voiceMode) listen.seekCue(listen.idx + (back ? -1 : 1));
+    if (lineMode) listen.seekCue(listen.idx + (back ? -1 : 1));
     else listen.seek(listen.time + (back ? -5 : 5));
   };
   return (
@@ -322,14 +401,11 @@ export function ListenBar({ listen, title }) {
           <span className="rk-say-c rk-num">{listen.label}</span>
         </div>
         <div className="rk-say-ctl">
-          {listen.canFile && listen.canVoice && (
-            <button type="button" className={'rk-say-eng' + (voiceMode ? ' is-voice' : '')}
-              onClick={listen.switchEngine} aria-label="소리 바꾸기"
-              title={voiceMode ? '기기 음성 — 녹음으로 바꾸기' : '녹음 — 기기 음성으로 바꾸기'}>
-              <AudioLines size={16} strokeWidth={1.5} aria-hidden="true" />
-              <span>{voiceMode ? '기기' : '녹음'}</span>
-            </button>
-          )}
+          <button type="button" className={'rk-say-eng' + (listen.engine === 'voice' ? ' is-voice' : '')}
+            onClick={listen.switchEngine} aria-label="소리 바꾸기" title="소리 바꾸기">
+            <AudioLines size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span>{ENGINE_LABEL[listen.engine]}</span>
+          </button>
           <button type="button" onClick={() => listen.seekCue(listen.idx - 1)} aria-label="앞줄">
             <SkipBack size={18} strokeWidth={1.5} aria-hidden="true" />
           </button>
