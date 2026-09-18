@@ -1225,3 +1225,76 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-say-ctl .rk-say-play { color: var(--fg); }
 .rk-say-ctl .rk-say-rate { font-size: 12.5px; font-weight: 700; }
 @media (max-width: 380px) { .rk-say-ctl button { width: 40px; } }
+
+/* ================================================================ 단원 강의 */
+.rk-lec-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.rk-lec-card { width: 100%; display: flex; align-items: center; gap: 11px; padding: 14px 16px; text-align: left;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); color: var(--mut);
+  transition: border-color var(--t), background var(--t); }
+.rk-lec-card:hover { border-color: var(--line2); background: var(--panel2); }
+.rk-lec-card-b { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rk-lec-card-t { font-size: 14.5px; font-weight: 680; color: var(--fg); }
+.rk-lec-card-s { font-size: 12px; color: var(--faint); }
+.rk-lec-card-c { transform: rotate(-90deg); color: var(--faint); flex: none; }
+
+.rk-lec-head { padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.rk-lec-t { font-size: 20px; font-weight: 750; letter-spacing: -.01em; }
+.rk-lec-s { margin-top: 4px; font-size: 12.5px; color: var(--faint); }
+.rk-lec-lead { margin-top: 10px; font-size: 13.5px; line-height: 1.7; color: var(--mut); max-width: 62ch; }
+.rk-lec-head .rk-say-b { margin-top: 12px; }
+
+.rk-lec-body { padding-bottom: 96px; }          /* 하단 재생 바에 가리지 않게 */
+.rk-lec-body > * { max-width: 64ch; }
+.rk-lec-body [data-say] { border-radius: 7px; transition: color var(--t), background var(--t), box-shadow var(--t); }
+.rk-lec.is-listening .rk-lec-body [data-say] { cursor: pointer; }
+.rk-lec.is-listening .rk-lec-p, .rk-lec.is-listening .rk-lec-ul li { color: var(--mut); }
+.rk-lec-body .is-say { color: var(--fg); background: var(--panel2);
+  box-shadow: -10px 0 0 var(--panel2), 10px 0 0 var(--panel2), -13px 0 0 var(--c, var(--fg)); }
+
+.rk-lec-h { margin: 34px 0 12px; font-size: 16px; font-weight: 760; letter-spacing: -.01em; }
+.rk-lec-h:first-child { margin-top: 8px; }
+.rk-lec-p { margin: 0 0 14px; font-size: 15px; line-height: 1.85; }
+.rk-lec-ul { margin: 0 0 14px; padding-left: 18px; }
+.rk-lec-ul li { margin-bottom: 6px; font-size: 15px; line-height: 1.8; }
+.rk-lec-ul li::marker { color: var(--faint); }
+
+.rk-lec-map { margin: 0 0 20px; padding: 14px 16px; background: var(--panel2); border-radius: var(--r); }
+.rk-lec-map-h { font-size: 11px; font-weight: 700; color: var(--faint); margin-bottom: 8px; }
+.rk-lec-map ol { margin: 0; padding-left: 20px; }
+.rk-lec-map li { font-size: 13.5px; line-height: 1.75; color: var(--mut); }
+
+.rk-lec-tw { margin: 0 0 18px; overflow-x: auto; }
+.rk-lec-t { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.rk-lec-t th, .rk-lec-t td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line);
+  vertical-align: top; line-height: 1.6; }
+.rk-lec-t th { font-weight: 680; font-size: 12px; color: var(--faint); white-space: nowrap; }
+.rk-lec-t td { color: var(--mut); }
+.rk-lec-t tr:last-child td { border-bottom: 0; }
+
+.rk-lec-tag { display: inline-block; margin-bottom: 6px; font-size: 11px; font-weight: 700;
+  letter-spacing: .02em; color: var(--c, var(--fg)); }
+.rk-lec-pre, .rk-lec-q { margin: 0 0 18px; padding: 14px 16px; border-radius: var(--r);
+  border-left: 3px solid var(--c, var(--line2)); background: var(--panel); }
+.rk-lec-pre p, .rk-lec-q-b p { font-size: 14.5px; line-height: 1.75; }
+.rk-lec-q.is-say { background: var(--panel2); }
+.rk-lec-q-t { margin-top: 10px; display: inline-flex; align-items: center; gap: 5px; min-height: 34px;
+  padding: 0 11px; border: 1px solid var(--line2); border-radius: 999px; font-size: 12.5px; font-weight: 650;
+  color: var(--mut); }
+.rk-lec-q-t:hover { color: var(--fg); background: var(--panel2); }
+.rk-lec-q-a { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+  font-size: 14px; line-height: 1.8; color: var(--mut); }
+.rk-lec-hint { margin: -8px 0 18px; display: flex; gap: 6px; align-items: flex-start;
+  font-size: 12.5px; line-height: 1.7; color: var(--faint); }
+.rk-lec-hint svg { flex: none; margin-top: 3px; }
+
+.rk-lec-note { margin: 0 0 12px; }
+.rk-lec-note-t { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; font-size: 12.5px;
+  font-weight: 650; color: var(--faint); }
+.rk-lec-note-t:hover { color: var(--mut); }
+.rk-lec-note-b { margin-top: 6px; padding: 12px 14px; background: var(--panel2); border-radius: 10px;
+  font-size: 13px; line-height: 1.8; color: var(--mut); }
+
+@media (min-width: 640px) {
+  .rk-lec-body { padding-bottom: 40px; }
+  .rk-lec-p, .rk-lec-ul li { font-size: 15.5px; }
+}

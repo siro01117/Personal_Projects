@@ -10,15 +10,18 @@
 // 진도 탭은 progress 를 뼈대로 두고 그 주차의 lessons 를 붙여 보여준다.
 import { useRef, useState } from 'react';
 import {
-  ArrowLeft, BookOpen, ChevronDown, ExternalLink, FileText, Info, Mic, Target, TriangleAlert, HelpCircle, X,
+  ArrowLeft, BookOpen, ChevronDown, ExternalLink, FileText, GraduationCap, Info, Mic, Target, TriangleAlert,
+  HelpCircle, X,
 } from 'lucide-react';
 import { dayName, fmtTime } from '../../lib/study';
 import { SAY_PARTS, saySig } from '../../lib/study-say.mjs';
 import { Dot, Empty, Tag, WeightBar } from './parts';
 import { ListenBar, ListenButton, useFollow, useListen } from './Listen';
+import Lectures from './Lecture';
 
 const TABS = [
   { key: 'overview', label: '개요', icon: Info },
+  { key: 'lecture', label: '강의', icon: GraduationCap },
   { key: 'progress', label: '진도', icon: BookOpen },
   { key: 'materials', label: '자료', icon: FileText },
   { key: 'exam', label: '시험대비', icon: Target },
@@ -423,6 +426,7 @@ export default function CourseView({ course, week, tab, onTab, onBack }) {
 
       <div className="rk-tabpanel" role="tabpanel">
         {active === 'overview' && <Overview course={course} />}
+        {active === 'lecture' && <Lectures course={course} />}
         {active === 'progress' && <Progress course={course} week={week} />}
         {active === 'materials' && <Materials course={course} />}
         {active === 'exam' && <Exam course={course} />}

@@ -2,7 +2,8 @@
 //
 //   node scripts/study-tts.mjs --list                          소리가 없거나 글이 바뀐 차시 목록
 //   node scripts/study-tts.mjs --course 상법 --lesson 2026-09-08   한 차시
-//   node scripts/study-tts.mjs --all                           필요한 차시 전부
+//   node scripts/study-tts.mjs --course 상법 --unit sanghup-u1    단원 강의 하나
+//   node scripts/study-tts.mjs --all                           필요한 것 전부 (--only unit|lesson 로 한 종류만)
 //   (--force 글이 안 바뀌었어도 다시 · --no-verify 받아쓰기 대조 생략 · --semester 2026-2)
 //
 // 흐름: kv 에서 차시를 읽어 읽을 줄 목록(lib/study-say.mjs)을 만든다 → 파이썬(tts_units.py)이 줄마다 합성해
@@ -14,6 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { saySig, sayUnits } from '../lib/study-say.mjs';
+import { saySig as lecSig, sayUnits as lecUnits } from '../lib/lecture.mjs';
 
 const SUPABASE_URL = 'https://ovnabmmofgujgefuamzn.supabase.co';
 const BUCKET = 'study-audio';
@@ -67,22 +69,32 @@ async function main() {
   const sem = await read();
   const jobs = [];
   for (const c of sem.courses || []) {
+    // 차시 정리(4블록)
     lessonsOf(c).forEach((l, i) => {
       const units = sayUnits(l);
       if (!units.length) return;
-      const stale = !l.tts?.path || l.tts.sig !== saySig(l);
-      jobs.push({ course: c, lesson: l, id: lessonId(l, i), units, stale });
+      jobs.push({ kind: 'lesson', course: c, item: l, id: lessonId(l, i), units,
+        sig: saySig(l), stale: !l.tts?.path || l.tts.sig !== saySig(l) });
+    });
+    // 단원 강의 — 훨씬 길다. 소리도 따로 만든다.
+    (c.units || []).forEach((u) => {
+      const units = lecUnits(u);
+      if (!units.length) return;
+      jobs.push({ kind: 'unit', course: c, item: u, id: u.id, units,
+        sig: lecSig(u), stale: !u.tts?.path || u.tts.sig !== lecSig(u) });
     });
   }
 
   if (args.list) {
-    for (const j of jobs) console.log(`${j.stale ? '필요' : '있음'}  ${j.course.name}  ${j.id}  (${j.units.length}줄)`);
+    for (const j of jobs) console.log(`${j.stale ? '필요' : '있음'}  ${j.kind === 'unit' ? '강의' : '차시'}  ${j.course.name}  ${j.id}  (${j.units.length}줄)`);
     return;
   }
 
   const picked = jobs.filter((j) => {
     if (args.course && j.course.name !== args.course && j.course.id !== args.course) return false;
-    if (args.lesson && j.id !== args.lesson && j.lesson.date !== args.lesson) return false;
+    if (args.lesson && j.id !== args.lesson && j.item.date !== args.lesson) return false;
+    if (args.unit && j.id !== args.unit) return false;
+    if (args.only && j.kind !== args.only) return false;
     if (!args.all && !args.course) return false;
     return args.force || j.stale;
   });
@@ -97,7 +109,7 @@ async function main() {
 
   for (const j of picked) {
     const work = fs.mkdtempSync(path.join(os.tmpdir(), 'study-tts-'));
-    const sig = saySig(j.lesson);
+    const sig = j.sig;
     console.log(`\n== ${j.course.name} ${j.id} · ${j.units.length}줄`);
     fs.writeFileSync(path.join(work, 'units.json'), JSON.stringify(j.units), 'utf8');
     run(PY, [TTS_PY, path.join(work, 'units.json'), work, ...(args['no-verify'] ? [] : ['--verify'])]);
@@ -111,28 +123,37 @@ async function main() {
 
     // 경로에 글 지문을 넣는다 — 글이 바뀌면 새 파일이 되어 기기에 남은 옛 소리가 재생될 일이 없다.
     const objPath = `${slug(sem.id || args.semester || '2026-2')}/${slug(j.course.id || j.course.name)}/${slug(j.id)}.${sig}.m4a`;
-    const { error: upErr } = await sb.storage.from(BUCKET).upload(objPath, fs.readFileSync(path.join(work, 'audio.m4a')),
-      { contentType: 'audio/mp4', upsert: true });
+    // 긴 강의는 파일이 8MB 를 넘는다. 한 번 끊겼다고 17분짜리 합성을 버리지 않는다.
+    const body = fs.readFileSync(path.join(work, 'audio.m4a'));
+    let upErr = null;
+    for (let tryN = 1; tryN <= 3; tryN += 1) {
+      ({ error: upErr } = await sb.storage.from(BUCKET).upload(objPath, body, { contentType: 'audio/mp4', upsert: true }));
+      if (!upErr) break;
+      console.log(`  올리기 실패 ${tryN}/3: ${upErr.message} — 다시 시도`);
+      await new Promise((r) => { setTimeout(r, 3000 * tryN); });
+    }
     if (upErr) throw upErr;
 
     const latest = await read();
     let done = false;
     for (const c of latest.courses || []) {
       if ((c.id || c.name) !== (j.course.id || j.course.name)) continue;
-      lessonsOf(c).forEach((l, i) => {
-        if (lessonId(l, i) !== j.id) return;
-        if (saySig(l) !== sig) throw new Error('합성하는 사이 글이 바뀌었다 — 다시 돌릴 것');
-        if (l.tts?.path && l.tts.path !== objPath) sb.storage.from(BUCKET).remove([l.tts.path]).catch(() => {});
-        l.tts = { path: objPath, dur: cues.dur, sig, cues: cues.cues };
+      const targets = j.kind === 'unit'
+        ? (c.units || []).filter((u) => u.id === j.id).map((u) => [u, lecSig(u)])
+        : lessonsOf(c).map((l, i) => [l, saySig(l), lessonId(l, i)]).filter((x) => x[2] === j.id);
+      for (const [obj, curSig] of targets) {
+        if (curSig !== sig) throw new Error('합성하는 사이 글이 바뀌었다 — 다시 돌릴 것');
+        if (obj.tts?.path && obj.tts.path !== objPath) sb.storage.from(BUCKET).remove([obj.tts.path]).catch(() => {});
+        obj.tts = { path: objPath, dur: cues.dur, sig, cues: cues.cues };
         done = true;
-      });
+      }
     }
     if (!done) throw new Error('차시를 다시 찾지 못했다');
     const { error: wErr } = await sb.from('kv').update({ v: latest, updated_at: new Date().toISOString() }).eq('k', kvKey);
     if (wErr) throw wErr;
     const kb = Math.round(fs.statSync(path.join(work, 'audio.m4a')).size / 1024);
     console.log(`  올림: ${objPath} · ${cues.dur}s · ${kb}KB · 의심 ${low.length}줄`);
-    fs.rmSync(work, { recursive: true, force: true });
+    fs.rmSync(work, { recursive: true, force: true });   // 성공했을 때만 지운다
   }
 }
 
