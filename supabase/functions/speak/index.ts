@@ -10,12 +10,15 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const BUCKET = 'study-audio';
 const DEFAULT_VOICE = Deno.env.get('TTS_VOICE') ?? 'ko-KR-Chirp3-HD-Leda';
 const ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize';
+const VOICES = 'https://texttospeech.googleapis.com/v1/voices';
+// 부른 목소리가 없으면 이걸로 읽는다. 소리가 안 나는 것보다 낫다.
+const FALLBACK_VOICE = 'ko-KR-Neural2-A';
 const MAX_CHARS = 600;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
 const json = (body: unknown, status: number) =>
@@ -28,10 +31,18 @@ async function hash(s: string) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'POST 만 받는다' }, 405);
 
   const key = Deno.env.get('GOOGLE_TTS_KEY');
   if (!key) return json({ error: 'GOOGLE_TTS_KEY 가 없다' }, 503);
+
+  // GET 은 쓸 수 있는 한국어 목소리 목록. 키가 살아 있는지 확인하는 용도이기도 하다.
+  if (req.method === 'GET') {
+    const r = await fetch(`${VOICES}?languageCode=ko-KR&key=${key}`);
+    if (!r.ok) return json({ error: '목소리 목록 실패', status: r.status, detail: (await r.text()).slice(0, 400) }, 502);
+    const { voices = [] } = await r.json();
+    return json({ default: DEFAULT_VOICE, voices: voices.map((v: { name: string }) => v.name).sort() }, 200);
+  }
+  if (req.method !== 'POST') return json({ error: 'POST 만 받는다' }, 405);
 
   let text = '';
   let voice = DEFAULT_VOICE;
@@ -55,16 +66,19 @@ Deno.serve(async (req) => {
     });
   }
 
-  const res = await fetch(`${ENDPOINT}?key=${key}`, {
+  const call = (name: string) => fetch(`${ENDPOINT}?key=${key}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       input: { text },
-      voice: { languageCode: 'ko-KR', name: voice },
+      voice: { languageCode: 'ko-KR', name },
       // 빠르기는 브라우저에서 바꾼다 — 서버에서 바꾸면 빠르기마다 따로 저장돼 캐시가 쪼개진다.
       audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0 },
     }),
   });
+
+  let res = await call(voice);
+  if (res.status === 400 && voice !== FALLBACK_VOICE) res = await call(FALLBACK_VOICE);
   if (!res.ok) {
     const detail = await res.text();
     return json({ error: '합성 실패', status: res.status, detail: detail.slice(0, 400) }, 502);
