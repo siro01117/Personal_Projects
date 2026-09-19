@@ -1304,3 +1304,93 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
   font-size: 11.5px; font-weight: 700; }
 .rk-say-eng span { letter-spacing: .01em; }
 .rk-say-eng.is-voice { color: var(--faint); }
+
+/* ================================================================ 내 정리 (스테이지) */
+.rk-st-add { display: inline-flex; align-items: center; gap: 7px; min-height: 42px; padding: 0 16px;
+  margin-bottom: 14px; border-radius: 999px; background: var(--c, var(--fg)); color: var(--bg);
+  font-size: 13.5px; font-weight: 700; }
+.rk-st-add:hover { filter: brightness(1.08); }
+.rk-st-none { font-size: 13.5px; line-height: 1.75; color: var(--faint); max-width: 52ch; }
+
+.rk-st-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.rk-st-card { width: 100%; display: flex; align-items: center; gap: 11px; padding: 14px 16px; text-align: left;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); color: var(--mut);
+  transition: border-color var(--t), background var(--t); }
+.rk-st-card:hover { border-color: var(--line2); background: var(--panel2); }
+.rk-st-card-b { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rk-st-card-t { font-size: 14.5px; font-weight: 680; color: var(--fg); }
+.rk-st-card-s { font-size: 11.5px; color: var(--faint); }
+/* 진행 고리 — 숫자를 크게 안 보여준다. 채운 만큼만 조용히 */
+.rk-st-ring { flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: conic-gradient(var(--c, var(--fg)) var(--p), var(--line2) 0); }
+
+.rk-st-title { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.rk-st-t { flex: 1 1 240px; font-size: 16px; font-weight: 700; }
+.rk-st-pg { flex: 0 1 140px; font-size: 13px; }
+
+.rk-st { display: flex; flex-direction: column; min-height: 60vh; }
+.rk-st-top { display: flex; align-items: center; justify-content: space-between; }
+.rk-st-count { font-size: 12px; color: var(--faint); }
+.rk-st-bar { height: 3px; background: var(--line); border-radius: 2px; margin: 8px 0 22px; overflow: hidden; }
+.rk-st-bar span { display: block; height: 100%; background: var(--c, var(--fg)); transition: width var(--t) var(--ease); }
+
+.rk-st-body { flex: 1; }
+.rk-st-q2 { font-size: 21px; font-weight: 750; letter-spacing: -.015em; line-height: 1.45; max-width: 24ch; }
+.rk-st-help { margin: 8px 0 20px; font-size: 13px; line-height: 1.7; color: var(--faint); max-width: 46ch; }
+
+.rk-st-in { width: 100%; background: transparent; border: 0; color: var(--fg); font-size: 15px; line-height: 1.7;
+  resize: none; overflow: hidden; padding: 6px 0; }
+.rk-st-in::placeholder { color: var(--faint); opacity: .7; }
+.rk-st-in:focus { outline: none; }
+
+.rk-st-lines { display: flex; flex-direction: column; }
+.rk-st-line { display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--line); }
+.rk-st-line:focus-within { border-color: var(--c, var(--line2)); }
+.rk-st-bul { flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); margin-top: 17px; }
+
+.rk-st-pairs, .rk-st-qa { display: flex; flex-direction: column; }
+.rk-st-pair { display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--line); }
+.rk-st-pair:focus-within { border-color: var(--c, var(--line2)); }
+.rk-st-k { flex: 0 0 34%; font-weight: 650; }
+.rk-st-v { flex: 1; color: var(--mut); }
+.rk-st-qarow { display: flex; flex-direction: column; padding: 4px 0 8px; border-bottom: 1px solid var(--line); }
+.rk-st-qarow:focus-within { border-color: var(--c, var(--line2)); }
+.rk-st-q { font-weight: 650; }
+.rk-st-a { color: var(--mut); font-size: 14px; }
+.rk-st-del { flex: none; width: 26px; height: 26px; margin-top: 8px; display: grid; place-items: center;
+  border-radius: 7px; color: var(--faint); }
+.rk-st-del:hover { color: var(--danger); background: var(--panel2); }
+
+.rk-st-nav { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px;
+  padding: 14px 0 calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 70%, transparent); }
+.rk-st-prev, .rk-st-skip { display: inline-flex; align-items: center; gap: 5px; min-height: 42px; padding: 0 13px;
+  border-radius: 999px; font-size: 13px; font-weight: 640; color: var(--faint); }
+.rk-st-prev:hover:not(:disabled), .rk-st-skip:hover { color: var(--fg); background: var(--panel2); }
+.rk-st-prev:disabled { opacity: .35; cursor: default; }
+.rk-st-skip { margin-right: auto; }
+.rk-st-next { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 20px;
+  border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--mut);
+  border: 1px solid var(--line2); transition: background var(--t), color var(--t), border-color var(--t); }
+.rk-st-next.is-on { background: var(--c, var(--fg)); color: var(--bg); border-color: transparent; }
+.rk-st-next:hover { filter: brightness(1.08); }
+
+.rk-st-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.rk-st-rm { display: inline-flex; align-items: center; gap: 5px; min-height: 42px; padding: 0 13px;
+  margin-left: auto; border-radius: 999px; font-size: 13px; color: var(--faint); }
+.rk-st-rm:hover { color: var(--danger); background: var(--panel2); }
+
+@media (min-width: 640px) {
+  .rk-st-q2 { font-size: 24px; }
+  .rk-st-in { font-size: 15.5px; }
+}
+
+/* 오늘 수업 정리 — 일정에서 학습으로 넘어가는 한 줄 */
+.rk-pl-study { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.rk-pl-study-l { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 13px;
+  background: var(--panel2); border-radius: 10px; font-size: 13.5px; font-weight: 650; color: var(--mut);
+  transition: color var(--t), background var(--t); }
+.rk-pl-study-l:hover { color: var(--fg); background: var(--panel3); }
+.rk-pl-study-l span { flex: 1; min-width: 0; }
+.rk-pl-study-h { margin-top: 8px; font-size: 12px; color: var(--faint); }

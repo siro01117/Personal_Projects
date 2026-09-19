@@ -9,7 +9,7 @@
 --------------------------------------------------------------------------- */
 
 import { useMemo } from 'react';
-import { CircleDot, Plus } from 'lucide-react';
+import { ArrowRight, CircleDot, NotebookPen, Plus } from 'lucide-react';
 import { addDaysISO, diffDaysISO, dowOf, expand, fmtTime, todayISO } from '../../lib/plan-core';
 import { mealSlots, travelBlocks } from '../../lib/plan-suggest';
 import { Empty, Tag } from '../study/parts';
@@ -43,6 +43,11 @@ export default function TodayStage({
 }) {
   const today = todayISO();
   const now = useNow();
+  // 오늘 수업이 있는 과목. 일정이 이미 아는 것이라 따로 고를 일이 없다.
+  const todayClasses = useMemo(
+    () => (classes || []).filter((c) => (c.meetings || []).some((m) => m.day === dowOf(today))),
+    [classes, today],
+  );
   const settings = data.settings;
 
   const todayOcc = useMemo(
@@ -174,6 +179,24 @@ export default function TodayStage({
         </div>
 
         <aside className="rk-pl-today-side">
+          {todayClasses.length > 0 && (
+            <section className="rk-block">
+              <h2 className="rk-h2">오늘 수업 정리</h2>
+              <ul className="rk-pl-study">
+                {todayClasses.map((c) => (
+                  <li key={c.id}>
+                    <a className="rk-pl-study-l" href={`/study?c=${encodeURIComponent(c.id)}&t=notes`}>
+                      <NotebookPen size={15} strokeWidth={1.5} aria-hidden="true" />
+                      <span>{c.name}</span>
+                      <ArrowRight size={14} strokeWidth={1.75} aria-hidden="true" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="rk-pl-study-h">수업이 끝난 날 채우는 게 제일 잘 남는다.</p>
+            </section>
+          )}
+
           <section className="rk-block">
             <h2 className="rk-h2">오늘 챙길 할 일{todayTasks.length > 0 && <span className="rk-h2-note rk-num">{todayTasks.length}</span>}</h2>
             {todayTasks.length === 0 ? (

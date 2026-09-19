@@ -114,7 +114,7 @@ function Note({ row }) {
   );
 }
 
-export function LectureView({ unit, onBack }) {
+export function LectureView({ unit, onBack, backLabel = '강의 목록' }) {
   const rootRef = useRef(null);
   const fresh = unit.tts && unit.tts.sig === saySig(unit) ? unit.tts : null;
   const say = useListen({ tts: fresh, title: unit.title, units: sayUnits(unit) });
@@ -124,7 +124,7 @@ export function LectureView({ unit, onBack }) {
   return (
     <div className={'rk-lec' + (say.isOpen ? ' is-listening' : '')} ref={rootRef}>
       <button type="button" className="rk-back" onClick={onBack}>
-        <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />강의 목록
+        <ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" />{backLabel}
       </button>
 
       <header className="rk-lec-head">

@@ -244,7 +244,7 @@ function StudyApp({ session }) {
     body = (
       <CourseView
         course={course} week={week} tab={route.t}
-        onTab={(t) => go({ t })} onBack={backToDash}
+        onTab={(t) => go({ t })} onBack={backToDash} onPatchCourse={patchCourse}
       />
     );
   } else if (route.v === 'courses') {
