@@ -91,13 +91,14 @@ function useKoVoice() {
 export function useListen({ tts, title, units }) {
   const lines = units || [];
   const cues = tts?.cues || [];
-  const canFile = Boolean(tts?.path && cues.length);
-  const canVoice = hasSpeech() && lines.length > 0;
-  const canCloud = lines.length > 0 && !cloudDown;
   const voice = useKoVoice();
 
   const [engine, setEngine] = useState('cloud');
   const [cloudDown, setCloudDown] = useState(false);   // 서버가 안 되면 기기 음성으로 물러난다
+
+  const canFile = Boolean(tts?.path && cues.length);
+  const canVoice = hasSpeech() && lines.length > 0;
+  const canCloud = lines.length > 0 && !cloudDown;
   const [phase, setPhase] = useState('idle');       // idle | loading | ready | error
   const [playing, setPlaying] = useState(false);
   const [idx, setIdx] = useState(-1);
