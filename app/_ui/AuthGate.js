@@ -6,7 +6,7 @@
 // 되살리는 동안 로그인 화면을 띄우면, 이미 로그인한 사람에게 한 번 번쩍인다. 그래서
 // 복원 전에는 아무것도 단정하지 않고 조용한 대기 화면을 보여준다.
 import { useEffect, useRef, useState } from 'react';
-import { CircleAlert, LoaderCircle, LogIn } from 'lucide-react';
+import { CircleAlert, Compass, LoaderCircle, LogIn } from 'lucide-react';
 import { supabase, signIn, authErrorText } from '../../lib/supabase';
 
 function LoginScreen() {
@@ -68,9 +68,9 @@ function LoginScreen() {
 
         <p className="rk-gate-note">이 브라우저에 로그인이 유지됩니다. 사용자 메뉴에서 로그아웃할 수 있습니다.</p>
 
-        <p className="rk-gate-open">
-          계정이 없어도 <a href="/open">둘러보기</a>에서 시안을 볼 수 있습니다.
-        </p>
+        <a className="rk-btn rk-btn-ghost" href="/open">
+          <Compass size={17} strokeWidth={1.5} aria-hidden="true" />계정 없이 둘러보기
+        </a>
       </form>
     </div>
   );

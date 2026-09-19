@@ -1440,6 +1440,7 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-open-bar .rk-icon:last-child{margin-left:auto}
 .rk-open-iframe{flex:1;width:100%;border:0;background:#fff}
 
-/* 게이트 아래 안내 */
-.rk-gate-open{margin-top:14px;text-align:center;font-size:13px}
-.rk-gate-open a{color:var(--fg);font-weight:700;text-underline-offset:3px}
+/* 게이트의 둘러보기 버튼 — 로그인 바로 아래 두 번째 행동 */
+.rk-btn-ghost{width:100%;margin-top:10px;justify-content:center;background:var(--panel2);
+  border-color:var(--line2);color:var(--fg);font-weight:700}
+.rk-btn-ghost:hover{background:var(--panel3)}
