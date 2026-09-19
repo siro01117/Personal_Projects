@@ -43,15 +43,17 @@ npm run preview   # 빌드 후 out/ 을 :3200 으로 띄워 확인
 `/open` 은 게이트 밖에 있는 유일한 화면이다. 여기서 지키는 규칙 세 가지.
 
 1. **포털 컴포넌트를 쓰지 않는다.** `Shell`·`AuthGate`·`supabase` 어느 것도 import 하지 않는다. 한 번 끌어오면 게이트 안쪽 모듈과 개인 데이터가 딸려 나올 길이 생긴다.
-2. **내용은 `public/open/*.html` 에 통째로 둔다.** `/open` 은 목록과 액자 역할만 한다.
+2. **내용은 `public/demos/*.html` 에 통째로 둔다.** `/open` 은 목록과 액자 역할만 한다.
 3. **iframe 은 `sandbox="allow-scripts"`.** 같은 출처 접근을 끊어서 시안이 포털 저장소나 쿠키를 못 건드리게 한다.
 
 포털에는 스터디큐브 학생·좌석 같은 개인정보가 있다. 공개 화면이 그쪽에 닿지 않는 구조를 유지할 것.
 
 ### 시안 하나 더 넣기
 
+`out/open.html`(페이지) 과 `out/open/`(폴더) 이 같은 이름이면 정적 호스팅에서 하위 경로가 404 가 된다. 그래서 시안 파일은 `public/demos/` 에 둔다.
+
 ```
-public/open/<이름>.html          # 파일을 넣고
+public/demos/<이름>.html          # 파일을 넣고
 app/open/OpenClient.js  → DEMOS  # 배열에 한 줄 추가
 ```
 
@@ -69,7 +71,7 @@ app/
 lib/                            도메인 로직. 화면과 분리해 둔다
 public/
   projects/                     빌드 때 lib/scan.js 가 훑는다
-  open/                         비회원 공개 시안
+  demos/                        비회원 공개 시안
   demo-db/                      PGlite 데모 데이터
 scripts/                        빌드 보조 · 수집기
 out/                            빌드 결과 (커밋 안 함)
