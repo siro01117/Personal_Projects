@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Archive, ArrowRight, BookOpen, CalendarCheck, CalendarClock, ChartNoAxesColumn, ChevronDown, CircleCheckBig,
+  Archive, ArrowRight, BookOpen, CalendarCheck, CalendarClock, ChartNoAxesColumn, ChevronDown, CircleCheckBig, Compass,
   Gauge, GraduationCap, Grid2x2, LayoutDashboard, Layers, Sparkles, UsersRound, Utensils,
   Waypoints, Wallet, ClipboardList, MapPin, ShieldAlert,
 } from 'lucide-react';
@@ -122,6 +122,18 @@ function Home({ session, projects }) {
           <span className="rk-sec-n">{modules.length + projects.length + PAUSED.length}</span>
           <ChevronDown size={16} strokeWidth={1.5} className="rk-sec-chev" aria-hidden="true" />
         </summary>
+
+        <h3 className="rk-sub-t">공개</h3>
+        <div className="rk-grid">
+          <Card
+            href="/open"
+            icon={Compass}
+            name="둘러보기"
+            desc="로그인 없이 볼 수 있는 시안 모음. 링크만 주면 누구나 열린다."
+            chips={['비회원', '시안']}
+            accent={accentAt(6)}
+          />
+        </div>
 
         <h3 className="rk-sub-t">멈춘 라칸 기능</h3>
         <div className="rk-grid">

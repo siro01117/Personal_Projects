@@ -4,11 +4,13 @@
 import { useState } from 'react';
 import { ArrowLeft, ExternalLink, LogIn, Presentation } from 'lucide-react';
 
-// 새 시안을 열려면 public/demos/<file> 을 넣고 여기 한 줄 추가하면 된다.
+// 새 시안을 열려면 public/demos/<이름>.html 을 넣고 여기 한 줄 추가한다.
+// file 에는 **확장자를 빼고** 적는다 — Vercel 이 cleanUrls 로 .html 을 떼고 서빙해서,
+// '/demos/x.html' 로 요청하면 404 가 난다.
 const DEMOS = [
   {
     key: 'philosophy',
-    file: '/demos/philosophy.html',
+    file: '/demos/philosophy',
     name: '층 — 철학 학습기',
     desc: '하루 한 층씩 올리는 교양 학습 시안. 좌우로 밀어 단계를 넘긴다.',
     meta: 'APPTIVE 26-2 · 1팀',
