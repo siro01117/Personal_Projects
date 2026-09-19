@@ -1408,3 +1408,38 @@ code{font-family:var(--mono);font-size:.88em;background:var(--panel2);padding:1p
 .rk-st-dots { flex: none; display: flex; gap: 4px; }
 .rk-st-dot { width: 8px; height: 8px; border-radius: 50%;
   background: conic-gradient(var(--c, var(--fg)) var(--p), var(--line2) 0); }
+
+/* ===== /open — 비회원 둘러보기 ============================================
+   게이트 밖 화면. 포털 컴포넌트를 쓰지 않으므로 필요한 것만 여기서 따로 잡는다. */
+.rk-open{max-width:720px;margin:0 auto;padding:max(28px,env(safe-area-inset-top)) var(--pad) 56px}
+.rk-open-kicker{font-size:13px;font-weight:700;color:var(--mut)}
+.rk-open-t{margin-top:8px;font-size:clamp(25px,6.5vw,33px);font-weight:800;letter-spacing:-.03em;line-height:1.2}
+.rk-open-s{margin-top:10px;color:var(--mut);font-size:14.5px;line-height:1.7}
+.rk-open-list{list-style:none;margin-top:26px;display:grid;gap:10px}
+.rk-open-card{display:grid;grid-template-columns:40px 1fr auto;gap:13px;align-items:start;width:100%;
+  padding:15px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);
+  box-shadow:var(--shadow);text-align:left;transition:border-color var(--t),transform var(--t)}
+.rk-open-card:hover{border-color:var(--line2);transform:translateY(-1px)}
+.rk-open-card:active{transform:translateY(0)}
+.rk-open-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+  background:var(--panel2);color:var(--fg)}
+.rk-open-body{display:block;min-width:0}
+.rk-open-name{display:block;font-size:16px;font-weight:800;letter-spacing:-.015em}
+.rk-open-desc{display:block;margin-top:3px;font-size:13.5px;color:var(--mut);line-height:1.6}
+.rk-open-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.rk-open-meta{font-size:12px;color:var(--faint);white-space:nowrap}
+@media (max-width:520px){.rk-open-card{grid-template-columns:36px 1fr}.rk-open-meta{display:none}}
+.rk-open-foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.rk-open-note{font-size:12.5px;color:var(--faint)}
+
+.rk-open-frame{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
+.rk-open-bar{flex:none;display:flex;align-items:center;gap:10px;padding:10px var(--pad);
+  padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid var(--line);background:var(--panel)}
+.rk-open-bar-t{font-size:14.5px;font-weight:800;letter-spacing:-.02em}
+.rk-open-bar .rk-icon:last-child{margin-left:auto}
+.rk-open-iframe{flex:1;width:100%;border:0;background:#fff}
+
+/* 게이트 아래 안내 */
+.rk-gate-open{margin-top:14px;text-align:center;font-size:13px}
+.rk-gate-open a{color:var(--fg);font-weight:700;text-underline-offset:3px}

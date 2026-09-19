@@ -67,6 +67,10 @@ function LoginScreen() {
         </button>
 
         <p className="rk-gate-note">이 브라우저에 로그인이 유지됩니다. 사용자 메뉴에서 로그아웃할 수 있습니다.</p>
+
+        <p className="rk-gate-open">
+          계정이 없어도 <a href="/open">둘러보기</a>에서 시안을 볼 수 있습니다.
+        </p>
       </form>
     </div>
   );

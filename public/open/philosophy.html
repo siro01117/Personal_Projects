@@ -1,0 +1,515 @@
+<title>층 — 철학 학습기</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#1c1c28; --body:#3f3f46; --mute:#9499a3;
+    --line:#e7e7ee; --line2:#d6d6e0;
+    --ind:#5b5bd6; --ind-deep:#4641c4; --ind-soft:#eeeefb; --ind-soft2:#f5f5fc;
+    --hl:#fde68a; --paper:#ffffff; --bg:#ececef; --code-bg:#f5f6f9;
+    --ok:#1f8a63; --no:#c2453e;
+  }
+  html,body{background:var(--bg); color:var(--body);
+    font-family:'Noto Sans KR',sans-serif; line-height:1.55;
+    -webkit-font-smoothing:antialiased; font-size:15.5px; letter-spacing:-.005em;}
+  body{padding:0; display:flex; justify-content:center; min-height:100%;}
+  @media (min-width:900px){ body{padding:28px 14px} }
+  button{font-family:inherit; font-size:inherit; color:inherit; background:none; border:none;
+    cursor:pointer; text-align:left;}
+  textarea{font-family:inherit}
+  :focus-visible{outline:2.5px solid var(--ind); outline-offset:2px; border-radius:4px}
+  b{font-weight:700; color:var(--ink)}
+  .m{font-family:'Noto Serif KR',Georgia,serif; font-style:italic; font-size:.97em}
+  .mono{font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums}
+  .hl{background:linear-gradient(180deg,transparent 58%,var(--hl) 58%); padding:0 2px;
+    font-weight:700; color:var(--ink)}
+  .lbl{font-size:11px; font-weight:700; letter-spacing:1.5px; color:var(--ind); text-transform:uppercase;}
+
+  .doc{width:100%; max-width:860px; background:var(--paper); min-height:100%;}
+  @media (min-width:900px){ .doc{min-height:0; box-shadow:0 14px 50px rgba(20,20,40,.10); border-radius:3px} }
+  .page{padding:26px 20px 30px; position:relative;}
+  @media (min-width:900px){ .page{padding:40px 56px 38px} }
+  .page + .page{border-top:1px solid var(--line)}
+  .runhead{position:absolute; top:12px; right:20px; font-size:10.5px; color:var(--mute);
+    font-weight:500; letter-spacing:.3px;}
+  @media (min-width:900px){ .runhead{top:18px; right:56px} }
+
+  /* ── 표지/헤더 ── */
+  .kicker{color:var(--ind); font-weight:700; font-size:13px; letter-spacing:.2px; margin-bottom:10px}
+  h1{font-size:clamp(30px,8vw,42px); font-weight:900; color:var(--ink); line-height:1.12; letter-spacing:-1.2px;}
+  .lead{font-size:15.5px; color:var(--mute); font-weight:500; margin-top:12px; line-height:1.65}
+  .inforow{display:flex; gap:20px; padding:13px 2px; border-top:1px solid var(--line); font-size:14px;}
+  .inforow:last-of-type{border-bottom:1px solid var(--line)}
+  .inforow .k{flex:0 0 96px; font-weight:700; color:var(--ink)}
+  .inforow .v{color:var(--mute); font-weight:500}
+  .infos{margin-top:26px}
+
+  /* ── 층 목차 ── */
+  .toc-part{color:var(--ind); font-weight:700; font-size:14px; letter-spacing:.3px; margin:0 0 4px}
+  .toc-row{display:flex; align-items:baseline; gap:12px; padding:14px 2px; min-height:48px;
+    border-bottom:1px solid var(--line); width:100%; transition:background .14s;}
+  .toc-row:not(:disabled):hover{background:var(--ind-soft2)}
+  .toc-row .n{flex:0 0 30px; color:var(--ind); font-weight:700;
+    font-family:'JetBrains Mono',monospace; font-size:14px;}
+  .toc-row .t{display:block; font-weight:700; color:var(--ink); font-size:15.5px; line-height:1.4}
+  .toc-row .kw{display:block; color:var(--mute); font-weight:500; font-size:12.5px; margin-top:1px}
+  .toc-row .pg{margin-left:auto; color:var(--mute); font-size:12.5px; white-space:nowrap; font-weight:500}
+  .toc-row.is-now .n,.toc-row.is-now .t{color:var(--ind-deep)}
+  .toc-row.is-now .pg{color:var(--ind); font-weight:700}
+  .toc-row.is-lock .n,.toc-row.is-lock .t{color:var(--mute); font-weight:500}
+  .toc-row:disabled{cursor:default}
+  .toc-note{margin-top:26px; font-size:13px; color:var(--body); line-height:1.8}
+
+  .state{display:flex; gap:22px; flex-wrap:wrap; margin-top:24px; padding-top:18px; border-top:1px solid var(--line)}
+  .state div b{display:block; font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700;
+    color:var(--ink); line-height:1.2}
+  .state div span{font-size:12px; color:var(--mute); font-weight:500}
+
+  /* ── 학습 ── */
+  .ch-kicker{color:var(--ind); font-weight:700; font-size:13px; letter-spacing:.3px; margin-bottom:9px}
+  .ch-title{font-size:clamp(25px,6.4vw,34px); font-weight:900; color:var(--ink); letter-spacing:-1px; line-height:1.14;}
+  .ch-sub{font-size:15px; color:var(--mute); font-weight:500; margin-top:9px; line-height:1.55}
+
+  .prog{display:flex; align-items:center; gap:12px; margin-top:22px}
+  .prog .bar{flex:1; height:3px; background:var(--line); border-radius:2px; overflow:hidden}
+  .prog .bar i{display:block; height:100%; background:var(--ind); transition:width .3s}
+  .prog .no{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--mute)}
+
+  .qmap{background:var(--ind-soft); border-left:3px solid var(--ind); border-radius:0 6px 6px 0;
+    padding:16px 20px; margin:22px 0;}
+  .qmap .q{font-size:18px; font-weight:700; color:var(--ink); line-height:1.45; margin-top:8px}
+  .qmap .pos{font-size:13.5px; color:var(--ind-deep); font-weight:700; margin-top:9px; line-height:1.6}
+
+  .sec{margin-top:26px}
+  .sec h3{font-size:20px; font-weight:700; color:var(--ink); letter-spacing:-.3px; margin-bottom:11px}
+  .sec p{font-size:15px; color:var(--body); line-height:1.85; margin-bottom:11px}
+
+  .vocab{margin:22px 0}
+  .vrow{display:flex; gap:18px; padding:7px 0; align-items:baseline}
+  .vrow .term{flex:0 0 120px; font-weight:700; color:var(--ink); font-size:14.5px}
+  .vrow .def{flex:1; color:var(--body); font-size:14px; line-height:1.6}
+  @media (max-width:640px){ .vrow{flex-direction:column; gap:2px} .vrow .term{flex:none} }
+
+  .opts{display:grid; gap:9px; margin-top:20px}
+  .opt{border:1px solid var(--line2); border-radius:6px; padding:14px 15px; min-height:52px; font-size:14.5px;
+    color:var(--body); transition:border-color .14s, background .14s;}
+  .opt .term{font-weight:700; color:var(--ink)}
+  .opt u{display:block; text-decoration:none; font-size:12.5px; color:var(--mute); margin-top:2px}
+  .opt:not(:disabled):hover{border-color:var(--ind); background:var(--ind-soft2)}
+  .opt.sel{border-color:var(--ind); background:var(--ind-soft)}
+  .opt.sel .term{color:var(--ind-deep)}
+  .opt.bad{border-color:var(--no)}
+  .opt.bad .term{color:var(--no)}
+
+  .fb{margin-top:12px; font-size:14px; line-height:1.75; padding:13px 16px; border-radius:6px;
+    background:var(--ind-soft2); border-left:3px solid var(--ind);}
+  .fb.is-no{border-left-color:var(--no)}
+  .fb .h{font-weight:700; color:var(--ind-deep)}
+  .fb.is-no .h{color:var(--no)}
+
+  .myth{margin:22px 0; padding:15px 18px; background:var(--code-bg); border:1px solid var(--line);
+    border-radius:6px;}
+  .myth .lbl{color:var(--mute); margin-bottom:7px}
+  .myth p{font-size:14.5px; line-height:1.75}
+
+  .keyline{margin:24px 0; padding:18px 0; border-top:1px solid var(--line2);
+    border-bottom:1px solid var(--line2); font-size:18px; line-height:1.6;}
+
+  .link .pair{display:flex; align-items:center; gap:12px; margin-top:12px;
+    font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--ind-deep); font-weight:700;}
+  .link .pair i{flex:1; height:1px; background:var(--ind); opacity:.5}
+
+  .memo{margin-top:24px}
+  .memo .lbl{margin-bottom:9px}
+  .memo textarea{width:100%; min-height:68px; border:1px solid var(--line2); border-radius:6px;
+    padding:11px 13px; font-size:15px; color:var(--ink); background:var(--paper); resize:vertical; outline:none;}
+  .memo textarea:focus{border-color:var(--ind)}
+
+  .acts{display:flex; align-items:center; gap:8px; margin-top:28px; padding-top:20px;
+    border-top:1px solid var(--line)}
+  .go{background:var(--ind); color:#fff; font-weight:700; font-size:15px; padding:13px 26px; min-height:48px;
+    border-radius:6px; transition:background .14s}
+  .go:not(:disabled):hover{background:var(--ind-deep)}
+  .go:disabled{background:var(--line2); color:var(--mute); cursor:not-allowed}
+  .ghost{font-size:13.5px; font-weight:700; color:var(--mute); padding:11px 10px}
+  .ghost:hover{color:var(--ink)}
+
+  .src{margin-top:22px; font-size:11.5px; color:var(--mute); line-height:1.8; letter-spacing:.1px}
+
+  /* ── 스와이프 뷰포트 ── */
+  .vp{position:relative; overflow:hidden; height:auto; transition:height .42s cubic-bezier(.22,1,.36,1);}
+  .track{display:flex; align-items:flex-start; will-change:transform;
+    transition:transform .42s cubic-bezier(.22,1,.36,1);}
+  .track.drag{transition:none}
+  .pane{flex:0 0 100%; min-width:100%; padding:2px 2px 4px;}
+  .vp.shake{animation:shake .4s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes shake{10%,90%{transform:translateX(-3px)}20%,80%{transform:translateX(5px)}
+    30%,50%,70%{transform:translateX(-8px)}40%,60%{transform:translateX(8px)}}
+
+  /* 진입 모션 */
+  .pane.live .ch-kicker{animation:rise .34s .02s both}
+  .pane.live .ch-title{animation:rise .34s .06s both}
+  .pane.live .ch-sub{animation:rise .34s .10s both}
+  .pane.live .stack>*{animation:rise .34s both}
+  .pane.live .stack>*:nth-child(1){animation-delay:.14s}
+  .pane.live .stack>*:nth-child(2){animation-delay:.19s}
+  .pane.live .stack>*:nth-child(3){animation-delay:.24s}
+  .pane.live .stack>*:nth-child(4){animation-delay:.29s}
+  @keyframes rise{from{opacity:0; transform:translateY(9px)} to{opacity:1; transform:none}}
+
+  /* 화살표 */
+  .arrow{position:absolute; top:50%; transform:translateY(-50%); z-index:5;
+    width:46px; height:46px; border-radius:50%; background:var(--paper);
+    border:1px solid var(--line2); color:var(--ind); display:grid; place-items:center;
+    font-size:19px; box-shadow:0 3px 14px rgba(20,20,40,.10);
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .14s, opacity .18s, color .14s;}
+  .arrow:hover{background:var(--ind-soft); transform:translateY(-50%) scale(1.07)}
+  .arrow:active{transform:translateY(-50%) scale(.92)}
+  .arrow.l{left:-23px} .arrow.r{right:-23px}
+  .arrow[disabled]{opacity:.3; color:var(--mute); cursor:not-allowed; box-shadow:none}
+  .arrow[disabled]:hover{background:var(--paper); transform:translateY(-50%)}
+  @media (max-width:980px){
+    .arrow{top:auto; bottom:-8px; transform:none; width:44px; height:44px}
+    .arrow:hover,.arrow:active{transform:none}
+    .arrow.l{left:6px} .arrow.r{right:6px}
+    .dots{padding-bottom:6px}
+  }
+
+  /* 점 표시 */
+  .dots{display:flex; justify-content:center; gap:7px; margin-top:22px; padding-top:18px;
+    border-top:1px solid var(--line)}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--line2);
+    transition:width .3s cubic-bezier(.34,1.56,.64,1), background .2s}
+  .dot.on{width:22px; border-radius:4px; background:var(--ind)}
+  .dot.past{background:var(--ind); opacity:.4}
+
+  /* 선택 반응 */
+  .opt{position:relative; overflow:hidden;
+    transition:border-color .16s, background .16s, transform .16s cubic-bezier(.34,1.56,.64,1)}
+  .opt:not(:disabled):active{transform:scale(.985)}
+  .opt.sel{animation:pop .32s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.022)}100%{transform:scale(1)}}
+  .opt.bad{animation:nope .38s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes nope{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}
+    60%{transform:translateX(-3px)}80%{transform:translateX(3px)}100%{transform:none}}
+  .fb{animation:fbin .3s cubic-bezier(.22,1,.36,1) both}
+  @keyframes fbin{from{opacity:0; transform:translateY(-5px)} to{opacity:1; transform:none}}
+
+  /* 형광 밑줄이 그어진다 */
+  .keyline .hl{background-size:0 100%; background-repeat:no-repeat;
+    background-image:linear-gradient(180deg,transparent 58%,var(--hl) 58%);}
+  .pane.live .keyline .hl{animation:draw .6s .35s cubic-bezier(.22,1,.36,1) both}
+  @keyframes draw{from{background-size:0 100%} to{background-size:100% 100%}}
+
+  /* 연결선이 이어진다 */
+  .pane.live .link .pair i{animation:wire .7s .3s cubic-bezier(.22,1,.36,1) both; transform-origin:left}
+  @keyframes wire{from{transform:scaleX(0)} to{transform:scaleX(1)}}
+
+  .nudge{position:absolute; left:50%; bottom:8px; transform:translateX(-50%) translateY(6px);
+    background:var(--ink); color:#fff; font-size:12.5px; font-weight:700; padding:7px 14px;
+    border-radius:20px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:6}
+  .nudge.on{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  .hint-swipe{text-align:center; font-size:12px; color:var(--mute); margin-top:10px}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important; transition:none!important}
+  }
+  .hide{display:none}
+</style>
+
+<div class="doc">
+
+  <!-- 목차 -->
+  <section class="page" id="home">
+    <div class="runhead">철학 · 1부</div>
+    <div class="kicker">서양 고대 철학 · 12조각</div>
+    <h1>진리는 어디에 있는가</h1>
+    <p class="lead">하루 한 층. 아래층은 위층에서 다시 쓰인다.</p>
+
+    <div class="state">
+      <div><b class="mono" id="st-day">4</b><span>일 연속</span></div>
+      <div><b class="mono" id="st-floor">3</b><span>쌓은 층</span></div>
+      <div><b class="mono" id="st-pair">1</b><span>이어진 짝</span></div>
+    </div>
+
+    <div class="infos" style="margin-top:30px">
+      <p class="toc-part">1부 · 진리는 어디에</p>
+      <div id="toc"></div>
+    </div>
+
+    <p class="toc-note">오늘 것은 오늘만 열린다. 5층은 내일.<br>연결이 터지는 자리는 <b>4층 · 6층 · 9층 · 11층</b>이다.<br>6층은 미리 열어 뒀다.</p>
+  </section>
+
+  <!-- 학습 -->
+  <section class="page hide" id="lesson">
+    <div class="runhead" id="run">4층 · 보편자의 자리</div>
+    <div class="vp" id="vp">
+      <div class="track" id="track"></div>
+      <button class="arrow l" id="prev" aria-label="이전">‹</button>
+      <button class="arrow r" id="next" aria-label="다음">›</button>
+      <div class="nudge" id="nudge">먼저 하나 고른다</div>
+    </div>
+    <div class="dots" id="dots"></div>
+    <p class="hint-swipe">좌우로 밀어서 넘긴다</p>
+  </section>
+
+</div>
+
+<script>
+const CH=[
+ {n:1,t:"벽에 비친 그림자",kw:"동굴의 비유",st:"done"},
+ {n:2,t:"완벽한 동그라미",kw:"이데아",st:"done"},
+ {n:3,t:"스승에게 반박한 제자",kw:"형상과 질료",st:"done"},
+ {n:4,t:"둘은 정말 싸운 걸까",kw:"보편자의 자리",st:"now"},
+ {n:5,t:"안다는 건 뭘 말하는 걸까",kw:"지식의 세 조건",st:"lock"},
+ {n:6,t:"운 좋게 맞힌 것도 아는 걸까",kw:"게티어 문제",st:"peek"},
+ {n:7,t:"속고 있는지 어떻게 아나",kw:"데카르트의 의심",st:"lock"},
+ {n:8,t:"그래도 남는 하나",kw:"코기토",st:"lock"},
+ {n:9,t:"태어날 때 머릿속은 비어 있나",kw:"경험론",st:"lock"},
+ {n:10,t:"내일도 해가 뜬다고 어떻게 아나",kw:"인과와 귀납",st:"lock"},
+ {n:11,t:"우리가 그렇게 보는 거라면",kw:"칸트의 전환",st:"lock"},
+ {n:12,t:"지도 완성",kw:"되돌아보기",st:"lock"}
+];
+
+const L4=[
+ {k:"ask", kicker:"01 · 먼저 찍는다", title:"둘 중 한 명은 틀렸을까",
+  sub:"플라톤과 아리스토텔레스는 스승과 제자다. 진리가 어디 있느냐를 두고는 정반대로 말했다.",
+  q:"찍어도 된다. 맞히는 문제가 아니다.",
+  o:[{t:"한 명은 틀렸다",u:"둘 중 하나만 맞다"},
+     {t:"말하는 높이가 달랐다",u:"같은 걸 다른 자리에서 봤다"},
+     {t:"사실 같은 말이었다",u:"표현만 달랐다"}]},
+
+ {k:"read", kicker:"02 · 아래층에서 꺼낸다", title:"본 적 없는데 아는 것",
+  sub:"2층에서 배운 이데아를 다시 쓴다.",
+  vocab:[["이데아","본 적은 없지만 우리가 아는 그것. 완전한 동그라미 같은 것."],
+         ["분유","개별 사물이 이데아에 참여해 성질을 얻는다는 설명."]],
+  ps:["완전한 동그라미를 본 사람은 없다. 컴퓨터로 그려도 확대하면 삐뚤다. 그런데 우리는 그게 뭔지 안다.",
+      "플라톤은 이걸 <span class='m'>이데아</span>라 불렀다. 감각으로 못 봤는데 안다면, 감각 너머에 그것이 있다고 봤다."],
+  myth:"이데아는 하늘에 놓인 물건이 아니다. 장소도 시간도 갖지 않는다. '천상 너머의 자리'는 플라톤이 쓴 비유다."},
+
+ {k:"read", kicker:"03 · 반대쪽을 듣는다", title:"제자의 반박",
+  sub:"3층 형상질료론이 어디서 나왔나.",
+  ps:["아리스토텔레스는 이데아를 두면 설명할 것이 배로 는다고 했다. 세기 힘든 물건을 세려고 물건을 더 갖다 놓은 꼴이다.",
+      "분유라는 설명에는 더 셌다. <b>빈말이고 시적인 비유</b>라고 잘랐다.",
+      "이 허점을 처음 찌른 사람은 아리스토텔레스가 아니다. 플라톤이 먼저 던졌다. 『파르메니데스』에서 노년의 파르메니데스가 젊은 소크라테스를 몰아붙인다."]},
+
+ {k:"read", kicker:"04 · 오늘의 자리", title:"그래서 둘은 갈라졌나",
+  sub:"오늘 층의 결론.",
+  ps:["아리스토텔레스가 거부한 건 보편자가 아니다. <b>보편자가 사물과 떨어져 따로 있다</b>는 주장이었다.",
+      "종과 유는 그에게도 실재한다. 정의도 학문도 보편자를 다룬다. 다만 개별 사물에 기대게 만들었다."],
+  key:"보편자를 <span class='hl'>없앤 게 아니라, 사물 안으로 끌어내렸다.</span>",
+  src:"『국가』 7권 514a–517c · 『형이상학』 1권 9장 990b–991a · 『파르메니데스』 132a–b · Stanford Encyclopedia of Philosophy. 아리스토텔레스의 형상이 개별적인지 보편적인지는 지금도 갈린다."},
+
+ {k:"quiz", kicker:"05 · 써본다", title:"대화에서 꺼내기",
+  sub:"친구가 말한다. “플라톤은 현실이 다 가짜랬대.”",
+  q:"뭐라고 받을까?",
+  o:[{t:"맞아. 그래서 동굴 비유를 썼잖아",ok:0,f:"가장 흔한 오해다. 플라톤은 현실을 가짜라 한 적 없다."},
+     {t:"가짜라기보단 원본이 따로 있다고 본 거야. 그림자도 없는 건 아니잖아",ok:1,f:"플라톤은 개별 사물을 없는 것이 아니라 원본보다 덜한 것으로 봤다."},
+     {t:"아리스토텔레스가 그걸 반박했어",ok:0,f:"틀린 말은 아니다. 다만 친구가 한 말은 안 고쳐진다."}]},
+
+ {k:"join", kicker:"06 · 이어 붙인다", title:"1층이 4층에서 다시 쓰인다"}
+];
+
+const L6=[
+ {k:"ask", kicker:"01 · 먼저 찍는다", title:"이 셋이면 충분할까",
+  sub:"무언가를 안다고 하려면 세 가지가 필요하다고들 한다. 참일 것. 믿을 것. 믿을 근거가 있을 것.",
+  q:"셋을 다 갖췄는데도 안다고 하기 어려운 경우가 있을까?",
+  o:[{t:"없다. 셋이면 충분하다",u:"더 뭘 요구하나"},
+     {t:"있다. 뭔가 빠진다",u:"셋으로 안 잡히는 게 남는다"},
+     {t:"애초에 정의가 틀렸다",u:"다른 방식으로 봐야 한다"}]},
+
+ {k:"read", kicker:"02 · 먼저 정리한다", title:"안다는 건 뭘 말하나",
+  sub:"5층에서 세운 정의를 다시 꺼낸다.",
+  vocab:[["참인 믿음","사실이면서, 내가 실제로 믿는 것."],
+         ["정당화","그렇게 믿을 만한 근거가 있다는 뜻."]],
+  ps:["사실이어야 한다. 내가 믿어야 한다. 믿을 근거가 있어야 한다. 이 셋을 흔히 지식의 조건이라 부른다.",
+      "찍어서 맞힌 답은 지식이 아니다. 근거가 없으니까. 근거는 있는데 사실이 아니면 그것도 아니다. 그래서 셋이 다 필요해 보인다."],
+  myth:"이 정의를 플라톤이 세웠고 2400년간 정설이었다는 말은 사실이 아니다. 『테아이테토스』에서 비슷한 정의가 나오지만 대화는 그것을 <b>기각</b>하고 끝난다. '전통적 분석'이라는 이름조차 20세기에 그것을 공격한 사람들이 붙였다."},
+
+ {k:"read", kicker:"03 · 반례가 나온다", title:"세 쪽짜리 논문",
+  sub:"1963년, 게티어가 세 쪽을 썼다.",
+  ps:["스미스와 존스가 같은 자리에 지원했다. 사장이 스미스에게 말한다. 존스가 될 거라고. 스미스는 10분 전 존스의 주머니에서 동전 열 개를 직접 셌다.",
+      "그래서 스미스는 이렇게 믿는다. <b>취업할 사람의 주머니에는 동전이 열 개 있다.</b> 근거는 충분하다.",
+      "그런데 취업한 건 스미스였다. 그리고 스미스의 주머니에도 동전이 마침 열 개 있었다. 스미스는 그걸 몰랐다.",
+      "그의 믿음은 참이다. 믿고 있다. 근거도 있다. 셋을 다 갖췄다. 그런데 이걸 안다고 할 사람은 없다."],
+  key:"믿음을 <span class='hl'>참으로 만든 사실이, 근거로 삼은 사실과 달랐다.</span>"},
+
+ {k:"read", kicker:"04 · 오늘의 자리", title:"운이라는 말로는 안 끝난다",
+  sub:"이 반례가 왜 아직도 안 풀렸나.",
+  ps:["가장 흔한 대응은 거짓 전제를 빼자는 것이다. 스미스는 '존스가 될 것'이라는 거짓에서 출발했으니, 거짓을 거치지 않았어야 한다는 조건을 넷째로 붙이자는 말이다.",
+      "그런데 펠드먼이 <b>거짓 증거를 전혀 쓰지 않는 반례</b>를 만들었다. 넷째 조건으로도 막히지 않는다.",
+      "'운이 좋았을 뿐'이라는 설명도 부족하다. 운이라는 말은 같은 상황을 다시 말한 것에 가깝다. 진짜 물음은 얼마만큼의 운이 지나친 운인가이고, 여기엔 아직 답이 없다."],
+  src:"Edmund Gettier, “Is Justified True Belief Knowledge?”, Analysis 23.6 (1963), 121–123 · Stanford Encyclopedia of Philosophy(Analysis of Knowledge, Plato's Theaetetus) · Internet Encyclopedia of Philosophy(Gettier Problems). 같은 구조의 반례는 8세기 다르못타라, 12세기 슈리하르샤에게도 있었다."},
+
+ {k:"quiz", kicker:"05 · 써본다", title:"대화에서 꺼내기",
+  sub:"친구가 말한다. “과정이야 어떻든 결과 맞으면 된 거 아냐?”",
+  q:"뭐라고 받을까?",
+  o:[{t:"맞아. 결과가 전부지",ok:0,f:"대화가 끝난다. 그리고 게티어가 보인 게 정확히 그 반대다."},
+     {t:"멈춘 시계를 보고 시간을 맞힌 사람이 시간을 안다고 할 수 있나",ok:1,f:"러셀이 쓴 예시다. 맞았지만 안 것은 아니다. 한 문장으로 상대를 멈춰 세운다."},
+     {t:"게티어라는 사람이 1963년에 논문을 썼는데",ok:0,f:"이름부터 꺼내면 대화가 아니라 강의가 된다. 장면을 먼저 던져야 한다."}]},
+
+ {k:"join", kicker:"06 · 이어 붙인다", title:"5층에서 세운 것이 6층에서 무너진다"}
+];
+
+const LESSONS={4:L4,6:L6};
+const JOIN={4:["그림자 : 사물","사물 : 이데아","그림자와 사물의 관계가, 사물과 이데아의 관계와 같다","1층에서 본 동굴 이야기가 여기서 다시 쓰인다."],6:["5층 · 세 조건","6층 · 반례","어제 세운 정의가 오늘 무너졌다","정의를 배우고 곧바로 그 정의가 깨지는 걸 본다. 철학은 대개 이 순서로 움직인다."]};
+let S=L4, cur=4;
+
+const $=q=>document.querySelector(q);
+const vp=$("#vp"), track=$("#track"), dots=$("#dots"), nudge=$("#nudge");
+let i=0, mem="", picked=[];
+
+function drawToc(){
+  $("#toc").innerHTML=CH.map(c=>
+    '<button class="toc-row '+(c.st==="now"?"is-now":"")+' '+(c.st==="lock"?"is-lock":"")+'" '+
+    (c.st==="lock"?"disabled":"")+' data-n="'+c.n+'">'+
+    '<span class="n">'+String(c.n).padStart(2,"0")+'</span>'+
+    '<span><span class="t">'+c.t+'</span><span class="kw">'+c.kw+'</span></span>'+
+    '<span class="pg">'+(c.st==="done"?"올림":c.st==="now"?"오늘":c.st==="peek"?"미리보기":"내일")+'</span></button>').join("");
+  document.querySelectorAll(".toc-row:not(:disabled)").forEach(b=>b.onclick=()=>enter(+b.dataset.n));
+}
+
+function pane(s,n){
+  let h='<div class="ch-kicker">'+s.kicker+'</div><h2 class="ch-title">'+s.title+'</h2>';
+  if(s.sub) h+='<p class="ch-sub">'+s.sub+'</p>';
+  h+='<div class="stack">';
+  if(s.k==="ask"||s.k==="quiz"){
+    h+='<div class="qmap"><div class="lbl">'+(s.k==="ask"?"질문":"적용")+'</div><div class="q">'+s.q+'</div></div>'+
+       '<div class="opts">'+s.o.map((o,x)=>'<button class="opt" data-x="'+x+'"><span class="term">'+o.t+'</span>'+(o.u?'<u>'+o.u+'</u>':'')+'</button>').join("")+'</div>'+
+       '<div class="fbslot"></div>';
+  }
+  if(s.k==="read"){
+    if(s.vocab) h+='<div class="vocab"><div class="lbl">먼저 알 단어</div>'+
+      s.vocab.map(v=>'<div class="vrow"><div class="term">'+v[0]+'</div><div class="def">'+v[1]+'</div></div>').join("")+'</div>';
+    h+='<div class="sec">'+s.ps.map(p=>'<p>'+p+'</p>').join("")+'</div>';
+    if(s.myth) h+='<div class="myth"><div class="lbl">흔한 오해</div><p>'+s.myth+'</p></div>';
+    if(s.key) h+='<p class="keyline">'+s.key+'</p>';
+    if(s.src) h+='<p class="src">'+s.src+'</p>';
+  }
+  if(s.k==="join"){
+    const J=JOIN[cur];
+    h+='<div class="qmap link"><div class="lbl">이어졌다</div>'+
+       '<div class="q">'+J[2]+'</div>'+
+       '<div class="pair"><span>'+J[0]+'</span><i></i><span>'+J[1]+'</span></div>'+
+       '<p class="pos">'+J[3]+'</p></div>'+
+       '<div class="memo"><div class="lbl">내 말로 한 줄</div>'+
+       '<textarea id="m" placeholder="오늘 배운 걸 한 문장으로">'+mem+'</textarea></div>'+
+       '<div class="acts"><button class="go" id="fin">'+cur+'층 끝내기</button></div>';
+  }
+  return '<div class="pane" data-n="'+n+'">'+h+'</div></div>';
+}
+
+function build(){
+  track.innerHTML=S.map((s,n)=>pane(s,n)).join("");
+  dots.innerHTML=S.map(()=>'<span class="dot"></span>').join("");
+  bind(); go(0,true);
+}
+
+function bind(){
+  track.querySelectorAll(".pane").forEach((p,n)=>{
+    const s=S[n];
+    p.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+      if(s.k==="ask"){
+        p.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel"));
+        b.classList.add("sel"); picked[n]=+b.dataset.x; arrows();
+      }else{
+        const o=s.o[+b.dataset.x];
+        p.querySelectorAll(".opt").forEach(x=>{x.classList.remove("sel","bad"); x.disabled=true;});
+        b.classList.add(o.ok?"sel":"bad");
+        p.querySelector(".fbslot").innerHTML='<div class="fb '+(o.ok?"":"is-no")+'"><span class="h">'+
+          (o.ok?"이렇게 받으면 이어진다.":"여기선 안 걸린다.")+'</span> '+o.f+'</div>';
+        picked[n]=+b.dataset.x; arrows(); setTimeout(size,30);
+      }
+    });
+    const t=p.querySelector("#m"); if(t) t.oninput=()=>{mem=t.value;};
+    const f=p.querySelector("#fin"); if(f) f.onclick=done;
+  });
+}
+const locked=n=>(S[n].k==="ask"||S[n].k==="quiz") && picked[n]==null;
+
+function size(){ const p=track.children[i]; if(p) vp.style.height=p.offsetHeight+"px"; }
+
+function go(n,first){
+  if(n<0||n>=S.length) return;
+  if(n>i && locked(i)){ bump(); track.style.transform="translate3d("+(-i*100)+"%,0,0)"; return; }
+  i=n;
+  track.style.transform="translate3d("+(-i*100)+"%,0,0)";
+  [...track.children].forEach((p,x)=>p.classList.toggle("live",x===i));
+  [...dots.children].forEach((d,x)=>{ d.className="dot"+(x===i?" on":x<i?" past":""); });
+  arrows();
+  requestAnimationFrame(()=>{ size(); if(!first) vp.scrollIntoView({block:"nearest",behavior:"smooth"}); });
+}
+function arrows(){
+  $("#prev").disabled = i===0;
+  $("#next").disabled = i===S.length-1 || locked(i);
+}
+let tm;
+function bump(){
+  vp.classList.remove("shake"); void vp.offsetWidth; vp.classList.add("shake");
+  nudge.textContent = S[i].k==="quiz" ? "답을 골라야 넘어간다" : "먼저 하나 고른다";
+  nudge.classList.add("on"); clearTimeout(tm);
+  tm=setTimeout(()=>nudge.classList.remove("on"),1500);
+}
+$("#prev").onclick=()=>go(i-1);
+$("#next").onclick=()=>go(i+1);
+addEventListener("keydown",e=>{
+  if($("#lesson").classList.contains("hide")) return;
+  if(e.key==="ArrowRight") go(i+1);
+  if(e.key==="ArrowLeft") go(i-1);
+});
+
+let x0=0,y0=0,dx=0,drag=false,axis=null;
+vp.addEventListener("pointerdown",e=>{
+  if(e.target.closest("textarea,button")) return;
+  x0=e.clientX; y0=e.clientY; dx=0; drag=true; axis=null; track.classList.add("drag");
+});
+vp.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  const mx=e.clientX-x0, my=e.clientY-y0;
+  if(!axis) axis = Math.abs(mx)>Math.abs(my)+4 ? "x" : (Math.abs(my)>6 ? "y" : null);
+  if(axis!=="x") return;
+  dx=mx;
+  const hard = (dx<0 && (i===S.length-1||locked(i))) || (dx>0 && i===0);
+  track.style.transform="translate3d(calc("+(-i*100)+"% + "+(hard?dx*0.26:dx)+"px),0,0)";
+});
+function release(){
+  if(!drag) return; drag=false; track.classList.remove("drag");
+  const th=Math.min(88,(vp.clientWidth||300)*0.22);
+  if(axis==="x" && dx<-th) go(i+1);
+  else if(axis==="x" && dx>th) go(i-1);
+  else go(i,true);
+  dx=0; axis=null;
+}
+vp.addEventListener("pointerup",release);
+vp.addEventListener("pointercancel",release);
+addEventListener("resize",size);
+
+function enter(n){
+  cur = LESSONS[n] ? n : 4; S = LESSONS[cur];
+  const c = CH.find(x=>x.n===cur);
+  $("#run").textContent = cur+"층 · "+c.kw;
+  $("#home").classList.add("hide"); $("#lesson").classList.remove("hide");
+  i=0; picked=[]; build(); scrollTo(0,0);
+}
+function back(){ $("#home").classList.remove("hide"); $("#lesson").classList.add("hide"); scrollTo(0,0); }
+function done(){
+  const c=CH.find(x=>x.n===cur);
+  if(c && c.st!=="done"){ c.st="done";
+    const nx=CH.find(x=>x.n===cur+1);
+    if(nx && nx.st==="lock") nx.st="now";
+    $("#st-floor").textContent=CH.filter(x=>x.st==="done").length;
+    $("#st-pair").textContent=CH.filter(x=>x.st==="done").length-2;
+  }
+  drawToc();
+  track.innerHTML='<div class="pane live"><div class="ch-kicker">완료</div>'+
+    '<h2 class="ch-title">'+cur+'층을 올렸다</h2>'+
+    '<p class="ch-sub">'+(cur+1)+'층은 내일 열린다. 이어진 짝이 하나 늘었다.</p>'+
+    '<div class="stack"><div class="acts"><button class="go" id="bk">목차로</button></div></div></div>';
+  dots.innerHTML=""; $("#prev").disabled=true; $("#next").disabled=true;
+  requestAnimationFrame(size);
+  $("#bk").onclick=back;
+}
+
+drawToc();
+</script>
