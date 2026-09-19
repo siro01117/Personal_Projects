@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, NotebookPen, Plus, SkipForward, Trash2, X,
 } from 'lucide-react';
-import { STAGES, emptyAnswers, noteToUnit, normNote, progress } from '../../lib/stages.mjs';
+import { GROUPS, STAGES, emptyAnswers, groupProgress, noteToUnit, normNote, progress } from '../../lib/stages.mjs';
 import { LectureView } from './Lecture';
 
 const newId = () => `n_${Date.now().toString(36)}`;
@@ -111,6 +111,7 @@ function Stage({ note, onPatch, onDone }) {
     return first < 0 ? 0 : first;
   });
   const s = STAGES[i];
+  const group = GROUPS.find((g) => g.key === s.group) || GROUPS[0];
   const value = note.a[s.key] || [];
   const filled = value.length > 0;
   const topRef = useRef(null);
@@ -135,9 +136,25 @@ function Stage({ note, onPatch, onDone }) {
         <span className="rk-st-count rk-num">{i + 1} / {STAGES.length}</span>
       </div>
 
-      <div className="rk-st-bar"><span style={{ width: `${((i + 1) / STAGES.length) * 100}%` }} /></div>
+      <div className="rk-st-bars">
+        {GROUPS.map((g) => {
+          const items = STAGES.filter((x) => x.group === g.key);
+          const done = items.filter((x) => STAGES.indexOf(x) <= i).length;
+          return (
+            <span key={g.key} className={'rk-st-seg' + (g.key === s.group ? ' is-on' : '')}
+              style={{ flexGrow: items.length }}>
+              <span style={{ width: `${(done / items.length) * 100}%` }} />
+            </span>
+          );
+        })}
+      </div>
 
       <div className="rk-st-body">
+        {/* 층위가 바뀌는 자리를 알려 준다 — 결이 달라지는 게 방해가 아니라 신호가 되게 */}
+        <div className="rk-st-group">
+          <span className="rk-st-gl">{group.label}</span>
+          <span className="rk-st-gh">{group.hint}</span>
+        </div>
         <h2 className="rk-st-q2">{s.title}</h2>
         <p className="rk-st-help">{s.help}</p>
 
@@ -244,7 +261,12 @@ export default function Notes({ course, onPatchCourse }) {
                       {[n.at, n.pages && `${n.pages}쪽`, `${filled}/${total}`].filter(Boolean).join(' · ')}
                     </span>
                   </span>
-                  <span className="rk-st-ring" style={{ '--p': `${(filled / total) * 100}%` }} aria-hidden="true" />
+                  <span className="rk-st-dots" aria-hidden="true">
+                    {groupProgress(n).map((g) => (
+                      <span key={g.key} className="rk-st-dot" title={g.label}
+                        style={{ '--p': `${(g.filled / g.total) * 100}%` }} />
+                    ))}
+                  </span>
                 </button>
               </li>
             );
