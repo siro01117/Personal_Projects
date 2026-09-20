@@ -1,0 +1,10 @@
+{
+  "name": "수능 영어 독해 · 2026 9월",
+  "desc": "2026학년도 9월 모의고사 영어 문항별 독해 교재.",
+  "stack": ["수능 영어 독해", "문항별 해설", "RA-KAN 독해시스템"],
+  "public": true,
+  "order": 6,
+  "color": "#008fc8",
+  "icon": "book",
+  "section": "Study"
+}
