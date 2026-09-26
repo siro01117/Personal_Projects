@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>확통 기호 도감</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F5F6F2; --paper:#FFFFFF; --ink:#1B2433; --ink-2:#4B5566; --muted:#7A8494;
+  --line:#DADDD5; --rule:#E8EAE4;
+  --blue:#2F5D8A; --blue-soft:#E4EDF6;
+  --red:#B5413A; --red-soft:#F7E6E4;
+  --green:#3B7A57; --green-soft:#E3F0E8;
+  --sheet-shadow:0 -12px 40px rgba(20,30,45,.18);
+  --sym:"STIX Two Text","Times New Roman",serif;
+  --body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#14181E; --paper:#1C2129; --ink:#E7EAEE; --ink-2:#B9C0CA; --muted:#8892A0;
+    --line:#2E3540; --rule:#262C36;
+    --blue:#7FB0E0; --blue-soft:#1E2E40; --red:#E38A82; --red-soft:#3A2321; --green:#8CC9A6; --green-soft:#1E3128;
+    --sheet-shadow:0 -12px 40px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#14181E; --paper:#1C2129; --ink:#E7EAEE; --ink-2:#B9C0CA; --muted:#8892A0;
+  --line:#2E3540; --rule:#262C36;
+  --blue:#7FB0E0; --blue-soft:#1E2E40; --red:#E38A82; --red-soft:#3A2321; --green:#8CC9A6; --green-soft:#1E3128;
+  --sheet-shadow:0 -12px 40px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px)}
+.app{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 96px}
+
+/* 상단 */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-top:14px;margin-inline:-16px;padding-inline:16px}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.brand h1 .g{font-family:var(--sym);font-weight:400;color:var(--blue);margin-right:2px}
+.count{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:12px;padding-bottom:10px;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:0 0 auto;font:inherit;font-size:13px;font-weight:500;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.tiers{display:flex;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.tiers button{font:inherit;font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer}
+.tiers button[aria-pressed="true"]{border-color:var(--line);background:var(--paper);color:var(--ink)}
+
+/* 섹션 */
+.section{padding-top:18px}
+.section[hidden]{display:none}
+.sec-head{display:grid;gap:2px;margin-bottom:12px}
+.sec-head h2{margin:0;font-size:17px;font-weight:700}
+.sec-head p{margin:0;font-size:13px;color:var(--muted);max-width:60ch}
+
+/* 도감 카드 */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (min-width:480px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{position:relative;display:grid;grid-template-rows:auto 1fr auto;gap:6px;min-height:150px;padding:12px 12px 11px;border:1px solid var(--line);border-radius:12px;background:var(--paper);text-align:left;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.card[hidden]{display:none}
+.card:active{transform:scale(.98)}
+.card:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.no{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.06em}
+.glyph{font-family:var(--sym);font-size:38px;line-height:1;display:flex;align-items:center;justify-content:center;padding:8px 0 4px;word-break:keep-all;text-align:center;font-variant-numeric:tabular-nums}
+.glyph.sm{font-size:26px}
+.glyph sup{font-size:.55em}
+.card .nm{font-size:13px;font-weight:700;line-height:1.3;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+.t-ok .dot{background:var(--green)} .t-memo .dot{background:var(--red)} .t-own .dot{background:var(--blue)}
+.empty{padding:40px 0;text-align:center;color:var(--muted);font-size:14px}
+
+/* 배지 */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.b-ok{background:var(--green-soft);color:var(--green)}
+.b-memo{background:var(--red-soft);color:var(--red)}
+.b-own{background:var(--blue-soft);color:var(--blue)}
+
+/* 상세 시트 */
+.backdrop{position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.backdrop.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:560px;margin:0 auto;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:var(--sheet-shadow);transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:88vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet.on{transform:translateY(0)}
+.handle{width:38px;height:4px;border-radius:2px;background:var(--line);margin:10px auto 0}
+.sheet-body{overflow-y:auto;padding:12px 20px 24px}
+.sheet-top{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.big{font-family:var(--sym);font-size:48px;line-height:1;min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+.big.sm{font-size:30px}
+.big sup{font-size:.55em}
+.sheet-top .meta{display:grid;gap:4px}
+.sheet-top .meta .no{margin-bottom:2px}
+.sheet-top h3{margin:0;font-size:19px;font-weight:700;line-height:1.25}
+.read{font-size:13px;color:var(--muted)}
+.field{padding:14px 0;border-bottom:1px solid var(--rule)}
+.field:last-child{border-bottom:0}
+.field .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field p{margin:0;color:var(--ink-2);font-size:14.5px}
+.field ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.field li{padding-left:12px;border-left:2px solid var(--blue-soft);font-size:14px}
+.field li b{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.04em;margin-right:8px}
+.f{font-family:var(--sym);font-size:16.5px}
+.sheet-nav{display:flex;gap:8px;padding:10px 20px 4px;border-top:1px solid var(--rule)}
+.sheet-nav button{flex:1;font:inherit;font-size:14px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.sheet-nav button:disabled{opacity:.4;cursor:default}
+.sheet-nav .close{flex:0 0 auto;padding-inline:16px}
+
+/* 풀이 탭 */
+.card-block{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.card-block .hd{padding:14px 16px;border-bottom:1px solid var(--rule);font-weight:700;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.card-block .bd{padding:14px 16px}
+.card-block .bd p{margin:0 0 10px;color:var(--ink-2)}
+.card-block .bd p:last-child{margin-bottom:0}
+.memo{font-family:var(--sym);font-size:17px;line-height:1.75;display:grid;gap:2px;margin:0;padding:0;list-style:none}
+.memo .c{font-family:var(--body);font-size:12px;color:var(--muted);margin-left:8px}
+.steps{display:grid;gap:10px;padding:0;margin:0;list-style:none;counter-reset:s}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start;counter-increment:s}
+.steps li::before{content:counter(s);font-family:var(--mono);font-size:12px;color:var(--blue);border:1px solid var(--line);border-radius:6px;width:26px;height:26px;display:grid;place-items:center;margin-top:1px}
+.steps b{display:block;font-weight:700;font-size:14.5px}
+.steps span{color:var(--ink-2);font-size:13.5px}
+.legend{display:grid;gap:8px;font-size:13px;color:var(--ink-2)}
+.legend div{display:flex;gap:10px;align-items:center}
+footer{margin-top:28px;font-size:12px;color:var(--muted);line-height:1.6}
+
+@media (prefers-reduced-motion:reduce){
+  .sheet,.backdrop{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <h1><span class="g">Ω</span> 확통 기호 도감</h1>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="tiers" role="group" aria-label="등급 필터" id="tiers">
+      <button type="button" id="tier-all" data-tier="all" aria-pressed="true">전체</button>
+      <button type="button" id="tier-ok" data-tier="ok" aria-pressed="false">교과 안</button>
+      <button type="button" id="tier-memo" data-tier="memo" aria-pressed="false">메모용</button>
+      <button type="button" id="tier-own" data-tier="own" aria-pressed="false">직접 정의</button>
+    </div>
+  </div>
+
+  <div id="sections"></div>
+
+  <section class="section" id="sec-guide" hidden>
+    <div class="sec-head"><h2>풀이에 쓰는 법</h2><p>기호를 어떤 순서로 쓰고, 답안에서는 어떻게 되돌리는지.</p></div>
+
+    <div class="card-block">
+      <div class="hd">등급 읽는 법</div>
+      <div class="bd legend">
+        <div><span class="badge b-ok">교과 안</span> 답안지에 그대로 써도 된다</div>
+        <div><span class="badge b-memo">메모용</span> 풀이 메모에만 쓰고, 답안은 말로 풀어 적는다</div>
+        <div><span class="badge b-own">직접 정의</span> 답안 첫 줄에 "…라 하자"로 정의하면 쓸 수 있다</div>
+      </div>
+    </div>
+
+    <div class="card-block">
+      <div class="hd">문제 읽을 때 순서</div>
+      <div class="bd">
+        <ol class="steps">
+          <li><b>Ω부터 적는다</b><span>무엇을 몇 개 뽑는지, 순서가 있는지. n(Ω)가 곧 분모다.</span></li>
+          <li><b>사건을 문자로 정의한다</b><span>"A = …"를 안 적고 시작하면 절반은 다른 사건을 세고 있다.</span></li>
+          <li><b>조건을 기호로 바꾼다</b><span>적어도 하나는 ∃, 모두는 ∀, 독립이면 ⊥, 이미 일어났다면 P(·|B).</span></li>
+          <li><b>∃가 보이면 뒤집는다</b><span>P(∃) = 1 − P(∀¬). 대부분 여사건이 훨씬 작다.</span></li>
+          <li><b>답안은 말로 다시 쓴다</b><span>메모용 기호는 "전체 경우의 수는", "여사건의 확률이므로"로 번역한다.</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="card-block">
+      <div class="hd">문제</div>
+      <div class="bd"><p>불량품 3개가 섞인 제품 10개 중 4개를 임의로 꺼낼 때, 적어도 하나가 불량품일 확률을 구하시오.</p></div>
+    </div>
+    <div class="card-block">
+      <div class="hd">메모 <span class="badge b-memo">메모용</span></div>
+      <div class="bd">
+        <ul class="memo">
+          <li>Ω = 10개 중 4개, n(Ω) = ₁₀C₄ = 210</li>
+          <li>B = 불량 집합, n(B) = 3, n(Bᶜ) = 7</li>
+          <li>구할 것: P(∃불량)<span class="c">적어도 하나 → 뒤집기</span></li>
+          <li>= 1 − P(∀정상) = 1 − n(Bᶜ 중 4개)/n(Ω)</li>
+          <li>= 1 − ₇C₄/₁₀C₄ = 1 − 35/210 = 5/6</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card-block">
+      <div class="hd">답안 <span class="badge b-ok">교과 안</span></div>
+      <div class="bd">
+        <p>10개 중 4개를 꺼내는 전체 경우의 수는 <span class="f">₁₀C₄ = 210</span>이다.</p>
+        <p>불량품이 하나도 없는 사건을 A라 하면, A는 정상품 7개 중 4개를 꺼내는 경우이므로 <span class="f">n(A) = ₇C₄ = 35</span>이다.</p>
+        <p>구하는 확률은 A의 여사건의 확률이므로 <span class="f">P(Aᶜ) = 1 − 35/210 = 5/6</span>.</p>
+      </div>
+    </div>
+
+    <div class="card-block">
+      <div class="hd">규칙표는 한 장으로</div>
+      <div class="bd"><p>몇 달 같은 기호만 써야 압축 효과가 생긴다. 기호가 바뀌면 다시 말로 번역하는 시간이 들어서 이득이 사라진다.</p></div>
+    </div>
+
+    <footer>기호 등급은 2015 개정 교육과정 수학(하) 집합·명제 단원과 확률과 통계 교과서 표기 기준. 채점 기준은 학교마다 다를 수 있다.</footer>
+  </section>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="handle"></div>
+  <div class="sheet-body" id="sheet-body"></div>
+  <div class="sheet-nav">
+    <button type="button" id="prev">이전</button>
+    <button type="button" id="next">다음</button>
+    <button type="button" class="close" id="close">닫기</button>
+  </div>
+</div>
+
+<script>
+(function(){
+var SECTIONS=[
+  {id:'obj-in',  title:'대상 · 교과 안',  sub:'"지금 무엇을 세고 있나"를 고정한다. 수학(하) 집합 단원에 있어서 답안에 바로 쓴다.'},
+  {id:'obj-out', title:'대상 · 교과 밖',  sub:'노가다를 가장 많이 줄여주는 것들. 메모에만 쓰고 답안은 풀어 적는다.'},
+  {id:'ops',     title:'연산 · 논리',     sub:'"어떻게 계산하나"를 줄인다. 명제 단원에 이미 절반은 들어와 있다.'},
+  {id:'own',     title:'직접 정의',       sub:'표준이 아니어도 된다. 답안 첫 줄에 정의하면 채점자가 그대로 따라온다.'},
+  {id:'guide',   title:'풀이',            sub:''}
+];
+var TIER={ok:'교과 안',memo:'메모용',own:'직접 정의'};
+
+// glyph: 카드 글자. sm: 긴 글자. read: 읽는 법. mean: 뜻. use: [[라벨, 내용]]. ans: 답안에서.
+var E=[
+ // 대상 · 교과 안
+ {s:'obj-in',t:'ok',g:'ℕ',n:'자연수 집합',r:'엔',
+  m:'1, 2, 3, … 전체. 문제 조건 "x는 자연수"를 x∈ℕ으로 적어두면 x=0이나 음수를 세는 실수가 눈에 보인다.',
+  u:[['예','<span class="f">x+y+z=10, x,y,z∈ℕ</span> → 각각 1 이상이라 중복조합 <span class="f">₃H₇</span>']],
+  a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'ℤ',n:'정수 집합',r:'제트',
+  m:'음수, 0, 양수 전체. "정수해의 개수" 유형에서 x∈ℤ를 적어두면 0과 음수를 빠뜨리지 않는다.',
+  u:[['예','<span class="f">|x|+|y|≤3, x,y∈ℤ</span> → 격자점 세기']],
+  a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'ℚ',n:'유리수 집합',r:'큐',
+  m:'분수로 쓸 수 있는 수. 확통에서는 드물지만 "유리수인 근" 같은 조건에 쓴다.',
+  u:[],a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'ℝ',n:'실수 집합',r:'알',
+  m:'연속확률변수의 정의역. X의 값이 실수 전체 또는 어떤 구간이라는 뜻.',
+  u:[['예','<span class="f">X∈[0,2]</span>, 확률밀도함수 f(x) 정의']],
+  a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'∅',n:'공집합',r:'공집합',
+  m:'원소가 없는 집합. 배반사건은 A∩B=∅ 한 줄이다. 독립과는 다른 개념.',
+  u:[['배반','<span class="f">A∩B=∅ ⇒ P(A∪B)=P(A)+P(B)</span>']],
+  a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'U',n:'전체집합',r:'유',
+  m:'모든 경우. U를 먼저 적으면 확률의 분모가 무엇인지 잊지 않는다. 대학식으로는 Ω.',
+  u:[['확률','<span class="f">P(A)=n(A)/n(U)</span>']],
+  a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'Aᶜ',n:'여집합 · 여사건',r:'에이 컴플리먼트',
+  m:'"A가 아닌 사건"보다 빠르다. P(Aᶜ)=1−P(A)는 적어도 하나 유형의 전부다.',
+  u:[['공식','<span class="f">P(Aᶜ)=1−P(A)</span>'],['드모르간','<span class="f">(A∪B)ᶜ=Aᶜ∩Bᶜ</span>']],
+  a:'그대로 쓴다. 교과서는 Aᶜ 표기.'},
+ {s:'obj-in',t:'ok',g:'n(A)',n:'원소의 개수',r:'엔 에이',
+  m:'확률은 n(A)/n(U). 대학식 |A|와 같은 뜻인데 답안에는 n(A)를 쓴다.',
+  u:[['공식','<span class="f">n(A∪B)=n(A)+n(B)−n(A∩B)</span>']],
+  a:'그대로 쓴다.'},
+ {s:'obj-in',t:'ok',g:'[a, b)',n:'구간',r:'a 이상 b 미만',
+  m:'부등식 조건을 구간으로 적으면 경계 포함 여부가 한 눈에 들어온다. 대괄호는 포함, 소괄호는 제외.',
+  u:[['닫힌','<span class="f">[a,b] : a≤x≤b</span>'],['열린','<span class="f">(a,b) : a&lt;x&lt;b</span>']],
+  a:'그대로 쓴다. 연속확률분포에서 특히 편하다.'},
+ {s:'obj-in',t:'ok',g:'f : X → Y',sm:true,n:'함수',r:'X에서 Y로 가는 함수 f',
+  m:'함수 개수 문제는 전부 이 안의 조건 세기다. 조건별로 세는 방식이 고정된다.',
+  u:[['아무 함수','중복순열 <span class="f">n(Y)^{n(X)}</span>'],['일대일','순열 <span class="f">ₙPᵣ</span>'],['증가 (f(a)&lt;f(b))','조합 <span class="f">ₙCᵣ</span>'],['감소하지 않음 (≤)','중복조합 <span class="f">ₙHᵣ</span>']],
+  a:'그대로 쓴다.'},
+
+ // 대상 · 교과 밖
+ {s:'obj-out',t:'memo',g:'Ω',n:'표본공간',r:'오메가',
+  m:'확률 문제는 시작할 때 Ω가 뭔지 적는 것만으로 절반 푼다. 고교 교과서의 U와 같다.',
+  u:[['예','주사위 두 개 <span class="f">Ω={1..6}², n(Ω)=36</span>']],
+  a:'"전체 경우의 수는 …이다"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'A × B',n:'곱집합',r:'에이 크로스 비',
+  m:'순서쌍 (a, b) 전체. n(A×B)=n(A)·n(B)가 곱의 법칙 그 자체다. "순서 있음"이 기호에 이미 들어 있다.',
+  u:[['예','동전×주사위 <span class="f">n({H,T}×[6])=2·6=12</span>']],
+  a:'"곱의 법칙에 의해"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'Aⁿ',n:'같은 시행 n번',r:'에이 엔제곱',
+  m:'A를 n번 반복한 순서쌍 전체. n(Aⁿ)=n(A)ⁿ으로 중복순열이다.',
+  u:[['예','동전 5번 <span class="f">n({H,T}⁵)=2⁵=32</span>']],
+  a:'"중복순열 ₂Π₅"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'Y<sup>X</sup>',n:'함수 전체',r:'와이 투 더 엑스',
+  m:'X에서 Y로 가는 함수 전체의 집합. n(Yˣ)=n(Y)^{n(X)}가 바로 나오고, 조건이 붙으면 이 안의 부분집합 세기가 된다.',
+  u:[['예','<span class="f">n(X)=3, n(Y)=4 → 4³=64</span>']],
+  a:'"함수의 개수는 중복순열이므로"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'𝒫(A)',n:'부분집합 전체',r:'파워셋 에이',
+  m:'A의 부분집합을 모두 모은 집합. n(𝒫(A))=2ⁿ. "특정 원소를 포함하는 부분집합" 유형은 이 안에서 조건을 거는 문제다.',
+  u:[['예','원소 a를 포함하는 부분집합 <span class="f">2ⁿ⁻¹</span>'],['예','원소 k개인 부분집합 <span class="f">ₙCₖ</span>']],
+  a:'"부분집합의 개수는 2ⁿ이므로"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'2ℤ',n:'짝수',r:'투 제트',
+  m:'2의 배수 전체. 짝수 조건을 x∈2ℤ로 적어두면 홀짝 케이스 나누기가 기계적으로 된다. 3의 배수는 3ℤ.',
+  u:[['예','두 수의 합이 짝수 → (짝,짝) 또는 (홀,홀)']],
+  a:'"짝수인 경우"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'2ℤ+1',n:'홀수',r:'투 제트 플러스 원',
+  m:'짝수에 1을 더한 것 전체. 짝수 2ℤ와 짝을 이루며, 둘이 ℤ를 남김없이 나눈다.',
+  u:[['예','주사위 눈이 홀수 <span class="f">{1,3,5}=[6]∩(2ℤ+1)</span>']],
+  a:'"홀수인 경우"로 바꾼다.'},
+ {s:'obj-out',t:'memo',g:'[n]',n:'1부터 n까지',r:'브래킷 엔',
+  m:'{1, 2, …, n}. 매번 풀어 쓰지 않아도 된다. 카드 번호, 자리 번호, 주사위 눈에 자주 쓴다.',
+  u:[['예','주사위 눈 <span class="f">[6]</span>, 카드 <span class="f">[10]</span>']],
+  a:'"1부터 n까지의 자연수"로 바꾼다.'},
+
+ // 연산 · 논리
+ {s:'ops',t:'memo',g:'∃',n:'적어도 하나',r:'존재한다',
+  m:'가장 값어치가 큰 기호. "적어도 하나가 불량"은 ∃불량이고, 그 여사건은 ¬∃=∀¬, 즉 "모두 정상"이다.',
+  u:[['규칙','<span class="f">P(∃)=1−P(∀¬)</span>']],
+  a:'"적어도 하나 … 인 사건의 여사건은 모두 … 아닌 사건이므로"로 바꾼다.'},
+ {s:'ops',t:'memo',g:'∀',n:'모두',r:'모든',
+  m:'전부 만족. ∃의 짝이다. "모두 다른 색"은 ∀다른색이고, 그 여사건은 "같은 색이 하나라도 있다"는 ∃같은색.',
+  u:[['규칙','<span class="f">¬∀ = ∃¬</span>']],
+  a:'"모두 … 인 경우"로 바꾼다.'},
+ {s:'ops',t:'memo',g:'¬',n:'아니다',r:'낫',
+  m:'부정. 집합으로는 여집합 ᶜ와 같다. ∃와 ∀를 뒤집을 때 붙는다.',
+  u:[['드모르간','<span class="f">¬(A∧B)=¬A∨¬B</span>']],
+  a:'"… 이 아닌"으로 바꾼다.'},
+ {s:'ops',t:'ok',g:'∩',n:'교집합 · 이면서',r:'교집합',
+  m:'둘 다 만족. 독립이면 곱한다. 논리 기호 ∧와 같은 뜻.',
+  u:[['독립일 때','<span class="f">P(A∩B)=P(A)P(B)</span>'],['일반','<span class="f">P(A∩B)=P(A)P(B|A)</span>']],
+  a:'그대로 쓴다.'},
+ {s:'ops',t:'ok',g:'∪',n:'합집합 · 또는',r:'합집합',
+  m:'하나라도 만족. 더하되 겹침을 뺀다. 논리 기호 ∨와 같은 뜻.',
+  u:[['공식','<span class="f">P(A∪B)=P(A)+P(B)−P(A∩B)</span>']],
+  a:'그대로 쓴다.'},
+ {s:'ops',t:'memo',g:'∧',n:'그리고',r:'앤드',
+  m:'명제를 잇는 "이면서". 사건이 아니라 조건을 적을 때 ∩ 대신 쓰면 구분이 된다.',
+  u:[['예','<span class="f">x∈ℕ ∧ x≤5</span>']],
+  a:'∩ 또는 "이고"로 바꾼다.'},
+ {s:'ops',t:'memo',g:'∨',n:'또는',r:'오어',
+  m:'명제를 잇는 "또는". 배반이면 합의 법칙으로 더한다.',
+  u:[['예','<span class="f">x∈2ℤ ∨ x∈3ℤ</span> → 2 또는 3의 배수']],
+  a:'∪ 또는 "또는"으로 바꾼다.'},
+ {s:'ops',t:'ok',g:'P(A|B)',n:'조건부확률',r:'B가 일어났을 때 A',
+  m:'세로선 뒤가 새 전체집합이다. "B였다고 할 때"를 보는 순간 분모가 B로 바뀐다.',
+  u:[['공식','<span class="f">P(A|B)=P(A∩B)/P(B)</span>']],
+  a:'그대로 쓴다.'},
+ {s:'ops',t:'memo',g:'A ⊥ B',n:'독립',r:'에이 인디펜던트 비',
+  m:'문제 조건 옆에 ⊥ 하나 표시해두면 곱해도 되는지 헷갈리지 않는다. 배반(∩=∅)과 독립은 다른 개념이다.',
+  u:[['정의','<span class="f">A⊥B ⇔ P(A∩B)=P(A)P(B)</span>'],['동치','<span class="f">P(A|B)=P(A)</span>']],
+  a:'"두 사건이 서로 독립이므로"로 바꾼다.'},
+ {s:'ops',t:'ok',g:'p ⇒ q',n:'이면',r:'p이면 q',
+  m:'진리집합으로는 P⊂Q. 대우 ¬q⇒¬p로 뒤집는 것은 여사건 계산과 같은 얘기다.',
+  u:[['대우','<span class="f">p⇒q ≡ ¬q⇒¬p</span>'],['진리집합','<span class="f">P⊂Q</span>']],
+  a:'그대로 쓴다.'},
+ {s:'ops',t:'ok',g:'p ⇔ q',n:'필요충분',r:'p와 q는 동치',
+  m:'양방향 모두 성립. 진리집합이 같다는 뜻이라 P=Q.',
+  u:[['진리집합','<span class="f">P=Q</span>']],
+  a:'그대로 쓴다.'},
+ {s:'ops',t:'memo',g:'1[·]',n:'지시함수',r:'인디케이터',
+  m:'조건을 만족하면 1, 아니면 0. 기댓값 문제가 케이스 나열 대신 합으로 바뀐다. 교과 밖이지만 노가다를 가장 많이 줄인다.',
+  u:[['예','"짝을 이룬 쌍의 개수" 기댓값 = <span class="f">Σ P(쌍 i가 짝)</span>'],['근거','<span class="f">E(1[A])=P(A)</span>']],
+  a:'"각 쌍이 짝을 이룰 확률의 합이므로"로 바꾼다.'},
+ {s:'ops',t:'ok',g:'Σ',n:'합',r:'시그마',
+  m:'기댓값 E(X)=Σ x·P(X=x). 이항분포의 평균 np, 분산 npq는 이 합을 미리 계산해둔 것이다.',
+  u:[['기댓값','<span class="f">E(X)=Σ x·P(X=x)</span>'],['분산','<span class="f">V(X)=E(X²)−E(X)²</span>']],
+  a:'그대로 쓴다.'},
+
+ // 직접 정의
+ {s:'own',t:'own',g:'M',n:'집합 이름',r:'남학생 집합 M',
+  m:'"M을 남학생의 집합이라 하자." 이후 n(M)=4처럼 쓴다. 문제 안에서 반복되는 대상에 한 글자를 붙인다.',
+  u:[['예','<span class="f">n(M)=4, n(F)=3, n(U)=7</span>']],
+  a:'첫 줄에 정의하고 그대로 쓴다.'},
+ {s:'own',t:'own',g:'A = "…"',sm:true,n:'사건 정의',r:'사건 A를 …라 하자',
+  m:'사건은 반드시 문자로 정의하고 시작한다. 기호로 쓰려면 사건을 먼저 잡아야 하니, 사건을 잘못 잡는 실수를 막아준다.',
+  u:[['예','A = "첫 번째가 불량", B = "두 번째가 불량"']],
+  a:'첫 줄에 정의하고 그대로 쓴다.'},
+ {s:'own',t:'own',g:'D',n:'대상 이름',r:'카드 덱 D',
+  m:'카드 덱, 주머니, 상자처럼 뽑는 대상에 한 글자. n(D)=52.',
+  u:[['예','<span class="f">D</span> 52장, <span class="f">D_♠</span> 스페이드 13장']],
+  a:'첫 줄에 정의하고 그대로 쓴다.'}
+];
+E.forEach(function(e,i){e.i=i;e.no=String(i+1).padStart(3,'0');});
+
+var $=function(s,el){return (el||document).querySelector(s);};
+var tabsEl=$('#tabs'),secEl=$('#sections'),guide=$('#sec-guide');
+var state={sec:'obj-in',tier:'all',open:-1};
+
+// 탭
+SECTIONS.forEach(function(s){
+  var b=document.createElement('button');b.type='button';b.role='tab';b.id='tab-'+s.id;b.dataset.sec=s.id;b.textContent=s.title;
+  b.addEventListener('click',function(){state.sec=s.id;render();try{localStorage.setItem('pn-sec',s.id);}catch(e){}});
+  tabsEl.appendChild(b);
+});
+// 섹션 + 카드
+SECTIONS.filter(function(s){return s.id!=='guide';}).forEach(function(s){
+  var sec=document.createElement('section');sec.className='section';sec.id='sec-'+s.id;
+  sec.innerHTML='<div class="sec-head"><h2>'+s.title+'</h2><p>'+s.sub+'</p></div><div class="grid"></div><div class="empty" hidden>이 등급의 기호가 없다.</div>';
+  var grid=$('.grid',sec);
+  E.filter(function(e){return e.s===s.id;}).forEach(function(e){
+    var c=document.createElement('button');c.type='button';c.className='card t-'+e.t;c.dataset.i=e.i;c.dataset.tier=e.t;
+    c.innerHTML='<span class="no">No.'+e.no+'</span><span class="glyph'+(e.sm?' sm':'')+'">'+e.g+'</span><span class="nm"><span class="dot"></span>'+e.n+'</span>';
+    c.addEventListener('click',function(){open(e.i);});
+    grid.appendChild(c);
+  });
+  secEl.appendChild(sec);
+});
+// 등급
+document.querySelectorAll('#tiers button').forEach(function(b){
+  b.addEventListener('click',function(){state.tier=b.dataset.tier;render();try{localStorage.setItem('pn-tier',state.tier);}catch(e){}});
+});
+
+function render(){
+  tabsEl.querySelectorAll('button').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.sec===state.sec));});
+  document.querySelectorAll('#tiers button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.tier===state.tier));});
+  var shown=0;
+  SECTIONS.forEach(function(s){
+    if(s.id==='guide'){guide.hidden=state.sec!=='guide';return;}
+    var sec=$('#sec-'+s.id);sec.hidden=state.sec!==s.id;
+    var any=false;
+    sec.querySelectorAll('.card').forEach(function(c){var h=state.tier!=='all'&&c.dataset.tier!==state.tier;c.hidden=h;if(!h){any=true;if(!sec.hidden)shown++;}});
+    $('.empty',sec).hidden=any;
+  });
+  $('#count').textContent=state.sec==='guide'?'':shown+' / '+E.length;
+  $('#tiers').style.visibility=state.sec==='guide'?'hidden':'visible';
+}
+
+// 시트
+var sheet=$('#sheet'),bd=$('#backdrop'),body=$('#sheet-body');
+function visibleList(){return E.filter(function(e){return e.s===state.sec&&(state.tier==='all'||e.t===state.tier);});}
+function open(i){
+  var e=E[i];state.open=i;
+  var uses=e.u.length?'<div class="field"><div class="k">쓰임</div><ul>'+e.u.map(function(u){return '<li><b>'+u[0]+'</b>'+u[1]+'</li>';}).join('')+'</ul></div>':'';
+  body.innerHTML=
+    '<div class="sheet-top"><div class="big'+(e.sm?' sm':'')+'">'+e.g+'</div><div class="meta"><span class="no">No.'+e.no+'</span><h3 id="sheet-title">'+e.n+'</h3><span class="read">읽기 · '+e.r+'</span><span><span class="badge b-'+e.t+'">'+TIER[e.t]+'</span></span></div></div>'+
+    '<div class="field"><div class="k">뜻</div><p>'+e.m+'</p></div>'+uses+
+    '<div class="field"><div class="k">답안에서는</div><p>'+e.a+'</p></div>';
+  body.scrollTop=0;
+  var list=visibleList(),k=list.indexOf(e);
+  $('#prev').disabled=k<=0;$('#next').disabled=k<0||k>=list.length-1;
+  $('#prev').onclick=function(){if(k>0)open(list[k-1].i);};
+  $('#next').onclick=function(){if(k<list.length-1)open(list[k+1].i);};
+  sheet.classList.add('on');bd.classList.add('on');
+}
+function close(){sheet.classList.remove('on');bd.classList.remove('on');state.open=-1;}
+$('#close').addEventListener('click',close);bd.addEventListener('click',close);
+document.addEventListener('keydown',function(ev){if(ev.key==='Escape')close();});
+var y0=null;
+sheet.addEventListener('touchstart',function(ev){if(body.scrollTop===0)y0=ev.touches[0].clientY;},{passive:true});
+sheet.addEventListener('touchend',function(ev){if(y0!==null&&ev.changedTouches[0].clientY-y0>70)close();y0=null;},{passive:true});
+
+try{var s=localStorage.getItem('pn-sec');if(s&&SECTIONS.some(function(x){return x.id===s;}))state.sec=s;var t=localStorage.getItem('pn-tier');if(t&&(t==='all'||TIER[t]))state.tier=t;}catch(e){}
+render();
+})();
+</script>
+</body>
+</html>
