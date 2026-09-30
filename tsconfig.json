@@ -3,8 +3,15 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ESNext"],
-    "types": ["node"],
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ],
+    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
@@ -12,7 +19,26 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "allowJs": false,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "incremental": true
   },
-  "include": ["lib", "db", "mcp", "*.ts"]
+  "include": [
+    "lib",
+    "db",
+    "mcp",
+    "app",
+    "*.ts",
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

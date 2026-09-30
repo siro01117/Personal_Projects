@@ -16,4 +16,6 @@
 ## 명령
 
 - `npm test` — vitest (lib + PGlite DB 테스트)
-- `npm run typecheck`
+- `npm run typecheck` — 라우트 타입 생성(next typegen) 후 tsc
+- `npm run dev` — 웹 http://localhost:3200. 개발 모드에서만 주소에 `?demo=1` 을 붙이면 로그인 없이 메모리 저장소로 확인
+- `npm run build`
