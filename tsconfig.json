@@ -14,5 +14,5 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["lib", "db", "*.ts"]
+  "include": ["lib", "db", "mcp", "*.ts"]
 }

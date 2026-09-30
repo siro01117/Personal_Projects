@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ez-drawer": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "tsx", "mcp/server.ts"]
+    }
+  }
+}
