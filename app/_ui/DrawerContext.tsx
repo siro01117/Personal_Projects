@@ -1,19 +1,25 @@
 "use client";
 
-// 서랍 화면들이 같이 쓰는 것: 데이터 구현 · 폴더 목록(위쪽 경로·옮길 곳) · 다시 불러오기 신호 · 오류 처리.
+// 서랍 화면들이 같이 쓰는 것: 데이터 구현 · 폴더 목록(위쪽 경로·옮길 곳) · 다시 불러오기 신호 · 오류 처리
+// · 클립보드(복사·잘라내기) · 실행취소 스택. 클립보드와 실행취소는 이 세션(탭)에서만, 폴더를 옮겨 다녀도 남는다.
 // 로그인이 안 됐거나 풀리면 /login?next=지금 자리 로 보낸다.
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toKorean } from "../../lib/errors";
 import { useSource, withDemo } from "../_data/source";
-import type { DrawerData, Folder } from "../_data/types";
+import type { DrawerData, Entry, Folder } from "../_data/types";
 import { useToast } from "./Toast";
 
 /** 에이전트가 그 사이 넣은 것을 보려고 다시 불러오는 간격 (보이는 동안만) */
 export const REFRESH_MS = 30_000;
 
 export const AUTH_MESSAGE = "로그인이 풀렸습니다. 다시 로그인하세요";
+
+export type Clip = { mode: "copy" | "cut"; items: Entry[] };
+
+/** 실행취소 스택 길이 */
+const UNDO_MAX = 50;
 
 export type DrawerCtx = {
   data: DrawerData;
@@ -27,6 +33,14 @@ export type DrawerCtx = {
   tick: number;
   /** 실패 알림. 로그인 풀림이면 로그인 화면으로 */
   fail: (err: unknown) => void;
+  /** 되돌리기가 끝나면 오른다 — 목록을 무조건 다시 불러온다 */
+  rev: number;
+  clip: Clip | null;
+  setClip: (c: Clip | null) => void;
+  /** 되돌릴 동작을 쌓는다. 돌려준 번호로 알림의 '되돌리기'가 같은 동작을 부른다 */
+  pushUndo: (run: () => Promise<void>) => number;
+  /** 번호가 있으면 그것을, 없으면 마지막 것을 되돌린다 (Ctrl+Z). 없으면 조용히 */
+  undo: (id?: number) => Promise<void>;
 };
 
 const Ctx = createContext<DrawerCtx | null>(null);
@@ -79,6 +93,10 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
   const [folders, setFoldersState] = useState<Folder[]>([]);
   const [foldersLoaded, setFoldersLoaded] = useState(false);
   const [tick, setTick] = useState(0);
+  const [rev, setRev] = useState(0);
+  const [clip, setClip] = useState<Clip | null>(null);
+  const undoStack = useRef<{ id: number; run: () => Promise<void> }[]>([]);
+  const undoSeq = useRef(0);
   const here = `${pathname}${sp.size ? `?${sp.toString()}` : ""}`;
   const hereRef = useRef(here);
   hereRef.current = here;
@@ -126,15 +144,40 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
     };
   }, [ready]);
 
+  const pushUndo = useCallback((run: () => Promise<void>) => {
+    const id = ++undoSeq.current;
+    undoStack.current.push({ id, run });
+    if (undoStack.current.length > UNDO_MAX) undoStack.current.shift();
+    return id;
+  }, []);
+
+  const undo = useCallback(
+    async (id?: number) => {
+      const stack = undoStack.current;
+      const i = id === undefined ? stack.length - 1 : stack.findIndex((u) => u.id === id);
+      if (i < 0) return;
+      const [u] = stack.splice(i, 1);
+      try {
+        await u!.run();
+      } catch (e) {
+        fail(e);
+      } finally {
+        setRev((r) => r + 1);
+        void refreshFolders();
+      }
+    },
+    [fail, refreshFolders],
+  );
+
   const demo = src?.demo ?? false;
   const href = useCallback((path: string) => withDemo(path, demo), [demo]);
 
   const value = useMemo<DrawerCtx | null>(
     () =>
       ready && data
-        ? { data, demo, href, folders, foldersLoaded, refreshFolders, setFolders: setFoldersState, tick, fail }
+        ? { data, demo, href, folders, foldersLoaded, refreshFolders, setFolders: setFoldersState, tick, fail, rev, clip, setClip, pushUndo, undo }
         : null,
-    [ready, data, demo, href, folders, foldersLoaded, refreshFolders, tick, fail],
+    [ready, data, demo, href, folders, foldersLoaded, refreshFolders, tick, fail, rev, clip, pushUndo, undo],
   );
 
   if (!value) return null;

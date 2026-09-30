@@ -3,17 +3,25 @@ import type { Folder } from "../_data/types";
 import {
   canDrop,
   collapseTrail,
+  domainOf,
   folderTrail,
   formatDay,
   formatToday,
+  formatWhen,
   gridMove,
+  groupTrash,
   httpUrl,
   isInside,
   isUnread,
   moveTargets,
+  moveTargetsAll,
+  restoreNote,
   safeNext,
+  selectRange,
   sortEntries,
   textAt,
+  toggleId,
+  trashLabel,
   withTextAt,
 } from "./drawer";
 
@@ -31,6 +39,25 @@ describe("정렬", () => {
       { kind: "report" as const, name: "alpha" },
     ];
     expect(sortEntries(list).map((x) => x.name)).toEqual(["사과", "apple", "가나", "alpha", "Zeta"]);
+  });
+
+  it("날짜순: 폴더 먼저, 폴더끼리는 이름순, 보고서끼리 최근 고친 것 먼저", () => {
+    const list = [
+      { kind: "report" as const, name: "옛 보고서", updated_at: "2026-09-01T00:00:00Z" },
+      { kind: "report" as const, name: "새 보고서", updated_at: "2026-09-30T00:00:00Z" },
+      { kind: "folder" as const, name: "하 폴더", updated_at: "2026-09-20T00:00:00Z" },
+      { kind: "folder" as const, name: "나 폴더", updated_at: "2026-09-10T00:00:00Z" },
+      { kind: "folder" as const, name: "가 폴더", updated_at: "2026-09-10T00:00:00Z" },
+    ];
+    expect(sortEntries(list, "date").map((x) => x.name)).toEqual(["가 폴더", "나 폴더", "하 폴더", "새 보고서", "옛 보고서"]);
+    // 보고서끼리는 이름과 반대여도 날짜
+    const reps = [
+      { kind: "report" as const, name: "가 옛것", updated_at: "2026-09-01T00:00:00Z" },
+      { kind: "report" as const, name: "하 새것", updated_at: "2026-09-30T00:00:00Z" },
+    ];
+    expect(sortEntries(reps, "date").map((x) => x.name)).toEqual(["하 새것", "가 옛것"]);
+    expect(sortEntries(reps, "name").map((x) => x.name)).toEqual(["가 옛것", "하 새것"]);
+    expect(sortEntries(list, "name").map((x) => x.name)).toEqual(["가 폴더", "나 폴더", "하 폴더", "새 보고서", "옛 보고서"]);
   });
 
   it("원본은 그대로", () => {
@@ -101,6 +128,14 @@ describe("옮기기", () => {
     expect(moveTargets(folders, report).map((f) => f?.id ?? null)).toEqual([null, "a", "c", "d"]);
   });
 
+  it("여러 개 옮길 곳: 모두에게 뜻이 있는 곳만", () => {
+    const a = { id: "a", kind: "folder" as const, parent_id: null };
+    const r = { id: "r", kind: "report" as const, parent_id: null };
+    expect(moveTargetsAll(folders, [a, r]).map((f) => f?.id ?? null)).toEqual(["d"]);
+    expect(moveTargetsAll(folders, [r]).map((f) => f?.id ?? null)).toEqual(["a", "b", "c", "d"]);
+    expect(moveTargetsAll(folders, [])).toEqual([]);
+  });
+
   it("놓기: 자기 위·지금 폴더 위·자기 안은 무동작", () => {
     const b = { id: "b", kind: "folder" as const, parent_id: "a" };
     expect(canDrop(folders, b, "b")).toBe(false);
@@ -114,6 +149,54 @@ describe("옮기기", () => {
   });
 });
 
+describe("여러 개 선택", () => {
+  const ids = ["a", "b", "c", "d", "e"];
+  it("Shift: 기준부터 누른 것까지 (앞뒤 어느 쪽이든)", () => {
+    expect(selectRange(ids, "b", "d")).toEqual(["b", "c", "d"]);
+    expect(selectRange(ids, "d", "b")).toEqual(["b", "c", "d"]);
+    expect(selectRange(ids, "c", "c")).toEqual(["c"]);
+    expect(selectRange(ids, null, "c")).toEqual(["c"]);
+    expect(selectRange(ids, "없음", "c")).toEqual(["c"]);
+    expect(selectRange(ids, "a", "없음")).toEqual([]);
+  });
+  it("Ctrl: 넣거나 빼기", () => {
+    expect(toggleId(["a"], "b")).toEqual(["a", "b"]);
+    expect(toggleId(["a", "b"], "a")).toEqual(["b"]);
+  });
+});
+
+describe("휴지통", () => {
+  it("묶음마다 한 줄, 첫 맨 위 항목 이름 + 외 (나머지 맨 위 항목 수)개. 하나면 이름만", () => {
+    const rows = [
+      { batch: "2", deleted_at: "2026-09-30T10:00:00Z", name: "둘", count: 2 },
+      { batch: "2", deleted_at: "2026-09-30T10:00:00Z", name: "하나", count: 2 },
+      { batch: "1", deleted_at: "2026-09-30T09:00:00Z", name: "폴더", count: 4 },
+      { batch: "0", deleted_at: "2026-09-29T09:00:00Z", name: "혼자", count: 1 },
+    ];
+    const g = groupTrash(rows);
+    expect(g.map((x) => [x.batch, trashLabel(x.first.name, x.tops)])).toEqual([
+      ["2", "둘 외 1개"],
+      ["1", "폴더"], // 자손 3개는 세지 않는다
+      ["0", "혼자"],
+    ]);
+  });
+});
+
+describe("복원 알림", () => {
+  const r = (id: string, name: string, to_root = false, renamed = false) => ({ id, name, to_root, renamed });
+  it("하나: 맨 위로 · 이름 바꿈 · 둘 다 · 그대로", () => {
+    expect(restoreNote([r("a", "가", true), r("b", "안")], ["a"])).toBe("맨 위로 복원했습니다");
+    expect(restoreNote([r("a", "가 (2)", false, true)], ["a"])).toBe("이름이 겹쳐 ‘가 (2)’ 이름으로 복원했습니다");
+    expect(restoreNote([r("a", "가 (2)", true, true)], ["a"])).toBe("이름이 겹쳐 ‘가 (2)’ 이름으로 맨 위에 복원했습니다");
+    expect(restoreNote([r("a", "가")], ["a"])).toBeNull();
+  });
+  it("여럿: 맨 위 항목만 본다", () => {
+    expect(restoreNote([r("a", "가"), r("b", "나", true)], ["a", "b"])).toBe("일부는 맨 위로 복원했습니다");
+    expect(restoreNote([r("a", "가", false, true), r("b", "나", true)], ["a", "b"])).toBe("일부는 맨 위로, 일부는 이름을 바꿔 복원했습니다");
+    expect(restoreNote([r("a", "가"), r("c", "안", true, true)], ["a", "b"])).toBeNull();
+  });
+});
+
 describe("그 밖", () => {
   it("날짜", () => {
     const now = new Date(2026, 8, 30, 12);
@@ -121,6 +204,9 @@ describe("그 밖", () => {
     expect(formatDay(new Date(2025, 0, 2, 9).toISOString(), now)).toBe("2025년 1월 2일");
     expect(formatDay(null, now)).toBe("");
     expect(formatToday(now)).toBe("9월 30일 수요일");
+    expect(formatWhen(new Date(2026, 8, 27, 9, 5).toISOString(), now)).toBe("9월 27일 09:05");
+    expect(formatWhen(new Date(2025, 0, 2, 23, 59).toISOString(), now)).toBe("2025년 1월 2일 23:59");
+    expect(formatWhen(null, now)).toBe("");
   });
 
   it("돌아갈 곳은 같은 사이트 경로만", () => {
@@ -136,6 +222,9 @@ describe("그 밖", () => {
     expect(httpUrl("javascript:alert(1)")).toBeNull();
     expect(httpUrl("data:text/html,x")).toBeNull();
     expect(httpUrl("not a url")).toBeNull();
+    expect(domainOf("https://www.xda-developers.com/a?b")).toBe("xda-developers.com");
+    expect(domainOf("http://pglite.dev/docs/")).toBe("pglite.dev");
+    expect(domainOf("없음")).toBeNull();
   });
 
   it("블록 안 글자 읽기·바꾸기 (원본은 그대로)", () => {

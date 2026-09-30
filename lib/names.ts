@@ -69,3 +69,20 @@ export function uniqueName(base: string, existingNames: Iterable<string>): strin
     n++;
   }
 }
+
+/**
+ * 복사본 이름 (윈도우와 같음). DB ez_copy_name 과 같은 규칙.
+ * 안 겹치면 그대로, 겹치면 `이름 - 복사본`, 그것도 겹치면 `이름 - 복사본 (2)`, `(3)` …
+ * 100자를 넘으면 원래 이름 앞부분을 잘라 접미사 자리를 만든다.
+ */
+export function copyName(base: string, existingNames: Iterable<string>): string {
+  const name = normalizeName(base);
+  const taken = new Set<string>();
+  for (const e of existingNames) taken.add(nameKey(e));
+  if (!taken.has(nameKey(name))) return name;
+  for (let n = 1; ; n++) {
+    const suffix = n === 1 ? " - 복사본" : ` - 복사본 (${n})`;
+    const candidate = takeChars(name, NAME_MAX - charCount(suffix)) + suffix;
+    if (!taken.has(nameKey(candidate))) return candidate;
+  }
+}

@@ -3,10 +3,11 @@
 // 보고서 블록 그리기 (설계서 3장). 글자는 전부 텍스트 노드로만 — HTML 로 해석하지 않는다.
 // 모르는 종류·깨진 블록은 자리표시 한 줄로 두고 나머지는 그린다. 링크는 http/https 만.
 // 글자 고치기 모드에서는 lib 의 isEditablePath 가 참인 칸만 contentEditable(plaintext-only).
+// 인용 번호는 첫 출처 블록의 그 항목으로 가는 링크 — 올리거나 초점 두면 출처 제목·도메인 미리보기(글자만).
 
-import { Component, useLayoutEffect, useRef, type ElementType, type KeyboardEvent, type ReactNode } from "react";
-import { blockSchema, isEditablePath, type Block } from "../../lib/blocks";
-import { httpUrl } from "../_logic/drawer";
+import { Component, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type ReactNode } from "react";
+import { blockSchema, isEditablePath, type Block, type SourcesBlock } from "../../lib/blocks";
+import { domainOf, httpUrl } from "../_logic/drawer";
 
 export const UNKNOWN_BLOCK = "이 블록은 아직 볼 수 없습니다";
 
@@ -118,7 +119,71 @@ export function tocOf(raw: unknown[]): [number, string][] {
   return out;
 }
 
-function BlockView({ b, i, ctx }: { b: Block; i: number; ctx?: EditCtx }) {
+type Source = SourcesBlock["items"][number];
+
+/** 인용 번호. 가리킬 출처가 없으면(출처 블록 없음·범위 밖) 링크 없이 글자만 */
+function Cite({ n, src }: { n: number; src: Source | undefined }) {
+  const [open, setOpen] = useState(false);
+  const aRef = useRef<HTMLAnchorElement>(null);
+  const popRef = useRef<HTMLSpanElement>(null);
+
+  // 화면 밖으로 넘치지 않게 번호 아래 가운데에 둔다
+  useLayoutEffect(() => {
+    const a = aRef.current;
+    const p = popRef.current;
+    if (!open || !a || !p) return;
+    const r = a.getBoundingClientRect();
+    const w = p.offsetWidth;
+    const h = p.offsetHeight;
+    p.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8))}px`;
+    p.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6}px`;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    addEventListener("scroll", close, true);
+    addEventListener("resize", close);
+    return () => {
+      removeEventListener("scroll", close, true);
+      removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  if (!src) return <sup className="r">{n}</sup>;
+  const domain = domainOf(src.url);
+  return (
+    <sup className="r">
+      <a
+        ref={aRef}
+        href={`#src-${n}`}
+        aria-label={`출처 ${n}`}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        onClick={(e) => {
+          e.preventDefault();
+          setOpen(false);
+          const li = document.getElementById(`src-${n}`);
+          li?.scrollIntoView({ behavior: "smooth", block: "center" });
+          li?.querySelector<HTMLElement>("a")?.focus({ preventScroll: true });
+        }}
+      >
+        {n}
+      </a>
+      {open && (
+        <span className="cite-pop" role="tooltip" ref={popRef}>
+          <span className="t">{src.title}</span>
+          {domain && <span className="d">{domain}</span>}
+        </span>
+      )}
+    </sup>
+  );
+}
+
+function BlockView({ b, i, ctx, sources, isFirstSources }: { b: Block; i: number; ctx?: EditCtx; sources?: Source[]; isFirstSources: boolean }) {
   const id = `b${i}`;
   const F = (props: { as: ElementType; className?: string; path: Path; value: string }) => <Field {...props} ctx={ctx} />;
   switch (b.type) {
@@ -183,9 +248,7 @@ function BlockView({ b, i, ctx }: { b: Block; i: number; ctx?: EditCtx }) {
               <p>
                 {F({ as: "span", path: [i, "items", j, "text"], value: c.text })}
                 {c.refs.map((k, n) => (
-                  <sup className="r" key={n}>
-                    {k}
-                  </sup>
+                  <Cite key={n} n={k} src={sources?.[k - 1]} />
                 ))}
               </p>
             </div>
@@ -200,7 +263,7 @@ function BlockView({ b, i, ctx }: { b: Block; i: number; ctx?: EditCtx }) {
             {b.items.map((s, j) => {
               const url = httpUrl(s.url);
               return (
-                <li key={j}>
+                <li key={j} id={isFirstSources ? `src-${j + 1}` : undefined}>
                   <span>{j + 1}</span>
                   {ctx?.editing || !url ? (
                     F({ as: "span", className: "t", path: [i, "items", j, "title"], value: s.title })
@@ -219,16 +282,21 @@ function BlockView({ b, i, ctx }: { b: Block; i: number; ctx?: EditCtx }) {
 }
 
 export function Blocks({ blocks, ctx }: { blocks: unknown[]; ctx?: EditCtx }) {
+  const parsed = blocks.map(parseBlock);
+  // 인용 번호는 첫 출처 블록을 가리킨다 (lib/blocks 검사와 같다)
+  const firstSources = parsed.findIndex((b) => b?.type === "sources");
+  const sources = firstSources < 0 ? undefined : (parsed[firstSources] as SourcesBlock).items;
   return (
     <>
-      {blocks.map((raw, i) => {
-        const b = parseBlock(raw);
-        return (
-          <Boundary key={i}>
-            {b ? <BlockView b={b} i={i} ctx={ctx} /> : <div className="blk b-unknown" id={`b${i}`}>{UNKNOWN_BLOCK}</div>}
-          </Boundary>
-        );
-      })}
+      {parsed.map((b, i) => (
+        <Boundary key={i}>
+          {b ? (
+            <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} />
+          ) : (
+            <div className="blk b-unknown" id={`b${i}`}>{UNKNOWN_BLOCK}</div>
+          )}
+        </Boundary>
+      ))}
     </>
   );
 }

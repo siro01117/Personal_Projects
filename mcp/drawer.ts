@@ -1,7 +1,9 @@
 // MCP 도구 6개의 로직 (설계서 4장). Store 를 받아 돌고, 입력 검사는 lib 을 가져다 쓴다.
 // 결과는 한 줄 한국어 요약 + 구조화 데이터. 실패는 ok: false (MCP isError).
+// 보고서·폴더를 가리키는 결과에는 웹 링크(url)를 싣고, 요약 한 줄 끝에도 붙인다. target·id 는 웹 링크도 받는다.
 
 import { reportKindSchema, SCHEMA_VERSION, validateBlocks, type BlockError } from "../lib/blocks";
+import { DEFAULT_WEB_URL, drawerPath, looksLikeUrl, parseDrawerLink, TRASH_PATH, webBase } from "../lib/links";
 import { normalizeName, sameName, uniqueName, validateName } from "../lib/names";
 import { formatPath, parsePath, PathError } from "../lib/paths";
 import { toKorean } from "./errors";
@@ -9,7 +11,13 @@ import type { FolderNode, Item, Kind, Store } from "./store";
 
 export type ToolResult = { ok: boolean; summary: string; data: Record<string, unknown> };
 
-export type DrawerOptions = { store: Store; agent: string; now?: () => Date };
+export type DrawerOptions = {
+  store: Store;
+  agent: string;
+  now?: () => Date;
+  /** 결과에 싣는 웹 링크 앞부분 (.env.local EZ_WEB_URL) */
+  webUrl?: string;
+};
 
 export const SEARCH_LIMIT = 20;
 
@@ -127,8 +135,10 @@ function isUnread(i: Item): boolean {
   return !i.read_at || Date.parse(i.agent_updated_at) > Date.parse(i.read_at);
 }
 
-function entry(i: Item, path: string): Record<string, unknown> {
-  const e: Record<string, unknown> = { id: i.id, kind: i.kind, name: i.name, path };
+type Linker = (kind: Kind, id: string | null) => string;
+
+function entry(i: Item, path: string, link: Linker): Record<string, unknown> {
+  const e: Record<string, unknown> = { id: i.id, kind: i.kind, name: i.name, path, url: link(i.kind, i.id) };
   if (i.kind === "report") {
     e.report_kind = i.report_kind;
     if (isUnread(i)) e.unread = true;
@@ -143,9 +153,9 @@ function sortItems(items: Item[]): Item[] {
   );
 }
 
-function listing(tree: Tree, parentId: string | null, items: Item[]) {
+function listing(tree: Tree, parentId: string | null, items: Item[], link: Linker) {
   const base = tree.segments(parentId);
-  return sortItems(items).map((i) => entry(i, formatPath([...base, i.name])));
+  return sortItems(items).map((i) => entry(i, formatPath([...base, i.name]), link));
 }
 
 function counts(items: Item[]): string {
@@ -154,21 +164,32 @@ function counts(items: Item[]): string {
   return items.length === 0 ? "빈 폴더" : `폴더 ${f} · 보고서 ${r}`;
 }
 
-async function notFound(store: Store, tree: Tree, input: string, r: Extract<Resolved, { found: false }>, lead?: string): Promise<ToolResult> {
+async function notFound(
+  store: Store,
+  tree: Tree,
+  link: Linker,
+  input: string,
+  r: Extract<Resolved, { found: false }>,
+  lead?: string,
+): Promise<ToolResult> {
+  const nearest = { path: r.nearestPath, url: link("folder", r.nearestId) };
   if (r.reportPath) {
-    return fail(`경로 중간의 ${r.reportPath} 는 보고서입니다 — 보고서 안에는 들어갈 수 없습니다`, "NOT_FOUND", {
-      nearest: { path: r.nearestPath },
-    });
+    return fail(`경로 중간의 ${r.reportPath} 는 보고서입니다 — 보고서 안에는 들어갈 수 없습니다`, "NOT_FOUND", { nearest });
   }
   const items = await store.children(r.nearestId);
   return fail(`${lead ?? "없는 경로입니다"}: ${input} — 가장 가까운 폴더는 ${r.nearestPath}`, "NOT_FOUND", {
-    nearest: { path: r.nearestPath, items: listing(tree, r.nearestId, items) },
+    nearest: { ...nearest, items: listing(tree, r.nearestId, items, link) },
   });
 }
 
 // ---------------------------------------------------------------------------
 
-export function createDrawer({ store, agent, now = () => new Date() }: DrawerOptions) {
+export function createDrawer({ store, agent, now = () => new Date(), webUrl = DEFAULT_WEB_URL }: DrawerOptions) {
+  const base = webBase(webUrl);
+  const link: Linker = (kind, id) => base + drawerPath(kind, id);
+  /** 요약 한 줄 끝에 링크 */
+  const withUrl = (summary: string, url: string) => `${summary} — ${url}`;
+
   async function guard(fn: () => Promise<ToolResult>): Promise<ToolResult> {
     try {
       return await fn();
@@ -180,7 +201,13 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
   /** target: uuid 면 id, 아니면 경로 */
   async function findTarget(tree: Tree, target: string): Promise<{ node: Node & { id: string }; path: string } | ToolResult> {
     if (typeof target !== "string" || target.trim() === "") return fail("target 이 비어 있습니다 (id 또는 /경로)", "BAD_INPUT");
-    const t = target.trim();
+    let t = target.trim();
+    if (looksLikeUrl(t)) {
+      const l = parseDrawerLink(t);
+      if (!l) return fail(`서랍 링크가 아닙니다: ${t} — /drawer/r/… 또는 /drawer/f/… 링크, id, 경로 중 하나를 주세요`, "BAD_INPUT");
+      if (l.kind === "root") return fail("맨 위(/)는 옮기거나 이름을 바꾸거나 지울 수 없습니다", "BAD_INPUT");
+      t = l.id;
+    }
     if (UUID.test(t)) {
       const item = await store.get(t);
       if (!item) return fail(`항목이 없습니다: ${t}`, "NOT_FOUND");
@@ -189,7 +216,7 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
     const segs = parsePath(t);
     if (segs.length === 0) return fail("맨 위(/)는 옮기거나 이름을 바꾸거나 지울 수 없습니다", "BAD_INPUT");
     const r = await resolve(store, tree, segs);
-    if (!r.found) return notFound(store, tree, t, r);
+    if (!r.found) return notFound(store, tree, link, t, r);
     return { node: r.node as Node & { id: string }, path: r.path };
   }
 
@@ -200,23 +227,24 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         const tree = await Tree.load(store);
         const input = args.path?.trim() || "/";
         const r = await resolve(store, tree, parsePath(input));
-        if (!r.found) return notFound(store, tree, input, r);
+        if (!r.found) return notFound(store, tree, link, input, r);
         if (r.node.kind === "report") {
           return fail(`${r.path} 는 보고서입니다 — report_get 으로 읽으세요 (id ${r.node.id})`, "NOT_FOLDER", {
-            item: entry(r.item!, r.path),
+            item: entry(r.item!, r.path, link),
           });
         }
         const root = r.node.id;
         const query = args.query?.trim();
+        const url = link("folder", root);
 
         if (!query) {
           const items = await store.children(root);
-          return ok(`${r.path} — ${counts(items)}`, { path: r.path, items: listing(tree, root, items) });
+          return ok(withUrl(`${r.path} — ${counts(items)}`, url), { path: r.path, url, items: listing(tree, root, items, link) });
         }
 
         // 찾기: DB ez_search (이름 맞음 먼저, 각각 최근 고친 순)
         const results = (await store.search(query, root, SEARCH_LIMIT)).map((h) => {
-          const e: Record<string, unknown> = { id: h.id, kind: h.kind, name: h.name, path: tree.itemPath(h) };
+          const e: Record<string, unknown> = { id: h.id, kind: h.kind, name: h.name, path: tree.itemPath(h), url: link(h.kind, h.id) };
           if (h.kind === "report") e.report_kind = h.report_kind;
           e.updated_at = h.updated_at;
           e.match = h.match;
@@ -225,14 +253,17 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         });
         const where = root === null ? "서랍 전체" : r.path;
         const more = results.length >= SEARCH_LIMIT ? ` (최대 ${SEARCH_LIMIT}개까지 보여 줌)` : "";
-        return ok(`${where}에서 "${query}" — ${results.length}개${more}`, { path: r.path, query, items: results });
+        return ok(`${where}에서 "${query}" — ${results.length}개${more}`, { path: r.path, url, query, items: results });
       }),
 
     // ---------------------------------------------------------------- mkdir
     drawer_mkdir: (args: { path: string }) =>
       guard(async () => {
         const segs = parsePath(args.path);
-        if (segs.length === 0) return ok("맨 위(/)는 이미 있습니다", { id: null, path: "/", created: false });
+        if (segs.length === 0) {
+          const url = link("folder", null);
+          return ok(withUrl("맨 위(/)는 이미 있습니다", url), { id: null, path: "/", url, created: false });
+        }
         const tree = await Tree.load(store);
         let cur: string | null = null;
         const actual: string[] = [];
@@ -287,9 +318,10 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
           return rollback(fromError(e));
         }
         const path = formatPath(actual);
+        const url = link("folder", lastId);
         return created.length > 0
-          ? ok(`폴더를 만들었습니다: ${path}`, { id: lastId, path, created: true, created_paths: created })
-          : ok(`이미 있습니다: ${path}`, { id: lastId, path, created: false });
+          ? ok(withUrl(`폴더를 만들었습니다: ${path}`, url), { id: lastId, path, url, created: true, created_paths: created })
+          : ok(withUrl(`이미 있습니다: ${path}`, url), { id: lastId, path, url, created: false });
       }),
 
     // ---------------------------------------------------------------- update
@@ -311,14 +343,15 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         if (del) {
           const batch = await store.remove(node.id);
           const inside = node.kind === "folder" ? " (안에 든 것까지)" : "";
-          return ok(`휴지통으로 보냈습니다: ${path}${inside}`, { id: node.id, path, deleted: true, batch });
+          const url = base + TRASH_PATH;
+          return ok(withUrl(`휴지통으로 보냈습니다: ${path}${inside}`, url), { id: node.id, path, url, deleted: true, batch });
         }
 
         let parentId = node.parent_id;
         if (hasMove) {
           const dest = args.move_to!.trim();
           const r = await resolve(store, tree, parsePath(dest));
-          if (!r.found) return notFound(store, tree, dest, r, "옮길 폴더가 없습니다");
+          if (!r.found) return notFound(store, tree, link, dest, r, "옮길 폴더가 없습니다");
           if (r.node.kind !== "folder") return fail(`${r.path} 는 보고서입니다 — 폴더로만 옮길 수 있습니다`, "NOT_FOLDER");
           parentId = r.node.id;
         }
@@ -346,7 +379,8 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         const patch: { parent_id?: string | null; name?: string } = {};
         if (parentId !== node.parent_id) patch.parent_id = parentId;
         if (name !== node.name) patch.name = name;
-        if (Object.keys(patch).length === 0) return ok(`바뀐 것이 없습니다: ${path}`, { id: node.id, path, changed: false });
+        const url = link(node.kind, node.id);
+        if (Object.keys(patch).length === 0) return ok(withUrl(`바뀐 것이 없습니다: ${path}`, url), { id: node.id, path, url, changed: false });
 
         const updated = await store.update(node.id, patch);
         if (!updated) return fail(`항목이 없습니다: ${path}`, "NOT_FOUND");
@@ -355,11 +389,12 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
           patch.parent_id !== undefined
             ? `옮겼습니다: ${path} → ${newPath}${autoRenamed ? ` (같은 이름이 있어 "${name}" 으로 바꿈)` : ""}`
             : `이름을 바꿨습니다: ${path} → ${newPath}`;
-        return ok(summary, {
+        return ok(withUrl(summary, url), {
           id: node.id,
           kind: node.kind,
           old_path: path,
           path: newPath,
+          url,
           changed: true,
           ...(autoRenamed ? { renamed_to: name } : {}),
         });
@@ -377,7 +412,7 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         const folderInput = typeof args.folder === "string" ? args.folder.trim() : "";
         const r = await resolve(store, tree, parsePath(folderInput));
         if (!r.found) {
-          const nf = await notFound(store, tree, folderInput, r, "폴더가 없습니다");
+          const nf = await notFound(store, tree, link, folderInput, r, "폴더가 없습니다");
           return r.reportPath ? nf : addNote(nf, " (먼저 drawer_mkdir 로 만드세요)");
         }
         if (r.node.kind !== "folder") return fail(`${r.path} 는 보고서입니다 — folder 에는 폴더 경로를 주세요`, "NOT_FOLDER");
@@ -408,9 +443,10 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
             });
             const path = tree.itemPath(item);
             const renamed = name !== title;
+            const url = link("report", item.id);
             return ok(
-              `보고서를 넣었습니다: ${path}${renamed ? ` (같은 제목이 있어 "${name}" 으로 바꿈)` : ""}`,
-              { id: item.id, path, title: name, renamed, version: item.version, blocks: v.blocks.length },
+              withUrl(`보고서를 넣었습니다: ${path}${renamed ? ` (같은 제목이 있어 "${name}" 으로 바꿈)` : ""}`, url),
+              { id: item.id, path, url, title: name, renamed, version: item.version, blocks: v.blocks.length },
             );
           } catch (e) {
             if ((e as { code?: string }).code !== "23505" || attempt >= 2) throw e;
@@ -421,8 +457,13 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
     // ---------------------------------------------------------------- get
     report_get: (args: { id: string; from?: number; to?: number }) =>
       guard(async () => {
-        const id = typeof args.id === "string" ? args.id.trim() : "";
-        if (!UUID.test(id)) return fail("id 는 보고서의 uuid 입니다 — drawer_list 로 찾으세요", "BAD_INPUT");
+        let id = typeof args.id === "string" ? args.id.trim() : "";
+        if (looksLikeUrl(id)) {
+          const l = parseDrawerLink(id);
+          if (l?.kind === "folder") return fail("폴더 링크입니다 — drawer_list 로 안을 보세요", "NOT_REPORT");
+          id = l?.kind === "report" ? l.id : "";
+        }
+        if (!UUID.test(id)) return fail("id 는 보고서의 uuid 또는 웹 링크(/drawer/r/…)입니다 — drawer_list 로 찾으세요", "BAD_INPUT");
         const rep = await store.getReport(id);
         if (!rep) {
           const other = await store.get(id);
@@ -434,6 +475,7 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         const path = tree.itemPath(rep);
         const blocks = Array.isArray(rep.blocks) ? rep.blocks : [];
         const n = blocks.length;
+        const url = link("report", rep.id);
 
         if (args.from === undefined && args.to === undefined) {
           const outline = blocks.map((b, i) => {
@@ -443,11 +485,12 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
           });
           const vb = blocks.find((b) => isObj(b) && b.type === "verdict") as Record<string, unknown> | undefined;
           const verdict = vb ? { v: vb.v, ...(vb.w !== undefined ? { w: vb.w } : {}) } : undefined;
-          return ok(`${rep.name} — 블록 ${n}개, version ${rep.version}. 내용은 from·to 로 범위를 주고 읽으세요`, {
+          return ok(withUrl(`${rep.name} — 블록 ${n}개, version ${rep.version}. 내용은 from·to 로 범위를 주고 읽으세요`, url), {
             id: rep.id,
             title: rep.name,
             kind: rep.report_kind,
             path,
+            url,
             version: rep.version,
             updated_at: rep.updated_at,
             outline,
@@ -462,8 +505,9 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
             total: n,
           });
         }
-        return ok(`${rep.name} — 블록 ${from}~${to} / 전체 ${n}개 (version ${rep.version})`, {
+        return ok(withUrl(`${rep.name} — 블록 ${from}~${to} / 전체 ${n}개 (version ${rep.version})`, url), {
           id: rep.id,
+          url,
           version: rep.version,
           from,
           to,
@@ -535,8 +579,10 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
           const cur = await store.get(id);
           return cur ? conflict(cur.version) : fail(`보고서가 없습니다: ${id}`, "NOT_FOUND");
         }
-        return ok(`고쳤습니다: ${rep.name} — version ${updated.version}, 블록 ${v.blocks.length}개`, {
+        const url = link("report", id);
+        return ok(withUrl(`고쳤습니다: ${rep.name} — version ${updated.version}, 블록 ${v.blocks.length}개`, url), {
           id,
+          url,
           version: updated.version,
           blocks: v.blocks.length,
         });

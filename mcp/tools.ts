@@ -63,9 +63,9 @@ export function registerTools(server: McpServer, drawer: Drawer): void {
     "drawer_update",
     {
       title: "옮기기·이름 바꾸기·지우기",
-      description: `폴더나 보고서를 옮기거나(move_to) 이름을 바꾸거나(rename) 휴지통으로 보낸다(delete: true, 폴더면 안의 것까지). delete 는 다른 것과 같이 못 쓴다. 옮길 곳에 같은 이름이 있으면 "이름 (2)" 로 옮기고 알려준다. rename 은 겹치면 거절한다. target 은 id(uuid) 또는 경로. ${PATH_NOTE}.`,
+      description: `폴더나 보고서를 옮기거나(move_to) 이름을 바꾸거나(rename) 휴지통으로 보낸다(delete: true, 폴더면 안의 것까지). delete 는 다른 것과 같이 못 쓴다. 옮길 곳에 같은 이름이 있으면 "이름 (2)" 로 옮기고 알려준다. rename 은 겹치면 거절한다. target 은 id(uuid) · 경로 · 웹 링크. ${PATH_NOTE}.`,
       inputSchema: {
-        target: z.string().describe("id 또는 경로"),
+        target: z.string().describe("id · 경로 · 웹 링크"),
         move_to: z.string().optional().describe("옮길 폴더 경로 (/ 는 맨 위)"),
         rename: z.string().optional().describe("새 이름"),
         delete: z.boolean().optional().describe("true 면 휴지통으로"),
@@ -99,7 +99,7 @@ ${BLOCKS_HELP}`,
       description:
         "보고서 읽기. 범위 없이 부르면 차례(outline)·판정·version 만 준다. 내용은 from·to(0부터, to 포함)로 필요한 블록만 읽는다.",
       inputSchema: {
-        id: z.string().describe("보고서 id (uuid)"),
+        id: z.string().describe("보고서 id (uuid) 또는 웹 링크"),
         from: z.number().int().optional().describe("첫 블록 번호 (0부터)"),
         to: z.number().int().optional().describe("끝 블록 번호 (포함)"),
       },

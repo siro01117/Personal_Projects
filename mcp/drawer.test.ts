@@ -132,7 +132,8 @@ describe("drawer_list", () => {
     const d = good(await drawer.drawer_list({ path: "/top" }));
     expect(d.items.map((i: Row) => i.name)).toEqual(["가나", "하나", "alpha", "Zeta", "가 보고서", "다 보고서"]);
     const folder = d.items[0];
-    expect(Object.keys(folder).sort()).toEqual(["id", "kind", "name", "path", "updated_at"]);
+    expect(Object.keys(folder).sort()).toEqual(["id", "kind", "name", "path", "updated_at", "url"]);
+    expect(folder.url).toBe(`http://localhost:3200/drawer/f/${folder.id}`);
     const rep = d.items[4];
     expect(rep).toMatchObject({ kind: "report", path: "/top/가 보고서", report_kind: "data", unread: true });
   });
@@ -581,6 +582,77 @@ describe("report_edit", () => {
   });
 });
 
+describe("웹 링크", () => {
+  const WEB = "https://ez.work";
+  const withWeb = () => {
+    const owner = randomUUID();
+    const store = new PgliteStore(db, owner);
+    return createDrawer({ store, agent: "Claude Code", webUrl: `${WEB}/` });
+  };
+
+  it("모든 결과(보고서·폴더)에 url, 요약 한 줄 끝에도 링크", async () => {
+    const drawer = withWeb();
+    const mk = await drawer.drawer_mkdir({ path: "/조사/깊은" });
+    expect(good(mk).url).toBe(`${WEB}/drawer/f/${mk.data.id}`);
+    expect(mk.summary.endsWith(` — ${WEB}/drawer/f/${mk.data.id}`)).toBe(true);
+    expect(good(await drawer.drawer_mkdir({ path: "/" })).url).toBe(`${WEB}/drawer`);
+
+    const rep = await newReport(drawer, "/조사", "링크 보고서");
+    const repUrl = `${WEB}/drawer/r/${rep.id}`;
+    expect((rep as Row).url).toBe(repUrl);
+
+    const top = await drawer.drawer_list({});
+    expect(good(top).url).toBe(`${WEB}/drawer`);
+    expect(top.summary).toContain(`${WEB}/drawer`);
+    const inside = good(await drawer.drawer_list({ path: "/조사" }));
+    expect(inside.items.map((i: Row) => i.url)).toEqual([`${WEB}/drawer/f/${mk.data.id}`, repUrl]);
+    const found = good(await drawer.drawer_list({ query: "링크" }));
+    expect(found.items[0].url).toBe(repUrl);
+
+    for (const r of [await drawer.report_get({ id: rep.id }), await drawer.report_get({ id: rep.id, from: 0, to: 0 })]) {
+      expect(good(r).url).toBe(repUrl);
+      expect(r.summary.endsWith(repUrl)).toBe(true);
+    }
+    const ed = await drawer.report_edit({ id: rep.id, base_version: 1, ops: [{ op: "remove", at: 2 }] });
+    expect(good(ed).url).toBe(repUrl);
+    const mv = await drawer.drawer_update({ target: rep.id, move_to: "/" });
+    expect(good(mv).url).toBe(repUrl);
+    expect(mv.summary.endsWith(repUrl)).toBe(true);
+    const del = await drawer.drawer_update({ target: rep.id, delete: true });
+    expect(good(del).url).toBe(`${WEB}/drawer/trash`);
+
+    const nf = bad(await drawer.drawer_list({ path: "/조사/없음" }), "NOT_FOUND");
+    expect(nf.nearest.url).toBe((await drawer.drawer_list({ path: "/조사" })).data.url);
+    expect(nf.nearest.url).toMatch(/^https:\/\/ez\.work\/drawer\/f\/[0-9a-f-]{36}$/);
+  });
+
+  it("EZ_WEB_URL 이 없으면 http://localhost:3200", async () => {
+    const { drawer } = setup();
+    const rep = await newReport(drawer, "/", "기본");
+    expect((rep as Row).url).toBe(`http://localhost:3200/drawer/r/${rep.id}`);
+  });
+
+  it("report_get · drawer_update 의 target 으로 웹 링크를 받는다 (호스트·?demo=1 무시)", async () => {
+    const drawer = withWeb();
+    good(await drawer.drawer_mkdir({ path: "/옮길 곳" }));
+    const f = good(await drawer.drawer_mkdir({ path: "/폴더" }));
+    const rep = await newReport(drawer, "/", "링크로");
+    const got = good(await drawer.report_get({ id: `http://localhost:3200/drawer/r/${rep.id}?demo=1` }));
+    expect(got.title).toBe("링크로");
+    bad(await drawer.report_get({ id: `${WEB}/drawer/f/${f.id}` }), "NOT_REPORT");
+    bad(await drawer.report_get({ id: `${WEB}/s/abc` }), "BAD_INPUT");
+
+    const mv = good(await drawer.drawer_update({ target: `${WEB}/drawer/r/${rep.id}`, move_to: "/옮길 곳" }));
+    expect(mv.path).toBe("/옮길 곳/링크로");
+    expect(good(await drawer.drawer_update({ target: `${WEB}/drawer/f/${f.id}/`, rename: "새 이름" })).path).toBe("/새 이름");
+    bad(await drawer.drawer_update({ target: `${WEB}/drawer`, rename: "x" }), "BAD_INPUT");
+    bad(await drawer.drawer_update({ target: "https://example.com/x", rename: "x" }), "BAD_INPUT");
+    bad(await drawer.drawer_update({ target: `${WEB}/drawer/r/${randomUUID()}`, delete: true }), "NOT_FOUND");
+    const nf = bad(await drawer.drawer_update({ target: "/없는 것", delete: true }), "NOT_FOUND");
+    expect(nf.nearest).toMatchObject({ path: "/", url: `${WEB}/drawer` });
+  });
+});
+
 describe("다른 사람 것", () => {
   it("다른 owner 의 항목은 안 보이고, 못 읽고, 못 건드린다", async () => {
     const A = setup();
@@ -636,7 +708,7 @@ describe("MCP 프로토콜", () => {
     const client = await connect();
     const okRes = (await client.callTool({ name: "drawer_mkdir", arguments: { path: "/a" } })) as any;
     expect(okRes.isError).toBeFalsy();
-    expect(okRes.content[0].text).toBe("폴더를 만들었습니다: /a");
+    expect(okRes.content[0].text).toMatch(/^폴더를 만들었습니다: \/a — http:\/\/localhost:3200\/drawer\/f\/[0-9a-f-]{36}$/);
     expect(JSON.parse(okRes.content[1].text)).toMatchObject({ path: "/a", created: true });
 
     const badRes = (await client.callTool({

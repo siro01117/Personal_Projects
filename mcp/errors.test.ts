@@ -54,5 +54,12 @@ describe("env", () => {
       "EZ_SUPABASE_URL=https://x\nEZ_SUPABASE_SERVICE_ROLE_KEY=k",
     );
     expect("env" in ok && ok.env.EZ_AGENT_NAME).toBe("Claude Code");
+    // EZ_WEB_URL 은 없어도 된다 — 기본값, 끝 슬래시는 뗀다
+    expect("env" in ok && ok.env.EZ_WEB_URL).toBe("http://localhost:3200");
+    const web = loadEnv(
+      { EZ_OWNER_ID: "00000000-0000-4000-8000-000000000000", EZ_AGENT_NAME: "a", EZ_WEB_URL: "https://ez.work/" },
+      "EZ_SUPABASE_URL=https://x\nEZ_SUPABASE_SERVICE_ROLE_KEY=k",
+    );
+    expect("env" in web && web.env.EZ_WEB_URL).toBe("https://ez.work");
   });
 });

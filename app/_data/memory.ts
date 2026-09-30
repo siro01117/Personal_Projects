@@ -1,14 +1,15 @@
 // 개발 확인용 메모리 저장소 (`?demo=1`, NODE_ENV=development 에서만 쓰인다).
 //
-// !! 진짜 규칙의 출처는 DB 다 (db/migrations/0001_ez_items.sql: 트리거·CHECK·유일 인덱스·ez_* 함수).
-// 여기 있는 순환·깊이·삭제 묶음·복원·버전 검사는 화면을 로그인 없이 확인하려고 흉내 낸 것일 뿐이다.
-// 이름 규칙·(2) 붙이기·고칠 수 있는 칸은 lib 을 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
+// !! 진짜 규칙의 출처는 DB 다 (db/migrations/0001_ez_items.sql: 트리거·CHECK·유일 인덱스·ez_* 함수,
+//    0002 ez_search, 0003 ez_copy·ez_delete_many·ez_unread_folders·ez_trash).
+// 여기 있는 순환·깊이·삭제 묶음·복원·버전·복사·찾기는 화면을 로그인 없이 확인하려고 흉내 낸 것일 뿐이다.
+// 이름 규칙·(2)·'- 복사본' 붙이기·고칠 수 있는 칸은 lib 을 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
 import { editRule } from "../../lib/blocks";
 import { DbError } from "../../lib/errors";
-import { charCount, sameName, uniqueName, validateName } from "../../lib/names";
+import { charCount, copyName, sameName, uniqueName, validateName } from "../../lib/names";
 import { isUnread } from "../_logic/drawer";
-import type { DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored, SharedDoc } from "./types";
+import type { Copied, DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored, SearchHit, SharedDoc, TrashRow } from "./types";
 
 const MAX_DEPTH = 8;
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
@@ -101,7 +102,35 @@ export class MemoryDrawer implements DrawerData {
 
   private entry(r: Row): Entry {
     const { id, parent_id, kind, name, agent_updated_at, read_at, updated_at } = r;
-    return { id, parent_id, kind, name, agent_updated_at, read_at, updated_at };
+    return { id, parent_id, kind, name, agent_updated_at, read_at, updated_at, shared: r.share_token !== null };
+  }
+
+  /** id 의 조상(자기 제외) 중에 ids 가 있는지 (ez_is_under) */
+  private isUnder(id: string, ids: ReadonlySet<string>): boolean {
+    let cur = this.rows.get(id)?.parent_id ?? null;
+    for (let guard = 0; cur !== null && guard < 64; guard++) {
+      if (ids.has(cur)) return true;
+      cur = this.rows.get(cur)?.parent_id ?? null;
+    }
+    return false;
+  }
+
+  /** 중복을 빼고, 다른 선택 항목의 자손은 뺀다 (ez_top_ids) */
+  private topIds(ids: readonly string[]): string[] {
+    const set = new Set(ids);
+    return [...set].filter((id) => !this.isUnder(id, set));
+  }
+
+  /** 자기 아래 살아 있는 것 전부, 얕은 것부터 (같은 깊이는 이름순) */
+  private descendants(id: string): Row[] {
+    const out: Row[] = [];
+    let level = [id];
+    for (let d = 0; level.length > 0 && d < 64; d++) {
+      const next = level.flatMap((p) => this.kids(p)).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      out.push(...next);
+      level = next.map((r) => r.id);
+    }
+    return out;
   }
 
   /** 이름 규칙(CHECK) + 같은 폴더 안 겹침(유일 인덱스) */
@@ -176,6 +205,70 @@ export class MemoryDrawer implements DrawerData {
     return [...this.rows.values()].filter((r) => r.deleted_at === null && r.kind === "report" && isUnread(r)).length;
   }
 
+  async unreadFolders(): Promise<string[]> {
+    await this.wait();
+    const out = new Set<string>();
+    for (const r of this.rows.values()) {
+      if (r.deleted_at !== null || r.kind !== "report" || !isUnread(r)) continue;
+      for (let cur = r.parent_id, guard = 0; cur !== null && guard < 64 && !out.has(cur); guard++) {
+        const f = this.live(cur);
+        if (!f) break;
+        out.add(cur);
+        cur = f.parent_id;
+      }
+    }
+    return [...out];
+  }
+
+  async search(query: string): Promise<SearchHit[]> {
+    await this.wait();
+    const q = query.trim().toLowerCase();
+    if (q === "") throw ez("EZ_EMPTY", "찾을 글자가 비어 있습니다");
+    // 보고서 안 사용자 글자만 (type·tag·url 값은 빼고) — ez_search 흉내
+    const texts = (v: unknown, key: string | null, out: string[]) => {
+      if (typeof v === "string") {
+        if (key === null || !["type", "tag", "url"].includes(key)) out.push(v);
+      } else if (Array.isArray(v)) v.forEach((x) => texts(x, key, out));
+      else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) texts(x, k, out);
+      return out;
+    };
+    const live = [...this.rows.values()].filter((r) => r.deleted_at === null);
+    const hit = (r: Row, match: "name" | "body", snippet: string | null): SearchHit => ({
+      id: r.id,
+      kind: r.kind,
+      name: r.name,
+      parent_id: r.parent_id,
+      match,
+      snippet,
+      updated_at: r.updated_at,
+    });
+    const recent = (a: SearchHit, b: SearchHit) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0);
+    const byName = live.filter((r) => r.name.toLowerCase().includes(q)).map((r) => hit(r, "name", null));
+    const byBody = live
+      .filter((r) => r.kind === "report" && !r.name.toLowerCase().includes(q))
+      .flatMap((r) => {
+        const t = texts(r.blocks, null, []).find((s) => s.toLowerCase().includes(q));
+        if (t === undefined) return [];
+        const at = t.toLowerCase().indexOf(q);
+        const st = Math.max(0, at - 40);
+        const en = Math.min(t.length, at + q.length + 40);
+        return [hit(r, "body", `${st > 0 ? "…" : ""}${t.slice(st, en).replace(/\s+/g, " ")}${en < t.length ? "…" : ""}`)];
+      });
+    return [...byName.sort(recent), ...byBody.sort(recent)].slice(0, 50);
+  }
+
+  async trash(): Promise<TrashRow[]> {
+    await this.wait();
+    const dead = [...this.rows.values()].filter((r) => r.deleted_at !== null && r.deleted_batch !== null);
+    const count = new Map<string, number>();
+    for (const r of dead) count.set(r.deleted_batch!, (count.get(r.deleted_batch!) ?? 0) + 1);
+    const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+    return dead
+      .filter((r) => !dead.some((p) => p.id === r.parent_id && p.deleted_batch === r.deleted_batch))
+      .map((r) => ({ batch: r.deleted_batch!, deleted_at: r.deleted_at!, id: r.id, kind: r.kind, name: r.name, count: count.get(r.deleted_batch!)! }))
+      .sort((a, b) => cmp(b.deleted_at, a.deleted_at) || cmp(a.batch, b.batch) || cmp(a.name, b.name));
+  }
+
   // ---------------------------------------------------------------- 쓰기
 
   async createFolder(parentId: string | null, name: string): Promise<Entry> {
@@ -245,6 +338,70 @@ export class MemoryDrawer implements DrawerData {
     };
     walk(r);
     return batch;
+  }
+
+  async removeMany(ids: string[]): Promise<string> {
+    await this.wait();
+    const tops = this.topIds(ids);
+    if (tops.length === 0 || tops.some((id) => !this.live(id))) throw ez("EZ_NOT_FOUND", "지울 항목이 없습니다");
+    const batch = randomId();
+    const at = this.now().toISOString();
+    for (const id of tops) {
+      for (const r of [this.rows.get(id)!, ...this.descendants(id)]) {
+        r.deleted_at = at;
+        r.deleted_batch = batch;
+      }
+    }
+    return batch;
+  }
+
+  async copy(ids: string[], to: string | null): Promise<Copied[]> {
+    await this.wait();
+    const tops = this.topIds(ids);
+    if (tops.length === 0) throw ez("EZ_EMPTY", "복사할 항목이 없습니다");
+    if (tops.some((id) => !this.live(id))) throw ez("EZ_NOT_FOUND", "복사할 항목이 없습니다");
+    if (to !== null && (tops.includes(to) || this.isUnder(to, new Set(tops)))) {
+      throw ez("EZ_CYCLE", "폴더를 자기 자신이나 자기 안의 폴더로 복사할 수 없습니다");
+    }
+    // 한 트랜잭션 흉내: 중간에 실패하면 통째로 되돌린다
+    const backup = new Map([...this.rows].map(([k, v]) => [k, clone(v)]));
+    const at = this.now().toISOString();
+    const put = (src: Row, parentId: string | null, name: string): string => {
+      const id = randomId();
+      this.checkPlace({ id, kind: src.kind }, parentId, true);
+      this.checkName(name, parentId, null);
+      this.rows.set(id, {
+        ...clone(src),
+        id,
+        parent_id: parentId,
+        name,
+        version: 1,
+        agent_updated_at: null,
+        read_at: at,
+        share_token: null,
+        deleted_at: null,
+        deleted_batch: null,
+        created_at: at,
+        updated_at: at,
+      });
+      return id;
+    };
+    try {
+      const out: Copied[] = [];
+      for (const srcId of tops) {
+        const src = this.rows.get(srcId)!;
+        const subtree = this.descendants(srcId);
+        const name = copyName(src.name, this.kids(to).map((k) => k.name));
+        const map = new Map([[srcId, put(src, to, name)]]);
+        for (const d of subtree) map.set(d.id, put(d, map.get(d.parent_id!)!, d.name));
+        out.push({ src: srcId, id: map.get(srcId)!, name });
+      }
+      return out;
+    } catch (e) {
+      this.rows.clear();
+      for (const [k, v] of backup) this.rows.set(k, v);
+      throw e;
+    }
   }
 
   async restore(batch: string): Promise<Restored[]> {

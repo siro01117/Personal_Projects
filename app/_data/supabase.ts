@@ -4,11 +4,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueName } from "../../lib/names";
 import { DbError } from "../../lib/errors";
-import type { Auth, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SharedDoc, Source } from "./types";
+import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow } from "./types";
 
 const TABLE = "ez_items";
 const PAGE = 1000;
-const ENTRY_COLS = "id, parent_id, kind, name, agent_updated_at, read_at, updated_at";
+/** shared 는 계산 칸 ez_is_shared (0003) — 공유 열쇠 값은 목록에 싣지 않는다 */
+const ENTRY_COLS = "id, parent_id, kind, name, agent_updated_at, read_at, updated_at, shared:ez_is_shared";
+/** 찾기 결과 수 (ez_search 상한) */
+const SEARCH_LIMIT = 50;
 const REPORT_COLS = `${ENTRY_COLS}, report_kind, blocks, version, agent, share_token`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -98,6 +101,20 @@ class SupabaseDrawer implements DrawerData {
     }
   }
 
+  async unreadFolders(): Promise<string[]> {
+    // setof uuid 는 값 배열로 온다
+    const rows = await run<(string | { ez_unread_folders: string })[]>(sb().rpc("ez_unread_folders"));
+    return rows.map((r) => (typeof r === "string" ? r : r.ez_unread_folders));
+  }
+
+  async search(query: string): Promise<SearchHit[]> {
+    return run<SearchHit[]>(sb().rpc("ez_search", { p_query: query, p_limit: SEARCH_LIMIT }));
+  }
+
+  async trash(): Promise<TrashRow[]> {
+    return run<TrashRow[]>(sb().rpc("ez_trash"));
+  }
+
   async createFolder(parentId: string | null, name: string): Promise<Entry> {
     return run<Entry>(this.items().insert({ kind: "folder", parent_id: parentId, name }).select(ENTRY_COLS).single());
   }
@@ -127,6 +144,14 @@ class SupabaseDrawer implements DrawerData {
 
   async remove(id: string): Promise<string> {
     return run<string>(sb().rpc("ez_delete", { p_id: id }));
+  }
+
+  async removeMany(ids: string[]): Promise<string> {
+    return run<string>(sb().rpc("ez_delete_many", { p_ids: ids }));
+  }
+
+  async copy(ids: string[], to: string | null): Promise<Copied[]> {
+    return run<Copied[]>(sb().rpc("ez_copy", { p_ids: ids, p_to: to }));
   }
 
   async restore(batch: string): Promise<Restored[]> {

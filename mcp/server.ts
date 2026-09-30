@@ -17,7 +17,7 @@ const { env } = loaded;
 
 const store = new SupabaseStore(env.EZ_SUPABASE_URL, env.EZ_SUPABASE_SERVICE_ROLE_KEY, env.EZ_OWNER_ID);
 const server = new McpServer({ name: "ez-drawer", version: "0.1.0" });
-registerTools(server, createDrawer({ store, agent: env.EZ_AGENT_NAME }));
+registerTools(server, createDrawer({ store, agent: env.EZ_AGENT_NAME, webUrl: env.EZ_WEB_URL }));
 
 try {
   await server.connect(new StdioServerTransport());

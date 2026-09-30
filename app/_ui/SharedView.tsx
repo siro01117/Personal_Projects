@@ -8,7 +8,7 @@ import { useSource } from "../_data/source";
 import type { SharedDoc } from "../_data/types";
 import { formatDay } from "../_logic/drawer";
 import { Blocks } from "./Blocks";
-import { Rail } from "./ReportView";
+import { Rail, RAIL_MIN } from "./ReportView";
 
 export function SharedView({ token }: { token: string }) {
   const src = useSource();
@@ -41,17 +41,19 @@ export function SharedView({ token }: { token: string }) {
       </div>
     );
   }
+  const blocks = Array.isArray(doc.blocks) ? doc.blocks : [];
+  const rail = blocks.length >= RAIL_MIN;
   return (
     <div className="app shared">
-      <div className="doc-body view">
+      <div className={rail ? "doc-body view" : "doc-body no-rail view"}>
         <article className="page">
           <div className="blk b-head">
             <h1>{doc.name}</h1>
             <div className="by">{formatDay(doc.updated_at)}</div>
           </div>
-          <Blocks blocks={Array.isArray(doc.blocks) ? doc.blocks : []} />
+          <Blocks blocks={blocks} />
         </article>
-        <Rail blocks={Array.isArray(doc.blocks) ? doc.blocks : []} />
+        {rail && <Rail blocks={blocks} />}
       </div>
     </div>
   );

@@ -9,11 +9,80 @@ export function isUnread(x: { agent_updated_at: string | null; read_at: string |
   return Date.parse(x.agent_updated_at) > Date.parse(x.read_at);
 }
 
-/** 폴더 먼저, 그다음 보고서. 각각 이름순 — 한국어 정렬이라 한글이 영문보다 앞 */
-export function sortEntries<T extends { kind: Kind; name: string }>(list: readonly T[]): T[] {
-  return [...list].sort((a, b) =>
-    a.kind === b.kind ? a.name.localeCompare(b.name, "ko") : a.kind === "folder" ? -1 : 1,
-  );
+export type SortMode = "name" | "date";
+
+/**
+ * 폴더 먼저, 그다음 보고서. 이름순은 한국어 정렬(한글이 영문보다 앞).
+ * 날짜순이어도 폴더끼리는 이름순, 보고서끼리만 최근 고친 것 먼저(같으면 이름순)
+ */
+export function sortEntries<T extends { kind: Kind; name: string; updated_at?: string }>(list: readonly T[], mode: SortMode = "name"): T[] {
+  const byName = (a: T, b: T) => a.name.localeCompare(b.name, "ko");
+  const byDate = (a: T, b: T) => Date.parse(b.updated_at ?? "") - Date.parse(a.updated_at ?? "") || byName(a, b);
+  return [...list].sort((a, b) => (a.kind !== b.kind ? (a.kind === "folder" ? -1 : 1) : mode === "date" && a.kind === "report" ? byDate(a, b) : byName(a, b)));
+}
+
+/** Shift 클릭: 기준(anchor)부터 누른 것까지, 목록 순서대로. 기준이 목록에 없으면 누른 것 하나 */
+export function selectRange(ids: readonly string[], anchor: string | null, target: string): string[] {
+  const a = anchor === null ? -1 : ids.indexOf(anchor);
+  const b = ids.indexOf(target);
+  if (b < 0) return [];
+  if (a < 0) return [target];
+  return ids.slice(Math.min(a, b), Math.max(a, b) + 1);
+}
+
+/** Ctrl/⌘ 클릭: 있으면 빼고 없으면 넣는다 */
+export function toggleId(sel: readonly string[], id: string): string[] {
+  return sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
+}
+
+/** tops = 묶음의 맨 위 항목 수 (자손은 세지 않는다) */
+export type TrashGroup<T> = { batch: string; deleted_at: string; first: T; tops: number };
+
+/** 휴지통 줄(묶음의 맨 위 항목마다 한 줄) → 묶음 하나에 한 줄. 순서는 들어온 대로(최근 지운 것 먼저) */
+export function groupTrash<T extends { batch: string; deleted_at: string }>(rows: readonly T[]): TrashGroup<T>[] {
+  const out = new Map<string, TrashGroup<T>>();
+  for (const r of rows) {
+    const g = out.get(r.batch);
+    if (g) g.tops++;
+    else out.set(r.batch, { batch: r.batch, deleted_at: r.deleted_at, first: r, tops: 1 });
+  }
+  return [...out.values()];
+}
+
+/** 묶음 이름: 첫 맨 위 항목 이름 + " 외 N개" (N = 나머지 맨 위 항목 수). 하나면 이름만 */
+export function trashLabel(name: string, tops: number): string {
+  return tops > 1 ? `${name} 외 ${tops - 1}개` : name;
+}
+
+/** 복원 결과 알림 (맨 위 항목 기준). 제자리·같은 이름이면 null */
+export function restoreNote(
+  rows: readonly { id: string; name: string; to_root: boolean; renamed: boolean }[],
+  topIds: readonly string[],
+): string | null {
+  const tops = rows.filter((r) => topIds.includes(r.id));
+  if (tops.length === 1) {
+    const t = tops[0]!;
+    if (t.to_root && t.renamed) return `이름이 겹쳐 ‘${t.name}’ 이름으로 맨 위에 복원했습니다`;
+    if (t.to_root) return "맨 위로 복원했습니다";
+    if (t.renamed) return `이름이 겹쳐 ‘${t.name}’ 이름으로 복원했습니다`;
+    return null;
+  }
+  const root = tops.some((t) => t.to_root);
+  const renamed = tops.some((t) => t.renamed);
+  if (root && renamed) return "일부는 맨 위로, 일부는 이름을 바꿔 복원했습니다";
+  if (root) return "일부는 맨 위로 복원했습니다";
+  if (renamed) return "이름이 겹친 것은 이름을 바꿔 복원했습니다";
+  return null;
+}
+
+/** 주소의 도메인 (www. 는 뗀다). 주소가 아니면 null */
+export function domainOf(url: string): string | null {
+  try {
+    const h = new URL(url).hostname;
+    return h ? h.replace(/^www\./, "") : null;
+  } catch {
+    return null;
+  }
 }
 
 /** 맨 위 → id 까지의 폴더 줄. 없는 id 면 null */
@@ -92,6 +161,15 @@ export function moveTargets(
   return item.parent_id === null ? list : [null, ...list];
 }
 
+/** 여러 개를 옮길 곳: 모두에게 뜻이 있는 곳만 (moveTargets 규칙 + canDrop) */
+export function moveTargetsAll(
+  folders: readonly Folder[],
+  items: readonly { id: string; kind: Kind; parent_id: string | null }[],
+): (Folder | null)[] {
+  if (items.length === 0) return [];
+  return moveTargets(folders, items[0]!).filter((f) => items.every((it) => canDrop(folders, it, f === null ? null : f.id)));
+}
+
 /** 끌어 놓기가 뜻이 있는지: 자기 자신 위·지금 있는 폴더 위·자기 안은 무동작 */
 export function canDrop(
   folders: readonly Folder[],
@@ -112,6 +190,14 @@ export function formatDay(iso: string | null, now: Date = new Date()): string {
   if (Number.isNaN(d.getTime())) return "";
   const md = `${d.getMonth() + 1}월 ${d.getDate()}일`;
   return d.getFullYear() === now.getFullYear() ? md : `${d.getFullYear()}년 ${md}`;
+}
+
+/** 9월 30일 14:05 (올해가 아니면 2025년 9월 30일 14:05) */
+export function formatWhen(iso: string | null, now: Date = new Date()): string {
+  const day = formatDay(iso, now);
+  if (!day) return "";
+  const d = new Date(iso!);
+  return `${day} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 /** 홈 머리: 9월 30일 수요일 */

@@ -1,4 +1,4 @@
-// 확인 모드 데이터 — 폴더 2개(하나는 빈 폴더), 보고서 3개(하나는 블록 종류 전부), 안 읽음 섞음.
+// 확인 모드 데이터 — 폴더 3개(하나는 빈 폴더, 하나는 안쪽), 보고서 4개(하나는 블록 종류 전부), 안 읽음 섞음.
 // 개발 모드에서만 불린다 (source.ts 가 NODE_ENV 로 막는다).
 
 import { sampleBlocks } from "../../lib/fixtures";
@@ -23,6 +23,19 @@ function seed(now: Date): Seed[] {
       agent: "Claude Code",
       agent_updated_at: ago(30),
       read_at: null,
+    },
+    // 깊은 폴더 속 안 읽은 보고서 — 위 폴더들에도 점이 번진다. 블록 8개 이상이라 차례 레일이 보인다
+    { id: "d0000000-0000-4000-8000-000000000003", kind: "folder", name: "자료", parent_id: "d0000000-0000-4000-8000-000000000001" },
+    {
+      id: "d0000000-0000-4000-8000-000000000014",
+      kind: "report",
+      name: "PGlite 자세히",
+      parent_id: "d0000000-0000-4000-8000-000000000003",
+      report_kind: "data",
+      agent: "Claude Code",
+      agent_updated_at: ago(5),
+      read_at: null,
+      blocks: [...sampleBlocks(), { type: "text", h: "덧붙임", body: "차례 레일은 블록이 8개 이상일 때만 보인다." }],
     },
     {
       id: "d0000000-0000-4000-8000-000000000012",

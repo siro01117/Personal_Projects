@@ -81,6 +81,63 @@ const PATHS = {
   move: <path d="M5 12h14M13 6l6 6-6 6" />,
   open: <path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />,
   right: <path d="M9 6l6 6-6 6" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </>
+  ),
+  dup: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1M15 12v6M12 15h6" />
+    </>
+  ),
+  cut: (
+    <>
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12" />
+    </>
+  ),
+  paste: (
+    <>
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    </>
+  ),
+  check: <path d="M20 6 9 17l-5-5" />,
+  select: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="m8 12 3 3 5-6" />
+    </>
+  ),
+  "sort-name": (
+    <>
+      <path d="m3 16 4 4 4-4M7 20V4" />
+      <path d="M15 4h5l-5 6h5M15 20v-3.5a2.5 2.5 0 0 1 5 0V20M15 18h5" />
+    </>
+  ),
+  "sort-date": (
+    <>
+      <path d="m3 16 4 4 4-4M7 20V4" />
+      <circle cx="17" cy="9" r="4.5" />
+      <path d="M17 7v2l1.3 1.3" />
+    </>
+  ),
+  restore: (
+    <>
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+    </>
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1" />

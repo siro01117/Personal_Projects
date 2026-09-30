@@ -105,6 +105,14 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .ex .ico{width:60px;height:60px;stroke-width:1.1;color:var(--text-1)}
 .ex.folder .ico{fill:var(--surface-3)}
 .ex .dot{position:absolute;top:16px;left:calc(50% + 22px);width:10px;height:10px;border-radius:50%;background:var(--point);outline:2px solid var(--bg)}
+.ex.cut{opacity:.45}
+.ex .ico-wrap{position:relative;display:grid}
+/* 공개 중: 아이콘 모서리 작은 사슬 (모노톤) */
+.ex .pub{position:absolute;right:-6px;bottom:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--bg);color:var(--text-2);box-shadow:0 0 0 1px var(--border)}
+.ex .pub svg{width:13px;height:13px;stroke-width:2}
+.ex .at{font-size:12px;line-height:1.3;color:var(--text-3);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.find{flex:1;min-width:0;height:36px;border:0;border-radius:var(--r-m);background:var(--surface-2);padding:0 12px;font:inherit;color:var(--text-1);outline:none}
+.find:focus-visible{outline:2px solid var(--point-ink);outline-offset:-2px}
 .ex .nm{font-size:13px;line-height:1.4;max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}
 .ex .rn{width:100%;font:inherit;font-size:13px;text-align:center;border:1.5px solid var(--point-ink);border-radius:6px;padding:2px 4px;background:var(--surface);color:var(--text-1);outline:none}
 .ex .rn[aria-invalid="true"]{border-color:var(--danger)}
@@ -134,6 +142,7 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .rail{position:sticky;top:24px;display:flex;flex-direction:column;border-left:1px solid var(--border);font-size:13px}
 .rail a{padding:6px 14px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--text-3)}
 .rail a:hover{color:var(--text-1);border-left-color:var(--point-ink)}
+.doc-body.no-rail{grid-template-columns:minmax(0,1fr)}
 
 /* 블록 — 에이전트가 조립한다. 편집 모드에서만 경계가 보이고 글자를 고칠 수 있다 */
 .blk{position:relative;border-radius:var(--r-m);scroll-margin-top:24px}
@@ -172,6 +181,11 @@ td:first-child{font-weight:600;color:var(--text-1);white-space:nowrap}
 .tag.guess{color:var(--guess);border:1px dashed currentColor}
 .b-claims p{margin:0;max-width:72ch}
 sup.r{font-family:var(--font-num);font-size:11px;color:var(--point-ink);font-weight:600;margin-left:2px}
+sup.r a{color:inherit;text-decoration:none;padding:0 2px;border-radius:4px}
+sup.r a:hover{background:var(--point-soft)}
+.cite-pop{position:fixed;z-index:30;max-width:min(280px,calc(100vw - 16px));background:var(--surface);border:1px solid var(--border);border-radius:var(--r-m);padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-family:var(--font-sans);font-size:12px;line-height:1.4;font-weight:500;pointer-events:none}
+.cite-pop .t{color:var(--text-1);overflow-wrap:anywhere}
+.cite-pop .d{color:var(--text-3)}
 
 .b-sources ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:13px}
 .b-sources li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:6px}
@@ -179,6 +193,13 @@ sup.r{font-family:var(--font-num);font-size:11px;color:var(--point-ink);font-wei
 .b-sources a{text-decoration:none;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
 .b-sources a:hover{border-color:var(--text-1)}
 .b-sources .t{overflow-wrap:anywhere}
+
+/* 휴지통 — 묶음 한 줄씩 */
+.trash{list-style:none;margin:0;padding:clamp(12px,1.4cqw,24px) clamp(16px,3cqw,56px) 72px;display:flex;flex-direction:column}
+.trash li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-1)}
+.trash .ico{width:22px;height:22px;color:var(--text-2)}
+.trash .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trash .when{font-size:12px;color:var(--text-3);white-space:nowrap}
 
 .b-unknown{padding:16px;border:1px dashed var(--border);color:var(--text-3);font-size:13px}
 
@@ -204,7 +225,7 @@ sup.r{font-family:var(--font-num);font-size:11px;color:var(--point-ink);font-wei
 .gone{min-height:100vh;display:grid;place-items:center;color:var(--text-3);font-size:14px;padding:24px 16px}
 
 /* 목업은 이 줄이 컨테이너 규칙 뒤에 있어 폰 폭에서도 홈 버튼이 숨었다 — 앞으로 옮김 */
-.mhome{display:none!important}
+.mhome,.mtrash{display:none!important}
 @container app (max-width: 1280px){ .doc-body{grid-template-columns:minmax(0,1fr)} .rail{display:none} }
 @container app (max-width: 1000px){
   .work{grid-template-columns:64px minmax(0,1fr)}
@@ -222,6 +243,7 @@ sup.r{font-family:var(--font-num);font-size:11px;color:var(--point-ink);font-wei
   .work{grid-template-columns:minmax(0,1fr)}
   .side{display:none}
   .mhome{display:inline-flex!important}
+  .mtrash{display:grid!important}
   .bar-top{padding:0 8px}
   .crumbs button{max-width:14ch}
   .explorer{grid-template-columns:repeat(3,minmax(0,1fr));padding:16px 8px 48px;gap:4px}

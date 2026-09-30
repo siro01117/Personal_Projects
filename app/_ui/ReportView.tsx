@@ -1,10 +1,11 @@
 "use client";
 
-// 보고서 화면 (설계서 5장). 블록 · 오른쪽 차례 · 연필(글자 고치기) · 공유. 열면 읽음 처리.
+// 보고서 화면 (설계서 5장 · 7-1장). 블록 · 오른쪽 차례(블록 8개 이상) · 연필(글자 고치기) · Markdown 복사 · 공유. 열면 읽음 처리.
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toKorean } from "../../lib/errors";
+import { blocksToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
 import { withDemo } from "../_data/source";
 import type { ReportDoc } from "../_data/types";
@@ -17,6 +18,8 @@ import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
 
 const CONFLICT = "방금 다른 곳에서 이 보고서를 고쳤습니다";
+/** 차례 레일은 블록이 이만큼 이상일 때만 */
+export const RAIL_MIN = 8;
 
 export function ReportView({ id }: { id: string }) {
   const { data, demo, href, folders, tick, fail } = useDrawer();
@@ -29,6 +32,7 @@ export function ReportView({ id }: { id: string }) {
   const [shareOpen, setShareOpen] = useState(sp.get("share") === "1");
   const [shareBusy, setShareBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mdCopied, setMdCopied] = useState(false);
 
   const version = useRef(0);
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -194,6 +198,18 @@ export function ReportView({ id }: { id: string }) {
     }
   }
 
+  async function copyMarkdown() {
+    if (doc === null || doc === "missing") return;
+    const md = blocksToMarkdown(doc.name, doc.blocks, { agent: doc.agent, date: formatDay(doc.agent_updated_at ?? doc.updated_at) });
+    try {
+      await navigator.clipboard.writeText(md);
+      setMdCopied(true);
+      setTimeout(() => setMdCopied(false), 1400);
+    } catch {
+      toast("복사하지 못했습니다. 다시 눌러 보세요");
+    }
+  }
+
   // ------------------------------------------------------------ 그리기
 
   const goFolder = (fid: string | null) => router.push(href(fid === null ? "/drawer" : `/drawer/f/${fid}`));
@@ -225,6 +241,9 @@ export function ReportView({ id }: { id: string }) {
               }}
             >
               <Icon name="pen" />
+            </button>
+            <button type="button" className="iconbtn" aria-label="Markdown 복사" title="Markdown 복사" onClick={() => void copyMarkdown()}>
+              <Icon name={mdCopied ? "check" : "copy"} />
             </button>
             <button
               type="button"
@@ -266,7 +285,7 @@ export function ReportView({ id }: { id: string }) {
       {doc === "missing" ? (
         <div className="empty">없는 보고서입니다</div>
       ) : ready ? (
-        <div className="doc-body">
+        <div className={doc.blocks.length >= RAIL_MIN ? "doc-body" : "doc-body no-rail"}>
           <article className={editing ? "page editing" : "page"}>
             <div className="blk b-head">
               <Field as="h1" path={["title"]} value={doc.name} ctx={ctx} />
@@ -274,7 +293,7 @@ export function ReportView({ id }: { id: string }) {
             </div>
             <Blocks blocks={doc.blocks} ctx={ctx} />
           </article>
-          <Rail blocks={doc.blocks} />
+          {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} />}
         </div>
       ) : null}
     </>

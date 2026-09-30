@@ -1,14 +1,17 @@
 "use client";
 
-// 작업면 = 사이드바 + 오른쪽(위쪽 경로 줄 + 탐색기 | 보고서). 목업 .work
+// 작업면 = 사이드바 + 오른쪽(위쪽 경로 줄 + 탐색기 | 보고서 | 휴지통). 목업 .work
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { TRASH_PATH } from "../../lib/links";
 import { useDrawer } from "./DrawerContext";
 import { Icon } from "./Icon";
 
 export function Shell({ children }: { children: ReactNode }) {
   const { href } = useDrawer();
+  const inTrash = usePathname().startsWith(TRASH_PATH);
   return (
     <div className="app">
       <section className="work view">
@@ -19,9 +22,13 @@ export function Shell({ children }: { children: ReactNode }) {
             <span>WORK</span>
           </Link>
           <nav className="nav" aria-label="메뉴">
-            <Link className="on" href={href("/drawer")}>
+            <Link className={inTrash ? undefined : "on"} href={href("/drawer")} aria-current={inTrash ? undefined : "page"}>
               <Icon name="rep" />
               <span className="txt">보고서 서랍</span>
+            </Link>
+            <Link className={inTrash ? "on" : undefined} href={href(TRASH_PATH)} aria-current={inTrash ? "page" : undefined}>
+              <Icon name="trash" />
+              <span className="txt">휴지통</span>
             </Link>
           </nav>
         </aside>

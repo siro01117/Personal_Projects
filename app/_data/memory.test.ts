@@ -105,6 +105,99 @@ describe("MemoryDrawer — 삭제·복원", () => {
   });
 });
 
+describe("MemoryDrawer — 복사 (ez_copy 흉내)", () => {
+  it("같은 폴더면 - 복사본 → (2), 다른 폴더에 안 겹치면 원래 이름. 폴더는 통째로", async () => {
+    const d = drawer([{ id: "R", kind: "report", name: "안쪽", parent_id: "B", blocks: sampleBlocks(), report_kind: "data" }]);
+    expect((await d.copy(["A"], null)).map((c) => c.name)).toEqual(["가 - 복사본"]);
+    expect((await d.copy(["A"], null)).map((c) => c.name)).toEqual(["가 - 복사본 (2)"]);
+    const [c] = await d.copy([ROOT_REPORT], "A");
+    expect(c).toMatchObject({ src: ROOT_REPORT, name: "보고서" });
+    const copyA = (await d.list(null)).find((e) => e.name === "가 - 복사본")!;
+    const inner = await d.list(copyA.id);
+    expect(inner.map((e) => e.name)).toEqual(["나"]);
+    expect((await d.list(inner[0]!.id)).map((e) => e.name)).toEqual(["안쪽"]);
+    // 원본은 그대로
+    expect((await d.list("B")).map((e) => e.id)).toEqual(["R"]);
+  });
+
+  it("복사본: 공유 끔 · 안 읽음 아님 · version 1 · agent 그대로", async () => {
+    const d = drawer();
+    await d.share(ROOT_REPORT);
+    await d.editText(ROOT_REPORT, 1, ["title"], "고친 보고서");
+    const [c] = await d.copy([ROOT_REPORT], null);
+    const r = (await d.report(c!.id))!;
+    expect(r).toMatchObject({ share_token: null, agent_updated_at: null, version: 1, agent: "Claude Code", name: "고친 보고서 - 복사본", shared: false });
+    expect(r.read_at).not.toBeNull();
+    expect((await d.list(null)).find((e) => e.id === ROOT_REPORT)!.shared).toBe(true);
+  });
+
+  it("순환 · 깊이 초과 · 없는 것 — 거절하고 아무것도 안 생긴다", async () => {
+    const d = drawer();
+    const count = () => [...d.rows.values()].filter((r) => r.deleted_at === null).length;
+    const before = count();
+    expect(await code(d.copy(["A"], "B"))).toBe("EZ_CYCLE");
+    expect(await code(d.copy(["A"], "A"))).toBe("EZ_CYCLE");
+    let parent: string | null = null;
+    for (let i = 0; i < 7; i++) parent = (await d.createFolder(parent, `f${i}`)).id;
+    const mid = count();
+    // 보고서는 먼저 복사되지만 A-B(2단)가 9단이 되어 전부 취소
+    expect(await code(d.copy([ROOT_REPORT, "A"], parent))).toBe("EZ_DEPTH");
+    expect(count()).toBe(mid);
+    expect(await code(d.copy(["없음"], null))).toBe("EZ_NOT_FOUND");
+    await d.remove(ROOT_REPORT);
+    expect(await code(d.copy([ROOT_REPORT], null))).toBe("EZ_NOT_FOUND");
+    expect(before).toBe(3);
+  });
+});
+
+describe("MemoryDrawer — 여러 개 지우기 · 휴지통 · 폴더 안 읽음 · 찾기", () => {
+  it("여러 개를 한 묶음으로, 자손은 한 번만. 한 번에 복원", async () => {
+    const d = drawer();
+    const batch = await d.removeMany(["A", "B", ROOT_REPORT]);
+    expect(await d.list(null)).toEqual([]);
+    const trash = await d.trash();
+    expect(trash.map((t) => [t.batch, t.name, t.count])).toEqual([
+      [batch, "가", 3],
+      [batch, "보고서", 3],
+    ]);
+    const rows = await d.restore(batch);
+    expect(rows.map((r) => r.id).sort()).toEqual(["A", "B", ROOT_REPORT].sort());
+    expect(await d.trash()).toEqual([]);
+    expect(await code(d.removeMany(["A", "없음"]))).toBe("EZ_NOT_FOUND");
+    expect((await d.list(null)).length).toBe(2);
+  });
+
+  it("휴지통은 최근 지운 묶음 먼저", async () => {
+    const d = drawer();
+    const b1 = await d.remove("B");
+    const b2 = await d.remove(ROOT_REPORT);
+    expect((await d.trash()).map((t) => t.batch)).toEqual([b2, b1]);
+  });
+
+  it("안 읽은 보고서가 깊이 있으면 조상 폴더 전부, 읽으면 사라짐, 지운 건 제외", async () => {
+    const d = drawer([{ id: "R", kind: "report", name: "깊은", parent_id: "B", blocks: [], agent_updated_at: "2026-09-02T00:00:00Z" }]);
+    expect((await d.unreadFolders()).sort()).toEqual(["A", "B"]);
+    await d.markRead("R");
+    expect(await d.unreadFolders()).toEqual([]);
+    d.agentTouch("R");
+    expect((await d.unreadFolders()).sort()).toEqual(["A", "B"]);
+    await d.remove("R");
+    expect(await d.unreadFolders()).toEqual([]);
+  });
+
+  it("찾기: 이름 먼저, 본문 글자(type·tag·url 빼고), 빈 글자는 EZ_EMPTY", async () => {
+    const d = drawer();
+    expect((await d.search("pglite")).map((h) => [h.name, h.match])).toEqual([["보고서", "body"]]);
+    expect((await d.search("가")).map((h) => [h.name, h.match])).toEqual([
+      ["가", "name"],
+      ["보고서", "body"],
+    ]);
+    expect(await d.search("verdict")).toEqual([]);
+    expect(await d.search("pglite.dev")).toEqual([]);
+    expect(await code(d.search("  "))).toBe("EZ_EMPTY");
+  });
+});
+
 describe("MemoryDrawer — 글자 고치기", () => {
   it("허용된 칸만, 버전이 맞을 때만, 새 버전을 돌려준다", async () => {
     const d = drawer();
