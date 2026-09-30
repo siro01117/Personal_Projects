@@ -1,9 +1,10 @@
 // 보고서 → Markdown (GFM). 웹의 'Markdown 복사'와 MCP 가 같이 쓰는 순수 함수.
 // 판정은 인용구, 표는 GFM 표, 근거는 [사실]/[추정] + 각주 [^n], 출처는 각주 정의.
 // 사진은 ![설명](출처 링크) — 파일 주소는 잠깐만 유효해 싣지 않는다. 출처 링크가 없으면 ![설명]() — 캡션은 다음 줄.
-// 모르는 블록·깨진 블록은 건너뛰고 한 줄 주석을 남긴다.
+// 모르는 블록·깨진 블록은 건너뛰고 한 줄 주석을 남긴다. 글 안 ==강조== 는 **강조** (판정 한 줄은 통째로 굵게라 강조 표시만 뺀다).
 
 import { blockSchema, type Block } from "./blocks";
+import { marksToMarkdown as md, stripMarks } from "./marks";
 
 export type MarkdownMeta = {
   /** 쓴 에이전트 (예: Claude Code) */
@@ -79,28 +80,30 @@ export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta
   parsed.forEach((b, i) => {
     if (!b) return void out.push(comment(blocks[i]));
     switch (b.type) {
-      case "verdict":
-        out.push(b.w === undefined ? quote(`**${b.v}**`) : `${quote(`**${b.v}**`)}\n>\n${quote(b.w)}`);
+      case "verdict": {
+        const v = quote(`**${stripMarks(b.v)}**`);
+        out.push(b.w === undefined ? v : `${v}\n>\n${quote(md(b.w))}`);
         break;
+      }
       case "text":
-        if (b.h !== undefined) out.push(`## ${b.h}`);
-        out.push(paragraph(b.body));
+        if (b.h !== undefined) out.push(`## ${md(b.h)}`);
+        out.push(paragraph(md(b.body)));
         break;
       case "list":
-        out.push(`## ${b.h}`, b.items.map((t) => listItem("- ", t)).join("\n"));
+        out.push(`## ${md(b.h)}`, b.items.map((t) => listItem("- ", md(t))).join("\n"));
         break;
       case "table": {
-        const row = (cells: readonly string[]) => `| ${cells.map(cell).join(" | ")} |`;
-        out.push(`## ${b.h}`, [row(b.cols), `|${b.cols.map(() => " --- |").join("")}`, ...b.rows.map(row)].join("\n"));
+        const row = (cells: readonly string[]) => `| ${cells.map((c) => cell(md(c))).join(" | ")} |`;
+        out.push(`## ${md(b.h)}`, [row(b.cols), `|${b.cols.map(() => " --- |").join("")}`, ...b.rows.map(row)].join("\n"));
         break;
       }
       case "claims":
         out.push(
-          `## ${b.h}`,
+          `## ${md(b.h)}`,
           b.items
             .map((c) => {
               const refs = c.refs.filter((n) => n >= 1 && n <= sourceCount).map((n) => `[^${n}]`).join("");
-              return listItem(`- [${c.tag === "fact" ? "사실" : "추정"}] `, c.text) + refs;
+              return listItem(`- [${c.tag === "fact" ? "사실" : "추정"}] `, md(c.text)) + refs;
             })
             .join("\n"),
         );
@@ -109,22 +112,23 @@ export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta
         const src = b.ref !== undefined && b.ref <= sourceCount ? (parsed[firstSources] as Extract<Block, { type: "sources" }>).items[b.ref - 1] : undefined;
         const url = src ? httpUrl(src.url) : null;
         const img = `![${linkText(b.alt)}](${url ? `<${url}>` : ""})`;
-        out.push(b.caption === undefined ? img : `${img}  \n${paragraph(b.caption)}`);
+        out.push(b.caption === undefined ? img : `${img}  \n${paragraph(md(b.caption))}`);
         break;
       }
       case "sources": {
-        out.push(`## ${b.h}`);
+        out.push(`## ${md(b.h)}`);
         if (i === firstSources) {
           out.push(
             b.items
               .map((s, j) => {
                 const url = httpUrl(s.url);
-                return `[^${j + 1}]: ${url ? `[${linkText(s.title)}](<${url}>)` : linkText(s.title)}`;
+                const t = linkText(md(s.title));
+                return `[^${j + 1}]: ${url ? `[${t}](<${url}>)` : t}`;
               })
               .join("\n"),
           );
         } else {
-          out.push(b.items.map((s, j) => `${j + 1}. ${linkText(s.title)} ${httpUrl(s.url) ?? ""}`.trimEnd()).join("\n"));
+          out.push(b.items.map((s, j) => `${j + 1}. ${linkText(md(s.title))} ${httpUrl(s.url) ?? ""}`.trimEnd()).join("\n"));
         }
         break;
       }

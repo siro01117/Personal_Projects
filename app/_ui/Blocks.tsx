@@ -4,12 +4,16 @@
 // 모르는 종류·깨진 블록은 자리표시 한 줄로 두고 나머지는 그린다. 링크는 http/https 만.
 // 글자 고치기 모드에서는 lib 의 isEditablePath 가 참인 칸만 contentEditable(plaintext-only).
 // 인용 번호는 첫 출처 블록의 그 항목으로 가는 링크 — 올리거나 초점 두면 출처 제목·도메인 미리보기(글자만).
-// 사진은 읽는 행 안에서 좌·우(글이 옆으로 흐름)·전체. 주소는 볼 때만 잠깐 유효한 것을 받고, 못 받거나 깨지면 설명 글자로.
+// 글 안 ==강조== 는 <strong> 으로(굵게만) (lib/marks — 구분자만 나눈다). 고치는 칸에서는 원문 그대로.
+// 블록은 행으로 묶어 그린다(app/_logic/rows — 한 행에 객체 최대 2개). 옆 사진은 다음 글과 2칸 행, 아니면 혼자 한쪽.
+// 사진 주소는 볼 때만 잠깐 유효한 것을 받고, 못 받거나 깨지면 설명 글자로.
 
-import { Component, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type ReactNode } from "react";
+import { Component, Fragment, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { blockSchema, isEditablePath, type Block, type ImageBlock, type SourcesBlock } from "../../lib/blocks";
+import { splitMarks, stripMarks } from "../../lib/marks";
 import { domainOf, httpUrl, imageCredit, type ImageCredit } from "../_logic/drawer";
+import { rowBlocks, toRows, type Row } from "../_logic/rows";
 import { Icon } from "./Icon";
 
 export const UNKNOWN_BLOCK = "이 블록은 아직 볼 수 없습니다";
@@ -30,18 +34,28 @@ function multiLine(raw: unknown[], path: Path): boolean {
   return path.length === 2 && ((b?.type === "text" && path[1] === "body") || (b?.type === "verdict" && path[1] === "w"));
 }
 
+/** 글 안 ==강조== → <strong>. 글자는 텍스트 노드로만 */
+export function marked(s: string): ReactNode {
+  const parts = splitMarks(s);
+  if (!parts.some((p) => p.mark)) return s;
+  return parts.map((p, k) => (p.mark ? <strong key={k}>{p.text}</strong> : <Fragment key={k}>{p.text}</Fragment>));
+}
+
 export function Field({
   as: Tag,
   className,
   path,
   value,
   ctx,
+  plain,
 }: {
   as: ElementType;
   className?: string;
   path: Path;
   value: string;
   ctx?: EditCtx;
+  /** 강조 표시를 해석하지 않는다 (보고서 제목·사진 설명) */
+  plain?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
   const valueRef = useRef(value);
@@ -53,7 +67,7 @@ export function Field({
     if (el && editable && document.activeElement !== el && el.textContent !== value) el.textContent = value;
   }, [value, editable]);
 
-  if (!editable || !ctx) return <Tag className={className}>{value}</Tag>;
+  if (!editable || !ctx) return <Tag className={className}>{plain ? value : marked(value)}</Tag>;
 
   const sync = () => {
     const el = ref.current;
@@ -117,7 +131,7 @@ export function tocOf(raw: unknown[]): [number, string][] {
     const p = parseBlock(b);
     if (!p) return;
     if (p.type === "verdict") out.push([i, "판정"]);
-    else if (p.type !== "image" && p.h) out.push([i, p.h]); // 사진의 h 는 높이
+    else if (p.type !== "image" && p.h) out.push([i, stripMarks(p.h)]); // 사진의 h 는 높이
   });
   return out;
 }
@@ -178,7 +192,7 @@ function Cite({ n, src }: { n: number; src: Source | undefined }) {
       </a>
       {open && (
         <span className="cite-pop" role="tooltip" ref={popRef}>
-          <span className="t">{src.title}</span>
+          <span className="t">{stripMarks(src.title)}</span>
           {domain && <span className="d">{domain}</span>}
         </span>
       )}
@@ -253,7 +267,7 @@ function CopyPath({ path }: { path: string }) {
 function CreditLine({ c }: { c: NonNullable<ImageCredit> }) {
   switch (c.kind) {
     case "ref": {
-      const text = `출처 [${c.n}] ${c.title}${c.domain ? ` · ${c.domain}` : ""}`;
+      const text = `출처 [${c.n}] ${stripMarks(c.title)}${c.domain ? ` · ${c.domain}` : ""}`;
       return (
         <span className="src">
           {c.url ? (
@@ -283,8 +297,7 @@ function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?
   const [broken, setBroken] = useState(false);
   const [big, setBig] = useState(false);
   useEffect(() => setBroken(false), [url]);
-  const size = b.place === "full" ? null : (b.size ?? "1/2");
-  const cls = `blk b-image p-${b.place}${size ? ` s-${size.replace("/", "-")}` : ""}`;
+  const cls = `blk b-image p-${b.place}`;
   const credit = imageCredit(b, sources);
   const box = { maxWidth: `${b.w}px` };
   const editing = !!ctx?.editing;
@@ -303,7 +316,7 @@ function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?
       )}
       {(editing || b.caption !== undefined || credit) && (
         <figcaption>
-          {editing && <Field as="span" className="alt" path={[i, "alt"]} value={b.alt} ctx={ctx} />}
+          {editing && <Field as="span" className="alt" path={[i, "alt"]} value={b.alt} ctx={ctx} plain />}
           {b.caption !== undefined && <Field as="span" className="cap" path={[i, "caption"]} value={b.caption} ctx={ctx} />}
           {credit && <CreditLine c={credit} />}
         </figcaption>
@@ -336,8 +349,8 @@ function BlockView({
     case "verdict":
       return (
         <div className="blk b-verdict" id={id}>
-          {F({ as: "div", className: "v", path: [i, "v"], value: b.v })}
-          {b.w !== undefined && F({ as: "div", className: "w", path: [i, "w"], value: b.w })}
+          {F({ as: "p", className: "v", path: [i, "v"], value: b.v })}
+          {b.w !== undefined && F({ as: "p", className: "w", path: [i, "w"], value: b.w })}
         </div>
       );
     case "text":
@@ -415,7 +428,7 @@ function BlockView({
                     F({ as: "span", className: "t", path: [i, "items", j, "title"], value: s.title })
                   ) : (
                     <a href={url} target="_blank" rel="noopener noreferrer">
-                      {s.title}
+                      {marked(s.title)}
                     </a>
                   )}
                 </li>
@@ -425,6 +438,17 @@ function BlockView({
         </div>
       );
   }
+}
+
+/** 행 모양 클래스. 소제목이 있는 블록으로 시작하는 행(섹션 머리)은 위에 가는 선 */
+function rowClass(r: Row, parsed: (Block | null)[]): string {
+  const sec = rowBlocks(r).some((k) => {
+    const b = parsed[k];
+    return !!b && b.type !== "image" && b.type !== "verdict" && b.h !== undefined;
+  });
+  const shape = r.kind === "one" ? "" : ` ${r.kind === "side" ? "solo" : "pair"} to-${r.side} s-${r.size.replace("/", "-")}`;
+  const img = r.kind !== "one" || parsed[r.i]?.type === "image" ? " has-img" : "";
+  return `row${shape}${img}${sec ? " sec" : ""}`;
 }
 
 export function Blocks({ blocks, ctx, images }: { blocks: unknown[]; ctx?: EditCtx; images?: ImageUrls }) {
@@ -450,16 +474,25 @@ export function Blocks({ blocks, ctx, images }: { blocks: unknown[]; ctx?: EditC
   }, [key, images]);
   const map = !images ? {} : urls && urls.key === key ? urls.map : null;
 
+  const one = (i: number) => {
+    const b = parsed[i];
+    return (
+      <Boundary key={i}>
+        {b ? (
+          <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} urls={map} />
+        ) : (
+          <div className="blk b-unknown" id={`b${i}`}>{UNKNOWN_BLOCK}</div>
+        )}
+      </Boundary>
+    );
+  };
+
   return (
     <>
-      {parsed.map((b, i) => (
-        <Boundary key={i}>
-          {b ? (
-            <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} urls={map} />
-          ) : (
-            <div className="blk b-unknown" id={`b${i}`}>{UNKNOWN_BLOCK}</div>
-          )}
-        </Boundary>
+      {toRows(parsed).map((r) => (
+        <div key={r.i} className={rowClass(r, parsed)}>
+          {rowBlocks(r).map(one)}
+        </div>
       ))}
     </>
   );

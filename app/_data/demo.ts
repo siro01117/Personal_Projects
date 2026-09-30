@@ -25,7 +25,7 @@ export const DEMO_IMAGES: Record<string, string> = Object.fromEntries(
 
 const LONG =
   "사진이 글과 같은 행에 서면 설명을 읽으면서 바로 옆의 그림을 볼 수 있다. 노션처럼 위아래로만 쌓으면 긴 보고서에서 그림과 설명이 멀어진다. " +
-  "한글 워드프로세서의 '어울림' 배치처럼 사진이 왼쪽이나 오른쪽에 서고 글이 그 옆으로 흘러간다. 폭이 좁은 폰에서는 옆 배치를 풀고 위아래로 쌓는다.\n" +
+  "옆 사진은 ==바로 다음 글 하나와 짝==을 지어 2칸 행이 된다. 글이 사진 아래로 흘러 내려가지 않으니 한 행에 객체가 셋 서는 일이 없다.\n" +
   "배치는 에이전트가 블록 속성으로 적는다. 사람은 설명과 캡션 글자만 고칠 수 있다.";
 
 function seed(now: Date): Seed[] {
@@ -43,13 +43,26 @@ function seed(now: Date): Seed[] {
       read_at: ago(60 * 24 * 8),
       share_token: DEMO_PHOTO_TOKEN,
       blocks: [
-        { type: "verdict", v: "사진은 글과 같은 행에 세운다", w: "좌·우 배치는 글이 옆으로 흐르고, 전체는 행을 다 쓴다." },
+        { type: "verdict", v: "사진은 글과 같은 행에 세우되, 한 행에 객체는 둘까지", w: "옆 사진은 ==바로 다음 글과 2칸 행==을 이루고, 짝이 없으면 혼자 한쪽에 선다. 전체는 행을 다 쓴다." },
         { type: "image", ...pic("portrait"), alt: "산과 해가 있는 세로 그림", caption: "왼쪽 1/3 — 출처 번호", place: "left", size: "1/3", ref: 1 },
-        { type: "text", h: "어울림 배치", body: LONG },
-        { type: "list", h: "규칙", items: ["place: left · right · full", "size: 1/3 · 1/2 · 2/3 (full 이면 무시)", "출처: ref · credit · local_path 중 하나 이상"] },
+        { type: "text", h: "2칸 행", body: LONG },
         { type: "image", ...pic("screen"), alt: "앱 화면 캡처", place: "right", size: "1/2", credit: "직접 캡처" },
-        { type: "text", body: LONG },
-        { type: "text", h: "읽는 행", body: "보고서 본문은 최대 약 1,280px 행 안에 둔다. 표만 넘치면 가로로 밀어 본다." },
+        {
+          type: "list",
+          h: "규칙",
+          items: ["place: left · right · full", "size: 사진 칸 비율 1/3 · 1/2 · 2/3 (full 이면 무시)", "짝이 되는 다음 블록: ==문단 · 목록 · 근거==", "출처: ref · credit · local_path 중 하나 이상"],
+        },
+        { type: "image", ...pic("portrait"), alt: "산과 해가 있는 세로 그림", caption: "오른쪽 1/3 — 다음이 표라 혼자 선다", place: "right", size: "1/3", credit: "직접 그림" },
+        {
+          type: "table",
+          h: "배치별 폭",
+          cols: ["배치", "폭", "폰"],
+          rows: [
+            ["left / right", "사진 칸 1/3 · 1/2 · 2/3, 나머지는 글 칸", "==위아래로 쌓음=="],
+            ["full", "행 전체", "그대로"],
+          ],
+        },
+        { type: "text", h: "읽는 행", body: "보고서 본문은 넓은 화면에서도 ==최대 약 920px==, 가운데에 둔다. 표만 넘치면 가로로 밀어 본다." },
         {
           type: "image",
           ...pic("chart"),
@@ -59,12 +72,11 @@ function seed(now: Date): Seed[] {
           local_path: "C:/Users/PC/Pictures/캡처/2026-09-30 막대 그래프.png",
         },
         {
-          type: "table",
-          h: "배치별 폭",
-          cols: ["배치", "폭", "폰"],
-          rows: [
-            ["left / right", "행의 1/3 · 1/2 · 2/3", "위아래로 쌓음"],
-            ["full", "행 전체", "그대로"],
+          type: "claims",
+          h: "근거",
+          items: [
+            { tag: "fact", text: "칸으로 나눈 행은 ==폰으로 옮기기 쉽다== — 데이터 순서대로 위아래로 쌓으면 된다", refs: [1] },
+            { tag: "guess", text: "어울림보다 사진과 설명의 짝이 분명하게 읽힐 것이다", refs: [] },
           ],
         },
         { type: "sources", h: "출처", items: [{ title: "한글 워드프로세서 개체 배치", url: "https://www.hancom.com/" }] },

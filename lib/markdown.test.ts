@@ -79,4 +79,23 @@ describe("blocksToMarkdown", () => {
     expect(md).not.toContain("C:/a.png");
     expect(md).not.toContain(".webp");
   });
+
+  it("==강조== 는 **강조** — 모든 글 칸. 판정 한 줄은 통째로 굵게라 표시만 뺀다. 짝 없는 == 는 그대로", () => {
+    const md = blocksToMarkdown("t", [
+      { type: "verdict", v: "==A== 를 쓴다", w: "==무료==이고 문서가 좋다" },
+      { type: "text", h: "==배경==", body: "앞 ==강조== 뒤 == 짝 없음" },
+      { type: "list", h: "목록", items: ["==하나=="] },
+      { type: "table", h: "표", cols: ["==열==", "b"], rows: [["==칸|a==", "2"]] },
+      { type: "claims", h: "근거", items: [{ tag: "fact", text: "==사실==이다", refs: [1] }] },
+      { type: "sources", h: "출처", items: [{ title: "==문서==", url: "https://a.dev" }] },
+    ]);
+    expect(md).toContain("> **A 를 쓴다**\n>\n> **무료**이고 문서가 좋다");
+    expect(md).toContain("## **배경**\n\n앞 **강조** 뒤 == 짝 없음");
+    expect(md).toContain("- **하나**");
+    expect(md).toContain("| **열** | b |");
+    expect(md).toContain("| **칸\\|a** | 2 |");
+    expect(md).toContain("- [사실] **사실**이다[^1]");
+    expect(md).toContain("[^1]: [**문서**](<https://a.dev/>)");
+    expect(md.split("==").length).toBe(2); // 짝 없는 것 하나만 남는다
+  });
 });
