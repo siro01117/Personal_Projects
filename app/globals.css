@@ -8,6 +8,7 @@
   --point:#9be15d; --on-point:#161619; --point-ink:#4a7a12; --point-soft:#eef8e2;
   --img-edge-light:2px solid var(--point); --img-edge-dark:0;
   --ink:#161619; --on-ink:#f3f3f6; --on-ink-2:#a9a9b3;
+  --canvas:#ececef; --paper:#ffffff;
   --fact:#1f7a52; --guess:#9a5b00; --danger:#b42318;
   --font-sans:'Pretendard','IBM Plex Sans KR',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-num:'Poppins','Pretendard','IBM Plex Sans KR',sans-serif;
@@ -20,6 +21,7 @@
   --point:#a8e063; --on-point:#11140c; --point-ink:#a8e063; --point-soft:#1f2616;
   --img-edge-light:0; --img-edge-dark:2px solid var(--point);
   --ink:#ececf0; --on-ink:#141417; --on-ink-2:#55555d;
+  --canvas:#0a0a0c; --paper:#16161a;
   --fact:#5fd6a0; --guess:#f0b35a; --danger:#ff8a80; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#0f0f12; --surface:#17171b; --surface-2:#1c1c21; --surface-3:#26262d;
@@ -27,6 +29,7 @@
   --point:#a8e063; --on-point:#11140c; --point-ink:#a8e063; --point-soft:#1f2616;
   --img-edge-light:0; --img-edge-dark:2px solid var(--point);
   --ink:#ececf0; --on-ink:#141417; --on-ink-2:#55555d;
+  --canvas:#0a0a0c; --paper:#16161a;
   --fact:#5fd6a0; --guess:#f0b35a; --danger:#ff8a80; color-scheme:dark }
 
 *{box-sizing:border-box}
@@ -157,8 +160,8 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 
 /* 보고서 (설계서 7-3장): 본문은 최대 920px 가운데. 차례 레일은 본문 바깥 오른쪽 — 자리가 모자라면 숨긴다.
    글씨는 보고서 안만 1.3배(본문 18px). 검은 채움 면 없이 여백 · 가는 선 · 굵기로 나눈다 */
-.doc-body{container:doc/inline-size;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,920px) minmax(0,1fr);padding:clamp(28px,2.6cqw,52px) clamp(16px,3cqw,56px) 96px;align-items:start}
-.page{grid-column:2;min-width:0;font-size:18px;line-height:1.7}
+.doc-body{container:doc/inline-size;flex:1;background:var(--canvas);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1032px) minmax(0,1fr);padding:clamp(24px,2.4cqw,48px) clamp(16px,3cqw,56px) 96px;align-items:start}
+.page{grid-column:2;min-width:0;font-size:18px;line-height:1.7;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-m);padding:56px}
 /* 행 사이는 넉넉히. 사진이 든 행은 위아래를 더 띄운다. 소제목으로 시작하는 행(섹션 머리)은 위에 가는 선 */
 .page > * + *{margin-top:44px}
 .page > .row.has-img,.page > .row.has-img + *{margin-top:56px}
@@ -310,7 +313,8 @@ sup.r a:hover{background:var(--point-soft)}
   .ex{padding:14px 4px 10px}
   .ex .ico{width:48px;height:48px}
   .ex .dot{top:12px;left:calc(50% + 16px)}
-  .doc-body{padding:24px 16px 48px}
+  .doc-body{padding:0;background:var(--paper)}
+  .page{border:0;border-radius:0;padding:24px 16px 48px}
   .page > * + *{margin-top:36px}
   .page > .row.has-img,.page > .row.has-img + *{margin-top:44px}
   .page > .row.sec{margin-top:40px;padding-top:36px}
