@@ -11,8 +11,11 @@ export type Entry = {
   parent_id: string | null;
   kind: Kind;
   name: string;
+  /** 보고서 종류 (폴더는 null) — 목록 보기 '종류' 열 */
+  report_kind: ReportKind | null;
   agent_updated_at: string | null;
   read_at: string | null;
+  created_at: string;
   updated_at: string;
   /** 공유 켜짐 (열쇠 값은 목록에 싣지 않는다) */
   shared: boolean;
@@ -89,8 +92,13 @@ export interface DrawerData {
   /** ez_share — 새 열쇠(이전 열쇠는 무효) */
   share(id: string): Promise<string>;
   unshare(id: string): Promise<void>;
-  /** ez_shared — 로그인 없이. 없거나 꺼졌으면 null */
+  /** ez_shared — 로그인 없이. 없거나 꺼졌으면 null. 사진의 local_path 는 빠져 온다 */
   shared(token: string): Promise<SharedDoc | null>;
+  /**
+   * 사진 파일의 잠깐(1시간) 유효한 주소. shared 면 로그인 없이(anon — 공유 켜진 보고서가 쓰는 사진만).
+   * 못 받은 경로는 빠진다. 같은 페이지 안에서는 다시 받지 않는다
+   */
+  imageUrls(paths: readonly string[], shared?: boolean): Promise<Record<string, string>>;
 }
 
 export interface Auth {

@@ -54,7 +54,26 @@ export type ItemPatch = Partial<{
   agent_updated_at: string;
 }>;
 
-export interface Store {
+/** 사진 저장소에 있는 파일 하나 (주인 폴더 안) */
+export type StoredImage = { path: string; created_at: string };
+
+/** 사진 파일: 버킷 ez-images, 경로 <주인 uuid>/<sha256>.webp. 주인 폴더 밖은 다루지 않는다 */
+export interface ImageStore {
+  imageExists(path: string): Promise<boolean>;
+  /** WebP 한 장 올리기. 같은 경로가 이미 있으면 그대로 성공 (같은 내용 = 같은 경로) */
+  uploadImage(path: string, bytes: Uint8Array): Promise<void>;
+  /** 주인 폴더의 사진 전부 */
+  listImages(): Promise<StoredImage[]>;
+  deleteImages(paths: string[]): Promise<void>;
+  /** ez_image_srcs — 주인의 보고서(살아 있든 휴지통이든)가 쓰는 사진 경로 */
+  imageSrcs(): Promise<Set<string>>;
+}
+
+export const IMAGE_BUCKET = "ez-images";
+
+export interface Store extends ImageStore {
+  /** 이 서랍의 주인 (사진 경로의 첫 폴더) */
+  readonly owner: string;
   /** 살아 있는 폴더 전부 (경로 계산용) */
   folders(): Promise<FolderNode[]>;
   /** 폴더 안 (parentId = null 이면 맨 위) */

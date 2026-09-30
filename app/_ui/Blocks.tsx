@@ -4,10 +4,13 @@
 // 모르는 종류·깨진 블록은 자리표시 한 줄로 두고 나머지는 그린다. 링크는 http/https 만.
 // 글자 고치기 모드에서는 lib 의 isEditablePath 가 참인 칸만 contentEditable(plaintext-only).
 // 인용 번호는 첫 출처 블록의 그 항목으로 가는 링크 — 올리거나 초점 두면 출처 제목·도메인 미리보기(글자만).
+// 사진은 읽는 행 안에서 좌·우(글이 옆으로 흐름)·전체. 주소는 볼 때만 잠깐 유효한 것을 받고, 못 받거나 깨지면 설명 글자로.
 
 import { Component, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type ReactNode } from "react";
-import { blockSchema, isEditablePath, type Block, type SourcesBlock } from "../../lib/blocks";
-import { domainOf, httpUrl } from "../_logic/drawer";
+import { createPortal } from "react-dom";
+import { blockSchema, isEditablePath, type Block, type ImageBlock, type SourcesBlock } from "../../lib/blocks";
+import { domainOf, httpUrl, imageCredit, type ImageCredit } from "../_logic/drawer";
+import { Icon } from "./Icon";
 
 export const UNKNOWN_BLOCK = "이 블록은 아직 볼 수 없습니다";
 
@@ -114,7 +117,7 @@ export function tocOf(raw: unknown[]): [number, string][] {
     const p = parseBlock(b);
     if (!p) return;
     if (p.type === "verdict") out.push([i, "판정"]);
-    else if (p.h) out.push([i, p.h]);
+    else if (p.type !== "image" && p.h) out.push([i, p.h]); // 사진의 h 는 높이
   });
   return out;
 }
@@ -183,10 +186,153 @@ function Cite({ n, src }: { n: number; src: Source | undefined }) {
   );
 }
 
-function BlockView({ b, i, ctx, sources, isFirstSources }: { b: Block; i: number; ctx?: EditCtx; sources?: Source[]; isFirstSources: boolean }) {
+// ---------------------------------------------------------------- 사진 (설계서 8-1장)
+
+/** 사진 경로들 → 잠깐 유효한 주소. 못 받은 경로는 빠진다 */
+export type ImageUrls = (paths: string[]) => Promise<Record<string, string>>;
+
+/** 크게 보기: 원래 크기까지만(늘리지 않음). Esc · 바깥 누르기로 닫는다 */
+function Lightbox({ url, b, onClose }: { url: string; b: ImageBlock; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    ref.current?.focus({ preventScroll: true });
+    const key = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      close.current();
+    };
+    document.addEventListener("keydown", key, true);
+    return () => {
+      document.removeEventListener("keydown", key, true);
+      prev?.focus?.({ preventScroll: true });
+    };
+  }, []);
+  return createPortal(
+    <div
+      className="lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={b.alt}
+      tabIndex={-1}
+      ref={ref}
+      onClick={(e) => e.target === e.currentTarget && close.current()}
+    >
+      <img src={url} alt={b.alt} width={b.w} height={b.h} />
+    </div>,
+    document.body,
+  );
+}
+
+function CopyPath({ path }: { path: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      className="iconbtn cp"
+      aria-label="경로 복사"
+      title="경로 복사"
+      onClick={() => {
+        navigator.clipboard?.writeText(path).then(
+          () => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1400);
+          },
+          () => {},
+        );
+      }}
+    >
+      <Icon name={done ? "check" : "copy"} />
+    </button>
+  );
+}
+
+function CreditLine({ c }: { c: NonNullable<ImageCredit> }) {
+  switch (c.kind) {
+    case "ref": {
+      const text = `출처 [${c.n}] ${c.title}${c.domain ? ` · ${c.domain}` : ""}`;
+      return (
+        <span className="src">
+          {c.url ? (
+            <a href={c.url} target="_blank" rel="noopener noreferrer">
+              {text}
+            </a>
+          ) : (
+            text
+          )}
+        </span>
+      );
+    }
+    case "credit":
+      return <span className="src">{c.text}</span>;
+    case "local":
+      return (
+        <span className="src">
+          <span className="path">원본 · 내 PC · {c.path}</span>
+          <CopyPath path={c.path} />
+        </span>
+      );
+  }
+}
+
+/** url: undefined = 받는 중, null = 못 받음 */
+function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?: EditCtx; sources?: Source[]; url: string | null | undefined }) {
+  const [broken, setBroken] = useState(false);
+  const [big, setBig] = useState(false);
+  useEffect(() => setBroken(false), [url]);
+  const size = b.place === "full" ? null : (b.size ?? "1/2");
+  const cls = `blk b-image p-${b.place}${size ? ` s-${size.replace("/", "-")}` : ""}`;
+  const credit = imageCredit(b, sources);
+  const box = { maxWidth: `${b.w}px` };
+  const editing = !!ctx?.editing;
+  return (
+    <figure className={cls} id={`b${i}`}>
+      {url === undefined ? (
+        <div className="img-wait" style={{ ...box, aspectRatio: `${b.w} / ${b.h}` }} />
+      ) : url === null || broken ? (
+        <div className="img-alt" style={box}>
+          {b.alt}
+        </div>
+      ) : (
+        <button type="button" className="img" style={box} onClick={() => setBig(true)}>
+          <img src={url} alt={b.alt} width={b.w} height={b.h} decoding="async" onError={() => setBroken(true)} />
+        </button>
+      )}
+      {(editing || b.caption !== undefined || credit) && (
+        <figcaption>
+          {editing && <Field as="span" className="alt" path={[i, "alt"]} value={b.alt} ctx={ctx} />}
+          {b.caption !== undefined && <Field as="span" className="cap" path={[i, "caption"]} value={b.caption} ctx={ctx} />}
+          {credit && <CreditLine c={credit} />}
+        </figcaption>
+      )}
+      {big && url && !broken && <Lightbox url={url} b={b} onClose={() => setBig(false)} />}
+    </figure>
+  );
+}
+
+function BlockView({
+  b,
+  i,
+  ctx,
+  sources,
+  isFirstSources,
+  urls,
+}: {
+  b: Block;
+  i: number;
+  ctx?: EditCtx;
+  sources?: Source[];
+  isFirstSources: boolean;
+  urls: Record<string, string> | null;
+}) {
   const id = `b${i}`;
   const F = (props: { as: ElementType; className?: string; path: Path; value: string }) => <Field {...props} ctx={ctx} />;
   switch (b.type) {
+    case "image":
+      return <ImageView b={b} i={i} ctx={ctx} sources={sources} url={urls === null ? undefined : (urls[b.src] ?? null)} />;
     case "verdict":
       return (
         <div className="blk b-verdict" id={id}>
@@ -281,17 +427,35 @@ function BlockView({ b, i, ctx, sources, isFirstSources }: { b: Block; i: number
   }
 }
 
-export function Blocks({ blocks, ctx }: { blocks: unknown[]; ctx?: EditCtx }) {
+export function Blocks({ blocks, ctx, images }: { blocks: unknown[]; ctx?: EditCtx; images?: ImageUrls }) {
   const parsed = blocks.map(parseBlock);
   // 인용 번호는 첫 출처 블록을 가리킨다 (lib/blocks 검사와 같다)
   const firstSources = parsed.findIndex((b) => b?.type === "sources");
   const sources = firstSources < 0 ? undefined : (parsed[firstSources] as SourcesBlock).items;
+
+  // 사진 주소는 한 번에 받는다. 같은 사진들이면 다시 받지 않는다 (데이터 층이 페이지 안에서 기억한다)
+  const srcs = [...new Set(parsed.flatMap((b) => (b?.type === "image" ? [b.src] : [])))];
+  const key = srcs.join("|");
+  const [urls, setUrls] = useState<{ key: string; map: Record<string, string> } | null>(null);
+  useEffect(() => {
+    if (key === "" || !images) return;
+    let alive = true;
+    images(key.split("|")).then(
+      (map) => alive && setUrls({ key, map }),
+      () => alive && setUrls({ key, map: {} }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [key, images]);
+  const map = !images ? {} : urls && urls.key === key ? urls.map : null;
+
   return (
     <>
       {parsed.map((b, i) => (
         <Boundary key={i}>
           {b ? (
-            <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} />
+            <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} urls={map} />
           ) : (
             <div className="blk b-unknown" id={`b${i}`}>{UNKNOWN_BLOCK}</div>
           )}

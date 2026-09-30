@@ -7,6 +7,7 @@ import { DEFAULT_WEB_URL, drawerPath, looksLikeUrl, parseDrawerLink, TRASH_PATH,
 import { normalizeName, sameName, uniqueName, validateName } from "../lib/names";
 import { formatPath, parsePath, PathError } from "../lib/paths";
 import { toKorean } from "./errors";
+import { resolveImages, uploadPending } from "./images";
 import type { FolderNode, Item, Kind, Store } from "./store";
 
 export type ToolResult = { ok: boolean; summary: string; data: Record<string, unknown> };
@@ -417,14 +418,18 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
         }
         if (r.node.kind !== "folder") return fail(`${r.path} 는 보고서입니다 — folder 에는 폴더 경로를 주세요`, "NOT_FOLDER");
 
-        const v = validateBlocks(args.blocks);
-        if (!v.ok) {
+        // 사진 file → 줄인 사진(아직 안 올림). 검사를 통과해야 올린다
+        const img = Array.isArray(args.blocks) ? await resolveImages(args.blocks, store) : null;
+        const v = validateBlocks(img ? img.blocks : args.blocks);
+        const errors: BlockError[] = [...(img?.errors ?? []), ...(v.ok ? [] : v.errors)];
+        if (!v.ok || errors.length > 0) {
           return fail(
-            `블록 검사에서 ${v.errors.length}곳이 틀렸습니다 — errors 의 자리와 이유를 보고 고쳐 다시 넣으세요`,
+            `블록 검사에서 ${errors.length}곳이 틀렸습니다 — errors 의 자리와 이유를 보고 고쳐 다시 넣으세요`,
             "INVALID_BLOCKS",
-            { errors: v.errors satisfies BlockError[] },
+            { errors },
           );
         }
+        const uploaded = img ? await uploadPending(store, img.uploads) : 0;
 
         const title = normalizeName(args.title);
         for (let attempt = 0; ; attempt++) {
@@ -446,7 +451,16 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
             const url = link("report", item.id);
             return ok(
               withUrl(`보고서를 넣었습니다: ${path}${renamed ? ` (같은 제목이 있어 "${name}" 으로 바꿈)` : ""}`, url),
-              { id: item.id, path, url, title: name, renamed, version: item.version, blocks: v.blocks.length },
+              {
+                id: item.id,
+                path,
+                url,
+                title: name,
+                renamed,
+                version: item.version,
+                blocks: v.blocks.length,
+                ...(img && img.uploads.size > 0 ? { images: { count: img.uploads.size, uploaded } } : {}),
+              },
             );
           } catch (e) {
             if ((e as { code?: string }).code !== "23505" || attempt >= 2) throw e;
@@ -533,9 +547,24 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
           });
         if (rep.version !== args.base_version) return conflict(rep.version);
 
+        // 넣거나 바꾸는 블록의 사진 file → 줄인 사진 (검사를 통과해야 올린다)
+        const withBlock = args.ops.flatMap((op, k) => (isObj(op) && op.block !== undefined ? [k] : []));
+        const img = await resolveImages(
+          withBlock.map((k) => (args.ops[k] as { block: unknown }).block),
+          store,
+          (j) => `ops[${withBlock[j]}].block`,
+        );
+        if (img.errors.length > 0) {
+          return fail(`사진 ${img.errors.length}곳이 틀렸습니다 — 아무것도 바꾸지 않았습니다`, "INVALID_BLOCKS", { errors: img.errors });
+        }
+        const ops = args.ops.map((op, k) => {
+          const j = withBlock.indexOf(k);
+          return j < 0 ? op : { ...(op as object), block: img.blocks[j] };
+        });
+
         const blocks = [...rep.blocks];
-        for (let k = 0; k < args.ops.length; k++) {
-          const op = args.ops[k];
+        for (let k = 0; k < ops.length; k++) {
+          const op = ops[k];
           const bad = (msg: string) => fail(`ops[${k}]: ${msg}`, "BAD_OP", { op_index: k });
           if (!isObj(op)) return bad("{ op, at, block? } 객체여야 합니다");
           const at = op.at;
@@ -570,6 +599,7 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
           );
         }
 
+        const uploaded = await uploadPending(store, img.uploads);
         const updated = await store.update(
           id,
           { blocks: v.blocks, agent, agent_updated_at: now().toISOString() },
@@ -585,6 +615,7 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
           url,
           version: updated.version,
           blocks: v.blocks.length,
+          ...(img.uploads.size > 0 ? { images: { count: img.uploads.size, uploaded } } : {}),
         });
       }),
   };

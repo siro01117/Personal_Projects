@@ -138,6 +138,17 @@ const PATHS = {
       <path d="M3 3v5h5" />
     </>
   ),
+  list: <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />,
+  /** 아이콘 보기 (홈의 grid 와 헷갈리지 않게 칸마다 이름 줄) */
+  icons: (
+    <>
+      <rect x="3" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="3" y="13" width="7" height="5" rx="1" />
+      <rect x="14" y="13" width="7" height="5" rx="1" />
+      <path d="M4 11h5M15 11h5M4 21h5M15 21h5" />
+    </>
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1" />

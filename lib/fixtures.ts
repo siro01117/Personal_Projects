@@ -34,3 +34,12 @@ export function sampleBlocks() {
     },
   ];
 }
+
+/** 시험용 사진 경로 (주인 uuid / sha256.webp) */
+export const SAMPLE_OWNER = "0f0f0f0f-0000-4000-8000-000000000001";
+export const sampleSrc = (hexChar = "a") => `${SAMPLE_OWNER}/${hexChar.repeat(64)}.webp`;
+
+/** 사진 블록 (출처 1번을 가리킨다 — sampleBlocks 뒤에 붙이면 통과) */
+export function sampleImage(extra: Record<string, unknown> = {}) {
+  return { type: "image", src: sampleSrc(), w: 1280, h: 720, alt: "PGlite 문서 첫 화면", caption: "문서 첫 화면", place: "left", size: "1/3", ref: 1, ...extra };
+}

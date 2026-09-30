@@ -1,5 +1,6 @@
 // 화면 쪽 순수 함수 — 정렬·안 읽음·경로 접기·키보드 이동·옮길 곳 목록. vitest 로 시험한다.
 
+import { REPORT_KINDS, type ReportKind } from "../../lib/blocks";
 import type { Folder, Kind } from "../_data/types";
 
 /** 에이전트가 쓴 뒤 아직 열어 보지 않았으면 안 읽음 (설계서 2장: agent_updated_at > read_at) */
@@ -13,11 +14,15 @@ export type SortMode = "name" | "date";
 
 /**
  * 폴더 먼저, 그다음 보고서. 이름순은 한국어 정렬(한글이 영문보다 앞).
- * 날짜순이어도 폴더끼리는 이름순, 보고서끼리만 최근 고친 것 먼저(같으면 이름순)
+ * 날짜순이어도 폴더끼리는 이름순, 보고서끼리만 최근 것 먼저(같으면 이름순).
+ * 날짜는 목록 보기 '고친 때' 열과 같은 값(freshAt): 에이전트가 마지막으로 쓴 때, 없으면 만든 때
  */
-export function sortEntries<T extends { kind: Kind; name: string; updated_at?: string }>(list: readonly T[], mode: SortMode = "name"): T[] {
+export function sortEntries<
+  T extends { kind: Kind; name: string; updated_at?: string; agent_updated_at?: string | null; created_at?: string | null },
+>(list: readonly T[], mode: SortMode = "name"): T[] {
   const byName = (a: T, b: T) => a.name.localeCompare(b.name, "ko");
-  const byDate = (a: T, b: T) => Date.parse(b.updated_at ?? "") - Date.parse(a.updated_at ?? "") || byName(a, b);
+  const at = (e: T) => Date.parse(e.agent_updated_at ?? e.created_at ?? e.updated_at ?? "") || 0;
+  const byDate = (a: T, b: T) => at(b) - at(a) || byName(a, b);
   return [...list].sort((a, b) => (a.kind !== b.kind ? (a.kind === "folder" ? -1 : 1) : mode === "date" && a.kind === "report" ? byDate(a, b) : byName(a, b)));
 }
 
@@ -244,4 +249,65 @@ export function withTextAt<T>(blocks: T, path: readonly (string | number)[], val
   if (here === null || typeof here !== "object" || typeof (here as Record<string | number, unknown>)[last] !== "string") return blocks;
   (here as Record<string | number, unknown>)[last] = value;
   return copy;
+}
+
+// ---------------------------------------------------------------- 신선도 · 목록 보기 (설계서 7-2장)
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 달력 날짜 차이 (시각은 보지 않는다): 오늘 0, 어제 1 */
+function dayDiff(d: Date, now: Date): number {
+  const a = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const b = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((b - a) / DAY_MS);
+}
+
+/** 오늘 · 어제 · n일 전(2~6) · n주 전(1~3) · 그보다 오래면 날짜(formatDay). 미래(시계 차이)는 오늘 */
+export function relativeDay(iso: string | null, now: Date = new Date()): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const n = dayDiff(d, now);
+  if (n <= 0) return "오늘";
+  if (n === 1) return "어제";
+  if (n < 7) return `${n}일 전`;
+  if (n < 28) return `${Math.floor(n / 7)}주 전`;
+  return formatDay(iso, now);
+}
+
+/** 신선도 기준 시각: 보고서는 에이전트가 마지막으로 쓴 때(없으면 만든 때), 폴더는 고친 때 */
+export function freshAt(e: { kind: Kind; agent_updated_at: string | null; created_at?: string | null; updated_at: string }): string | null {
+  if (e.kind === "folder") return e.updated_at;
+  return e.agent_updated_at ?? e.created_at ?? e.updated_at;
+}
+
+export type ViewMode = "icons" | "list";
+
+/** 목록 보기 '종류' 열 */
+export function kindLabel(e: { kind: Kind; report_kind?: ReportKind | null }): string {
+  if (e.kind === "folder") return "폴더";
+  return e.report_kind ? REPORT_KINDS[e.report_kind] : "보고서";
+}
+
+// ---------------------------------------------------------------- 사진 출처 한 줄 (설계서 8-1장)
+
+export type ImageCredit =
+  | { kind: "ref"; n: number; title: string; domain: string | null; url: string | null }
+  | { kind: "credit"; text: string }
+  | { kind: "local"; path: string }
+  | null;
+
+/**
+ * 사진 아래 출처 한 줄: ref(출처 블록 번호) → credit(짧은 글) → local_path(내 PC 원본) 순으로 하나.
+ * 공유 페이지는 local_path 가 이미 빠져 온다(ez_shared). 가리킬 출처가 없는 ref 는 건너뛴다
+ */
+export function imageCredit(
+  b: { ref?: number; credit?: string; local_path?: string },
+  sources: readonly { title: string; url: string }[] | undefined,
+): ImageCredit {
+  const s = b.ref !== undefined ? sources?.[b.ref - 1] : undefined;
+  if (b.ref !== undefined && s) return { kind: "ref", n: b.ref, title: s.title, domain: domainOf(s.url), url: httpUrl(s.url) };
+  if (b.credit !== undefined) return { kind: "credit", text: b.credit };
+  if (b.local_path !== undefined) return { kind: "local", path: b.local_path };
+  return null;
 }

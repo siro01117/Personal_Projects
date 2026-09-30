@@ -15,15 +15,19 @@ import type { Entry, SearchHit } from "../_data/types";
 import {
   canDrop,
   folderTrail,
+  freshAt,
   gridMove,
   isInside,
   isUnread,
+  kindLabel,
   moveTargetsAll,
+  relativeDay,
   restoreNote,
   selectRange,
   sortEntries,
   toggleId,
   type SortMode,
+  type ViewMode,
 } from "../_logic/drawer";
 import { Crumbs, type Crumb } from "./Crumbs";
 import { useDrawer } from "./DrawerContext";
@@ -38,12 +42,21 @@ const LONG_PRESS_MS = 520;
 const NAME_TAKEN = "같은 이름이 이미 있습니다";
 const CYCLE = "폴더를 자기 자신이나 자기 안의 폴더로 옮길 수 없습니다";
 const SORT_KEY = "ez.drawer.sort";
+const VIEW_KEY = "ez.drawer.view";
 const UNDO = "되돌리기";
 
 type Renaming = { id: string; value: string; session: number; invalid?: boolean };
 type MenuState = { x: number; y: number; entries: MenuEntry[] };
 type Find = { hits: SearchHit[] | null; sel: string | null };
 type Item = { id: string; kind: Entry["kind"]; name: string; parent_id: string | null };
+
+function readView(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "icons";
+  } catch {
+    return "icons";
+  }
+}
 
 function readSort(): SortMode {
   try {
@@ -82,6 +95,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
   const [dragIds, setDragIds] = useState<string[] | null>(null);
   const [unreadIn, setUnreadIn] = useState<ReadonlySet<string>>(() => new Set());
   const [sort, setSort] = useState<SortMode>("name");
+  const [view, setView] = useState<ViewMode>("icons");
   const [find, setFind] = useState<Find | null>(null);
 
   const exRef = useRef<HTMLDivElement>(null);
@@ -110,6 +124,8 @@ export function Explorer({ folderId }: { folderId: string | null }) {
   const list = entries ? sortEntries(entries, sort) : [];
   const selected = list.filter((e) => sel.includes(e.id) && !e.id.startsWith("tmp:"));
   const cutIds = clip?.mode === "cut" ? new Set(clip.items.map((i) => i.id)) : null;
+  /** 목록 보기 (찾기 결과는 늘 아이콘) */
+  const isList = view === "list" && !find;
 
   // ------------------------------------------------------------ 불러오기
 
@@ -137,7 +153,19 @@ export function Explorer({ folderId }: { folderId: string | null }) {
   }, [folderId]);
 
   // 정렬은 기기에 기억 (그리기가 끝난 뒤 읽어 서버·클라이언트 첫 그림을 맞춘다)
-  useEffect(() => setSort(readSort()), []);
+  useEffect(() => {
+    setSort(readSort());
+    setView(readView());
+  }, []);
+  const toggleView = () => {
+    const next: ViewMode = view === "icons" ? "list" : "icons";
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* 저장 못 해도 이번에는 바뀐다 */
+    }
+  };
   const toggleSort = () => {
     const next: SortMode = sort === "name" ? "date" : "name";
     setSort(next);
@@ -250,7 +278,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
     const name = uniqueName(NEW_FOLDER, cur.map((e) => e.name));
     const tempId = `tmp:${++sessionSeq.current}`;
     const now = new Date().toISOString();
-    const temp: Entry = { id: tempId, parent_id: folderId, kind: "folder", name, agent_updated_at: null, read_at: null, updated_at: now, shared: false };
+    const temp: Entry = { id: tempId, parent_id: folderId, kind: "folder", name, report_kind: null, agent_updated_at: null, read_at: null, created_at: now, updated_at: now, shared: false };
     setEntries((prev) => (prev ? [...prev, temp] : [temp]));
     selectOnly(tempId);
     setRenaming({ id: tempId, value: name, session: sessionSeq.current });
@@ -661,6 +689,8 @@ export function Explorer({ folderId }: { folderId: string | null }) {
       case "ArrowLeft":
       case "ArrowDown":
       case "ArrowUp": {
+        // 목록 보기는 위아래만 (윈도우 자세히 보기처럼)
+        if (isList && (e.key === "ArrowLeft" || e.key === "ArrowRight")) break;
         e.preventDefault();
         const j = gridMove(i, e.key, list.length, columns());
         const next = j >= 0 ? list[j] : undefined;
@@ -717,6 +747,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
   if (!missing) crumbs[crumbs.length - 1]!.current = true;
 
   const sortLabel = sort === "name" ? "이름순" : "날짜순";
+  const viewLabel = view === "icons" ? "목록 보기" : "아이콘 보기";
 
   return (
     <>
@@ -770,6 +801,9 @@ export function Explorer({ folderId }: { folderId: string | null }) {
           </button>
           {!find && (
             <>
+              <button type="button" className="iconbtn" aria-label={viewLabel} title={viewLabel} onClick={toggleView}>
+                <Icon name={view === "icons" ? "list" : "icons"} />
+              </button>
               <button type="button" className="iconbtn" aria-label={sortLabel} title={sortLabel} onClick={toggleSort}>
                 <Icon name={sort === "name" ? "sort-name" : "sort-date"} />
               </button>
@@ -787,7 +821,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
         </div>
       </div>
       <div
-        className="explorer"
+        className={isList ? "explorer list" : "explorer"}
         ref={exRef}
         role="listbox"
         aria-label="보고서와 폴더"
@@ -835,61 +869,29 @@ export function Explorer({ folderId }: { folderId: string | null }) {
         ) : entries === null ? null : list.length === 0 ? (
           <div className="empty">빈 폴더</div>
         ) : (
-          list.map((entry) => {
-            const isRenaming = renaming?.id === entry.id;
-            const isSel = sel.includes(entry.id);
-            const unread = entry.kind === "folder" ? unreadIn.has(entry.id) : isUnread(entry);
-            const cls = [
-              "ex",
-              entry.kind,
-              isSel ? "sel" : "",
-              dropOver === entry.id ? "drop-over" : "",
-              dragIds?.includes(entry.id) ? "dragging" : "",
-              cutIds?.has(entry.id) ? "cut" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-            return (
-              <div
-                key={renderKey.current.get(entry.id) ?? entry.id}
-                className={cls}
-                role="option"
-                aria-selected={isSel}
-                tabIndex={-1}
-                data-id={entry.id}
-                draggable={!coarse && !isRenaming && !entry.id.startsWith("tmp:")}
-                onPointerDown={(e) => onItemPointerDown(e, entry)}
-                onPointerMove={onItemPointerMove}
-                onPointerUp={clearLongPress}
-                onPointerCancel={clearLongPress}
-                onClick={(e) => onItemClick(e, entry)}
-                onDoubleClick={(e) => !isRenaming && !e.shiftKey && !e.ctrlKey && !e.metaKey && open(entry)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  if (pointerType.current === "touch") return; // 터치는 길게 누르기 타이머가 연다
-                  itemMenu(entry, e.clientX, e.clientY);
-                }}
-                onDragStart={(e) => {
-                  setMenu(null);
-                  const cur = selRef.current;
-                  if (cur.includes(entry.id)) setDragIds(cur.filter((x) => !x.startsWith("tmp:")));
-                  else {
-                    selectOnly(entry.id);
-                    setDragIds([entry.id]);
-                  }
-                  e.dataTransfer.effectAllowed = "move";
-                  try {
-                    e.dataTransfer.setData("text/plain", entry.name);
-                  } catch {
-                    /* 일부 브라우저 */
-                  }
-                }}
-                onDragEnd={() => {
-                  setDragIds(null);
-                  setDropOver(null);
-                }}
-                {...(entry.kind === "folder" ? folderDrop(entry) : {})}
-              >
+          <>
+            {isList && (
+              <div className="ex-head" aria-hidden="true">
+                <span>이름</span>
+                <span className="c-kind">종류</span>
+                <span>고친 때</span>
+              </div>
+            )}
+            {list.map((entry) => {
+              const isRenaming = renaming?.id === entry.id;
+              const isSel = sel.includes(entry.id);
+              const unread = entry.kind === "folder" ? unreadIn.has(entry.id) : isUnread(entry);
+              const cls = [
+                "ex",
+                entry.kind,
+                isSel ? "sel" : "",
+                dropOver === entry.id ? "drop-over" : "",
+                dragIds?.includes(entry.id) ? "dragging" : "",
+                cutIds?.has(entry.id) ? "cut" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              const icon = (
                 <span className="ico-wrap">
                   <Icon name={entry.kind === "folder" ? "folder" : "rep"} className="ico" />
                   {entry.kind === "report" && entry.shared && (
@@ -898,8 +900,9 @@ export function Explorer({ folderId }: { folderId: string | null }) {
                     </span>
                   )}
                 </span>
-                {unread && <span className="dot" aria-label="안 읽음" />}
-                {isRenaming ? (
+              );
+              const dot = unread && <span className="dot" aria-label="안 읽음" />;
+              const nameEl = isRenaming ? (
                   <input
                     ref={inputRef}
                     className="rn"
@@ -927,10 +930,69 @@ export function Explorer({ folderId }: { folderId: string | null }) {
                   />
                 ) : (
                   <span className="nm">{entry.name}</span>
-                )}
-              </div>
-            );
-          })
+                );
+              return (
+                <div
+                  key={renderKey.current.get(entry.id) ?? entry.id}
+                  className={cls}
+                  role="option"
+                  aria-selected={isSel}
+                  tabIndex={-1}
+                  data-id={entry.id}
+                  draggable={!coarse && !isRenaming && !entry.id.startsWith("tmp:")}
+                  onPointerDown={(e) => onItemPointerDown(e, entry)}
+                  onPointerMove={onItemPointerMove}
+                  onPointerUp={clearLongPress}
+                  onPointerCancel={clearLongPress}
+                  onClick={(e) => onItemClick(e, entry)}
+                  onDoubleClick={(e) => !isRenaming && !e.shiftKey && !e.ctrlKey && !e.metaKey && open(entry)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (pointerType.current === "touch") return; // 터치는 길게 누르기 타이머가 연다
+                    itemMenu(entry, e.clientX, e.clientY);
+                  }}
+                  onDragStart={(e) => {
+                    setMenu(null);
+                    const cur = selRef.current;
+                    if (cur.includes(entry.id)) setDragIds(cur.filter((x) => !x.startsWith("tmp:")));
+                    else {
+                      selectOnly(entry.id);
+                      setDragIds([entry.id]);
+                    }
+                    e.dataTransfer.effectAllowed = "move";
+                    try {
+                      e.dataTransfer.setData("text/plain", entry.name);
+                    } catch {
+                      /* 일부 브라우저 */
+                    }
+                  }}
+                  onDragEnd={() => {
+                    setDragIds(null);
+                    setDropOver(null);
+                  }}
+                  {...(entry.kind === "folder" ? folderDrop(entry) : {})}
+                >
+                  {isList ? (
+                    <>
+                      <span className="c-name">
+                        {icon}
+                        {nameEl}
+                        {dot}
+                      </span>
+                      <span className="c-kind">{kindLabel(entry)}</span>
+                      <span className="c-when">{relativeDay(freshAt(entry))}</span>
+                    </>
+                  ) : (
+                    <>
+                      {icon}
+                      {dot}
+                      {nameEl}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </>
         )}
       </div>
       {menu && <Menu x={menu.x} y={menu.y} entries={menu.entries} onClose={closeMenu} />}

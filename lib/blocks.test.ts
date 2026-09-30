@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { editRule, isEditablePath, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, validateBlocks } from "./blocks";
-import { sampleBlocks } from "./fixtures";
+import { blockSchema, editRule, isEditablePath, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, validateBlocks, withoutLocalPaths } from "./blocks";
+import { sampleBlocks, sampleImage, sampleSrc } from "./fixtures";
 
 type Any = any; // 시험용으로 일부러 틀린 모양을 만든다
 
@@ -53,8 +53,8 @@ describe("블록 개수", () => {
 
 describe("블록 모양", () => {
   it("모르는 블록 종류", () => {
-    expect(errorsOf([{ type: "image", src: "x" }])).toEqual([
-      { path: "blocks[0].type", message: "모르는 블록 종류입니다 (verdict, text, list, table, claims, sources 중 하나)" },
+    expect(errorsOf([{ type: "video", src: "x" }])).toEqual([
+      { path: "blocks[0].type", message: "모르는 블록 종류입니다 (verdict, text, list, table, claims, sources, image 중 하나)" },
     ]);
   });
   it("블록이 객체가 아니면", () => {
@@ -274,5 +274,77 @@ describe("사람이 고칠 수 있는 칸", () => {
     expect(editRule(blocks, [1, "body"])).toEqual({ maxLength: 4000, oneLine: false });
     expect(editRule(blocks, [4, "rows", 0, 0])).toEqual({ maxLength: 300, oneLine: false });
     expect(editRule(blocks, ["title"])).toEqual({ maxLength: 100, oneLine: true });
+  });
+});
+
+describe("image 사진", () => {
+  const withImage = (img: Record<string, unknown>) => [...sampleBlocks(), img];
+  const last = sampleBlocks().length;
+
+  it("정상: 좌·우·전체, size 는 없어도 된다", () => {
+    expect(validateBlocks(withImage(sampleImage())).ok).toBe(true);
+    expect(validateBlocks(withImage(sampleImage({ place: "right", size: "2/3" }))).ok).toBe(true);
+    const full = sampleImage({ place: "full" });
+    delete (full as Any).size;
+    expect(validateBlocks(withImage(full)).ok).toBe(true);
+    // 버전은 그대로 1 (종류만 더했다)
+    expect(SCHEMA_VERSION).toBe(1);
+  });
+
+  it("출처 ref · credit · local_path 중 하나 이상", () => {
+    const none = sampleImage();
+    delete (none as Any).ref;
+    expect(errorsOf(withImage(none))).toEqual([
+      { path: `blocks[${last}]`, message: "사진 출처가 없습니다 — ref(출처 번호) · credit(예: 직접 캡처) · local_path 중 하나를 주세요" },
+    ]);
+    expect(validateBlocks(withImage({ ...none, credit: "직접 캡처" })).ok).toBe(true);
+    expect(validateBlocks(withImage({ ...none, local_path: "C:/Users/PC/Pictures/a.png" })).ok).toBe(true);
+    // 그리기용 스키마는 출처가 없어도 통과 (공유 페이지는 local_path 를 빼고 받는다)
+    expect(blockSchema.safeParse(none).success).toBe(true);
+  });
+
+  it("ref 는 출처 범위 안", () => {
+    expect(errorsOf(withImage(sampleImage({ ref: 3 })))).toEqual([{ path: `blocks[${last}].ref`, message: "출처 3번은 없습니다 (출처는 1~2번)" }]);
+    expect(errorsOf([sampleImage()])).toEqual([{ path: "blocks[0].ref", message: "출처 블록이 없는데 출처 1번을 가리킵니다" }]);
+    expect(errorsOf(withImage(sampleImage({ ref: 0 })))[0]!.message).toBe("출처 번호는 1 이상의 정수여야 합니다");
+  });
+
+  it("src 는 <uuid>/<sha256>.webp 만", () => {
+    for (const src of ["x.webp", `${sampleSrc()}x`, sampleSrc().replace(".webp", ".png"), "../a/b.webp", `https://x.dev/${"a".repeat(64)}.webp`]) {
+      expect(errorsOf([sampleImage({ src, ref: undefined, credit: "c" })])[0]!.path).toBe("blocks[0].src");
+    }
+    expect(errorsOf([{ ...sampleImage({ credit: "c" }), ref: undefined, src: undefined }])[0]).toEqual({ path: "blocks[0].src", message: "필요한 칸이 빠졌습니다" });
+  });
+
+  it("w·h 는 1~1280 정수, alt 필수·한 줄, place·size 는 정한 값만, 모르는 칸 금지", () => {
+    const one = (patch: Record<string, unknown>) => errorsOf([{ ...sampleImage({ ref: undefined, credit: "c" }), ...patch }]);
+    expect(one({ w: 1281 })[0]).toEqual({ path: "blocks[0].w", message: "1~1280 사이 정수여야 합니다" });
+    expect(one({ h: 0.5 })[0]!.path).toBe("blocks[0].h");
+    expect(one({ alt: undefined })[0]).toEqual({ path: "blocks[0].alt", message: "필요한 칸이 빠졌습니다" });
+    expect(one({ alt: "두\n줄" })[0]!.message).toBe("한 줄로 써야 합니다 (줄바꿈 없이)");
+    expect(one({ place: "center" })[0]).toEqual({ path: "blocks[0].place", message: "place 는 left · right · full 중 하나입니다" });
+    expect(one({ size: "1/4" })[0]!.path).toBe("blocks[0].size");
+    expect(one({ file: "C:/a.png" })[0]).toEqual({ path: "blocks[0]", message: "모르는 칸이 있습니다: file" });
+    expect(one({ credit: "x".repeat(101) })[0]!.path).toBe("blocks[0].credit");
+  });
+
+  it("사람은 alt · caption 글자만 고친다", () => {
+    const blocks = withImage(sampleImage({ credit: "직접", local_path: "C:/a.png" }));
+    expect(editRule(blocks, [last, "alt"])).toEqual({ maxLength: 300, oneLine: true });
+    expect(editRule(blocks, [last, "caption"])).toEqual({ maxLength: 300, oneLine: true });
+    for (const k of ["src", "place", "size", "ref", "credit", "local_path", "w", "h", "type"]) {
+      expect(isEditablePath(blocks, [last, k]), k).toBe(false);
+    }
+    const noCaption = withImage(sampleImage({ caption: undefined }));
+    expect(isEditablePath(JSON.parse(JSON.stringify(noCaption)), [last, "caption"])).toBe(false);
+  });
+
+  it("공유용: local_path 만 뺀다 (원본은 그대로)", () => {
+    const blocks = [sampleImage({ local_path: "C:/Users/PC/a.png" }), { type: "text", body: "local_path" }];
+    const out = withoutLocalPaths(blocks);
+    expect(out[0]).not.toHaveProperty("local_path");
+    expect(out[0]).toMatchObject({ alt: "PGlite 문서 첫 화면", ref: 1 });
+    expect(out[1]).toBe(blocks[1]);
+    expect(blocks[0]).toHaveProperty("local_path");
   });
 });

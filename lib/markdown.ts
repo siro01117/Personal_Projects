@@ -1,5 +1,6 @@
 // 보고서 → Markdown (GFM). 웹의 'Markdown 복사'와 MCP 가 같이 쓰는 순수 함수.
 // 판정은 인용구, 표는 GFM 표, 근거는 [사실]/[추정] + 각주 [^n], 출처는 각주 정의.
+// 사진은 ![설명](출처 링크) — 파일 주소는 잠깐만 유효해 싣지 않는다. 출처 링크가 없으면 ![설명]() — 캡션은 다음 줄.
 // 모르는 블록·깨진 블록은 건너뛰고 한 줄 주석을 남긴다.
 
 import { blockSchema, type Block } from "./blocks";
@@ -104,6 +105,13 @@ export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta
             .join("\n"),
         );
         break;
+      case "image": {
+        const src = b.ref !== undefined && b.ref <= sourceCount ? (parsed[firstSources] as Extract<Block, { type: "sources" }>).items[b.ref - 1] : undefined;
+        const url = src ? httpUrl(src.url) : null;
+        const img = `![${linkText(b.alt)}](${url ? `<${url}>` : ""})`;
+        out.push(b.caption === undefined ? img : `${img}  \n${paragraph(b.caption)}`);
+        break;
+      }
       case "sources": {
         out.push(`## ${b.h}`);
         if (i === firstSources) {

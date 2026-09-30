@@ -5,13 +5,15 @@
 // 여기 있는 순환·깊이·삭제 묶음·복원·버전·복사·찾기는 화면을 로그인 없이 확인하려고 흉내 낸 것일 뿐이다.
 // 이름 규칙·(2)·'- 복사본' 붙이기·고칠 수 있는 칸은 lib 을 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
-import { editRule } from "../../lib/blocks";
+import { editRule, withoutLocalPaths } from "../../lib/blocks";
 import { DbError } from "../../lib/errors";
 import { charCount, copyName, sameName, uniqueName, validateName } from "../../lib/names";
 import { isUnread } from "../_logic/drawer";
 import type { Copied, DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored, SearchHit, SharedDoc, TrashRow } from "./types";
 
 const MAX_DEPTH = 8;
+/** 찾기에서 뺄 키 — 사용자 글자가 아닌 값 (ez_search 와 같다) */
+const NOT_TEXT = ["type", "tag", "url", "src", "place", "size", "local_path"];
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 /** 줄바꿈 + 줄/문단 구분자(U+2028, U+2029) — ez_edit_text 와 같다 */
 const LINE_BREAK = new RegExp(`[\\n\\r${String.fromCharCode(0x2028, 0x2029)}]`);
@@ -40,7 +42,12 @@ export type MemoryOptions = {
   /** 응답을 늦춰 낙관적 갱신이 보이게 (ms) */
   latency?: number;
   now?: () => Date;
+  /** 사진 경로 → 보여 줄 주소 (확인 모드는 public/ 의 샘플) */
+  images?: Record<string, string>;
 };
+
+const usesImage = (blocks: unknown[] | null, src: string) =>
+  (blocks ?? []).some((b) => typeof b === "object" && b !== null && (b as { type?: unknown }).type === "image" && (b as { src?: unknown }).src === src);
 
 const ez = (code: string, message: string) => new DbError(`[${code}] ${message}`, "P0001");
 const nameTaken = () => new DbError('duplicate key value violates unique constraint "ez_items_name_unique"', "23505");
@@ -63,10 +70,12 @@ export class MemoryDrawer implements DrawerData {
   readonly rows = new Map<string, Row>();
   private readonly latency: number;
   private readonly now: () => Date;
+  private readonly images: Record<string, string>;
 
   constructor(seed: Seed[] = [], opts: MemoryOptions = {}) {
     this.latency = opts.latency ?? 0;
     this.now = opts.now ?? (() => new Date());
+    this.images = opts.images ?? {};
     const at = this.now().toISOString();
     for (const s of seed) {
       this.rows.set(s.id, {
@@ -101,8 +110,8 @@ export class MemoryDrawer implements DrawerData {
   }
 
   private entry(r: Row): Entry {
-    const { id, parent_id, kind, name, agent_updated_at, read_at, updated_at } = r;
-    return { id, parent_id, kind, name, agent_updated_at, read_at, updated_at, shared: r.share_token !== null };
+    const { id, parent_id, kind, name, report_kind, agent_updated_at, read_at, created_at, updated_at } = r;
+    return { id, parent_id, kind, name, report_kind, agent_updated_at, read_at, created_at, updated_at, shared: r.share_token !== null };
   }
 
   /** id 의 조상(자기 제외) 중에 ids 가 있는지 (ez_is_under) */
@@ -227,7 +236,7 @@ export class MemoryDrawer implements DrawerData {
     // 보고서 안 사용자 글자만 (type·tag·url 값은 빼고) — ez_search 흉내
     const texts = (v: unknown, key: string | null, out: string[]) => {
       if (typeof v === "string") {
-        if (key === null || !["type", "tag", "url"].includes(key)) out.push(v);
+        if (key === null || !NOT_TEXT.includes(key)) out.push(v);
       } else if (Array.isArray(v)) v.forEach((x) => texts(x, key, out));
       else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) texts(x, k, out);
       return out;
@@ -514,7 +523,20 @@ export class MemoryDrawer implements DrawerData {
     await this.wait();
     if (!TOKEN.test(token)) return null;
     const r = [...this.rows.values()].find((x) => x.share_token === token && x.kind === "report" && x.deleted_at === null);
-    return r ? clone({ name: r.name, report_kind: r.report_kind, blocks: r.blocks ?? [], updated_at: r.updated_at }) : null;
+    return r ? clone({ name: r.name, report_kind: r.report_kind, blocks: withoutLocalPaths(r.blocks ?? []), updated_at: r.updated_at }) : null;
+  }
+
+  /** 사진 주소 흉내: 생성할 때 준 images(경로 → 주소). shared 면 공유 켜진 살아 있는 보고서가 쓰는 것만 (0004 anon 정책) */
+  async imageUrls(paths: readonly string[], shared = false): Promise<Record<string, string>> {
+    await this.wait();
+    const out: Record<string, string> = {};
+    for (const p of paths) {
+      const url = this.images[p];
+      if (!url) continue;
+      if (shared && ![...this.rows.values()].some((r) => r.kind === "report" && r.deleted_at === null && r.share_token !== null && usesImage(r.blocks, p))) continue;
+      out[p] = url;
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------- 에이전트 흉내 (확인용)

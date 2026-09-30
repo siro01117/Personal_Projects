@@ -1,10 +1,13 @@
 // 보고서 서랍 로컬 MCP 서버 (stdio). Claude Code 가 .mcp.json 으로 실행한다: npx tsx mcp/server.ts
 // stdout 은 MCP 통신 전용 — 로그는 stderr 로만. 키 값은 어디에도 쓰지 않는다.
+// 시작한 뒤 주인 없는 사진(14일 넘은 것)을 Storage API 로 치운다. 실패해도 서버는 그대로 돈다.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createDrawer } from "./drawer";
 import { loadEnv } from "./env";
+import { toKorean } from "./errors";
+import { purgeImages } from "./images";
 import { SupabaseStore } from "./store-supabase";
 import { registerTools } from "./tools";
 
@@ -26,3 +29,8 @@ try {
   process.stderr.write(`보고서 서랍 MCP 시작 실패: ${e instanceof Error ? e.message : String(e)}\n`);
   process.exit(1);
 }
+
+purgeImages(store).then(
+  (gone) => gone.length > 0 && process.stderr.write(`주인 없는 사진 ${gone.length}장을 지웠습니다\n`),
+  (e) => process.stderr.write(`주인 없는 사진 치우기 실패 (서버는 그대로 돎): ${toKorean(e).message}\n`),
+);

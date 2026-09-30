@@ -3,7 +3,18 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DbError } from "./errors";
-import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store } from "./store";
+import {
+  IMAGE_BUCKET,
+  ITEM_COLS,
+  type FolderNode,
+  type Item,
+  type ItemPatch,
+  type NewItem,
+  type Report,
+  type SearchHit,
+  type Store,
+  type StoredImage,
+} from "./store";
 
 const TABLE = "ez_items";
 const PAGE = 1000; // PostgREST 기본 최대 행 수
@@ -103,4 +114,64 @@ export class SupabaseStore implements Store {
       this.sb.rpc("ez_search", { p_query: q, p_as: this.owner, p_under: under, p_limit: limit }),
     );
   }
+
+  // ---------------------------------------------------------------- 사진 (Storage API — SQL 로 지우지 않는다)
+
+  private bucket() {
+    return this.sb.storage.from(IMAGE_BUCKET);
+  }
+
+  private mine(path: string): void {
+    if (!path.startsWith(`${this.owner}/`)) throw new DbError("[EZ_IMAGE] 주인 폴더 밖의 사진은 다루지 않습니다", "P0001");
+  }
+
+  async imageExists(path: string): Promise<boolean> {
+    this.mine(path);
+    const { data, error } = await this.bucket().exists(path);
+    // 없는 파일은 error(400/404)와 함께 false 로 온다
+    if (error && data !== false) throw storageError("사진을 확인하지 못했습니다", error);
+    return data === true;
+  }
+
+  async uploadImage(path: string, bytes: Uint8Array): Promise<void> {
+    this.mine(path);
+    const { error } = await this.bucket().upload(path, bytes, {
+      contentType: "image/webp",
+      upsert: false,
+      cacheControl: "31536000",
+    });
+    if (!error) return;
+    // 같은 경로 = 같은 내용. 그 사이 다른 곳에서 올렸으면 그대로 쓴다
+    if (/already exists|duplicate/i.test(error.message) || String((error as { statusCode?: unknown }).statusCode) === "409") return;
+    throw storageError("사진을 올리지 못했습니다", error);
+  }
+
+  async listImages(): Promise<StoredImage[]> {
+    const out: StoredImage[] = [];
+    for (let offset = 0; ; offset += PAGE) {
+      const { data, error } = await this.bucket().list(this.owner, { limit: PAGE, offset, sortBy: { column: "name", order: "asc" } });
+      if (error) throw storageError("사진 목록을 읽지 못했습니다", error);
+      for (const f of data ?? []) {
+        if (f.id && f.created_at && /^[0-9a-f]{64}\.webp$/.test(f.name)) out.push({ path: `${this.owner}/${f.name}`, created_at: f.created_at });
+      }
+      if ((data ?? []).length < PAGE) return out;
+    }
+  }
+
+  async deleteImages(paths: string[]): Promise<void> {
+    for (const p of paths) this.mine(p);
+    for (let i = 0; i < paths.length; i += 100) {
+      const { error } = await this.bucket().remove(paths.slice(i, i + 100));
+      if (error) throw storageError("사진을 지우지 못했습니다", error);
+    }
+  }
+
+  async imageSrcs(): Promise<Set<string>> {
+    const rows = await run<(string | { ez_image_srcs: string })[]>(this.sb.rpc("ez_image_srcs", { p_as: this.owner }));
+    return new Set(rows.map((r) => (typeof r === "string" ? r : r.ez_image_srcs)));
+  }
+}
+
+function storageError(what: string, e: { message: string }): DbError {
+  return new DbError(`[EZ_IMAGE] ${what}: ${e.message}`, "P0001");
 }

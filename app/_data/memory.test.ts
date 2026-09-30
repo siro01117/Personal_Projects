@@ -262,3 +262,31 @@ describe("MemoryDrawer — 읽음·공유", () => {
     expect(await code(d.share("A"))).toBe("EZ_NOT_FOUND");
   });
 });
+
+describe("사진 (확인 모드 흉내)", () => {
+  const img = { type: "image", src: `a0000000-0000-4000-8000-000000000001/${"a".repeat(64)}.webp`, w: 10, h: 10, alt: "a", place: "full", local_path: "C:/Users/PC/a.png" };
+  const make = () =>
+    new MemoryDrawer(
+      [{ id: ROOT_REPORT, kind: "report", name: "사진", report_kind: "data", blocks: [img], agent: "Claude Code" }],
+      { now, images: { [img.src]: "/demo/a.webp", other: "/demo/b.webp" } },
+    );
+
+  it("공유 페이지에는 local_path 가 빠지고, 사진 주소는 공유 켜진 보고서가 쓰는 것만", async () => {
+    const d = make();
+    expect(await d.imageUrls([img.src, "other", "없음"])).toEqual({ [img.src]: "/demo/a.webp", other: "/demo/b.webp" });
+    expect(await d.imageUrls([img.src], true)).toEqual({});
+    const t = await d.share(ROOT_REPORT);
+    const doc = await d.shared(t);
+    expect(doc!.blocks[0]).not.toHaveProperty("local_path");
+    expect((await d.report(ROOT_REPORT))!.blocks[0]).toHaveProperty("local_path");
+    expect(await d.imageUrls([img.src, "other"], true)).toEqual({ [img.src]: "/demo/a.webp" });
+  });
+
+  it("사람은 설명·캡션만 고친다, 목록에 종류·만든 때가 실린다", async () => {
+    const d = make();
+    expect(await d.editText(ROOT_REPORT, 1, [0, "alt"], "새 설명")).toBe(2);
+    expect(await code(d.editText(ROOT_REPORT, 2, [0, "src"], "x"))).toBe("EZ_PATH");
+    const [e] = await d.list(null);
+    expect(e).toMatchObject({ report_kind: "data", created_at: expect.any(String) });
+  });
+});

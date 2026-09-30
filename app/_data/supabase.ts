@@ -9,10 +9,10 @@ import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored
 const TABLE = "ez_items";
 const PAGE = 1000;
 /** shared 는 계산 칸 ez_is_shared (0003) — 공유 열쇠 값은 목록에 싣지 않는다 */
-const ENTRY_COLS = "id, parent_id, kind, name, agent_updated_at, read_at, updated_at, shared:ez_is_shared";
+const ENTRY_COLS = "id, parent_id, kind, name, report_kind, agent_updated_at, read_at, created_at, updated_at, shared:ez_is_shared";
 /** 찾기 결과 수 (ez_search 상한) */
 const SEARCH_LIMIT = 50;
-const REPORT_COLS = `${ENTRY_COLS}, report_kind, blocks, version, agent, share_token`;
+const REPORT_COLS = `${ENTRY_COLS}, blocks, version, agent, share_token`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Res<T> = { data: T | null; error: { message: string; code?: string; details?: string | null } | null };
@@ -180,7 +180,33 @@ class SupabaseDrawer implements DrawerData {
     const rows = await run<SharedDoc[]>(anon().rpc("ez_shared", { p_token: token }));
     return rows[0] ?? null;
   }
+
+  async imageUrls(paths: readonly string[], shared = false): Promise<Record<string, string>> {
+    const out: Record<string, string> = {};
+    const now = Date.now();
+    const need: string[] = [];
+    for (const p of new Set(paths)) {
+      const hit = signed.get(`${shared ? "s" : "u"}:${p}`);
+      if (hit && hit.until > now) out[p] = hit.url;
+      else need.push(p);
+    }
+    if (need.length === 0) return out;
+    const { data, error } = await (shared ? anon() : sb()).storage.from(IMAGE_BUCKET).createSignedUrls(need, SIGN_SECONDS);
+    if (error) throw new DbError(error.message, "STORAGE");
+    for (const r of data ?? []) {
+      if (!r.path || !r.signedUrl || r.error) continue;
+      out[r.path] = r.signedUrl;
+      signed.set(`${shared ? "s" : "u"}:${r.path}`, { url: r.signedUrl, until: now + (SIGN_SECONDS - 300) * 1000 });
+    }
+    return out;
+  }
 }
+
+/** 사진 버킷 (0004). 비공개 — 볼 때만 잠깐 유효한 주소를 받는다 */
+const IMAGE_BUCKET = "ez-images";
+const SIGN_SECONDS = 3600;
+/** 이 페이지 안에서 받은 주소 (만료 5분 전까지 다시 쓴다) — 30초마다 다시 불러와도 사진이 깜빡이지 않게 */
+const signed = new Map<string, { url: string; until: number }>();
 
 const auth: Auth = {
   async signedIn() {

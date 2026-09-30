@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleBlocks } from "./fixtures";
+import { sampleBlocks, sampleImage } from "./fixtures";
 import { blocksToMarkdown } from "./markdown";
 
 describe("blocksToMarkdown", () => {
@@ -66,5 +66,17 @@ describe("blocksToMarkdown", () => {
     ], { url: "http://localhost:3200/drawer/r/x" });
     expect(md.startsWith("# 제목 둘째 줄\n\n<http://localhost:3200/drawer/r/x>\n\n> **한 줄**\n\n")).toBe(true);
     expect(md).toContain("- 첫 줄  \n  둘째 줄");
+  });
+
+  it("사진: ![설명](출처 링크) + 캡션 한 줄. 출처 링크가 없으면 ()", () => {
+    const md = blocksToMarkdown("t", [
+      ...sampleBlocks(),
+      sampleImage({ alt: "첫 [화면]" }),
+      sampleImage({ ref: undefined, credit: "직접 캡처", caption: undefined, local_path: "C:/a.png" }),
+    ]);
+    expect(md).toContain("![첫 \\[화면\\]](<https://pglite.dev/docs/>)  \n문서 첫 화면\n");
+    expect(md).toContain("![PGlite 문서 첫 화면]()\n");
+    expect(md).not.toContain("C:/a.png");
+    expect(md).not.toContain(".webp");
   });
 });

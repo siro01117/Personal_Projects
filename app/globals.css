@@ -116,6 +116,19 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .ex .nm{font-size:13px;line-height:1.4;max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}
 .ex .rn{width:100%;font:inherit;font-size:13px;text-align:center;border:1.5px solid var(--point-ink);border-radius:6px;padding:2px 4px;background:var(--surface);color:var(--text-1);outline:none}
 .ex .rn[aria-invalid="true"]{border-color:var(--danger)}
+/* 목록 보기 — 윈도우 자세히 보기. 선택·끌기·메뉴는 아이콘 보기와 같은 칸(.ex) */
+.explorer.list{display:flex;flex-direction:column;gap:0}
+.ex-head,.explorer.list .ex{display:grid;grid-template-columns:minmax(0,1fr) 150px 110px;align-items:center;gap:16px;padding:0 12px}
+.ex-head{height:32px;font-size:12px;color:var(--text-3);border-bottom:1px solid var(--border);margin-bottom:4px;user-select:none}
+.explorer.list .ex{height:40px;border-radius:var(--r-s);text-align:left}
+.explorer.list .c-name{display:flex;align-items:center;gap:10px;min-width:0}
+.explorer.list .ex .ico{width:20px;height:20px;stroke-width:1.5}
+.explorer.list .ex .nm{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.explorer.list .ex .dot{position:static;flex:0 0 auto;width:8px;height:8px;outline:0}
+.explorer.list .ex .pub{width:14px;height:14px;right:-5px;bottom:-3px}
+.explorer.list .ex .pub svg{width:9px;height:9px}
+.explorer.list .ex .rn{text-align:left;font-size:14px}
+.explorer.list .c-kind,.explorer.list .c-when{font-size:13px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .empty{grid-column:1/-1;padding:72px 0;text-align:center;color:var(--text-3);font-size:13px}
 
 .menu{position:fixed;z-index:30;min-width:184px;max-width:260px;max-height:calc(100vh - 16px);overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-m);padding:6px;display:flex;flex-direction:column}
@@ -137,12 +150,15 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .btn:active{transform:scale(.97)}
 .btn:disabled{opacity:.6;cursor:default}
 
-.doc-body{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:clamp(32px,4cqw,80px);padding:clamp(28px,2.6cqw,52px) clamp(16px,3cqw,56px) 72px;align-items:start}
-.page{display:flex;flex-direction:column;gap:36px;min-width:0}
+/* 읽는 행: 보고서 본문 전체를 최대 1,280px 안에 (사진 배치의 기준 폭). 표만 넘치면 가로로 민다 */
+.doc-body{display:grid;grid-template-columns:minmax(0,1280px) 200px;justify-content:center;gap:clamp(32px,4cqw,80px);padding:clamp(28px,2.6cqw,52px) clamp(16px,3cqw,56px) 72px;align-items:start}
+/* 블록 사이는 여백으로 (flex 안에서는 float 가 안 되므로 블록 흐름) */
+.page{display:flow-root;min-width:0}
+.page > * + *{margin-top:36px}
 .rail{position:sticky;top:24px;display:flex;flex-direction:column;border-left:1px solid var(--border);font-size:13px}
 .rail a{padding:6px 14px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--text-3)}
 .rail a:hover{color:var(--text-1);border-left-color:var(--point-ink)}
-.doc-body.no-rail{grid-template-columns:minmax(0,1fr)}
+.doc-body.no-rail{grid-template-columns:minmax(0,1280px)}
 
 /* 블록 — 에이전트가 조립한다. 편집 모드에서만 경계가 보이고 글자를 고칠 수 있다 */
 .blk{position:relative;border-radius:var(--r-m);scroll-margin-top:24px}
@@ -203,6 +219,33 @@ sup.r a:hover{background:var(--point-soft)}
 
 .b-unknown{padding:16px;border:1px dashed var(--border);color:var(--text-3);font-size:13px}
 
+/* 사진 — 한글 '어울림': 좌·우는 글이 옆으로 흐르고, 크기는 읽는 행의 1/3 · 1/2 · 2/3. 전체는 행을 다 쓴다.
+   판정·표·출처·전체 사진 앞에서는 옆 배치를 끊는다. 늘려서 흐려지지 않게 원래 폭(w)까지만 */
+.b-image{margin:0;min-width:0}
+.b-image.p-left{float:left;clear:left;margin-right:32px;margin-bottom:28px}
+.b-image.p-right{float:right;clear:right;margin-left:32px;margin-bottom:28px}
+.b-image.s-1-3{width:33.333%}
+.b-image.s-1-2{width:50%}
+.b-image.s-2-3{width:66.666%}
+.b-verdict,.b-table,.b-sources,.b-image.p-full{clear:both}
+/* 옆 사진이 있는 보고서는 글 폭 상한(72ch)을 푼다 — 상한이 사진 자리까지 세어 옆 글이 너무 좁아진다. 읽는 행(1,280px)이 상한 */
+.page:has(> .b-image.p-left,> .b-image.p-right) :is(.b-text p,.b-list li,.b-claims p){max-width:none}
+.b-image .img{display:block;width:100%;border-radius:var(--r-m);overflow:hidden;cursor:zoom-in;background:var(--surface-2)}
+.b-image .img img{display:block;width:100%;height:auto}
+.b-image .img-wait{width:100%;border-radius:var(--r-m);background:var(--surface-2)}
+.b-image .img-alt{width:100%;min-height:96px;display:grid;place-items:center;padding:16px;border:1px dashed var(--border);border-radius:var(--r-m);color:var(--text-3);font-size:13px;text-align:center;overflow-wrap:anywhere}
+.b-image figcaption{margin-top:8px;display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:1.5;color:var(--text-3)}
+.b-image figcaption .cap{font-size:13px;color:var(--text-2)}
+.b-image figcaption .alt{font-style:italic}
+.b-image .src{display:flex;align-items:center;gap:2px;min-width:0}
+.b-image .src a{text-decoration:none;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+.b-image .src a:hover{border-color:var(--text-1);color:var(--text-1)}
+.b-image .src .path{overflow-wrap:anywhere;min-width:0}
+.b-image .cp{width:26px;height:26px;flex:0 0 auto;color:var(--text-3)}
+.b-image .cp svg{width:14px;height:14px}
+.lightbox{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgb(10 10 12 / .82);cursor:zoom-out;outline:none;overscroll-behavior:contain}
+.lightbox img{display:block;width:auto;height:auto;max-width:100%;max-height:calc(100vh - 32px);border-radius:var(--r-s);cursor:default}
+
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:12px;max-width:calc(100% - 32px);background:var(--text-1);color:var(--bg);font-size:12px;font-weight:600;padding:10px 16px;border-radius:999px;z-index:40}
 .toast button{font-weight:600;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .rp{position:absolute;border-radius:50%;transform:scale(0);background:currentColor;opacity:.18;pointer-events:none;animation:rp .5s ease-out forwards}
@@ -251,5 +294,11 @@ sup.r a:hover{background:var(--point-soft)}
   .ex .ico{width:48px;height:48px}
   .ex .dot{top:12px;left:calc(50% + 16px)}
   .doc-body{padding:24px 16px 48px}
-  .page{gap:28px}
+  .page > * + *{margin-top:28px}
+  /* 폰: 옆 배치를 풀고 위아래로 */
+  .b-image.p-left,.b-image.p-right{float:none;width:auto;margin:0}
+  .page > .b-image + *{margin-top:28px}
+  .ex-head,.explorer.list .ex{grid-template-columns:minmax(0,1fr) 84px;gap:8px;padding:0 8px}
+  .ex-head .c-kind,.explorer.list .c-kind{display:none}
+  .explorer.list .ex{padding:0 8px}
 }

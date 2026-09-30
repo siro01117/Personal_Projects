@@ -8,9 +8,68 @@ import type { Auth, Source } from "./types";
 /** 공유 페이지 확인용 고정 열쇠: /s/demo-shared-link-0001?demo=1 */
 export const DEMO_SHARE_TOKEN = "demo-shared-link-00001";
 
+/** 사진 공유 페이지 확인용: /s/demo-photo-link-000001?demo=1 — local_path 가 빠지는지 */
+export const DEMO_PHOTO_TOKEN = "demo-photo-link-000001";
+
+// 확인 모드 사진: public/demo/<sha256>.webp (진짜 버킷 경로 모양 <주인>/<sha>.webp 를 그 주소로 바꿔 보여 준다)
+const DEMO_OWNER = "d0000000-0000-4000-8000-0000000000aa";
+const PICS = {
+  portrait: { sha: "6eeb1c254c7b8ad5448e0db1a5b49613b80c7126d0e50051f680c99d7adbb21d", w: 900, h: 1200 },
+  screen: { sha: "4121404b1bc773d3811cf2dfd10cb84ca406476b5b5553b3b91f2423dbd577e2", w: 1280, h: 800 },
+  chart: { sha: "dacebad4d97e511644776d5b7b53a6b8359d63790b07dc721ff2af16df7bca11", w: 1280, h: 540 },
+} as const;
+const pic = (k: keyof typeof PICS) => ({ src: `${DEMO_OWNER}/${PICS[k].sha}.webp`, w: PICS[k].w, h: PICS[k].h });
+export const DEMO_IMAGES: Record<string, string> = Object.fromEntries(
+  Object.values(PICS).map((p) => [`${DEMO_OWNER}/${p.sha}.webp`, `/demo/${p.sha}.webp`]),
+);
+
+const LONG =
+  "사진이 글과 같은 행에 서면 설명을 읽으면서 바로 옆의 그림을 볼 수 있다. 노션처럼 위아래로만 쌓으면 긴 보고서에서 그림과 설명이 멀어진다. " +
+  "한글 워드프로세서의 '어울림' 배치처럼 사진이 왼쪽이나 오른쪽에 서고 글이 그 옆으로 흘러간다. 폭이 좁은 폰에서는 옆 배치를 풀고 위아래로 쌓는다.\n" +
+  "배치는 에이전트가 블록 속성으로 적는다. 사람은 설명과 캡션 글자만 고칠 수 있다.";
+
 function seed(now: Date): Seed[] {
   const ago = (min: number) => new Date(now.getTime() - min * 60_000).toISOString();
   return [
+    {
+      id: "d0000000-0000-4000-8000-000000000015",
+      kind: "report",
+      name: "사진 배치 확인",
+      parent_id: "d0000000-0000-4000-8000-000000000001",
+      report_kind: "reference",
+      agent: "Claude Code",
+      agent_updated_at: ago(60 * 24 * 9),
+      created_at: ago(60 * 24 * 12),
+      read_at: ago(60 * 24 * 8),
+      share_token: DEMO_PHOTO_TOKEN,
+      blocks: [
+        { type: "verdict", v: "사진은 글과 같은 행에 세운다", w: "좌·우 배치는 글이 옆으로 흐르고, 전체는 행을 다 쓴다." },
+        { type: "image", ...pic("portrait"), alt: "산과 해가 있는 세로 그림", caption: "왼쪽 1/3 — 출처 번호", place: "left", size: "1/3", ref: 1 },
+        { type: "text", h: "어울림 배치", body: LONG },
+        { type: "list", h: "규칙", items: ["place: left · right · full", "size: 1/3 · 1/2 · 2/3 (full 이면 무시)", "출처: ref · credit · local_path 중 하나 이상"] },
+        { type: "image", ...pic("screen"), alt: "앱 화면 캡처", place: "right", size: "1/2", credit: "직접 캡처" },
+        { type: "text", body: LONG },
+        { type: "text", h: "읽는 행", body: "보고서 본문은 최대 약 1,280px 행 안에 둔다. 표만 넘치면 가로로 밀어 본다." },
+        {
+          type: "image",
+          ...pic("chart"),
+          alt: "막대 12개 그래프",
+          caption: "전체 폭 — 내 PC 원본",
+          place: "full",
+          local_path: "C:/Users/PC/Pictures/캡처/2026-09-30 막대 그래프.png",
+        },
+        {
+          type: "table",
+          h: "배치별 폭",
+          cols: ["배치", "폭", "폰"],
+          rows: [
+            ["left / right", "행의 1/3 · 1/2 · 2/3", "위아래로 쌓음"],
+            ["full", "행 전체", "그대로"],
+          ],
+        },
+        { type: "sources", h: "출처", items: [{ title: "한글 워드프로세서 개체 배치", url: "https://www.hancom.com/" }] },
+      ],
+    },
     { id: "d0000000-0000-4000-8000-000000000001", kind: "folder", name: "EZ.WORK 준비" },
     { id: "d0000000-0000-4000-8000-000000000002", kind: "folder", name: "APPTIVE" },
     {
@@ -87,7 +146,7 @@ function seed(now: Date): Seed[] {
 let instance: MemoryDrawer | null = null;
 
 export function demoDrawer(): MemoryDrawer {
-  if (!instance) instance = new MemoryDrawer(seed(new Date()), { latency: 150 });
+  if (!instance) instance = new MemoryDrawer(seed(new Date()), { latency: 150, images: DEMO_IMAGES });
   return instance;
 }
 

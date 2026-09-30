@@ -17,7 +17,14 @@ export const LIMITS = {
   table: { cols: { min: 2, max: 8 }, rows: { min: 1, max: 60 }, cell: 300 },
   claims: { items: { min: 1, max: 50 }, text: 600, refs: { max: 20 } },
   sources: { items: { min: 1, max: 100 }, title: 300, url: 2000 },
+  /** 사진: 긴 변 상한(px)은 MCP 가 줄이는 크기와 같다 */
+  image: { side: 1280, alt: 300, caption: 300, credit: 100, localPath: 1000 },
 } as const;
+
+/** 사진 파일 경로: <주인 uuid>/<sha256 hex>.webp (Storage 버킷 ez-images 안) */
+export const IMAGE_SRC = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{64}\.webp$/;
+export const IMAGE_PLACES = ["left", "right", "full"] as const;
+export const IMAGE_SIZES = ["1/3", "1/2", "2/3"] as const;
 
 export const REPORT_KINDS = {
   method: "작업 방식 조사",
@@ -138,12 +145,37 @@ export const sourcesBlock = obj({
   items: arr(obj({ title: str(LIMITS.sources.title), url }), LIMITS.sources.items.min, LIMITS.sources.items.max),
 });
 
-export const BLOCK_TYPES = ["verdict", "text", "list", "table", "claims", "sources"] as const;
+const side = z
+  .number({ error: typeError("숫자여야 합니다") })
+  .refine((n) => Number.isInteger(n) && n >= 1 && n <= LIMITS.image.side, { message: `1~${LIMITS.image.side} 사이 정수여야 합니다` });
+
+/**
+ * 사진. 파일은 Storage 에, 블록에는 위치·크기·설명·출처만. 배치는 에이전트가 정한다(size 없으면 1/2, full 이면 size 무시).
+ * 출처 ref · credit · local_path 중 하나 이상은 validateBlocks 가 본다 — 공유 페이지는 local_path 를 빼고 받으므로
+ * 그리기용 blockSchema 는 출처 없이도 통과시킨다.
+ */
+export const imageBlock = obj({
+  type: z.literal("image"),
+  src: z
+    .string({ error: typeError("글자여야 합니다") })
+    .regex(IMAGE_SRC, { message: "src 는 서랍에 올린 사진 경로(<주인 id>/<sha256>.webp)입니다 — PC 사진은 file 로 주세요" }),
+  w: side,
+  h: side,
+  alt: str(LIMITS.image.alt, true),
+  caption: str(LIMITS.image.caption, true).optional(),
+  place: z.enum(IMAGE_PLACES, { error: "place 는 left · right · full 중 하나입니다" }),
+  size: z.enum(IMAGE_SIZES, { error: 'size 는 "1/3" · "1/2" · "2/3" 중 하나입니다' }).optional(),
+  ref: ref.optional(),
+  credit: str(LIMITS.image.credit, true).optional(),
+  local_path: str(LIMITS.image.localPath, true).optional(),
+});
+
+export const BLOCK_TYPES = ["verdict", "text", "list", "table", "claims", "sources", "image"] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
 export const blockSchema = z.discriminatedUnion(
   "type",
-  [verdictBlock, textBlock, listBlock, tableBlock, claimsBlock, sourcesBlock],
+  [verdictBlock, textBlock, listBlock, tableBlock, claimsBlock, sourcesBlock, imageBlock],
   {
     error: (iss) =>
       iss.code === "invalid_union"
@@ -159,6 +191,7 @@ export type ListBlock = z.infer<typeof listBlock>;
 export type TableBlock = z.infer<typeof tableBlock>;
 export type ClaimsBlock = z.infer<typeof claimsBlock>;
 export type SourcesBlock = z.infer<typeof sourcesBlock>;
+export type ImageBlock = z.infer<typeof imageBlock>;
 export type Block = z.infer<typeof blockSchema>;
 
 // ---------- 검사 ----------
@@ -197,6 +230,17 @@ function crossCheck(input: unknown[]): BlockError[] {
       b.rows.forEach((row, r) => {
         if (Array.isArray(row) && row.length !== cols) at([i, "rows", r], `칸이 ${row.length}개인데 열은 ${cols}개입니다`);
       });
+    }
+    if (b.type === "image") {
+      const has = (k: string) => b[k] !== undefined;
+      if (!has("ref") && !has("credit") && !has("local_path")) {
+        at([i], "사진 출처가 없습니다 — ref(출처 번호) · credit(예: 직접 캡처) · local_path 중 하나를 주세요");
+      }
+      const n = b.ref;
+      if (typeof n === "number" && Number.isInteger(n) && n >= 1 && sourceCount !== null) {
+        if (sourceCount === 0) at([i, "ref"], `출처 블록이 없는데 출처 ${n}번을 가리킵니다`);
+        else if (n > sourceCount) at([i, "ref"], `출처 ${n}번은 없습니다 (출처는 1~${sourceCount}번)`);
+      }
     }
     if (b.type === "claims" && Array.isArray(b.items) && sourceCount !== null) {
       b.items.forEach((item, j) => {
@@ -306,9 +350,23 @@ export function editRule(blocks: unknown, path: readonly (string | number)[]): E
       if (len === 1 && a === "h") return rule(H);
       if (len === 3 && a === "items" && idx(b) && c === "title") return rule(LIMITS.sources.title);
       return null;
+    case "image":
+      // 설명·캡션 글자만. src·배치·크기·출처 번호·경로는 못 고친다
+      if (len === 1 && a === "alt") return rule(LIMITS.image.alt, true);
+      if (len === 1 && a === "caption") return rule(LIMITS.image.caption, true);
+      return null;
     default:
       return null;
   }
+}
+
+/** 공유 페이지로 내보낼 블록: 사진의 local_path(내 PC 경로)를 뺀다. DB ez_shared 와 같은 규칙 */
+export function withoutLocalPaths(blocks: readonly unknown[]): unknown[] {
+  return blocks.map((b) => {
+    if (!isObj(b) || b.type !== "image" || !Object.hasOwn(b, "local_path")) return b;
+    const { local_path: _, ...rest } = b;
+    return rest;
+  });
 }
 
 /** 설계서 3장 "사람이 고칠 수 있는 칸" */

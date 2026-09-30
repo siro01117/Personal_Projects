@@ -2,34 +2,15 @@
 // MCP 로직을 실제 DB 규칙(트리거·CHECK·인덱스) 위에서 시험하기 위한 것. db/ez_items.test.ts 와 같은 Supabase 흉내.
 
 import { PGlite } from "@electric-sql/pglite";
-import { readdirSync, readFileSync } from "node:fs";
 import { DbError } from "./errors";
-import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store } from "./store";
-
-const MIGRATIONS_DIR = new URL("../db/migrations/", import.meta.url);
-/** db/migrations 의 .sql 전부, 파일 이름 순서대로 */
-const MIGRATIONS = readdirSync(MIGRATIONS_DIR)
-  .filter((f) => f.endsWith(".sql"))
-  .sort()
-  .map((f) => readFileSync(new URL(f, MIGRATIONS_DIR), "utf8"));
-
-const SUPABASE_STUB = `
-  create schema auth;
-  create function auth.uid() returns uuid language sql stable as $$
-    select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-  $$;
-  create role anon nologin;
-  create role authenticated nologin;
-  create role service_role nologin bypassrls;
-  grant usage on schema auth to anon, authenticated, service_role;
-  grant usage on schema public to anon, authenticated, service_role;
-`;
+import { migrations, SUPABASE_STUB } from "../db/testing";
+import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store, type StoredImage } from "./store";
 
 /** 마이그레이션까지 돈 빈 DB */
 export async function createTestDb(): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const m of MIGRATIONS) await db.exec(m);
+  for (const m of migrations()) await db.exec(m);
   return db;
 }
 
@@ -52,10 +33,22 @@ function toItem(r: Row): Item {
 }
 const toReport = (r: Row): Report => ({ ...toItem(r), blocks: r.blocks as unknown[] });
 
+/** 사진 저장소 흉내: 메모리. 버킷 규칙(WebP 만 · 512,000바이트까지)은 진짜처럼 거절한다 */
+export type MemoryImage = { bytes: Uint8Array; created_at: string };
+
+const IMAGE_LIMIT = 512_000;
+const isWebp = (b: Uint8Array) =>
+  b.length >= 12 && String.fromCharCode(...b.subarray(0, 4)) === "RIFF" && String.fromCharCode(...b.subarray(8, 12)) === "WEBP";
+
 export class PgliteStore implements Store {
+  /** 올린 사진 (경로 → 내용·올린 때). 시험이 직접 들여다보고 올린 때를 바꾼다 */
+  readonly images = new Map<string, MemoryImage>();
+  uploads = 0;
+
   constructor(
     readonly db: PGlite,
     readonly owner: string,
+    readonly now: () => Date = () => new Date(),
   ) {}
 
   /** service_role 로 한 문장 */
@@ -159,5 +152,37 @@ export class PgliteStore implements Store {
       snippet: (r.snippet as string | null) ?? null,
       updated_at: iso(r.updated_at)!,
     }));
+  }
+
+  // ---------------------------------------------------------------- 사진 (메모리)
+
+  private mine(path: string): boolean {
+    return path.startsWith(`${this.owner}/`);
+  }
+
+  async imageExists(path: string): Promise<boolean> {
+    return this.mine(path) && this.images.has(path);
+  }
+
+  async uploadImage(path: string, bytes: Uint8Array): Promise<void> {
+    if (!this.mine(path)) throw new DbError("[EZ_IMAGE] 주인 폴더 밖에는 올릴 수 없습니다", "P0001");
+    if (!isWebp(bytes)) throw new DbError("[EZ_IMAGE] 저장소가 거절했습니다: WebP 만 올릴 수 있습니다", "P0001");
+    if (bytes.length > IMAGE_LIMIT) throw new DbError("[EZ_IMAGE] 저장소가 거절했습니다: 500KB 를 넘습니다", "P0001");
+    if (this.images.has(path)) return;
+    this.uploads++;
+    this.images.set(path, { bytes: bytes.slice(), created_at: this.now().toISOString() });
+  }
+
+  async listImages(): Promise<StoredImage[]> {
+    return [...this.images].filter(([p]) => this.mine(p)).map(([path, v]) => ({ path, created_at: v.created_at }));
+  }
+
+  async deleteImages(paths: string[]): Promise<void> {
+    for (const p of paths) if (this.mine(p)) this.images.delete(p);
+  }
+
+  async imageSrcs(): Promise<Set<string>> {
+    const rows = await this.q("select s from ez_image_srcs($1) as s", [this.owner]);
+    return new Set(rows.map((r) => r.s as string));
   }
 }

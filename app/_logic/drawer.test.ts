@@ -8,6 +8,10 @@ import {
   formatDay,
   formatToday,
   formatWhen,
+  freshAt,
+  imageCredit,
+  kindLabel,
+  relativeDay,
   gridMove,
   groupTrash,
   httpUrl,
@@ -235,5 +239,70 @@ describe("그 밖", () => {
     expect(textAt(next, [0, "rows", 0, 1])).toBe("B");
     expect(textAt(blocks, [0, "rows", 0, 1])).toBe("b");
     expect(withTextAt(blocks, [0, "rows"], "x")).toBe(blocks);
+  });
+});
+
+describe("신선도 · 목록 보기", () => {
+  const now = new Date(2026, 8, 30, 9, 0);
+  const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).toISOString();
+
+  it("오늘 · 어제 · n일 전 · n주 전 · 날짜 — 시각이 아니라 달력 날짜로 센다", () => {
+    expect(relativeDay(at(2026, 9, 30, 0), now)).toBe("오늘");
+    expect(relativeDay(at(2026, 9, 30, 23), now)).toBe("오늘"); // 미래(시계 차이)도 오늘
+    expect(relativeDay(at(2026, 9, 29, 23), now)).toBe("어제"); // 10시간 전이어도 날짜가 바뀌었으면 어제
+    expect(relativeDay(at(2026, 9, 28), now)).toBe("2일 전");
+    expect(relativeDay(at(2026, 9, 24), now)).toBe("6일 전");
+    expect(relativeDay(at(2026, 9, 23), now)).toBe("1주 전");
+    expect(relativeDay(at(2026, 9, 3), now)).toBe("3주 전");
+    expect(relativeDay(at(2026, 9, 2), now)).toBe("9월 2일");
+    expect(relativeDay(at(2025, 12, 31), now)).toBe("2025년 12월 31일");
+    expect(relativeDay(null, now)).toBe("");
+    expect(relativeDay("엉뚱", now)).toBe("");
+  });
+
+  it("기준 시각: 보고서는 에이전트가 쓴 때 → 없으면 만든 때, 폴더는 고친 때", () => {
+    const base = { agent_updated_at: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-20T00:00:00Z" };
+    expect(freshAt({ ...base, kind: "report", agent_updated_at: "2026-09-10T00:00:00Z" })).toBe("2026-09-10T00:00:00Z");
+    expect(freshAt({ ...base, kind: "report" })).toBe("2026-09-01T00:00:00Z");
+    expect(freshAt({ ...base, kind: "folder" })).toBe("2026-09-20T00:00:00Z");
+  });
+
+  it("종류 열", () => {
+    expect(kindLabel({ kind: "folder" })).toBe("폴더");
+    expect(kindLabel({ kind: "report", report_kind: "method" })).toBe("작업 방식 조사");
+    expect(kindLabel({ kind: "report", report_kind: "reference" })).toBe("레퍼런스 조사");
+    expect(kindLabel({ kind: "report", report_kind: null })).toBe("보고서");
+  });
+
+  it("날짜순은 '고친 때' 열과 같은 값: 에이전트가 쓴 때 → 없으면 만든 때 (사람이 글자만 고친 updated_at 은 안 봄)", () => {
+    const R = (name: string, agent_updated_at: string | null, created_at: string, updated_at: string) => ({ kind: "report" as const, name, agent_updated_at, created_at, updated_at });
+    const list = [
+      R("사람이 방금 고침", "2026-09-01T00:00:00Z", "2026-08-01T00:00:00Z", "2026-09-30T00:00:00Z"),
+      R("에이전트가 최근", "2026-09-20T00:00:00Z", "2026-08-01T00:00:00Z", "2026-09-20T00:00:00Z"),
+      R("에이전트 없음", null, "2026-09-10T00:00:00Z", "2026-09-29T00:00:00Z"),
+      { kind: "folder" as const, name: "폴더", agent_updated_at: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-09-30T00:00:00Z" },
+    ];
+    expect(sortEntries(list, "date").map((e) => e.name)).toEqual(["폴더", "에이전트가 최근", "에이전트 없음", "사람이 방금 고침"]);
+    // 정렬 값과 열에 보이는 값이 같다
+    const shown = sortEntries(list, "date").filter((e) => e.kind === "report").map((e) => Date.parse(freshAt(e)!));
+    expect([...shown].sort((x, y) => y - x)).toEqual(shown);
+  });
+});
+
+describe("사진 출처 한 줄", () => {
+  const sources = [{ title: "PGlite 문서", url: "https://www.pglite.dev/docs/" }, { title: "나쁜 주소", url: "javascript:alert(1)" }];
+  it("ref → credit → local_path 순으로 하나", () => {
+    expect(imageCredit({ ref: 1, credit: "c", local_path: "C:/a.png" }, sources)).toEqual({
+      kind: "ref",
+      n: 1,
+      title: "PGlite 문서",
+      domain: "pglite.dev",
+      url: "https://www.pglite.dev/docs/",
+    });
+    expect(imageCredit({ ref: 2 }, sources)).toMatchObject({ kind: "ref", url: null });
+    expect(imageCredit({ ref: 9, credit: "직접 캡처" }, sources)).toEqual({ kind: "credit", text: "직접 캡처" });
+    expect(imageCredit({ local_path: "C:/Users/PC/a.png" }, undefined)).toEqual({ kind: "local", path: "C:/Users/PC/a.png" });
+    // 공유 페이지: local_path 가 빠져 오면 한 줄 없음
+    expect(imageCredit({}, sources)).toBeNull();
   });
 });

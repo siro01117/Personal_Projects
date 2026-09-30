@@ -9,8 +9,8 @@ import { blocksToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
 import { withDemo } from "../_data/source";
 import type { ReportDoc } from "../_data/types";
-import { folderTrail, formatDay, isUnread, textAt, withTextAt } from "../_logic/drawer";
-import { Blocks, Field, tocOf, type EditCtx, type Path } from "./Blocks";
+import { folderTrail, formatDay, freshAt, isUnread, relativeDay, textAt, withTextAt } from "../_logic/drawer";
+import { Blocks, Field, tocOf, type EditCtx, type ImageUrls, type Path } from "./Blocks";
 import { Crumbs, type Crumb } from "./Crumbs";
 import { useDrawer } from "./DrawerContext";
 import { Icon } from "./Icon";
@@ -33,6 +33,8 @@ export function ReportView({ id }: { id: string }) {
   const [shareBusy, setShareBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
+
+  const images = useCallback<ImageUrls>((paths) => data.imageUrls(paths), [data]);
 
   const version = useRef(0);
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -219,7 +221,8 @@ export function ReportView({ id }: { id: string }) {
   if (ready) crumbs.push({ id: doc.id, name: doc.name, current: true });
 
   const ctx: EditCtx | undefined = ready ? { raw: doc.blocks, editing, commit } : undefined;
-  const by = ready ? [doc.agent, formatDay(doc.agent_updated_at ?? doc.updated_at)].filter(Boolean).join(" · ") : "";
+  // 신선도: 작성 에이전트 · n일 전 (에이전트가 마지막으로 쓴 때, 없으면 만든 때). 색·경고 없음
+  const by = ready ? [doc.agent, relativeDay(freshAt(doc))].filter(Boolean).join(" · ") : "";
 
   return (
     <>
@@ -291,7 +294,7 @@ export function ReportView({ id }: { id: string }) {
               <Field as="h1" path={["title"]} value={doc.name} ctx={ctx} />
               <div className="by">{by}</div>
             </div>
-            <Blocks blocks={doc.blocks} ctx={ctx} />
+            <Blocks blocks={doc.blocks} ctx={ctx} images={images} />
           </article>
           {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} />}
         </div>
