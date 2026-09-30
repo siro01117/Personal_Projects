@@ -81,12 +81,44 @@ describe("drawer_mkdir", () => {
     bad(await drawer.drawer_mkdir({ path: "/a/.." }), "BAD_PATH");
   });
 
-  it("깊이 초과(9단)는 DB 오류를 한국어로, 앞서 만든 폴더를 알려준다", async () => {
+  it("깊이 초과(9단)는 DB 오류를 한국어로, 이번에 만든 폴더는 되돌린다", async () => {
     const { drawer } = setup();
     const r = await drawer.drawer_mkdir({ path: "/1/2/3/4/5/6/7/8/9" });
     const d = bad(r, "EZ_DEPTH");
     expect(r.summary).toMatch(/^폴더는 8단까지만 넣을 수 있습니다/);
+    expect(r.summary).toContain("이번에 만든 폴더 8개는 되돌렸습니다");
     expect(r.summary).not.toContain("[EZ_");
+    expect(d.rolled_back).toHaveLength(8);
+    expect(good(await drawer.drawer_list({})).items).toEqual([]);
+  });
+
+  it("되돌릴 때 원래 있던 폴더와 그 안의 것은 건드리지 않는다", async () => {
+    const { drawer, owner } = setup();
+    good(await drawer.drawer_mkdir({ path: "/1/2/3/4/5/6" }));
+    const keep = await newReport(drawer, "/1/2/3/4/5/6", "원래 있던 보고서");
+    const r = await drawer.drawer_mkdir({ path: "/1/2/3/4/5/6/새7/새8/새9" });
+    expect(bad(r, "EZ_DEPTH").rolled_back).toEqual(["/1/2/3/4/5/6/새7", "/1/2/3/4/5/6/새7/새8"]);
+    const six = good(await drawer.drawer_list({ path: "/1/2/3/4/5/6" }));
+    expect(six.items.map((i: Row) => i.name)).toEqual(["원래 있던 보고서"]);
+    expect((await raw(keep.id)).deleted_at).toBeNull();
+    const alive = await db.query<Row>("select count(*)::int n from ez_items where owner = $1 and deleted_at is null", [owner]);
+    expect(alive.rows[0]!.n).toBe(7);
+    // 지운 것은 휴지통에 한 묶음으로
+    const trashed = await db.query<Row>("select name, deleted_batch from ez_items where owner = $1 and deleted_at is not null", [owner]);
+    expect(trashed.rows.map((x) => x.name).sort()).toEqual(["새7", "새8"]);
+    expect(new Set(trashed.rows.map((x) => x.deleted_batch)).size).toBe(1);
+  });
+
+  it("되돌리기마저 실패하면 남은 폴더를 알려준다", async () => {
+    const { store } = setup();
+    const broken = Object.create(store) as typeof store;
+    broken.remove = async () => {
+      throw new Error("연결 끊김");
+    };
+    const drawer = createDrawer({ store: broken, agent: "Claude Code" });
+    const r = await drawer.drawer_mkdir({ path: "/1/2/3/4/5/6/7/8/9" });
+    const d = bad(r, "EZ_DEPTH");
+    expect(r.summary).toContain("되돌리지 못했습니다");
     expect(d.created).toHaveLength(8);
   });
 });

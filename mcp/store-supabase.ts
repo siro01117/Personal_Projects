@@ -3,7 +3,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DbError } from "./errors";
-import { escapeLike, ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type Store } from "./store";
+import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store } from "./store";
 
 const TABLE = "ez_items";
 const PAGE = 1000; // PostgREST 기본 최대 행 수
@@ -98,30 +98,9 @@ export class SupabaseStore implements Store {
     return run<string>(this.sb.rpc("ez_delete", { p_id: id, p_as: this.owner }));
   }
 
-  async searchNames(q: string, limit: number): Promise<Item[]> {
-    // PostgREST 는 패턴의 * 를 % 로 바꾼다 — * 는 아무 글자로 취급된다
-    return run<Item[]>(
-      this.items()
-        .select(ITEM_COLS)
-        .eq("owner", this.owner)
-        .is("deleted_at", null)
-        .ilike("name", `%${escapeLike(q)}%`)
-        .order("updated_at", { ascending: false })
-        .order("id")
-        .limit(limit),
-    );
-  }
-
-  async scanReports(offset: number, limit: number): Promise<Report[]> {
-    return run<Report[]>(
-      this.items()
-        .select(`${ITEM_COLS}, blocks`)
-        .eq("owner", this.owner)
-        .is("deleted_at", null)
-        .eq("kind", "report")
-        .order("updated_at", { ascending: false })
-        .order("id")
-        .range(offset, offset + limit - 1),
+  async search(q: string, under: string | null, limit: number): Promise<SearchHit[]> {
+    return run<SearchHit[]>(
+      this.sb.rpc("ez_search", { p_query: q, p_as: this.owner, p_under: under, p_limit: limit }),
     );
   }
 }

@@ -2,11 +2,16 @@
 // MCP 로직을 실제 DB 규칙(트리거·CHECK·인덱스) 위에서 시험하기 위한 것. db/ez_items.test.ts 와 같은 Supabase 흉내.
 
 import { PGlite } from "@electric-sql/pglite";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DbError } from "./errors";
-import { escapeLike, ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type Store } from "./store";
+import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store } from "./store";
 
-const MIGRATION = readFileSync(new URL("../db/migrations/0001_ez_items.sql", import.meta.url), "utf8");
+const MIGRATIONS_DIR = new URL("../db/migrations/", import.meta.url);
+/** db/migrations 의 .sql 전부, 파일 이름 순서대로 */
+const MIGRATIONS = readdirSync(MIGRATIONS_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(new URL(f, MIGRATIONS_DIR), "utf8"));
 
 const SUPABASE_STUB = `
   create schema auth;
@@ -24,7 +29,7 @@ const SUPABASE_STUB = `
 export async function createTestDb(): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  await db.exec(MIGRATION);
+  for (const m of MIGRATIONS) await db.exec(m);
   return db;
 }
 
@@ -142,21 +147,17 @@ export class PgliteStore implements Store {
     return rows[0]!.batch as string;
   }
 
-  async searchNames(q: string, limit: number): Promise<Item[]> {
-    const rows = await this.q(
-      `select ${ITEM_COLS} from ez_items where owner = $1 and deleted_at is null and name ilike $2
-       order by updated_at desc, id limit $3`,
-      [this.owner, `%${escapeLike(q)}%`, limit],
-    );
-    return rows.map(toItem);
-  }
-
-  async scanReports(offset: number, limit: number): Promise<Report[]> {
-    const rows = await this.q(
-      `select ${ITEM_COLS}, blocks from ez_items where owner = $1 and deleted_at is null and kind = 'report'
-       order by updated_at desc, id offset $2 limit $3`,
-      [this.owner, offset, limit],
-    );
-    return rows.map(toReport);
+  async search(q: string, under: string | null, limit: number): Promise<SearchHit[]> {
+    const rows = await this.q("select * from ez_search($1, $2, $3, $4)", [q, this.owner, under, limit]);
+    return rows.map((r) => ({
+      id: r.id as string,
+      kind: r.kind as SearchHit["kind"],
+      name: r.name as string,
+      parent_id: (r.parent_id as string | null) ?? null,
+      report_kind: (r.report_kind as SearchHit["report_kind"]) ?? null,
+      match: r.match as SearchHit["match"],
+      snippet: (r.snippet as string | null) ?? null,
+      updated_at: iso(r.updated_at)!,
+    }));
   }
 }

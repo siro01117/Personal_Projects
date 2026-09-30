@@ -20,6 +20,17 @@ export type Item = {
 
 export type Report = Item & { blocks: unknown[] };
 
+export type SearchHit = {
+  id: string;
+  kind: Kind;
+  name: string;
+  parent_id: string | null;
+  report_kind: ReportKind | null;
+  match: "name" | "body";
+  snippet: string | null;
+  updated_at: string;
+};
+
 export type FolderNode = { id: string; parent_id: string | null; name: string };
 
 export type NewItem =
@@ -56,15 +67,8 @@ export interface Store {
   update(id: string, patch: ItemPatch, baseVersion?: number): Promise<Item | null>;
   /** ez_delete — 자손까지 같은 묶음으로 휴지통에. 묶음 id */
   remove(id: string): Promise<string>;
-  /** 이름에 q 가 든 항목 (대소문자 무시, 글자 그대로) */
-  searchNames(q: string, limit: number): Promise<Item[]>;
-  /** 보고서를 최근 고친 순으로 한 쪽씩 (본문 찾기용) */
-  scanReports(offset: number, limit: number): Promise<Report[]>;
+  /** ez_search — 이름 또는 보고서 본문 글자에서 찾기. under 가 있으면 그 폴더 아래만 */
+  search(q: string, under: string | null, limit: number): Promise<SearchHit[]>;
 }
 
 export const ITEM_COLS = "id, parent_id, kind, name, report_kind, version, agent_updated_at, read_at, updated_at";
-
-/** LIKE 패턴 안의 %, _, \ 를 글자 그대로 */
-export function escapeLike(s: string): string {
-  return s.replace(/[\\%_]/g, (c) => "\\" + c);
-}

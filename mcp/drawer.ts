@@ -12,7 +12,6 @@ export type ToolResult = { ok: boolean; summary: string; data: Record<string, un
 export type DrawerOptions = { store: Store; agent: string; now?: () => Date };
 
 export const SEARCH_LIMIT = 20;
-const SCAN_PAGE = 100;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -82,16 +81,6 @@ class Tree {
 
   itemPath(item: { parent_id: string | null; name: string }): string {
     return formatPath([...this.segments(item.parent_id), item.name]);
-  }
-
-  /** folderId 가 root 아래(자기 포함)에 있는지 */
-  within(folderId: string | null, root: string | null): boolean {
-    if (root === null) return true;
-    for (let id = folderId, guard = 0; id !== null && guard < 64; guard++) {
-      if (id === root) return true;
-      id = this.byId.get(id)?.parent_id ?? null;
-    }
-    return false;
   }
 }
 
@@ -177,27 +166,6 @@ async function notFound(store: Store, tree: Tree, input: string, r: Extract<Reso
   });
 }
 
-/** 보고서 문자열 값 중 q 가 든 첫 자리 앞뒤 (type·tag 는 빼고) */
-function findInBlocks(blocks: unknown, q: string): string | null {
-  const needle = q.toLowerCase();
-  let hit: string | null = null;
-  const walk = (x: unknown, key?: string): void => {
-    if (hit !== null) return;
-    if (typeof x === "string") {
-      if (key === "type" || key === "tag") return;
-      const at = x.toLowerCase().indexOf(needle);
-      if (at >= 0) {
-        const s = Math.max(0, at - 30);
-        const e = Math.min(x.length, at + needle.length + 30);
-        hit = (s > 0 ? "…" : "") + x.slice(s, e).replace(/\s+/g, " ") + (e < x.length ? "…" : "");
-      }
-    } else if (Array.isArray(x)) x.forEach((v) => walk(v));
-    else if (isObj(x)) for (const [k, v] of Object.entries(x)) walk(v, k);
-  };
-  walk(blocks);
-  return hit;
-}
-
 // ---------------------------------------------------------------------------
 
 export function createDrawer({ store, agent, now = () => new Date() }: DrawerOptions) {
@@ -246,28 +214,15 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
           return ok(`${r.path} — ${counts(items)}`, { path: r.path, items: listing(tree, root, items) });
         }
 
-        // 찾기: 이름 먼저, 모자라면 본문
-        const results: Record<string, unknown>[] = [];
-        const seen = new Set<string>();
-        for (const i of await store.searchNames(query, 200)) {
-          if (results.length >= SEARCH_LIMIT) break;
-          const home = i.kind === "folder" ? i.id : i.parent_id;
-          if (root !== null && (i.id === root || !tree.within(home, root))) continue;
-          seen.add(i.id);
-          results.push({ ...entry(i, tree.itemPath(i)), match: "name" });
-        }
-        for (let offset = 0; results.length < SEARCH_LIMIT; offset += SCAN_PAGE) {
-          const page = await store.scanReports(offset, SCAN_PAGE);
-          for (const rep of page) {
-            if (results.length >= SEARCH_LIMIT) break;
-            if (seen.has(rep.id) || !tree.within(rep.parent_id, root)) continue;
-            const snippet = findInBlocks(rep.blocks, query);
-            if (snippet === null) continue;
-            seen.add(rep.id);
-            results.push({ ...entry(rep, tree.itemPath(rep)), match: "body", snippet });
-          }
-          if (page.length < SCAN_PAGE) break;
-        }
+        // 찾기: DB ez_search (이름 맞음 먼저, 각각 최근 고친 순)
+        const results = (await store.search(query, root, SEARCH_LIMIT)).map((h) => {
+          const e: Record<string, unknown> = { id: h.id, kind: h.kind, name: h.name, path: tree.itemPath(h) };
+          if (h.kind === "report") e.report_kind = h.report_kind;
+          e.updated_at = h.updated_at;
+          e.match = h.match;
+          if (h.snippet !== null) e.snippet = h.snippet;
+          return e;
+        });
         const where = root === null ? "서랍 전체" : r.path;
         const more = results.length >= SEARCH_LIMIT ? ` (최대 ${SEARCH_LIMIT}개까지 보여 줌)` : "";
         return ok(`${where}에서 "${query}" — ${results.length}개${more}`, { path: r.path, query, items: results });
@@ -282,6 +237,7 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
         let cur: string | null = null;
         const actual: string[] = [];
         const created: string[] = [];
+        const createdIds: string[] = [];
         let lastId: string | null = null;
         /** cur 안의 seg 폴더: 있으면 그것, 없으면 만든다. 같은 이름 보고서가 있으면 그 보고서 */
         const ensure = async (parent: string | null, seg: string): Promise<{ folder: FolderNode } | { report: Item }> => {
@@ -294,6 +250,7 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
           try {
             const ins = await store.insert({ kind: "folder", parent_id: parent, name: seg });
             created.push(formatPath([...actual, ins.name]));
+            createdIds.push(ins.id);
             return { folder: ins };
           } catch (e) {
             // 그 사이 같은 이름 폴더가 생겼으면 그것을 쓴다
@@ -303,12 +260,22 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
             return { folder: again };
           }
         };
+        /** 중간에 실패하면 이번 호출에서 만든 폴더만 되돌린다. 처음 만든 것 아래가 전부 이번에 만든 것이다 */
+        const rollback = async (r: ToolResult): Promise<ToolResult> => {
+          if (createdIds.length === 0) return r;
+          try {
+            await store.remove(createdIds[0]!);
+            return addNote({ ...r, data: { ...r.data, rolled_back: created } }, ` (이번에 만든 폴더 ${created.length}개는 되돌렸습니다)`);
+          } catch {
+            return addNote({ ...r, data: { ...r.data, created } }, ` (이번에 만든 폴더를 되돌리지 못했습니다: ${created.join(", ")})`);
+          }
+        };
         try {
           for (const seg of segs) {
             const got = await ensure(cur, seg);
             if ("report" in got) {
               const at = formatPath([...actual, got.report.name]);
-              return fail(`${at} 는 보고서입니다 — 그 자리에 폴더를 만들 수 없습니다`, "NOT_FOLDER", { created });
+              return rollback(fail(`${at} 는 보고서입니다 — 그 자리에 폴더를 만들 수 없습니다`, "NOT_FOLDER"));
             }
             const f: FolderNode = { id: got.folder.id, parent_id: cur, name: got.folder.name };
             if (!tree.childFolder(cur, f.name)) tree.add(f);
@@ -317,8 +284,7 @@ export function createDrawer({ store, agent, now = () => new Date() }: DrawerOpt
             actual.push(f.name);
           }
         } catch (e) {
-          const r = fromError(e, { created });
-          return created.length > 0 ? addNote(r, ` (앞서 만든 폴더: ${created.join(", ")})`) : r;
+          return rollback(fromError(e));
         }
         const path = formatPath(actual);
         return created.length > 0
