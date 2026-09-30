@@ -2,6 +2,7 @@
 
 // 보고서 화면 (설계서 5장 · 7-1장). 블록 · 오른쪽 차례(블록 8개 이상) · 연필(글자 고치기) · Markdown 복사 · 공유. 열면 읽음 처리.
 
+import { ThemeToggle } from "./ThemeToggle";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toKorean } from "../../lib/errors";
@@ -284,6 +285,7 @@ export function ReportView({ id }: { id: string }) {
             )}
           </div>
         )}
+        <ThemeToggle />
       </div>
       {doc === "missing" ? (
         <div className="empty">없는 보고서입니다</div>

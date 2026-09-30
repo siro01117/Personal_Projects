@@ -2,6 +2,7 @@
 
 // 로그인 — 이메일·비밀번호 (RA-KAN 의 Supabase Auth 계정). 끝나면 원래 가려던 곳으로.
 
+import { ThemeToggle } from "./ThemeToggle";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { loginErrorKorean } from "../../lib/errors";
@@ -48,6 +49,7 @@ export function LoginView() {
 
   return (
     <div className="app">
+      <div className="corner-tools"><ThemeToggle /></div>
       <main className="login view">
         <form onSubmit={submit} noValidate>
           <span className="logo">

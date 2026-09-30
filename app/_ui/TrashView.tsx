@@ -2,6 +2,7 @@
 
 // 휴지통 (설계서 7-1장). 지운 묶음 목록 → 묶음째 복원. 영구 삭제는 다음 단계.
 
+import { ThemeToggle } from "./ThemeToggle";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TrashRow } from "../_data/types";
 import { formatWhen, groupTrash, restoreNote, trashLabel } from "../_logic/drawer";
@@ -52,6 +53,8 @@ export function TrashView() {
       <div className="bar-top">
         <HomeButton />
         <Crumbs trail={[{ id: null, name: "휴지통", current: true }]} onGo={() => {}} />
+        <span className="grow" />
+        <ThemeToggle />
       </div>
       {rows === null ? null : groups.length === 0 ? (
         <div className="empty">휴지통이 비어 있습니다</div>

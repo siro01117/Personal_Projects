@@ -5,6 +5,7 @@
 // 복제 단축키는 두지 않는다 — 같은 폴더에 Ctrl+C → Ctrl+V 가 '- 복사본' 을 만든다 (윈도우의 Ctrl+D 는 삭제라 반대 뜻).
 // 저장은 화면을 먼저 바꾸고(낙관적) 실패하면 되돌린 뒤 알린다. 규칙의 최종 판정은 DB.
 
+import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from "react";
@@ -819,6 +820,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
             </>
           )}
         </div>
+        <ThemeToggle />
       </div>
       <div
         className={isList ? "explorer list" : "explorer"}

@@ -2,6 +2,7 @@
 
 // 공유 페이지 — 로그인 없이 ez_shared 로 읽기만(사진의 내 PC 경로는 DB 가 빼고 준다). 없거나 꺼졌거나 지웠으면 한 줄 (있었는지 드러내지 않는다).
 
+import { ThemeToggle } from "./ThemeToggle";
 import { useCallback, useEffect, useState } from "react";
 import { toKorean } from "../../lib/errors";
 import { useSource } from "../_data/source";
@@ -39,6 +40,7 @@ export function SharedView({ token }: { token: string }) {
   if (doc === "gone") {
     return (
       <div className="app">
+        <div className="corner-tools"><ThemeToggle /></div>
         <div className="gone">{netError ?? "없는 링크입니다"}</div>
       </div>
     );
@@ -47,6 +49,7 @@ export function SharedView({ token }: { token: string }) {
   const rail = blocks.length >= RAIL_MIN;
   return (
     <div className="app shared">
+      <div className="corner-tools"><ThemeToggle /></div>
       <div className={rail ? "doc-body view" : "doc-body no-rail view"}>
         <article className="page">
           <div className="blk b-head">
