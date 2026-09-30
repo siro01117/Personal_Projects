@@ -328,11 +328,21 @@ describe("image 사진", () => {
     expect(one({ credit: "x".repeat(101) })[0]!.path).toBe("blocks[0].credit");
   });
 
+  it("edge 는 light · dark 만, 없어도 된다. crop 은 저장하지 않는 칸", () => {
+    expect(validateBlocks(withImage(sampleImage({ edge: "light" }))).ok).toBe(true);
+    expect(validateBlocks(withImage(sampleImage({ edge: "dark" }))).ok).toBe(true);
+    expect(errorsOf(withImage(sampleImage({ edge: "gray" })))[0]).toEqual({
+      path: `blocks[${last}].edge`,
+      message: "edge 는 light · dark 중 하나입니다 (MCP 가 채우므로 file 로 줄 때는 비워 두세요)",
+    });
+    expect(errorsOf(withImage(sampleImage({ crop: { x: 0, y: 0, w: 1, h: 1 } })))[0]).toEqual({ path: `blocks[${last}]`, message: "모르는 칸이 있습니다: crop" });
+  });
+
   it("사람은 alt · caption 글자만 고친다", () => {
-    const blocks = withImage(sampleImage({ credit: "직접", local_path: "C:/a.png" }));
+    const blocks = withImage(sampleImage({ credit: "직접", local_path: "C:/a.png", edge: "light" }));
     expect(editRule(blocks, [last, "alt"])).toEqual({ maxLength: 300, oneLine: true });
     expect(editRule(blocks, [last, "caption"])).toEqual({ maxLength: 300, oneLine: true });
-    for (const k of ["src", "place", "size", "ref", "credit", "local_path", "w", "h", "type"]) {
+    for (const k of ["src", "place", "size", "ref", "credit", "local_path", "edge", "w", "h", "type"]) {
       expect(isEditablePath(blocks, [last, k]), k).toBe(false);
     }
     const noCaption = withImage(sampleImage({ caption: undefined }));

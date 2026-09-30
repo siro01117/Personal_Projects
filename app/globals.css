@@ -6,6 +6,7 @@
   --bg:#ffffff; --surface:#ffffff; --surface-2:#f4f4f6; --surface-3:#e9e9ee;
   --border:#e6e6ea; --text-1:#161619; --text-2:#46464d; --text-3:#6b6b72;
   --point:#9be15d; --on-point:#161619; --point-ink:#4a7a12; --point-soft:#eef8e2;
+  --img-edge-light:2px solid var(--point); --img-edge-dark:0;
   --ink:#161619; --on-ink:#f3f3f6; --on-ink-2:#a9a9b3;
   --fact:#1f7a52; --guess:#9a5b00; --danger:#b42318;
   --font-sans:'Pretendard','IBM Plex Sans KR',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -17,12 +18,14 @@
   --bg:#0f0f12; --surface:#17171b; --surface-2:#1c1c21; --surface-3:#26262d;
   --border:#2b2b32; --text-1:#f3f3f6; --text-2:#c3c3cb; --text-3:#94949e;
   --point:#a8e063; --on-point:#11140c; --point-ink:#a8e063; --point-soft:#1f2616;
+  --img-edge-light:0; --img-edge-dark:2px solid var(--point);
   --ink:#ececf0; --on-ink:#141417; --on-ink-2:#55555d;
   --fact:#5fd6a0; --guess:#f0b35a; --danger:#ff8a80; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#0f0f12; --surface:#17171b; --surface-2:#1c1c21; --surface-3:#26262d;
   --border:#2b2b32; --text-1:#f3f3f6; --text-2:#c3c3cb; --text-3:#94949e;
   --point:#a8e063; --on-point:#11140c; --point-ink:#a8e063; --point-soft:#1f2616;
+  --img-edge-light:0; --img-edge-dark:2px solid var(--point);
   --ink:#ececf0; --on-ink:#141417; --on-ink-2:#55555d;
   --fact:#5fd6a0; --guess:#f0b35a; --danger:#ff8a80; color-scheme:dark }
 
@@ -244,6 +247,9 @@ sup.r a:hover{background:var(--point-soft)}
 .b-image{margin:0;min-width:0}
 .b-image .img{display:block;width:100%;border-radius:var(--r-m);overflow:hidden;cursor:zoom-in;background:var(--surface-2)}
 .b-image .img img{display:block;width:100%;height:auto}
+/* 가장자리가 바탕과 같은 밝기인 사진만 테두리 (MCP 가 잰 edge) */
+.b-image[data-edge="light"] .img{border:var(--img-edge-light)}
+.b-image[data-edge="dark"] .img{border:var(--img-edge-dark)}
 .b-image .img-wait{width:100%;border-radius:var(--r-m);background:var(--surface-2)}
 .b-image .img-alt{width:100%;min-height:120px;display:grid;place-items:center;padding:20px;border:1px dashed var(--border);border-radius:var(--r-m);color:var(--text-3);font-size:17px;text-align:center;overflow-wrap:anywhere}
 .b-image figcaption{margin-top:12px;display:flex;flex-direction:column;gap:4px;font-size:15.5px;line-height:1.5;color:var(--text-3)}

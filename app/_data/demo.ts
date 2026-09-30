@@ -13,12 +13,16 @@ export const DEMO_PHOTO_TOKEN = "demo-photo-link-000001";
 
 // 확인 모드 사진: public/demo/<sha256>.webp (진짜 버킷 경로 모양 <주인>/<sha>.webp 를 그 주소로 바꿔 보여 준다)
 const DEMO_OWNER = "d0000000-0000-4000-8000-0000000000aa";
+// edge: MCP 가 재는 가장자리 밝기(mcp/images.ts edgeLuminance)를 이 파일들에 돌려 적었다
 const PICS = {
   portrait: { sha: "6eeb1c254c7b8ad5448e0db1a5b49613b80c7126d0e50051f680c99d7adbb21d", w: 900, h: 1200 },
-  screen: { sha: "4121404b1bc773d3811cf2dfd10cb84ca406476b5b5553b3b91f2423dbd577e2", w: 1280, h: 800 },
-  chart: { sha: "dacebad4d97e511644776d5b7b53a6b8359d63790b07dc721ff2af16df7bca11", w: 1280, h: 540 },
+  screen: { sha: "4121404b1bc773d3811cf2dfd10cb84ca406476b5b5553b3b91f2423dbd577e2", w: 1280, h: 800, edge: "dark" },
+  chart: { sha: "dacebad4d97e511644776d5b7b53a6b8359d63790b07dc721ff2af16df7bca11", w: 1280, h: 540, edge: "light" },
 } as const;
-const pic = (k: keyof typeof PICS) => ({ src: `${DEMO_OWNER}/${PICS[k].sha}.webp`, w: PICS[k].w, h: PICS[k].h });
+const pic = (k: keyof typeof PICS) => {
+  const p: { sha: string; w: number; h: number; edge?: "light" | "dark" } = PICS[k];
+  return { src: `${DEMO_OWNER}/${p.sha}.webp`, w: p.w, h: p.h, ...(p.edge ? { edge: p.edge } : {}) };
+};
 export const DEMO_IMAGES: Record<string, string> = Object.fromEntries(
   Object.values(PICS).map((p) => [`${DEMO_OWNER}/${p.sha}.webp`, `/demo/${p.sha}.webp`]),
 );

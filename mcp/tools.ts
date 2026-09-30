@@ -28,7 +28,7 @@ const BLOCKS_HELP = `블록 어휘 v1 — 정해진 칸만 쓴다. 글자는 앞
 - {type:"table", h, cols:[글], rows:[[글]]} 열 2~8, 행 1~60, 모든 행의 칸 수 = 열 수, 칸 ≤300자
 - {type:"claims", h, items:[{tag, text, refs}]} 1~50개. tag: fact(사실)|guess(추정). text ≤600자. refs: sources 의 출처 번호 배열(1부터, 없으면 [])
 - {type:"sources", h, items:[{title, url}]} 1~100개, url 은 http/https 만. 보고서당 1개까지
-- {type:"image", file, alt, place, size?, caption?, ref?, credit?} 사진. file = PC 사진 절대 경로(줄여 올리고 src·w·h·local_path 를 채움). alt 설명 ≤300자. place: left|right(바로 다음 text·list·claims 와 한 행 2칸, 아니면 사진 혼자 한쪽)|full(행 전체), size: 사진 칸 비율 "1/3"|"1/2"|"2/3". 출처 ref(출처 번호)·credit(예: 직접 캡처) 중 하나 — 없으면 local_path 가 출처
+- {type:"image", file, crop?, alt, place, size?, caption?, ref?, credit?} 사진. file = PC 사진 절대 경로(줄여 올리고 src·w·h·local_path 를 채움). crop:{x,y,w,h}(원본 픽셀)으로 보여줄 부분만 잘라 올릴 것 — 화면 캡처는 통째로 넣지 말 것. alt 설명 ≤300자. place: left|right(바로 다음 text·list·claims 와 한 행 2칸, 아니면 사진 혼자 한쪽)|full(행 전체), size: 사진 칸 비율 "1/3"|"1/2"|"2/3". 출처 ref(출처 번호)·credit(예: 직접 캡처) 중 하나 — 없으면 local_path 가 출처
 글 안 ==…== 는 굵게 강조(아껴 쓸 것).
 h(소제목) ≤200자. 블록 1~200개, 전체 약 580KB 까지(넘으면 두 보고서로 나눈다). 틀리면 "blocks[2].rows[3]: 이유" 목록이 돌아온다.
 예: [{"type":"verdict","v":"A 를 쓴다","w":"무료이고 문서가 좋다"},{"type":"claims","h":"근거","items":[{"tag":"fact","text":"A 는 무료다","refs":[1]},{"tag":"guess","text":"B 보다 빠를 것이다","refs":[]}]},{"type":"sources","h":"출처","items":[{"title":"A 문서","url":"https://a.dev/docs"}]}]`;

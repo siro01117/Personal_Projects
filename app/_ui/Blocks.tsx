@@ -7,6 +7,7 @@
 // 글 안 ==강조== 는 <strong> 으로(굵게만) (lib/marks — 구분자만 나눈다). 고치는 칸에서는 원문 그대로.
 // 블록은 행으로 묶어 그린다(app/_logic/rows — 한 행에 객체 최대 2개). 옆 사진은 다음 글과 2칸 행, 아니면 혼자 한쪽.
 // 사진 주소는 볼 때만 잠깐 유효한 것을 받고, 못 받거나 깨지면 설명 글자로.
+// 가장자리가 화면 바탕과 같은 밝기(라이트+light · 다크+dark)인 사진만 포인트색 테두리 — globals.css --img-edge-*.
 
 import { Component, Fragment, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -302,7 +303,7 @@ function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?
   const box = { maxWidth: `${b.w}px` };
   const editing = !!ctx?.editing;
   return (
-    <figure className={cls} id={`b${i}`}>
+    <figure className={cls} id={`b${i}`} data-edge={b.edge}>
       {url === undefined ? (
         <div className="img-wait" style={{ ...box, aspectRatio: `${b.w} / ${b.h}` }} />
       ) : url === null || broken ? (

@@ -10,7 +10,7 @@ import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sampleBlocks } from "../lib/fixtures";
 import { createDrawer, type ToolResult } from "./drawer";
-import { IMAGE_MAX_BYTES, prepareImage, purgeImages } from "./images";
+import { EDGE_BAND, EDGE_DARK, EDGE_LIGHT, edgeLuminance, edgeOf, IMAGE_MAX_BYTES, prepareImage, purgeImages } from "./images";
 import { createTestDb, PgliteStore } from "./store-pglite";
 
 let db: PGlite;
@@ -260,6 +260,176 @@ describe("report_create · report_edit 의 사진 블록", () => {
       "INVALID_BLOCKS",
     );
     expect(store.images.size).toBe(before);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/** 왼쪽 절반 빨강, 오른쪽 절반 파랑 */
+async function halves(w: number, h: number, file: string) {
+  const raw = Buffer.alloc(w * h * 3);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) raw[(y * w + x) * 3 + (x < w / 2 ? 0 : 2)] = 255;
+  await sharp(raw, { raw: { width: w, height: h, channels: 3 } }).png().toFile(file);
+  return file;
+}
+
+/** 가운데 색 (r,g,b) */
+async function centerColor(bytes: Uint8Array): Promise<number[]> {
+  const { data, info } = await sharp(bytes).raw().toBuffer({ resolveWithObject: true });
+  const i = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * info.channels;
+  return [data[i]!, data[i + 1]!, data[i + 2]!];
+}
+
+/** 화면 캡처 흉내: 바탕색 위에 글줄·상자. 글줄 하나는 가장자리 띠에 걸친다 */
+async function capture(file: string, bg: string, ink: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900">
+    <rect width="1440" height="900" fill="${bg}"/>
+    <rect x="12" y="10" width="220" height="16" rx="3" fill="${ink}"/>
+    <rect x="160" y="140" width="520" height="22" rx="4" fill="${ink}"/>
+    <rect x="160" y="190" width="760" height="14" rx="4" fill="${ink}"/>
+    <rect x="160" y="220" width="700" height="14" rx="4" fill="${ink}"/>
+    <rect x="160" y="300" width="1100" height="420" rx="12" fill="${ink}" opacity=".35"/>
+  </svg>`;
+  await sharp(Buffer.from(svg)).png().toFile(file);
+  return file;
+}
+
+describe("crop — 보여줄 부분만 잘라 올린다", () => {
+  it("원본 픽셀 기준으로 먼저 자르고, 그다음 긴 변 1280 규칙", async () => {
+    const f = await halves(4000, 2000, join(dir, "halves.png"));
+    const right = await prepareImage(f, { x: 2000, y: 0, w: 2000, h: 2000 });
+    expect([right.width, right.height]).toEqual([1280, 1280]);
+    expect(await centerColor(right.bytes)).toEqual([0, 0, 255].map((v) => expect.closeTo(v, -1.5)));
+    const left = await prepareImage(f, { x: 100, y: 500, w: 1500, h: 600 });
+    expect([left.width, left.height]).toEqual([1280, 512]);
+    const [r, , b] = await centerColor(left.bytes);
+    expect(r).toBeGreaterThan(200);
+    expect(b).toBeLessThan(40);
+  });
+
+  it("자른 뒤 작으면 늘리지 않는다", async () => {
+    const f = await halves(3000, 2000, join(dir, "halves-small.png"));
+    const img = await prepareImage(f, { x: 10, y: 20, w: 200, h: 100 });
+    expect([img.width, img.height]).toEqual([200, 100]);
+  });
+
+  it("좌표는 방향(EXIF)을 반영한 모양 기준", async () => {
+    // 저장은 400×200(왼쪽 빨강·오른쪽 파랑), 90도 돌려 보이면 200×400 — 위 빨강 · 아래 파랑
+    const raw = Buffer.alloc(400 * 200 * 3);
+    for (let y = 0; y < 200; y++) for (let x = 0; x < 400; x++) raw[(y * 400 + x) * 3 + (x < 200 ? 0 : 2)] = 255;
+    const f = join(dir, "turned.jpg");
+    await sharp(raw, { raw: { width: 400, height: 200, channels: 3 } }).jpeg().withMetadata({ orientation: 6 }).toFile(f);
+    const bottom = await prepareImage(f, { x: 0, y: 300, w: 200, h: 100 });
+    expect([bottom.width, bottom.height]).toEqual([200, 100]);
+    const [r, , b] = await centerColor(bottom.bytes);
+    expect(b).toBeGreaterThan(200);
+    expect(r).toBeLessThan(40);
+    const err = await prepareImage(f, { x: 0, y: 0, w: 400, h: 100 }).catch((e: Error) => e.message);
+    expect(err).toMatch(/^crop 이 사진 밖으로 나갑니다 \(사진 200×400,/);
+  });
+
+  it("사진 밖 · 모양 틀림은 한국어 오류. 원래 파일은 그대로", async () => {
+    const f = await halves(800, 600, join(dir, "crop-err.png"));
+    const before = sha(readFileSync(f));
+    const err = (c: unknown) => prepareImage(f, c).then(() => "통과", (e: Error) => e.message);
+    expect(await err({ x: 700, y: 0, w: 200, h: 100 })).toBe(
+      "crop 이 사진 밖으로 나갑니다 (사진 800×600, 자를 곳 x 700~900 · y 0~100) — 원본 픽셀 기준으로 주세요",
+    );
+    expect(await err({ x: 0, y: 0, w: 800, h: 601 })).toMatch(/^crop 이 사진 밖으로 나갑니다/);
+    expect(await err({ x: 0, y: 0, w: 800, h: 600 })).toBe("통과");
+    expect(await err({ x: -1, y: 0, w: 10, h: 10 })).toBe("crop.x 는 0 이상입니다");
+    expect(await err({ x: 0, y: 0, w: 0, h: 10 })).toBe("crop.w 는 1 이상입니다");
+    expect(await err({ x: 0, y: 0, w: 10.5, h: 10 })).toBe("crop.w 는 정수(픽셀)여야 합니다");
+    expect(await err({ x: 0, y: 0, w: 10 })).toBe("crop.h 가 빠졌습니다 — x, y, w, h 를 모두 주세요");
+    expect(await err({ x: 0, y: 0, w: 10, h: 10, left: 1 })).toBe("crop 에 모르는 칸이 있습니다: left — x, y, w, h 만 씁니다");
+    expect(await err([0, 0, 10, 10])).toBe("crop 은 {x, y, w, h} 객체입니다 (원본 픽셀, 정수)");
+    expect(sha(readFileSync(f))).toBe(before);
+  });
+
+  it("MCP: crop 은 저장하지 않고 잘린 사진만 올린다. 오류 자리는 .crop", async () => {
+    const { store, drawer } = setup();
+    const f = await halves(2400, 1200, join(dir, "mcp-crop.png"));
+    const block = (crop: unknown) => ({ type: "image", file: f, crop, alt: "오른쪽만", place: "full", credit: "직접 캡처" });
+    const r = good(await drawer.report_create({ title: "자름", kind: "data", folder: "/", blocks: [block({ x: 1200, y: 0, w: 1200, h: 600 })] }));
+    const [img] = await blocksOf(r.id);
+    expect(img).toMatchObject({ w: 1200, h: 600, local_path: f.replace(/\\/g, "/") });
+    expect(img).not.toHaveProperty("crop");
+    expect(await centerColor(store.images.get(img.src)!.bytes)).toEqual([0, 0, 255].map((v) => expect.closeTo(v, -1.5)));
+
+    const d = bad(await drawer.report_create({ title: "밖", kind: "data", folder: "/", blocks: [block({ x: 0, y: 0, w: 2401, h: 10 })] }), "INVALID_BLOCKS");
+    expect(d.errors).toEqual([{ path: "blocks[0].crop", message: expect.stringMatching(/^crop 이 사진 밖으로 나갑니다/) }]);
+
+    // file 없이 crop (이미 올린 사진은 못 자른다)
+    const e = bad(
+      await drawer.report_edit({ id: r.id, base_version: 1, ops: [{ op: "replace", at: 0, block: { ...img, crop: { x: 0, y: 0, w: 10, h: 10 } } }] }),
+      "INVALID_BLOCKS",
+    );
+    expect(e.errors).toEqual([{ path: "ops[0].block.crop", message: "crop 은 file 과 같이 줄 때만 씁니다 — 이미 올린 사진(src)은 자를 수 없습니다" }]);
+  });
+});
+
+describe("edge — 가장자리 밝기", () => {
+  it("흰 바탕 캡처는 light, 검은 바탕 캡처는 dark", async () => {
+    const white = await prepareImage(await capture(join(dir, "cap-white.png"), "#ffffff", "#161619"));
+    expect(white.edge).toBe("light");
+    const soft = await prepareImage(await capture(join(dir, "cap-soft.png"), "#f4f4f6", "#46464d"));
+    expect(soft.edge).toBe("light");
+    const black = await prepareImage(await capture(join(dir, "cap-black.png"), "#0f0f12", "#f3f3f6"));
+    expect(black.edge).toBe("dark");
+    const dim = await prepareImage(await capture(join(dir, "cap-dim.png"), "#17171b", "#c3c3cb"));
+    expect(dim.edge).toBe("dark");
+  });
+
+  it("사진류 · 중간 밝기 · 반반 · 투명은 없음", async () => {
+    // 잡음(사진처럼 섞인 색), 회색 바탕, 왼쪽 검정 + 오른쪽 흰색
+    expect((await prepareImage(await noise(600, 400, join(dir, "edge-noise.png")))).edge).toBeUndefined();
+    expect((await prepareImage(await capture(join(dir, "cap-gray.png"), "#808080", "#ffffff"))).edge).toBeUndefined();
+    const split = join(dir, "edge-split.png");
+    await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400"><rect width="800" height="400" fill="#fff"/><rect width="400" height="400" fill="#000"/></svg>`))
+      .png()
+      .toFile(split);
+    expect((await prepareImage(split)).edge).toBeUndefined();
+    const clear = join(dir, "edge-clear.png");
+    await sharp({ create: { width: 300, height: 200, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } } }).png().toFile(clear);
+    expect((await prepareImage(clear)).edge).toBeUndefined();
+    // 풍경 그림처럼 가장자리가 어둑한 중간 톤
+    expect((await prepareImage(await solid(500, 300, join(dir, "edge-mid.png"), { r: 90, g: 110, b: 80 }))).edge).toBeUndefined();
+  });
+
+  it("기준값: 띠 평균 휘도 0.8 이상 light, 0.03 이하 dark. 가운데는 안 본다", async () => {
+    expect([EDGE_LIGHT, EDGE_DARK, EDGE_BAND]).toEqual([0.8, 0.03, 0.04]);
+    expect(edgeOf(0.8)).toBe("light");
+    expect(edgeOf(0.79)).toBeUndefined();
+    expect(edgeOf(0.03)).toBe("dark");
+    expect(edgeOf(0.031)).toBeUndefined();
+    expect(edgeOf(null)).toBeUndefined();
+    // 흰 테두리 띠 + 가운데 검정: 가운데는 평균에 안 들어간다
+    const framed = await sharp(
+      Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500"><rect width="1000" height="500" fill="#fff"/><rect x="60" y="30" width="880" height="440" fill="#000"/></svg>`),
+    )
+      .png()
+      .toBuffer();
+    expect(await edgeLuminance(framed)).toBeCloseTo(1, 2);
+  });
+
+  it("MCP 가 edge 를 채운다 — 에이전트가 준 값은 버리고 잰 값으로", async () => {
+    const { drawer } = setup();
+    const w = await capture(join(dir, "mcp-white.png"), "#ffffff", "#161619");
+    const n = await noise(300, 200, join(dir, "mcp-noise.png"));
+    const r = good(
+      await drawer.report_create({
+        title: "가장자리",
+        kind: "data",
+        folder: "/",
+        blocks: [
+          { type: "image", file: w, alt: "흰 캡처", place: "full", credit: "직접 캡처", edge: "dark" },
+          { type: "image", file: n, alt: "잡음", place: "full", credit: "직접 캡처", edge: "light" },
+        ],
+      }),
+    );
+    const [a, b] = await blocksOf(r.id);
+    expect(a.edge).toBe("light");
+    expect(b).not.toHaveProperty("edge");
   });
 });
 

@@ -25,6 +25,9 @@ export const LIMITS = {
 export const IMAGE_SRC = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{64}\.webp$/;
 export const IMAGE_PLACES = ["left", "right", "full"] as const;
 export const IMAGE_SIZES = ["1/3", "1/2", "2/3"] as const;
+/** 사진 가장자리가 아주 밝음·어두움 — MCP 가 올릴 때 재서 채운다. 같은 색 테마 화면에서 테두리를 그린다 */
+export const IMAGE_EDGES = ["light", "dark"] as const;
+export type ImageEdge = (typeof IMAGE_EDGES)[number];
 
 export const REPORT_KINDS = {
   method: "작업 방식 조사",
@@ -168,6 +171,7 @@ export const imageBlock = obj({
   ref: ref.optional(),
   credit: str(LIMITS.image.credit, true).optional(),
   local_path: str(LIMITS.image.localPath, true).optional(),
+  edge: z.enum(IMAGE_EDGES, { error: "edge 는 light · dark 중 하나입니다 (MCP 가 채우므로 file 로 줄 때는 비워 두세요)" }).optional(),
 });
 
 export const BLOCK_TYPES = ["verdict", "text", "list", "table", "claims", "sources", "image"] as const;

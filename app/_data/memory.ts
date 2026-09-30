@@ -13,7 +13,7 @@ import type { Copied, DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored
 
 const MAX_DEPTH = 8;
 /** 찾기에서 뺄 키 — 사용자 글자가 아닌 값 (ez_search 와 같다) */
-const NOT_TEXT = ["type", "tag", "url", "src", "place", "size", "local_path"];
+const NOT_TEXT = ["type", "tag", "url", "src", "place", "size", "local_path", "edge"];
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 /** 줄바꿈 + 줄/문단 구분자(U+2028, U+2029) — ez_edit_text 와 같다 */
 const LINE_BREAK = new RegExp(`[\\n\\r${String.fromCharCode(0x2028, 0x2029)}]`);
