@@ -49,6 +49,8 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .logo{font-family:var(--font-num);font-weight:600;font-size:18px;letter-spacing:.01em;color:var(--text-1);text-decoration:none}
 .logo b{color:var(--point-ink);font-weight:600}
 .topline .date{font-size:14px;color:var(--text-3)}
+.topline .theme-toggle{margin-left:auto;align-self:center}
+.side .side-theme{margin-top:auto;align-self:flex-start}
 
 .bento{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:max(128px,9cqw);gap:clamp(12px,1cqw,20px)}
 .tile{position:relative;overflow:hidden;border-radius:var(--r-l);background:var(--surface-2);padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-width:0;text-align:center;color:var(--text-1);text-decoration:none;transition:transform var(--t),background var(--t)}

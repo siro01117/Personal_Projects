@@ -2,6 +2,7 @@
 
 // 작업면 = 사이드바 + 오른쪽(위쪽 경로 줄 + 탐색기 | 보고서 | 휴지통). 목업 .work
 
+import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -31,6 +32,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <span className="txt">휴지통</span>
             </Link>
           </nav>
+          <ThemeToggle className="side-theme" />
         </aside>
         <div className="main">{children}</div>
       </section>

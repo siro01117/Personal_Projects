@@ -2,6 +2,7 @@
 
 // 홈 벤또 (목업 .home). 1차는 보고서 서랍 타일만 동작한다. 나머지는 점선 '나중' 타일, 눌러도 아무 일 없음.
 
+import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -44,6 +45,7 @@ export function HomeView() {
             EZ<b>.</b>WORK
           </span>
           <span className="date">{formatToday()}</span>
+          <ThemeToggle className="theme-toggle" />
         </div>
         <div className="bento">
           <Later className="t-today" icon="cal" label="오늘" />

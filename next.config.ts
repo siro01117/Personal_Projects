@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // next dev 가 CLAUDE.md 에 안내 글을 덧붙이지 않게 (이 저장소의 CLAUDE.md 는 사람이 관리)
   agentRules: false,
+  // 개발 모드 왼쪽 아래 Next 표시가 사이드바 아래 밝기 스위치를 가려서 끈다
+  devIndicators: false,
   // 상위 폴더(C:\Users\PC)의 package-lock.json 을 작업 폴더로 잘못 잡지 않게
   turbopack: { root: import.meta.dirname },
   async headers() {
