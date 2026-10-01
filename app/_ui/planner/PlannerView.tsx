@@ -791,36 +791,51 @@ export function PlannerView() {
             if (viewing && !(e.target as HTMLElement).closest("li, button, a")) closeAll();
           }}
         >
-          {lists.late.length > 0 && (
-            <section className="pl-sec" aria-label="지남">
-              <h2 className="pl-h">지남</h2>
-              <ul className="pl-rows">{lists.late.map((l) => line(l.task, { link: l.link ?? undefined, late: l }))}</ul>
-            </section>
-          )}
-          {openShown.length > 0 && (
-            <section className="pl-sec" aria-label="할 일">
-              {lists.late.length > 0 && <h2 className="pl-h">할 일</h2>}
-              <ul className="pl-rows" ref={openRef}>
-                {openShown.map((t) => line(t, { movable: true }))}
-              </ul>
-            </section>
-          )}
-          {lists.timed.length > 0 && (
-            <section className="pl-sec" aria-label="시간 정함">
-              <h2 className="pl-h">시간 정함</h2>
-              <ul className="pl-rows">{lists.timed.map(({ task, link }) => line(task, { link }))}</ul>
-            </section>
-          )}
-          {lists.done.length > 0 && (
-            <section className="pl-sec" aria-label="끝냄">
-              <button type="button" className="pl-h pl-fold" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
-                끝냄
-                <span className="num">{lists.done.length}</span>
-                <Icon name={showDone ? "up" : "down"} />
-              </button>
-              {showDone && <ul className="pl-rows">{lists.done.map((t) => line(t))}</ul>}
-            </section>
-          )}
+          {/* 데스크톱은 두 열(왼쪽: 지금 할 것 · 오른쪽: 정해 둔 것과 끝낸 것), 좁으면 한 열로 쌓인다 */}
+          <div className={lists.timed.length + lists.done.length > 0 ? "pl-cols two" : "pl-cols"}>
+            <div className="pl-col">
+              {lists.late.length > 0 && (
+                <section className="pl-sec late" aria-label="지남">
+                  <h2 className="pl-h">
+                    지남<span className="num">{lists.late.length}</span>
+                  </h2>
+                  <ul className="pl-rows">{lists.late.map((l) => line(l.task, { link: l.link ?? undefined, late: l }))}</ul>
+                </section>
+              )}
+              {openShown.length > 0 && (
+                <section className="pl-sec open" aria-label="할 일">
+                  <h2 className="pl-h">
+                    할 일<span className="num">{openShown.length}</span>
+                  </h2>
+                  <ul className="pl-rows" ref={openRef}>
+                    {openShown.map((t) => line(t, { movable: true }))}
+                  </ul>
+                </section>
+              )}
+            </div>
+            {lists.timed.length + lists.done.length > 0 && (
+              <div className="pl-col">
+                {lists.timed.length > 0 && (
+                  <section className="pl-sec" aria-label="시간 정함">
+                    <h2 className="pl-h">
+                      시간 정함<span className="num">{lists.timed.length}</span>
+                    </h2>
+                    <ul className="pl-rows">{lists.timed.map(({ task, link }) => line(task, { link }))}</ul>
+                  </section>
+                )}
+                {lists.done.length > 0 && (
+                  <section className="pl-sec" aria-label="끝냄">
+                    <button type="button" className="pl-h pl-fold" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
+                      끝냄
+                      <span className="num">{lists.done.length}</span>
+                      <Icon name={showDone ? "up" : "down"} />
+                    </button>
+                    {showDone && <ul className="pl-rows">{lists.done.map((t) => line(t))}</ul>}
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         {!phone && panel && (
           <aside className={wide ? "dp pl-dp" : "dp pl-dp float"} aria-label={panelLabel}>

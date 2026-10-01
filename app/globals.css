@@ -687,6 +687,26 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-fold:hover{color:var(--text-1)}
 .pl-fold .i{width:16px;height:16px}
 /* 보기 패널: 넓은 데스크톱은 오른쪽, 좁은 데스크톱은 떠 있는 패널(.float) */
+/* 플래너 배치: 회색 바탕 위 흰 종이 묶음(보고서 화면과 같은 결). 넓으면 두 열, 좁으면 한 열 */
+.pl-list{container:pstage/inline-size;background:var(--canvas);padding:20px clamp(16px,2.4cqw,40px) 96px}
+.pl-list > *{max-width:none}
+.pl-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:1440px;align-items:start}
+@container pstage (min-width: 720px){ .pl-cols.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+.pl-cols:not(.two){max-width:760px}
+.pl-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.pl-sec,.pl-list > .pl-sec:first-child{container:plist/inline-size;margin:0;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:4px 8px 8px}
+.pl-h{width:100%;height:44px;margin:0;padding:0 10px;gap:8px;font-size:13px;font-weight:600;color:var(--text-1)}
+.pl-h::before{content:"";flex:0 0 auto;width:6px;height:6px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--text-3)}
+.pl-sec.late .pl-h::before{background:var(--danger);box-shadow:none}
+.pl-sec.open .pl-h::before{background:var(--point-ink);box-shadow:none}
+.pl-h .num{color:var(--text-3);font-weight:500;font-size:12.5px}
+.pl-fold .i{margin-left:auto;color:var(--text-3)}
+.pl-row.sel{background:var(--point-soft)}
+@container app (max-width: 760px){
+  .pl-list{padding:8px 0 96px}
+  .pl-cols,.pl-col{gap:8px}
+  .pl-sec,.pl-list > .pl-sec:first-child{border-left:0;border-right:0;border-radius:0;padding:2px 6px 6px}
+}
 .pl-dp{flex:0 0 clamp(340px,28cqw,440px);min-width:0;position:relative}
 .pl-dp.float{width:min(380px,100%)}
 .pl-dp > .pl-x{position:absolute;top:16px;right:16px;width:36px}
