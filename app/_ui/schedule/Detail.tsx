@@ -7,7 +7,7 @@ import type { EventRow, Occurrence, Place, Segment, TaskRow } from "../../../lib
 import type { SourceInfo } from "../../_data/types";
 import { dayLabel, departureFor, departureText, hm, nowIn, repeatLabel, timeRange, type Scope } from "../../_logic/schedule";
 import { Icon } from "../Icon";
-import { PlaceSymbol } from "./PlaceSymbol";
+import { PlaceDot } from "./PlaceSymbol";
 
 export function Detail({
   occ,
@@ -55,7 +55,7 @@ export function Detail({
   return (
     <>
       <div className={place ? `dp-h pc-${place.color}` : "dp-h"}>
-        {place && <PlaceSymbol symbol={place.symbol} />}
+        {place && <PlaceDot />}
         <h2>{occ.title}</h2>
       </div>
       <div className="dp-f">

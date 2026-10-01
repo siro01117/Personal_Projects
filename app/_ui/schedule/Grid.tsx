@@ -6,7 +6,6 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { Occurrence, Place } from "../../../lib/schedule";
 import { blockFit, DRAFT_ID, duration, hm, PX_PER_MIN, timeRange, type GridItem, type Laid } from "../../_logic/schedule";
-import { PlaceSymbol } from "./PlaceSymbol";
 
 export type GridCtx = {
   places: Map<string, Place>;
@@ -114,7 +113,7 @@ function EventBlock({
   const editing = ctx.editKey === o.key;
   const cls = [
     "ev",
-    place ? `pc-${place.color} has-ps` : "",
+    place ? `pc-${place.color}` : "",
     o.source ? "ext" : "",
     ctx.selKey === o.key || editing ? "sel" : "",
     item.cutTop ? "cut-t" : "",
@@ -149,7 +148,6 @@ function EventBlock({
       onPointerDown={editing && ctx.onGrab ? (e) => ctx.onGrab!(e, o, "move") : undefined}
     >
       <div className="r">
-        {place && <PlaceSymbol symbol={place.symbol} />}
         {done !== null && <i className={done ? "tk done" : "tk"} aria-hidden="true" />}
         <span className="t">{o.title}</span>
         {o.source && <span className="src">{ctx.sourceLabel(o.source)}</span>}
@@ -221,7 +219,6 @@ export function AllDayCell({
             title={occTitle(o, ctx)}
             onClick={(e) => ctx.onPick(o, e.currentTarget)}
           >
-            {place && <PlaceSymbol symbol={place.symbol} />}
             <span>{o.title}</span>
           </button>
         );

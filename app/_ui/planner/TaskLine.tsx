@@ -11,7 +11,7 @@ import type { TaskLink } from "../../_data/types";
 import { checkLabel, dueLabel, lateLabel, overdue, whenLabel, type Late } from "../../_logic/planner";
 import { duration } from "../../_logic/schedule";
 import { Icon } from "../Icon";
-import { PlaceSymbol } from "../schedule/PlaceSymbol";
+import { PlaceDot } from "../schedule/PlaceSymbol";
 
 export function TaskLine({
   task,
@@ -70,7 +70,7 @@ export function TaskLine({
       </button>
       {place && (
         <span className={`sym pc-${place.color}`} title={place.name}>
-          <PlaceSymbol symbol={place.symbol} />
+          <PlaceDot />
         </span>
       )}
       <button type="button" className="nm" aria-pressed={selected}>

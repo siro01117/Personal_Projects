@@ -11,7 +11,7 @@ import { EST_MAX, EST_MIN, NOTE_MAX, TASK_TITLE_MAX, weekday, type DateStr, type
 import { dateLabel, draftWithPlace, draftWithRole, parseChecks, taskScopes, type DueOption, type RepeatKind, type TaskDraft, type TaskScope } from "../../_logic/planner";
 import { WEEKDAYS } from "../../_logic/schedule";
 import { Icon } from "../Icon";
-import { PlaceSymbol } from "../schedule/PlaceSymbol";
+import { PlaceDot } from "../schedule/PlaceSymbol";
 
 const composing = (e: KeyboardEvent) => e.nativeEvent.isComposing || e.keyCode === 229;
 
@@ -145,7 +145,7 @@ export function TaskForm({
         <div className="chips" role="group" aria-label="지점">
           {shown.map((p) => (
             <button type="button" key={p.id} className={`chip pc-${p.color}`} aria-pressed={draft.place_id === p.id} onClick={() => onChange(draftWithPlace(draft, p, roles))}>
-              <PlaceSymbol symbol={p.symbol} />
+              <PlaceDot />
               {p.name}
             </button>
           ))}

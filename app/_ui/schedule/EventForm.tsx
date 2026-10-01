@@ -8,7 +8,7 @@ import { useState } from "react";
 import { TASK_TITLE_MAX, weekday, type Place, type Repeat } from "../../../lib/schedule";
 import { hm, WEEKDAYS, type Draft, type Scope } from "../../_logic/schedule";
 import { Icon } from "../Icon";
-import { PlaceSymbol } from "./PlaceSymbol";
+import { PlaceDot } from "./PlaceSymbol";
 
 /** 끝나면 할 일 (docs/플래너.md 7-2): 회차가 끝날 때마다 생길 할 일의 제목(비우면 없음)과 마감까지 며칠 */
 export type AfterDraft = { title: string; dueAfter: string };
@@ -136,7 +136,7 @@ export function EventForm({
               aria-pressed={draft.place_id === p.id}
               onClick={() => set({ place_id: p.id })}
             >
-              <PlaceSymbol symbol={p.symbol} />
+              <PlaceDot />
               {p.name}
             </button>
           ))}

@@ -9,7 +9,6 @@ import {
   DEFAULT_SETTINGS,
   PLACE_COLORS,
   PLACE_NAME_MAX,
-  PLACE_SYMBOLS,
   PLACES_MAX,
   type Place,
   type PlaceRole,
@@ -21,7 +20,6 @@ import { Icon } from "../Icon";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
-import { PlaceSymbol, SYMBOL_NAMES } from "./PlaceSymbol";
 import { useScheduleData, type Meta } from "./useScheduleData";
 
 const ROLES: { role: PlaceRole | null; label: string }[] = [
@@ -186,11 +184,10 @@ export function ScheduleSettings() {
                   type="button"
                   className="sym"
                   aria-expanded={open === p.id}
-                  aria-label={`${p.name} 역할 · 심볼 · 색`}
-                  title="역할 · 심볼 · 색"
+                  aria-label={`${p.name} 역할 · 색`}
+                  title="역할 · 색"
                   onClick={() => setOpen(open === p.id ? null : p.id)}
                 >
-                  <PlaceSymbol symbol={p.symbol} />
                 </button>
                 <input
                   className="txt-in nm"
@@ -232,13 +229,6 @@ export function ScheduleSettings() {
                           onClick={() => p.role !== r.role && setPlace(p, { role: r.role })}
                         >
                           {r.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="symbols" role="group" aria-label="심볼">
-                      {PLACE_SYMBOLS.map((s) => (
-                        <button type="button" key={s} aria-pressed={p.symbol === s} aria-label={SYMBOL_NAMES[s]} title={SYMBOL_NAMES[s]} onClick={() => setPlace(p, { symbol: s })}>
-                          <PlaceSymbol symbol={s} />
                         </button>
                       ))}
                     </div>

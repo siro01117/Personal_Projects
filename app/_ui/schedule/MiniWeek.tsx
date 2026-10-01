@@ -5,7 +5,6 @@
 
 import type { DateStr, Place } from "../../../lib/schedule";
 import { WEEKDAYS, type DayColumn } from "../../_logic/schedule";
-import { PlaceSymbol } from "./PlaceSymbol";
 
 const M0 = 420;
 const M1 = 1440;
@@ -69,9 +68,7 @@ export function MiniWeek({
                 }
                 const place = item.occ.place_id ? places.get(item.occ.place_id) : undefined;
                 return (
-                  <i key={item.id} className={place ? `mb pc-${place.color}` : "mb"} style={style}>
-                    {place && <PlaceSymbol symbol={place.symbol} />}
-                  </i>
+                  <i key={item.id} className={place ? `mb pc-${place.color}` : "mb"} style={style} />
                 );
               })}
               {c.date === today && now >= M0 && <div className="now" style={{ top: pct(now) }} />}

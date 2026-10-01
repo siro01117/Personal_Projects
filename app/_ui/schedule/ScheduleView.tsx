@@ -65,7 +65,7 @@ import { Detail } from "./Detail";
 import { EventForm, NO_AFTER, type AfterDraft } from "./EventForm";
 import { AllDayCell, Axis, ColumnItems, NowLine, type GridCtx } from "./Grid";
 import { MiniWeek } from "./MiniWeek";
-import { PlaceSymbol } from "./PlaceSymbol";
+import { PlaceDot } from "./PlaceSymbol";
 import { useScheduleData } from "./useScheduleData";
 
 const PHONE_MAX = 760;
@@ -838,7 +838,7 @@ export function ScheduleView() {
               <li key={t.id} onPointerDown={(e) => grabTask(e, t)} title="끌어서 시간표에 놓기">
                 <span className="ring" aria-hidden="true" />
                 <span className={place ? `nm pc-${place.color}` : "nm"}>
-                  {place && <PlaceSymbol symbol={place.symbol} />}
+                  {place && <PlaceDot />}
                   {t.title}
                 </span>
                 {t.est_min !== null && <span className="est">{duration(t.est_min)}</span>}
