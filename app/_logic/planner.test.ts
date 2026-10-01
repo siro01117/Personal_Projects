@@ -29,7 +29,7 @@ import {
   taskDraft,
   taskScopes,
   whenLabel,
-  whenOf,
+  estOf,
   type Sort,
 } from "./planner";
 
@@ -569,41 +569,32 @@ describe("정렬 (7-12)", () => {
     for (const key of ["manual", "role", "place", "time"] as const) expect(sortGroups([], { key, dir: "asc" }, by)).toEqual([]);
   });
 
-  it("때: 일정이 마감보다 먼저, 종일은 그날 0시, 마감은 그날 끝, 끝낸 것은 끝낸 시각, 없으면 null", () => {
-    const day = (d: string) => Date.parse(`${d}T00:00:00Z`);
-    expect(whenOf(rows[3]!)).toBe(day("2026-10-04") + 600 * 60_000);
-    expect(whenOf(rows[5]!)).toBe(day("2026-10-03"));
-    expect(whenOf(rows[2]!)).toBe(day("2026-10-03") + 1439 * 60_000);
-    expect(whenOf(rows[1]!)).toBeNull();
-    expect(whenOf({ task: task("x", { done_at: "2026-09-30T03:00:00Z", due: "2026-10-09" }), link: link("x", "2026-10-02", 600) })).toBe(
-      Date.parse("2026-09-30T03:00:00Z"),
-    );
+  it("소요시간: 묶음 하나(구분 없음). 오름은 짧은 것부터, 안 적은 것은 맨 뒤에 직접 순서로", () => {
+    const list = [
+      { task: task("긴", { est_min: 120 }) },
+      { task: task("없음1") },
+      { task: task("짧은", { est_min: 15 }) },
+      { task: task("중간", { est_min: 60 }) },
+      { task: task("없음2") },
+    ];
+    expect(estOf(list[0]!)).toBe(120);
+    expect(estOf(list[1]!)).toBeNull();
+    expect(shape({ key: "time", dir: "asc" }, list)).toEqual([["all", "", "짧은중간긴없음1없음2"]]);
+    expect(shape({ key: "time", dir: "desc" }, list)).toEqual([["all", "", "긴중간짧은없음1없음2"]]);
   });
 
-  it("시간: 묶음 하나(구분 없음). 오름은 이른 것부터, 때 없는 것은 맨 뒤에 직접 순서로", () => {
-    // f 10/3 종일(0시) < c 10/3 마감(23:59) < d 10/4 10:00(마감 10/3 보다 일정이 먼저) < a 10/5 마감 · 때 없음 b, e
-    expect(shape({ key: "time", dir: "asc" })).toEqual([["all", "", "fcdabe"]]);
-  });
-
-  it("시간 내림: 늦은 것부터. 때 없는 것은 그래도 맨 뒤(직접 순서)", () => {
-    expect(shape({ key: "time", dir: "desc" })).toEqual([["all", "", "adcfbe"]]);
-  });
-
-  it("시간: 같은 때면 오름이든 내림이든 직접 순서", () => {
-    const same = [{ task: task("x", { due: "2026-10-03" }) }, { task: task("y", { due: "2026-10-01" }) }, { task: task("z", { due: "2026-10-03" }) }];
+  it("소요시간: 같은 값이면 오름이든 내림이든 직접 순서", () => {
+    const same = [{ task: task("x", { est_min: 30 }) }, { task: task("y", { est_min: 10 }) }, { task: task("z", { est_min: 30 }) }];
     expect(ids({ key: "time", dir: "asc" }, same)).toBe("y x z");
     expect(ids({ key: "time", dir: "desc" }, same)).toBe("x z y");
   });
 
-  it("시간: 끝냄 묶음은 끝낸 시각 순 (직접 순서는 최근순)", () => {
-    const done = [
-      { task: task("최근", { done_at: "2026-09-30T03:00:00Z", due: "2026-09-01" }) },
-      { task: task("중간", { done_at: "2026-09-28T03:00:00Z" }) },
-      { task: task("옛것", { done_at: "2026-09-25T03:00:00Z", due: "2026-10-30" }) },
+  it("소요시간: 이어진 일정이나 마감은 보지 않는다", () => {
+    const list = [
+      { task: task("일찍", { est_min: 90, due: "2026-10-01" }), link: link("일찍", "2026-10-01", 600) },
+      { task: task("늦게", { est_min: 20, due: "2026-10-30" }) },
     ];
-    expect(ids({ key: "manual", dir: "asc" }, done)).toBe("최근 중간 옛것");
-    expect(ids({ key: "time", dir: "asc" }, done)).toBe("옛것 중간 최근");
-    expect(ids({ key: "time", dir: "desc" }, done)).toBe("최근 중간 옛것");
+    expect(ids({ key: "time", dir: "asc" }, list)).toBe("늦게 일찍");
   });
 
   it("목록 넷에 그대로 쓴다: 지남 · 시간 정함 줄은 이어진 일정을 가진 채 묶인다", () => {
@@ -617,7 +608,6 @@ describe("정렬 (7-12)", () => {
     const links = [link("회의", "2026-09-30", 600), link("발표", "2026-10-03", 600), link("상담", "2026-10-02", 600)];
     const l = splitTasks(tasks, links, now, { date: "2026-10-01", min: 720 });
     expect(ids({ key: "manual", dir: "asc" }, l.late)).toBe("서류 회의");
-    expect(ids({ key: "time", dir: "desc" }, l.late)).toBe("회의 서류");
     expect(shape({ key: "role", dir: "asc" }, l.timed)).toEqual([
       ["role", "대학", "발표"],
       ["none", "없음", "상담"],
