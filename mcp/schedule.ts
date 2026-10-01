@@ -1,8 +1,11 @@
-// MCP 일정 4개 · 플래너 2개 도구 로직 (docs/일정.md 5장, docs/플래너.md 4장). ScheduleStore 를 받아 돈다.
+// MCP 일정 4개 · 플래너 2개 도구 로직 (docs/일정.md 5장, docs/플래너.md 4장 · 7-8). ScheduleStore 를 받아 돈다.
 // 계산(회차 펼치기·동선·빈 시간)과 입력 검사는 lib/schedule 것을 그대로 쓴다. 규칙의 마지막 문은 DB 다.
 // 에이전트 쪽 표기: 날짜 'YYYY-MM-DD', 시각 "HH:MM"(다음 날이면 "+1"), 요일 "월".."일". 결과는 drawer.ts 와 같은 ToolResult.
 
 import {
+  CHECKLIST_MAX,
+  CHECK_ITEM_MAX,
+  DUE_AFTER_MAX,
   addDays,
   daysBetween,
   freeSlots,
@@ -22,12 +25,14 @@ import {
   type Place,
   type Repeat,
   type Segment,
+  type CheckItem,
   type TaskRow,
+  type TaskRule,
 } from "../lib/schedule";
-import { sameName } from "../lib/names";
+import { charCount, sameName } from "../lib/names";
 import type { ToolResult } from "./drawer";
 import { toKorean } from "./errors";
-import type { EventPatch, NewEvent, ScheduleStore, SplitPatch, SyncEvent, TaskPatch } from "./schedule-store";
+import type { EventPatch, NewEvent, RulePatch, ScheduleStore, SplitPatch, SyncEvent, TaskPatch } from "./schedule-store";
 
 export const MAX_DAYS = 62;
 /** 빈 시간은 07:00~24:00 안에서만 */
@@ -146,6 +151,8 @@ function badInput(issues: Issue[], extra: Obj = {}): ToolResult {
 /** DB 이유 글 → 어느 칸인지 (짐작) */
 const GUESS: [RegExp, string][] = [
   [/제목|title/, "title"],
+  [/체크/, "checklist"],
+  [/마감|due/, "due"],
   [/끝나는 날|until/, "repeat.until"],
   [/요일|days/, "repeat.days"],
   [/반복|repeat|freq/, "repeat"],
@@ -168,6 +175,9 @@ function dbFail(e: unknown, extra: Obj = {}): ToolResult {
     return fail("이 할 일은 이미 다른 일정과 이어져 있습니다 — 그 일정을 고치거나 지운 뒤 다시 하세요", "TASK_TAKEN", extra);
   }
   if (err.code === "23503") {
+    if (/due_event_fk|rules_event_fk/.test(all)) return fail("없는 일정입니다", "NOT_FOUND", extra);
+    if (all.includes("place_fk")) return fail("없는 지점입니다", "NOT_FOUND", extra);
+    if (all.includes("rule_fk")) return fail("없는 반복 규칙입니다", "NOT_FOUND", extra);
     if (all.includes("task")) return fail("없는 할 일입니다 (task_id)", "NOT_FOUND", extra);
     if (all.includes("place")) return fail("없는 지점입니다", "NOT_FOUND", extra);
   }
@@ -225,7 +235,7 @@ export function closestName(input: string, names: string[]): string | null {
 type PlaceHit = { id: string | null } | { error: ToolResult; reason: string };
 
 /** 지점 이름 → id. null·"" 은 지점 없음. 살아 있는 지점에서만 찾는다 */
-function findPlace(name: unknown, places: Place[]): PlaceHit {
+function findPlace(name: unknown, places: Place[], emptyHint = "place 를 비우고 where 에 장소 글을 쓰세요"): PlaceHit {
   if (name === null || (typeof name === "string" && name.trim() === "")) return { id: null };
   const live = places.filter((p) => !p.deleted);
   const s = String(name);
@@ -233,7 +243,7 @@ function findPlace(name: unknown, places: Place[]): PlaceHit {
   if (hit) return { id: hit.id };
   const names = live.map((p) => p.name);
   if (names.length === 0) {
-    const reason = `없는 지점입니다: "${s.trim()}" — 지점이 하나도 없습니다(지점은 웹 설정에서 만듭니다). place 를 비우고 where 에 장소 글을 쓰세요`;
+    const reason = `없는 지점입니다: "${s.trim()}" — 지점이 하나도 없습니다(지점은 웹 설정에서 만듭니다). ${emptyHint}`;
     return { reason, error: fail(reason, "PLACE_NOT_FOUND", { places: [] }) };
   }
   const near = closestName(s, names);
@@ -359,16 +369,159 @@ function bandOut(s: Extract<Segment, { kind: "prep" | "travel" }>, names: Names)
 
 const MEAL = { lunch: "점심", dinner: "저녁" } as const;
 
-function taskOut(t: TaskRow, ev: EventRow | undefined): Obj {
+/** 지금 → Asia/Seoul 의 날짜와 0시부터 센 분 (한국은 서머타임이 없어 +9시간 고정) */
+export function seoul(d: Date): { today: DateStr; nowMin: number } {
+  const k = new Date(d.getTime() + 9 * 3_600_000);
+  return { today: k.toISOString().slice(0, 10), nowMin: k.getUTCHours() * 60 + k.getUTCMinutes() };
+}
+
+/** '2026-09-27' → '9/27' */
+const shortDay = (d: DateStr) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+
+/** 규칙 한 줄 요약: "매일" · "매주 월·수" · "'상법' 끝나면" */
+function ruleSummary(r: TaskRule, events: Map<string, EventRow>): string {
+  if (r.kind === "event") {
+    const ev = r.event_id ? events.get(r.event_id) : undefined;
+    return ev ? `'${ev.title}' 끝나면` : "일정 끝나면";
+  }
+  if (r.repeat?.freq === "weekly") return `매주 ${r.repeat.days.map((d) => WEEKDAYS[d - 1] ?? String(d)).join("·")}`;
+  return "매일";
+}
+
+function ruleOut(r: TaskRule, names: Names, events: Map<string, EventRow>): Obj {
+  const o: Obj = { id: r.id, title: r.title, repeat: ruleSummary(r, events) };
+  if (r.event_id) o.event_id = r.event_id;
+  if (r.note) o.note = r.note;
+  if (r.est_min !== null) o.est_min = r.est_min;
+  const place = placeName(names, r.place_id);
+  if (place) o.place = place;
+  if (r.checklist.length > 0) o.checklist = r.checklist;
+  if (r.due_after !== null) o.due_after = r.due_after;
+  if (r.last_made) o.last_made = r.last_made;
+  o.version = r.version;
+  return o;
+}
+
+/**
+ * 안 끝낸 할 일에서 무엇이 지났나 (docs/플래너.md 7-1). 없으면 undefined.
+ * 이어진 일정이 끝났다(끝 시각이 지금과 같아도 지난 것 — ez_tasks_roll 과 같은 경계. 종일은 다음 날부터) · 마감 날이 지났다.
+ * 이어진 일정이 반복이면 어느 회차인지 몰라 보지 않는다.
+ */
+export function lateOf(t: TaskRow, ev: EventRow | undefined, today: DateStr, nowMin: number): string | undefined {
+  if (t.done_at) return undefined;
+  const parts: string[] = [];
+  if (ev && !ev.repeat && daysBetween(ev.date, today) * 1440 + nowMin >= (ev.end_min ?? 1440)) {
+    parts.push(`일정 ${dayLabel(ev.date)}${ev.start_min === null ? "" : ` ${hm(ev.start_min)}`} 지남`);
+  }
+  if (t.due && t.due < today) parts.push(`마감 ${shortDay(t.due)} 지남`);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+type TaskCtx = { names: Names; rules: Map<string, TaskRule>; events: Map<string, EventRow>; today: DateStr; nowMin: number };
+
+function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   const o: Obj = { id: t.id, title: t.title };
   if (t.note) o.note = t.note;
   if (t.due) o.due = t.due;
   if (t.est_min !== null) o.est_min = t.est_min;
+  const place = placeName(c.names, t.place_id);
+  if (place) o.place = place;
+  if (t.checklist.length > 0) o.checklist = t.checklist;
   if (t.done_at) o.done_at = t.done_at;
   o.version = t.version;
   if (ev) o.event = { id: ev.id, date: ev.date, time: ev.start_min === null ? null : hm(ev.start_min) };
+  const dueEv = t.due_event_id ? c.events.get(t.due_event_id) : undefined;
+  if (dueEv) o.due_event = { id: dueEv.id, title: dueEv.title };
+  const rule = t.rule_id ? c.rules.get(t.rule_id) : undefined;
+  if (rule) {
+    o.repeat = ruleSummary(rule, c.events);
+    o.rule_id = rule.id;
+  }
+  const late = lateOf(t, ev, c.today, c.nowMin);
+  if (late) o.late = late;
   return o;
 }
+
+// ---------------------------------------------------------------------------
+// 플래너 입력
+
+/** 체크 항목: 글자 배열 또는 [{t, done}]. 글자면 done:false. null 은 비움. undefined = 안 바꿈 */
+function checklistIn(v: unknown, issues: Issue[]): CheckItem[] | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return [];
+  if (!Array.isArray(v)) {
+    issues.push({ path: "checklist", reason: '체크 항목은 글자 배열 ["우유"] 또는 [{t, done}] 로 씁니다' });
+    return undefined;
+  }
+  if (v.length > CHECKLIST_MAX) issues.push({ path: "checklist", reason: `체크 항목은 ${CHECKLIST_MAX}개까지 넣을 수 있습니다 (지금 ${v.length}개)` });
+  const out: CheckItem[] = [];
+  v.forEach((x, i) => {
+    const path = `checklist[${i}]`;
+    const t = typeof x === "string" ? x : isObj(x) && typeof x.t === "string" ? x.t : null;
+    if (t === null || (isObj(x) && x.done !== undefined && typeof x.done !== "boolean")) {
+      issues.push({ path, reason: "체크 항목은 글자 또는 {t: 글자, done: true/false} 입니다" });
+      return;
+    }
+    const s = t.trim();
+    const n = charCount(s);
+    if (n === 0) issues.push({ path, reason: "체크 항목이 비어 있습니다" });
+    else if (n > CHECK_ITEM_MAX) issues.push({ path, reason: `체크 항목은 ${CHECK_ITEM_MAX}자까지 쓸 수 있습니다 (지금 ${n}자)` });
+    out.push({ t: s, done: isObj(x) && x.done === true });
+  });
+  return out;
+}
+
+function dueAfterIn(v: unknown, issues: Issue[]): number | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > DUE_AFTER_MAX) {
+    issues.push({ path: "due_after", reason: `마감까지 며칠(due_after)은 0~${DUE_AFTER_MAX} 정수입니다 (null 이면 마감 없음)` });
+    return undefined;
+  }
+  return v;
+}
+
+type TodoRepeat = { kind: "cycle"; repeat: Exclude<Repeat, null> } | { kind: "event"; event_id: string };
+
+/** 할 일의 반복: {freq:'daily'} · {freq:'weekly', days} · {after_event: 일정 id}. until 은 없다 */
+function todoRepeatIn(v: unknown, today: DateStr, issues: Issue[]): TodoRepeat | undefined {
+  if (v === undefined) return undefined;
+  if (v === null) {
+    issues.push({ path: "repeat", reason: "반복을 그만하려면 rule_id + stop: true 로 규칙을 멈추세요" });
+    return undefined;
+  }
+  if (isObj(v) && v.after_event !== undefined) {
+    if (typeof v.after_event !== "string" || !UUID.test(v.after_event.trim()) || v.freq !== undefined) {
+      issues.push({ path: "repeat.after_event", reason: "after_event 는 반복 일정의 id(uuid) 하나만 씁니다 — schedule_get 으로 찾으세요" });
+      return undefined;
+    }
+    return { kind: "event", event_id: v.after_event.trim() };
+  }
+  if (isObj(v) && v.until != null) {
+    issues.push({ path: "repeat.until", reason: "반복 할 일에는 끝나는 날(until)을 쓰지 않습니다. 그만하려면 규칙을 멈추세요 (rule_id + stop: true)" });
+    return undefined;
+  }
+  const before = issues.length;
+  const r = repeatIn(v, issues);
+  if (issues.length > before) {
+    issues[issues.length - 1]!.reason = "반복은 {freq:'daily'} · {freq:'weekly', days:['월','수']} · {after_event: 반복 일정 id} 중 하나입니다";
+    return undefined;
+  }
+  if (!r) return undefined;
+  const bad = validateEvent({ title: "x", date: today, repeat: r }).filter((i) => i.path.startsWith("repeat"));
+  if (bad.length > 0) {
+    issues.push(...bad);
+    return undefined;
+  }
+  return { kind: "cycle", repeat: r };
+}
+
+/** 규칙이 만들 할 일의 모양 (할 일에서 옮겨 적는다) */
+function ruleShape(t: Pick<TaskRow, "title" | "note" | "est_min" | "place_id" | "checklist">) {
+  return { title: t.title, note: t.note, est_min: t.est_min, place_id: t.place_id, checklist: t.checklist.map((c) => c.t) };
+}
+
+const same = (a: unknown, b: unknown) => a === b || (typeof a === "object" && a !== null && JSON.stringify(a) === JSON.stringify(b));
 
 // ---------------------------------------------------------------------------
 
@@ -404,6 +557,25 @@ type SyncIn = {
   travel_min?: number | null;
   note?: string | null;
   repeat?: unknown;
+};
+
+type TodoArgs = {
+  id?: string;
+  base_version?: number;
+  title?: string;
+  note?: string | null;
+  due?: string | null;
+  est_min?: number | null;
+  done?: boolean;
+  delete?: boolean;
+  place?: string | null;
+  checklist?: unknown;
+  due_event?: unknown;
+  repeat?: unknown;
+  due_after?: number | null;
+  scope?: string;
+  rule_id?: string;
+  stop?: boolean;
 };
 
 const blank = (v: string | null | undefined) => (v == null || v.trim() === "" ? null : v);
@@ -488,6 +660,126 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       });
     }
     return task;
+  }
+
+  // ------------------------------------------------------------------ 플래너 도우미
+
+  /** 할 일 결과에 붙일 것: 지점 이름 · 규칙 · 딸린 일정 · 지금 */
+  async function taskCtx(tasks: TaskRow[], known?: TaskRule[]): Promise<TaskCtx> {
+    const { names: n } = await names();
+    const rules = new Map<string, TaskRule>();
+    if (tasks.some((t) => t.rule_id)) for (const r of known ?? (await store.rules())) rules.set(r.id, r);
+    const ids = new Set<string>();
+    for (const t of tasks) {
+      if (t.due_event_id) ids.add(t.due_event_id);
+      const r = t.rule_id ? rules.get(t.rule_id) : undefined;
+      if (r?.event_id) ids.add(r.event_id);
+    }
+    const events = new Map((await store.eventsByIds([...ids])).map((e) => [e.id, e]));
+    return { names: n, rules, events, ...seoul(now()) };
+  }
+
+  const show = async (t: TaskRow, ev: EventRow | undefined) => taskOut(t, ev, await taskCtx([t]));
+
+  /** due_event 입력 → 걸 일정과 마감 날짜(반복이면 회차 날짜, 아니면 DB 가 채우므로 일정 날짜). undefined · null = 걸지 않음 */
+  async function dueEventIn(v: unknown): Promise<{ id: string; due: DateStr } | null | ToolResult> {
+    if (v === undefined || v === null) return null;
+    const shape = "due_event 는 {id: 일정 id, on_date?: 반복 일정의 회차 날짜} 또는 null(연결 끊기) 입니다";
+    if (!isObj(v) || typeof v.id !== "string" || !UUID.test(v.id.trim())) return badInput([{ path: "due_event", reason: shape }]);
+    const ev = await store.getEvent(v.id.trim());
+    if (!ev) return fail(`일정이 없습니다: ${v.id.trim()} (due_event)`, "NOT_FOUND");
+    if (!ev.repeat) return { id: ev.id, due: ev.date };
+    if (v.on_date === undefined || v.on_date === null) {
+      return fail(`반복 일정입니다 — 어느 회차 전까지인지 due_event.on_date(회차 날짜, YYYY-MM-DD)를 주세요`, "NEED_SCOPE", {
+        errors: [{ path: "due_event.on_date", reason: "반복 일정이면 회차 날짜가 필요합니다" }],
+        repeat: repeatOut(ev.repeat),
+      });
+    }
+    if (!isDateStr(v.on_date)) return badInput([{ path: "due_event.on_date", reason: "on_date 는 YYYY-MM-DD 날짜입니다" }]);
+    if (!occursOn(ev, v.on_date)) {
+      return fail(`${v.on_date} 는 이 일정이 반복되는 날이 아닙니다`, "EZ_DATE", {
+        errors: [{ path: "due_event.on_date", reason: "이 일정이 반복되는 날이 아닙니다" }],
+        repeat: repeatOut(ev.repeat),
+        date: ev.date,
+      });
+    }
+    return { id: ev.id, due: v.on_date };
+  }
+
+  /** after_event 의 일정: 살아 있는 반복 일정이어야 한다 */
+  async function repeatingEvent(id: string): Promise<EventRow | ToolResult> {
+    const ev = await store.getEvent(id);
+    if (!ev) return fail(`일정이 없습니다: ${id} (repeat.after_event)`, "NOT_FOUND");
+    if (!ev.repeat) return fail("반복 일정이 아니라 끝날 때마다 할 일을 만들 수 없습니다. 반복 일정을 고르세요", "EZ_REPEAT");
+    return ev;
+  }
+
+  /** 규칙의 반복을 바꾸는 patch. 종류(cycle ↔ event)는 못 바꾼다 */
+  function ruleRepeatPatch(rule: TaskRule, rep: TodoRepeat | undefined): RulePatch | ToolResult {
+    if (!rep) return {};
+    if (rep.kind !== rule.kind) {
+      return fail("주기 반복과 '일정 끝나면' 은 서로 못 바꿉니다 — rule_id + stop: true 로 멈추고 새로 만드세요", "BAD_INPUT");
+    }
+    return rep.kind === "cycle" ? { repeat: rep.repeat } : { event_id: rep.event_id };
+  }
+
+  /** rule_id 로 규칙만: 멈추기 · 고치기 */
+  async function saveRule(a: TodoArgs): Promise<ToolResult> {
+    const rid = String(a.rule_id).trim();
+    if (!UUID.test(rid)) return fail("rule_id 는 반복 규칙의 uuid 입니다 — todo_list(status: rules) 로 찾으세요", "BAD_INPUT");
+    const extra = (["id", "due", "done", "delete", "due_event", "scope"] as const).filter((k) => a[k] !== undefined);
+    if (extra.length > 0) return fail(`rule_id 는 ${extra.join(" · ")} 와 같이 못 씁니다 — 규칙의 칸은 title · note · est_min · place · checklist · due_after · repeat 입니다`, "BAD_INPUT");
+    const rule = await store.getRule(rid);
+    if (!rule) return fail(`반복 규칙이 없습니다(이미 멈췄을 수 있습니다): ${rid}`, "NOT_FOUND");
+    const { places, names: n } = await names();
+    const events = new Map((await store.eventsByIds(rule.event_id ? [rule.event_id] : [])).map((e) => [e.id, e]));
+
+    if (a.stop === true) {
+      await store.stopRule(rid);
+      return ok(`반복을 멈췄습니다: ${rule.title} (${ruleSummary(rule, events)}) — 이미 생긴 할 일은 남습니다`, { rule_id: rid, stopped: true });
+    }
+    const conflict = (r: TaskRule) =>
+      fail(`그 사이 이 규칙이 바뀌었습니다 (지금 version ${r.version}) — current 를 보고 다시 하세요`, "EZ_VERSION", {
+        conflict: true,
+        current: ruleOut(r, n, events),
+      });
+    if (!Number.isInteger(a.base_version)) return fail("규칙을 고칠 땐 base_version(todo_list status: rules 의 version)이 필요합니다", "BAD_INPUT");
+    if (rule.version !== a.base_version) return conflict(rule);
+
+    const issues: Issue[] = [];
+    const patch: RulePatch = {};
+    if (a.title !== undefined) patch.title = typeof a.title === "string" ? a.title.trim() : a.title;
+    if (a.note !== undefined) patch.note = blank(a.note);
+    if (a.est_min !== undefined) patch.est_min = a.est_min;
+    if (a.place !== undefined) {
+      const hit = findPlace(a.place, places, "place 를 비우세요");
+      if ("error" in hit) return hit.error;
+      patch.place_id = hit.id;
+    }
+    const checklist = checklistIn(a.checklist, issues);
+    if (checklist !== undefined) patch.checklist = checklist.map((c) => c.t);
+    const dueAfter = dueAfterIn(a.due_after, issues);
+    if (dueAfter !== undefined) patch.due_after = dueAfter;
+    const rep = todoRepeatIn(a.repeat, rule.start ?? seoul(now()).today, issues);
+    if (issues.length > 0) return badInput(issues);
+    if (rep?.kind === "event") {
+      const e = await repeatingEvent(rep.event_id);
+      if ("ok" in e) return e;
+      events.set(e.id, e);
+    }
+    const rp = ruleRepeatPatch(rule, rep);
+    if ("ok" in rp) return rp;
+    Object.assign(patch, rp);
+    for (const k of Object.keys(patch) as (keyof RulePatch)[]) if (same(patch[k], rule[k])) delete patch[k];
+    if (Object.keys(patch).length === 0) return ok(`바뀐 것이 없습니다: ${rule.title}`, { changed: false, rule: ruleOut(rule, n, events) });
+    const bad = validateTask({ ...rule, ...patch, checklist: undefined });
+    if (bad.length > 0) return badInput(bad);
+    const r = await store.updateRule(rid, patch, rule.version);
+    if (!r) {
+      const cur = await store.getRule(rid);
+      return cur ? conflict(cur) : fail(`반복 규칙이 없습니다(이미 멈췄을 수 있습니다): ${rid}`, "NOT_FOUND");
+    }
+    return ok(`규칙을 고쳤습니다: ${r.title} (${ruleSummary(r, events)}) — 앞으로 생길 할 일부터 적용`, { changed: true, rule: ruleOut(r, n, events) });
   }
 
   // ------------------------------------------------------------------ save 갈래
@@ -597,12 +889,16 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
     if (row.id === ev.id) {
       return ok(`첫 회차라 반복 전체를 고쳤습니다: ${eventLine(row, n)}`, { scope: "following", on_date: on, split: false, event: eventOut(row, n) });
     }
-    return ok(`${dayLabel(on)} 부터 새 일정으로 나눠 고쳤습니다 (원래 일정은 ${dayLabel(addDays(on, -1))} 까지): ${eventLine(row, n)}`, {
+    // 원래 일정에 딸린 '끝나면 할 일' 규칙은 새 일정을 따라간다 (새 일정이 반복일 때만 — 규칙은 반복 일정에만 걸린다)
+    const moved = row.repeat ? await store.moveRules(ev.id, row.id) : 0;
+    const note = moved > 0 ? ` · 끝나면 생기는 할 일 규칙 ${moved}개도 새 일정으로 옮겼습니다` : "";
+    return ok(`${dayLabel(on)} 부터 새 일정으로 나눠 고쳤습니다 (원래 일정은 ${dayLabel(addDays(on, -1))} 까지): ${eventLine(row, n)}${note}`, {
       scope: "following",
       on_date: on,
       split: true,
       original_id: ev.id,
       event: eventOut(row, n),
+      ...(moved > 0 ? { rules_moved: moved } : {}),
     });
   }
 
@@ -831,62 +1127,141 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
     todo_list: (a: { status?: string; query?: string } = {}) =>
       guard(async () => {
         const status = a.status ?? "open";
-        if (status !== "open" && status !== "done" && status !== "all") return fail("status 는 open · done · all 중 하나입니다", "BAD_INPUT");
+        if (status !== "open" && status !== "done" && status !== "all" && status !== "rules") {
+          return fail("status 는 open · done · all · rules 중 하나입니다", "BAD_INPUT");
+        }
         const q = a.query?.trim().toLowerCase() ?? "";
+        const hit = (x: { title: string; note: string | null }) => !q || x.title.toLowerCase().includes(q) || (x.note ?? "").toLowerCase().includes(q);
+        const tail = q ? ` · "${a.query!.trim()}"` : "";
+        // 열 때 규칙을 굴린다 (docs/플래너.md 7-2)
+        const clock = seoul(now());
+        const made = await store.roll(clock.today, clock.nowMin);
+        const rules = await store.rules();
+
+        if (status === "rules") {
+          const picked = rules.filter(hit);
+          const { names: n } = await names();
+          const events = new Map((await store.eventsByIds(picked.flatMap((r) => (r.event_id ? [r.event_id] : [])))).map((e) => [e.id, e]));
+          return ok(`반복 규칙 ${picked.length}개${tail}`, { status, rules: picked.map((r) => ruleOut(r, n, events)) });
+        }
+
         const all = await store.tasks();
-        const picked = all.filter(
-          (t) =>
-            (status === "all" || (status === "open") === (t.done_at === null)) &&
-            (!q || t.title.toLowerCase().includes(q) || (t.note ?? "").toLowerCase().includes(q)),
-        );
+        const picked = all.filter((t) => (status === "all" || (status === "open") === (t.done_at === null)) && hit(t));
         const open = picked.filter((t) => t.done_at === null).sort((x, y) => x.sort - y.sort || x.created_at.localeCompare(y.created_at));
         const done = picked.filter((t) => t.done_at !== null).sort((x, y) => y.done_at!.localeCompare(x.done_at!));
         const linked = new Map<string, EventRow>();
         for (const e of await store.eventsForTasks(picked.map((t) => t.id))) if (e.task_id) linked.set(e.task_id, e);
-        const items = [...open, ...done].map((t) => taskOut(t, linked.get(t.id)));
+        const ctx = await taskCtx(picked, rules);
+        const items = [...open, ...done].map((t) => taskOut(t, linked.get(t.id), ctx));
+        const late = items.filter((t) => t.late).length;
         const what = { open: "안 끝남", done: "끝냄", all: "전체" }[status];
-        return ok(`할 일 ${items.length}개 (${what})${q ? ` · "${a.query!.trim()}"` : ""}`, { status, items });
+        return ok(`할 일 ${items.length}개 (${what})${late > 0 ? ` · 지남 ${late}개` : ""}${tail}`, {
+          status,
+          items,
+          ...(late > 0 ? { late } : {}),
+          ...(made > 0 ? { made } : {}),
+        });
       }),
 
     // ---------------------------------------------------------------- todo_save
-    todo_save: (a: {
-      id?: string;
-      base_version?: number;
-      title?: string;
-      note?: string | null;
-      due?: string | null;
-      est_min?: number | null;
-      done?: boolean;
-      delete?: boolean;
-    }) =>
+    todo_save: (a: TodoArgs) =>
       guard(async () => {
+        if (a.rule_id !== undefined && a.rule_id !== null && a.rule_id !== "") return saveRule(a);
+        if (a.stop !== undefined) return fail("stop 은 rule_id(todo_list 의 rule_id)와 같이 씁니다", "BAD_INPUT");
         const nowIso = now().toISOString();
-        if (a.id === undefined || a.id === null || a.id === "") {
-          if (a.delete) return fail("지울 할 일의 id 를 주세요", "BAD_INPUT");
+        const { today } = seoul(now());
+        const isNew = a.id === undefined || a.id === null || a.id === "";
+        if (isNew && a.delete) return fail("지울 할 일의 id 를 주세요", "BAD_INPUT");
+        if (a.scope !== undefined && a.scope !== "once" && a.scope !== "rule") return fail("scope 는 once(이 할 일만) · rule(규칙도 같이) 중 하나입니다", "BAD_INPUT");
+
+        // ---- 새 칸 읽기
+        const issues: Issue[] = [];
+        let placeId: string | null | undefined;
+        if (a.place !== undefined) {
+          const hit = findPlace(a.place, (await names()).places, "place 를 비우세요");
+          if ("error" in hit) return hit.error;
+          placeId = hit.id;
+        }
+        const checklist = checklistIn(a.checklist, issues);
+        const dueAfter = dueAfterIn(a.due_after, issues);
+        const rep = todoRepeatIn(a.repeat, today, issues);
+        if (a.due_event !== undefined && a.due_event !== null && a.due != null) {
+          issues.push({ path: "due", reason: "due 와 due_event 는 같이 못 씁니다 — 일정에 딸린 마감은 그 일정 날짜가 마감입니다" });
+        }
+        if (issues.length > 0) return badInput(issues);
+        const link = await dueEventIn(a.due_event);
+        if (link && "ok" in link) return link;
+        let ruleEvent: EventRow | null = null;
+        if (rep?.kind === "event") {
+          const e = await repeatingEvent(rep.event_id);
+          if ("ok" in e) return e;
+          ruleEvent = e;
+        }
+
+        // ---- 넣기
+        if (isNew) {
+          if (a.scope === "rule") return fail("scope: rule 은 규칙에서 온 할 일을 고칠 때만 씁니다", "BAD_INPUT");
+          if (dueAfter !== undefined && dueAfter !== null && !rep) {
+            return badInput([{ path: "due_after", reason: "due_after 는 repeat 와 같이 쓰거나 규칙을 고칠 때(scope: rule · rule_id) 씁니다" }]);
+          }
           const row = {
             title: typeof a.title === "string" ? a.title.trim() : (a.title as unknown as string),
             note: blank(a.note),
-            due: a.due ?? null,
+            due: link ? link.due : (a.due ?? null),
             est_min: a.est_min ?? null,
+            place_id: placeId ?? null,
+            due_event_id: link ? link.id : null,
+            checklist: checklist ?? [],
           };
-          const issues = validateTask(row);
-          if (issues.length > 0) return badInput(issues);
+          const bad = validateTask(row);
+          if (bad.length > 0) return badInput(bad);
+
+          // 일정이 끝날 때마다: 규칙만 만든다 (지금 할 일은 없음). last_made = 오늘이라 지난 회차는 안 생긴다
+          if (rep?.kind === "event") {
+            const extra = (["due", "due_event", "done"] as const).filter((k) => a[k] !== undefined && a[k] !== null);
+            if (extra.length > 0) {
+              return badInput(extra.map((k) => ({ path: k, reason: "일정이 끝날 때마다 생기는 규칙에는 못 씁니다 — 마감은 due_after(며칠 뒤)로" })));
+            }
+            const rule = await store.insertRule({ ...ruleShape(row), kind: "event", repeat: null, start: null, event_id: rep.event_id, due_after: dueAfter ?? null, last_made: today });
+            const events = new Map([[ruleEvent!.id, ruleEvent!]]);
+            const { names: n } = await names();
+            return ok(`반복 규칙을 만들었습니다: ${ruleSummary(rule, events)} "${rule.title}" — 다음 회차가 끝난 뒤부터 할 일이 생깁니다`, {
+              created: true,
+              rule: ruleOut(rule, n, events),
+            });
+          }
+
           const sorts = (await store.tasks()).map((t) => t.sort);
           const sort = sorts.length > 0 ? Math.min(...sorts) - 1 : 0;
-          const t = await store.insertTask({ ...row, sort, done_at: a.done ? nowIso : null });
-          return ok(`넣었습니다: ${t.title}`, { created: true, task: taskOut(t, undefined) });
+          const done_at = a.done ? nowIso : null;
+          if (!rep) {
+            const t = await store.insertTask({ ...row, sort, done_at });
+            return ok(`넣었습니다: ${t.title}`, { created: true, task: await show(t, undefined) });
+          }
+          // 주기 반복: 규칙을 만들고 이 할 일이 첫 회차
+          if (!link && row.due === null && dueAfter != null) row.due = addDays(today, dueAfter);
+          const rule = await store.insertRule({ ...ruleShape(row), kind: "cycle", repeat: rep.repeat, start: today, event_id: null, due_after: dueAfter ?? null, last_made: today });
+          let t: TaskRow;
+          try {
+            t = await store.insertTask({ ...row, sort, done_at, rule_id: rule.id, rule_date: today });
+          } catch (e) {
+            await store.stopRule(rule.id);
+            throw e;
+          }
+          return ok(`넣었습니다: ${t.title} (반복 ${ruleSummary(rule, new Map())})`, { created: true, task: await show(t, undefined) });
         }
 
+        // ---- 고치기
         const id = String(a.id).trim();
         if (!UUID.test(id)) return fail("id 는 할 일의 uuid 입니다 — todo_list 로 찾으세요", "BAD_INPUT");
         if (!Number.isInteger(a.base_version)) return fail("고칠 땐 base_version(todo_list 의 version)이 필요합니다", "BAD_INPUT");
         const cur = await store.getTask(id);
         if (!cur) return fail(`할 일이 없습니다: ${id}`, "NOT_FOUND");
         const linked = (await store.eventsForTasks([id]))[0];
-        const taskConflict = (t: TaskRow, ev: EventRow | undefined) =>
+        const taskConflict = async (t: TaskRow, ev: EventRow | undefined) =>
           fail(`그 사이 다른 곳에서 이 할 일을 고쳤습니다 (지금 version ${t.version}) — current 를 보고 다시 하세요`, "EZ_VERSION", {
             conflict: true,
-            current: taskOut(t, ev),
+            current: await show(t, ev),
           });
         const lostTask = async () => {
           const t = await store.getTask(id);
@@ -895,7 +1270,9 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (cur.version !== a.base_version) return taskConflict(cur, linked);
 
         if (a.delete === true) {
-          const others = (["title", "note", "due", "est_min", "done"] as const).filter((k) => a[k] !== undefined);
+          const others = (["title", "note", "due", "est_min", "done", "place", "checklist", "due_event", "repeat", "due_after", "scope"] as const).filter(
+            (k) => a[k] !== undefined,
+          );
           if (others.length > 0) return fail(`delete 는 ${others.join(" · ")} 와 같이 못 씁니다 — 따로 부르세요`, "BAD_INPUT");
           if (!(await store.deleteTask(id, cur.version))) return lostTask();
           let kept = "";
@@ -913,16 +1290,95 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (a.note !== undefined) patch.note = blank(a.note);
         if (a.due !== undefined) patch.due = a.due;
         if (a.est_min !== undefined) patch.est_min = a.est_min;
+        if (placeId !== undefined) patch.place_id = placeId;
+        if (checklist !== undefined) patch.checklist = checklist;
         if (a.done === true && cur.done_at === null) patch.done_at = nowIso;
         if (a.done === false && cur.done_at !== null) patch.done_at = null;
-        for (const k of Object.keys(patch) as (keyof TaskPatch)[]) if (patch[k] === cur[k]) delete patch[k];
-        if (Object.keys(patch).length === 0) return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: taskOut(cur, linked) });
-        const issues = validateTask({ ...cur, ...patch });
-        if (issues.length > 0) return badInput(issues);
-        const t = await store.updateTask(id, patch, cur.version);
-        if (!t) return lostTask();
+        if (link) {
+          patch.due_event_id = link.id;
+          if (link.due !== null) patch.due = link.due; // 반복 아닌 일정은 DB 가 일정 날짜로 맞춘다
+        } else if (a.due_event === null) {
+          patch.due_event_id = null;
+        } else if (cur.due_event_id !== null && a.due !== undefined && a.due !== cur.due) {
+          // 일정에 딸린 마감을 손으로 바꾸거나 지우면 연결도 끊는다 (DB 는 건 채로 due 만 바꾸는 것을 거절한다)
+          patch.due_event_id = null;
+        }
+        for (const k of Object.keys(patch) as (keyof TaskPatch)[]) if (same(patch[k], cur[k])) delete patch[k];
+
+        // ---- 반복: 규칙에서 온 할 일이면 scope, 아니면 이 할 일을 첫 회차로 규칙을 만든다
+        const rule = cur.rule_id ? await store.getRule(cur.rule_id) : null;
+        const scope = a.scope ?? "once";
+        if (scope === "rule" && !rule) {
+          return fail("규칙에서 온 할 일이 아닙니다(또는 규칙이 멈췄습니다) — scope 를 빼거나, repeat 를 줘서 반복을 새로 만드세요", "BAD_INPUT");
+        }
+        if (rule && scope === "once" && (rep || dueAfter !== undefined)) {
+          return fail(
+            `반복 규칙(${ruleSummary(rule, new Map(ruleEvent ? [[ruleEvent.id, ruleEvent]] : []))})에서 온 할 일입니다 — repeat · due_after 는 scope: "rule" 로 규칙을 고치거나, rule_id + stop: true 로 멈춘 뒤 새로 만드세요`,
+            "BAD_INPUT",
+            { rule_id: rule.id },
+          );
+        }
+        if (!rule && !rep && dueAfter !== undefined && dueAfter !== null) {
+          return badInput([{ path: "due_after", reason: "due_after 는 repeat 와 같이 쓰거나 규칙을 고칠 때(scope: rule · rule_id) 씁니다" }]);
+        }
+        const next = { ...cur, ...patch };
+        const bad = validateTask(next);
+        if (bad.length > 0) return badInput(bad);
+
+        let rulePatch: RulePatch = {};
+        if (rule && scope === "rule") {
+          const p = ruleRepeatPatch(rule, rep);
+          if ("ok" in p) return p;
+          rulePatch = p;
+          if (a.title !== undefined) rulePatch.title = next.title;
+          if (a.note !== undefined) rulePatch.note = next.note;
+          if (a.est_min !== undefined) rulePatch.est_min = next.est_min;
+          if (placeId !== undefined) rulePatch.place_id = placeId;
+          if (checklist !== undefined) rulePatch.checklist = checklist.map((c) => c.t);
+          if (dueAfter !== undefined) rulePatch.due_after = dueAfter;
+          for (const k of Object.keys(rulePatch) as (keyof RulePatch)[]) if (same(rulePatch[k], rule[k])) delete rulePatch[k];
+        }
+
+        let made: TaskRule | null = null;
+        if (!rule && rep) {
+          made = await store.insertRule({
+            ...ruleShape(next),
+            kind: rep.kind,
+            repeat: rep.kind === "cycle" ? rep.repeat : null,
+            start: rep.kind === "cycle" ? today : null,
+            event_id: rep.kind === "event" ? rep.event_id : null,
+            due_after: dueAfter ?? null,
+            last_made: today,
+          });
+          patch.rule_id = made.id;
+          patch.rule_date = today;
+          if (next.due === null && next.due_event_id === null && dueAfter != null) patch.due = addDays(today, dueAfter);
+        }
+
+        const ruleChanged = Object.keys(rulePatch).length > 0;
+        if (Object.keys(patch).length === 0 && !ruleChanged) {
+          return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: await show(cur, linked) });
+        }
+        let t: TaskRow | null;
+        try {
+          t = await store.updateTask(id, patch, cur.version);
+        } catch (e) {
+          if (made) await store.stopRule(made.id);
+          throw e;
+        }
+        if (!t) {
+          if (made) await store.stopRule(made.id);
+          return lostTask();
+        }
+        let ruleNote = "";
+        if (made) ruleNote = ` (반복 ${ruleSummary(made, new Map(ruleEvent ? [[ruleEvent.id, ruleEvent]] : []))} — 이 할 일이 첫 회차)`;
+        if (rule && ruleChanged) {
+          const r = await store.updateRule(rule.id, rulePatch, rule.version);
+          ruleNote = r ? " (앞으로 생길 할 일에도 적용)" : " — 단, 규칙은 그 사이 바뀌어 못 고쳤습니다. todo_list(status: rules) 를 보고 rule_id 로 다시 하세요";
+        }
+        const cut = patch.due_event_id === null ? " (일정에 딸린 마감 연결을 끊음)" : "";
         const what = "done_at" in patch ? (patch.done_at ? "끝냈습니다" : "다시 열었습니다") : "고쳤습니다";
-        return ok(`${what}: ${t.title}`, { changed: true, task: taskOut(t, linked) });
+        return ok(`${what}: ${t.title}${ruleNote}${cut}`, { changed: true, task: await show(t, linked) });
       }),
   };
 }

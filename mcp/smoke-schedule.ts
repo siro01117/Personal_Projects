@@ -1,7 +1,8 @@
 // 일정·플래너 원격 스모크: .mcp.json 의 명령 그대로 MCP 서버를 띄우고(stdio) 실제 Supabase 에
-// 지점 2개 + 이동시간 → 일정 넣기 → 반복 회차 고치기(once · following) → get → sync → 할 일 넣고 잇기 → 지우기 를 한 바퀴 돈다.
+// 지점 2개 + 이동시간 → 일정 넣기 → 반복 회차 고치기(once · following) → get → sync → 할 일 넣고 잇기
+// → 플래너 v2(체크 항목·지점, 반복 규칙 만들기·목록·멈추기) → 지우기 를 한 바퀴 돈다.
 // 남의 데이터와 안 섞이게 이름에 '[smoke]' 를 붙이고, 날짜는 먼 미래(2099-03, 2099-03-02 가 월요일)만 쓴다.
-// 끝나면 이번에 만든 것을 영구 삭제한다(일정·예외·할 일·지점·이동시간·출처 줄).
+// 끝나면 이번에 만든 것을 영구 삭제한다(일정·예외·할 일·반복 규칙·지점·이동시간·출처 줄).
 // 단, 바깥 일정(source=smoke) 행은 DB 트리거가 sync 밖의 삭제를 막으므로 빈 sync 로 soft delete 까지만 한다.
 //   남은 행을 완전히 지우려면 SQL 편집기에서: delete from ez_events where source = 'smoke' and deleted_at is not null;
 //   (이 문장은 트리거 때문에 실패하면 begin; set local ez.schedule_sync = 'on'; delete …; commit; 으로)
@@ -77,6 +78,10 @@ async function wipe(): Promise<void> {
   const { error: e2, count: nTasks } = await admin.from("ez_tasks").delete({ count: "exact" }).eq("owner", owner).like("title", `${TAG}%`);
   check(!e2, `할 일 ${nTasks ?? 0}행 영구 삭제${e2 ? ` — ${e2.message}` : ""}`);
 
+  // 반복 규칙 (멈춘 것까지). 규칙에서 생긴 할 일은 위에서 지웠다
+  const { error: e5, count: nRules } = await admin.from("ez_task_rules").delete({ count: "exact" }).eq("owner", owner).like("title", `${TAG}%`);
+  check(!e5, `반복 규칙 ${nRules ?? 0}행 영구 삭제${e5 ? ` — ${e5.message}` : ""}`);
+
   // 지점 (이동시간은 cascade). 바깥 일정이 이 지점을 가리키지 않게 sync 에는 지점을 쓰지 않았다
   const { error: e3, count: nPlaces } = await admin.from("ez_places").delete({ count: "exact" }).eq("owner", owner).like("name", `${TAG}%`);
   check(!e3, `지점 ${nPlaces ?? 0}행 영구 삭제${e3 ? ` — ${e3.message}` : ""}`);
@@ -151,6 +156,26 @@ try {
   await call("todo_save", { id: taskId, base_version: 1, title: "x" }, false); // 낡은 버전
   await call("todo_list", { status: "done", query: TAG });
 
+  // ---- 플래너 v2: 체크 항목·지점 있는 할 일, 반복 규칙 만들기 · 목록 · 멈추기
+  const v2 = await call("todo_save", { title: `${TAG} 장보기`, place: `${TAG} 카페`, checklist: ["우유", { t: "빵", done: true }] });
+  check(v2.data.task?.place === `${TAG} 카페`, `할 일의 지점: ${v2.data.task?.place}`);
+  check(JSON.stringify(v2.data.task?.checklist) === JSON.stringify([{ t: "우유", done: false }, { t: "빵", done: true }]), `체크 항목: ${JSON.stringify(v2.data.task?.checklist)}`);
+  await call("todo_save", { title: `${TAG} x`, place: "[smoke] 카폐" }, false); // 이름 제안
+  await call("todo_save", { title: `${TAG} x`, checklist: [""] }, false); // 빈 체크 항목
+  const cyc = await call("todo_save", { title: `${TAG} 주간 숙제`, repeat: { freq: "weekly", days: ["월"] }, due_after: 6, checklist: ["수학"] });
+  const ruleId = cyc.data.task?.rule_id as string;
+  check(cyc.data.task?.repeat === "매주 월" && !!ruleId, `cycle 규칙 + 첫 회차: ${cyc.data.task?.repeat}`);
+  const ruleList = await call("todo_list", { status: "rules", query: TAG });
+  check(ruleList.data.rules?.length === 1 && ruleList.data.rules[0].id === ruleId && ruleList.data.rules[0].due_after === 6, `rules 목록 1개: ${JSON.stringify(ruleList.data.rules)}`);
+  const v2list = await call("todo_list", { query: `${TAG} 주간` });
+  check(v2list.data.items?.[0]?.rule_id === ruleId, "todo_list 에 반복 표시");
+  await call("todo_save", { rule_id: ruleId, title: "x" }, false); // base_version 없음
+  await call("todo_save", { rule_id: ruleId, stop: true });
+  const stopped = await call("todo_list", { status: "rules", query: TAG });
+  check(stopped.data.rules?.length === 0, "멈춘 규칙은 목록에 없음");
+  const kept = await call("todo_list", { query: `${TAG} 주간` });
+  check(kept.data.items?.length === 1 && kept.data.items[0].repeat === undefined, "이미 생긴 할 일은 남고 반복 표시만 사라짐");
+
   // ---- 지우기: once · following · 이어진 일정 · 할 일
   await call("schedule_delete", { id: clsId, on_date: "2099-03-02", scope: "once" });
   await call("schedule_delete", { id: fol.data.event?.id, on_date: "2099-03-16", scope: "following" });
@@ -163,6 +188,8 @@ try {
     await wipe();
     const { count } = await admin.from("ez_events").select("id", { count: "exact", head: true }).eq("owner", owner).like("title", `${TAG}%`).is("deleted_at", null);
     check((count ?? 0) === 0, "살아 있는 [smoke] 일정 없음");
+    const { count: rulesLeft } = await admin.from("ez_task_rules").select("id", { count: "exact", head: true }).eq("owner", owner).like("title", `${TAG}%`);
+    check((rulesLeft ?? 0) === 0, "남은 [smoke] 반복 규칙 없음");
   } finally {
     await client.close();
   }

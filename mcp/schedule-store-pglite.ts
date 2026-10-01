@@ -2,13 +2,25 @@
 // 테이블 만들기는 createTestDb (store-pglite.ts) 를 같이 쓴다.
 
 import type { PGlite } from "@electric-sql/pglite";
-import { DEFAULT_SETTINGS, type DateStr, type EventException, type EventRow, type Place, type Settings, type TaskRow, type Travel } from "../lib/schedule";
+import {
+  DEFAULT_SETTINGS,
+  type DateStr,
+  type EventException,
+  type EventRow,
+  type Place,
+  type Settings,
+  type TaskRow,
+  type TaskRule,
+  type Travel,
+} from "../lib/schedule";
 import { DbError } from "./errors";
 import {
   type EventPatch,
   type NewEvent,
   type NewPlace,
+  type NewRule,
   type NewTask,
+  type RulePatch,
   type ScheduleStore,
   type SplitPatch,
   type SyncEvent,
@@ -17,6 +29,7 @@ import {
   toEvent,
   toException,
   toPlace,
+  toRule,
   toSettings,
   toTask,
 } from "./schedule-store";
@@ -26,11 +39,14 @@ type Row = Record<string, unknown>;
 // date 열은 ::text 로 받아 시간대 영향을 없앤다
 const EV = `id, title, date::text as date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id,
   task_id, origin_kind, origin_id, version, updated_at`;
-const TASK = "id, title, note, due::text as due, est_min, sort, done_at, origin_kind, origin_id, version, created_at, updated_at";
+const TASK = `id, title, note, due::text as due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist,
+  rule_id, rule_date::text as rule_date, version, created_at, updated_at`;
+const RULE = `id, kind, title, note, est_min, place_id, checklist, repeat, start::text as start, event_id, due_after,
+  last_made::text as last_made, version`;
 
 /** jsonb 칸: SQL null 과 JSON null 을 헷갈리지 않게 */
 const js = (v: unknown) => (v == null ? null : JSON.stringify(v));
-const JSONB = new Set(["repeat", "patch"]);
+const JSONB = new Set(["repeat", "patch", "checklist"]);
 
 export class PgliteScheduleStore implements ScheduleStore {
   constructor(
@@ -92,6 +108,12 @@ export class PgliteScheduleStore implements ScheduleStore {
   async getEvent(id: string): Promise<EventRow | null> {
     const rows = await this.q(`select ${EV} from ez_events where owner = $1 and id = $2 and deleted_at is null`, [this.owner, id]);
     return rows[0] ? toEvent(rows[0]) : null;
+  }
+
+  async eventsByIds(ids: string[]): Promise<EventRow[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.q(`select ${EV} from ez_events where owner = $1 and deleted_at is null and id = any($2::uuid[])`, [this.owner, ids]);
+    return rows.map(toEvent);
   }
 
   async eventsForTasks(taskIds: string[]): Promise<EventRow[]> {
@@ -201,8 +223,22 @@ export class PgliteScheduleStore implements ScheduleStore {
 
   async insertTask(t: NewTask): Promise<TaskRow> {
     const rows = await this.q(
-      `insert into ez_tasks (owner, title, note, due, est_min, sort, done_at) values ($1, $2, $3, $4, $5, $6, $7) returning ${TASK}`,
-      [this.owner, t.title, t.note, t.due, t.est_min, t.sort, t.done_at],
+      `insert into ez_tasks (owner, title, note, due, est_min, sort, done_at, place_id, due_event_id, checklist, rule_id, rule_date)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12) returning ${TASK}`,
+      [
+        this.owner,
+        t.title,
+        t.note,
+        t.due,
+        t.est_min,
+        t.sort,
+        t.done_at,
+        t.place_id ?? null,
+        t.due_event_id ?? null,
+        JSON.stringify(t.checklist ?? []),
+        t.rule_id ?? null,
+        t.rule_date ?? null,
+      ],
     );
     return toTask(rows[0]!);
   }
@@ -227,6 +263,60 @@ export class PgliteScheduleStore implements ScheduleStore {
       [this.owner, id, baseVersion],
     );
     return rows.length > 0;
+  }
+
+  async rules(): Promise<TaskRule[]> {
+    const rows = await this.q(`select ${RULE} from ez_task_rules where owner = $1 and deleted_at is null order by created_at, id`, [this.owner]);
+    return rows.map(toRule);
+  }
+
+  async getRule(id: string): Promise<TaskRule | null> {
+    const rows = await this.q(`select ${RULE} from ez_task_rules where owner = $1 and id = $2 and deleted_at is null`, [this.owner, id]);
+    return rows[0] ? toRule(rows[0]) : null;
+  }
+
+  async insertRule(r: NewRule): Promise<TaskRule> {
+    const rows = await this.q(
+      `insert into ez_task_rules (owner, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made)
+       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11, $12) returning ${RULE}`,
+      [this.owner, r.kind, r.title, r.note, r.est_min, r.place_id, JSON.stringify(r.checklist), js(r.repeat), r.start, r.event_id, r.due_after, r.last_made],
+    );
+    return toRule(rows[0]!);
+  }
+
+  async updateRule(id: string, patch: RulePatch, baseVersion: number): Promise<TaskRule | null> {
+    const params: unknown[] = [this.owner, id, baseVersion];
+    const set = this.sets(patch, params);
+    if (!set) {
+      const cur = await this.getRule(id);
+      return cur && cur.version === baseVersion ? cur : null;
+    }
+    const rows = await this.q(
+      `update ez_task_rules set ${set} where owner = $1 and id = $2 and version = $3 and deleted_at is null returning ${RULE}`,
+      params,
+    );
+    return rows[0] ? toRule(rows[0]) : null;
+  }
+
+  async stopRule(id: string): Promise<boolean> {
+    const rows = await this.q("update ez_task_rules set deleted_at = now() where owner = $1 and id = $2 and deleted_at is null returning id", [
+      this.owner,
+      id,
+    ]);
+    return rows.length > 0;
+  }
+
+  async moveRules(fromEventId: string, toEventId: string): Promise<number> {
+    const rows = await this.q(
+      "update ez_task_rules set event_id = $3 where owner = $1 and event_id = $2 and deleted_at is null returning id",
+      [this.owner, fromEventId, toEventId],
+    );
+    return rows.length;
+  }
+
+  async roll(today: DateStr, nowMin: number): Promise<number> {
+    const rows = await this.q("select ez_tasks_roll($1::date, $2::int, $3::uuid) as n", [today, nowMin, this.owner]);
+    return Number(rows[0]!.n);
   }
 
   async insertPlace(p: NewPlace): Promise<Place> {

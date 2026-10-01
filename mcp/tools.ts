@@ -254,12 +254,14 @@ function registerScheduleTools(
     "todo_list",
     {
       title: "할 일 목록",
-      description: "플래너 할 일. status: open(기본)·done·all. query 는 제목·메모에서 찾기. 이어진 일정(날짜·시각)도 준다.",
+      description:
+        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. 이어진 일정·지점·체크 항목·late(지난 것)·repeat(+rule_id)도 준다. 부를 때 반복 규칙의 새 회차가 생긴다.",
       inputSchema: {
-        status: z.enum(["open", "done", "all"]).optional(),
+        status: z.enum(["open", "done", "all", "rules"]).optional(),
         query: z.string().optional(),
       },
-      annotations: { readOnlyHint: true },
+      // 부를 때 ez_tasks_roll 이 새 회차를 만들므로 읽기 전용이 아니다. 같은 때 다시 불러도 더 생기지는 않는다
+      annotations: { idempotentHint: true },
     },
     (a) => call(schedule.todo_list(a)),
   );
@@ -269,7 +271,7 @@ function registerScheduleTools(
     {
       title: "할 일 넣기·고치기",
       description:
-        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id).",
+        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id). repeat 를 주면 반복 규칙이 생긴다(after_event 는 규칙만). 규칙에서 온 할 일은 scope(once 이것만·rule 규칙도). 규칙만: rule_id+칸(base_version) 또는 stop.",
       inputSchema: {
         id: z.string().optional(),
         base_version: z.number().int().optional().describe("고칠 때 todo_list 의 version"),
@@ -279,6 +281,28 @@ function registerScheduleTools(
         est_min: z.number().int().nullable().optional().describe("걸릴 시간(분) 5~600"),
         done: z.boolean().optional(),
         delete: z.boolean().optional(),
+        place: z.string().nullable().optional().describe("지점 이름"),
+        checklist: z
+          .array(z.union([z.string(), z.object({ t: z.string(), done: z.boolean().optional() })]))
+          .nullable()
+          .optional()
+          .describe("체크 항목 0~20개: 글자 또는 {t, done}. 통째로 갈아끼움"),
+        due_event: z
+          .object({ id: z.string(), on_date: z.string().optional().describe(`반복 일정이면 회차 날짜 ${DATE}`) })
+          .nullable()
+          .optional()
+          .describe("이 일정 날짜를 마감으로 (null=끊기)"),
+        repeat: z
+          .object({
+            freq: z.enum(["daily", "weekly"]).optional(),
+            days: z.array(z.union([z.string(), z.number().int()])).optional().describe('요일 ["월"]'),
+            after_event: z.string().optional().describe("반복 일정 id — 회차가 끝날 때마다"),
+          })
+          .optional(),
+        due_after: z.number().int().nullable().optional().describe("반복: 생긴 날부터 마감까지 며칠 0~60"),
+        scope: z.enum(["once", "rule"]).optional(),
+        rule_id: z.string().optional().describe("반복 규칙 id (todo_list status: rules)"),
+        stop: z.boolean().optional().describe("rule_id 와 같이: 반복 멈춤"),
       },
     },
     (a) => call(schedule.todo_save(a)),

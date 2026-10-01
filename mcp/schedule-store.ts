@@ -2,7 +2,20 @@
 // 서랍 Store 와 따로 둔다. 모든 구현은 자기 owner 의 것만 보고 고친다. 일정·할 일은 살아 있는(deleted_at is null) 것만.
 // 규칙(칸 범위·바깥 일정·버전·예외 날짜)은 DB 트리거·함수가 막는다. 실패하면 DbError 를 던진다.
 
-import type { DateStr, EventException, EventRow, ExceptionPatch, Place, PlaceRole, Repeat, Settings, TaskRow, Travel } from "../lib/schedule";
+import type {
+  CheckItem,
+  DateStr,
+  EventException,
+  EventRow,
+  ExceptionPatch,
+  Place,
+  PlaceRole,
+  Repeat,
+  Settings,
+  TaskRow,
+  TaskRule,
+  Travel,
+} from "../lib/schedule";
 
 /** 새 일정 — 사람이 만드는 것 (바깥 일정은 sync 로만) */
 export type NewEvent = Pick<
@@ -29,8 +42,16 @@ export type SyncEvent = {
 };
 export type SyncResult = { inserted: number; updated: number; deleted: number };
 
-export type NewTask = Pick<TaskRow, "title" | "note" | "due" | "est_min" | "sort" | "done_at">;
+/** 새 칸(지점 · 일정에 딸린 마감 · 체크 항목 · 규칙)은 안 주면 DB 기본값 */
+export type NewTask = Pick<TaskRow, "title" | "note" | "due" | "est_min" | "sort" | "done_at"> &
+  Partial<Pick<TaskRow, "place_id" | "due_event_id" | "checklist" | "rule_id" | "rule_date">>;
 export type TaskPatch = Partial<NewTask>;
+
+/** 새 반복 규칙 (docs/플래너.md 7-2). cycle 은 repeat · start, event 는 event_id */
+export type NewRule = Omit<TaskRule, "id" | "version">;
+export type RulePatch = Partial<
+  Pick<TaskRule, "title" | "note" | "est_min" | "place_id" | "checklist" | "repeat" | "event_id" | "due_after" | "last_made">
+>;
 
 export type NewPlace = { name: string; role?: PlaceRole | null };
 
@@ -46,6 +67,8 @@ export interface ScheduleStore {
   /** 회차가 from~to 에 생길 수 있는 일정: 반복이 아니면 date 가 그 안, 반복이면 시작이 to 이전인 것 전부 */
   eventsBetween(from: DateStr, to: DateStr): Promise<EventRow[]>;
   getEvent(id: string): Promise<EventRow | null>;
+  /** 살아 있는 일정 중 이 id 들 */
+  eventsByIds(ids: string[]): Promise<EventRow[]>;
   /** 이 할 일들과 이어진 일정 */
   eventsForTasks(taskIds: string[]): Promise<EventRow[]>;
   exceptions(eventIds: string[]): Promise<EventException[]>;
@@ -71,6 +94,19 @@ export interface ScheduleStore {
   updateTask(id: string, patch: TaskPatch, baseVersion: number): Promise<TaskRow | null>;
   deleteTask(id: string, baseVersion: number): Promise<boolean>;
 
+  /** 살아 있는(안 멈춘) 반복 규칙 전부, 만든 순 */
+  rules(): Promise<TaskRule[]>;
+  getRule(id: string): Promise<TaskRule | null>;
+  insertRule(r: NewRule): Promise<TaskRule>;
+  /** version 이 같을 때만. 고친 행이 없으면 null */
+  updateRule(id: string, patch: RulePatch, baseVersion: number): Promise<TaskRule | null>;
+  /** 멈추기(deleted_at). 이미 생긴 할 일은 남는다. 멈췄으면 true */
+  stopRule(id: string): Promise<boolean>;
+  /** 일정에 딸린 살아 있는 규칙을 다른 일정으로 옮긴다 (이후 모두 나누기). 옮긴 개수 */
+  moveRules(fromEventId: string, toEventId: string): Promise<number>;
+  /** ez_tasks_roll — 규칙마다 가장 최근 회차 하나를 할 일로. 만든 개수 */
+  roll(today: DateStr, nowMin: number): Promise<number>;
+
   // 지점·이동시간은 화면 설정 몫. 시험·스모크 준비용으로만 쓴다
   insertPlace(p: NewPlace): Promise<Place>;
   /** 방향 없음 — a·b 순서는 알아서 맞춘다 */
@@ -79,7 +115,9 @@ export interface ScheduleStore {
 
 export const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
-export const TASK_COLS = "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, version, created_at, updated_at";
+export const TASK_COLS =
+  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, version, created_at, updated_at";
+export const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, version";
 export const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 
 type Row = Record<string, unknown>;
@@ -122,9 +160,32 @@ export function toTask(r: Row): TaskRow {
     done_at: iso(r.done_at),
     origin_kind: (r.origin_kind as TaskRow["origin_kind"]) ?? null,
     origin_id: (r.origin_id as string | null) ?? null,
+    place_id: (r.place_id as string | null) ?? null,
+    due_event_id: (r.due_event_id as string | null) ?? null,
+    checklist: (r.checklist as CheckItem[] | null) ?? [],
+    rule_id: (r.rule_id as string | null) ?? null,
+    rule_date: day(r.rule_date),
     version: r.version as number,
     created_at: iso(r.created_at)!,
     updated_at: iso(r.updated_at)!,
+  };
+}
+
+export function toRule(r: Row): TaskRule {
+  return {
+    id: r.id as string,
+    kind: r.kind as TaskRule["kind"],
+    title: r.title as string,
+    note: (r.note as string | null) ?? null,
+    est_min: (r.est_min as number | null) ?? null,
+    place_id: (r.place_id as string | null) ?? null,
+    checklist: (r.checklist as string[] | null) ?? [],
+    repeat: (r.repeat as TaskRule["repeat"]) ?? null,
+    start: day(r.start),
+    event_id: (r.event_id as string | null) ?? null,
+    due_after: (r.due_after as number | null) ?? null,
+    last_made: day(r.last_made),
+    version: r.version as number,
   };
 }
 

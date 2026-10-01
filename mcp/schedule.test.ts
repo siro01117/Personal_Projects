@@ -25,7 +25,9 @@ function setup(owner = randomUUID()) {
   let clock = new Date("2026-10-01T03:00:00Z");
   const s = createSchedule({ store, now: () => clock });
   const tick = (ms = 60_000) => (clock = new Date(clock.getTime() + ms));
-  return { owner, store, s, tick };
+  /** 시계 맞추기 (예: "2026-10-05T09:00:00+09:00") */
+  const at = (iso: string) => (clock = new Date(iso));
+  return { owner, store, s, tick, at };
 }
 
 /** 집 · 회사(work) · 학교(school), 이동 집↔회사 40 · 집↔학교 30 · 회사↔학교 20 */
@@ -60,6 +62,14 @@ async function exs(id: string): Promise<Row[]> {
 }
 async function liveEvents(owner: string): Promise<Row[]> {
   return (await db.query<Row>("select id, title, date::text as date, start_min, end_min, place_id, source, external_id, task_id from ez_events where owner = $1 and deleted_at is null order by 3, 4", [owner])).rows;
+}
+
+async function rawTask(id: string): Promise<Row> {
+  return (await db.query<Row>("select *, due::text as due, rule_date::text as rule_date from ez_tasks where id = $1", [id])).rows[0]!;
+}
+/** 주인의 규칙 전부 (멈춘 것도), 만든 순 */
+async function rules(owner: string): Promise<Row[]> {
+  return (await db.query<Row>("select *, start::text as start, last_made::text as last_made from ez_task_rules where owner = $1 order by created_at, id", [owner])).rows;
 }
 
 /** 하루 결과 */
@@ -495,6 +505,332 @@ describe("플래너 · todo_list · todo_save", () => {
   });
 });
 
+describe("플래너 v2 — 지점 · 체크 항목 · 일정에 딸린 마감 · 지남", () => {
+  it("새 칸 넣기·읽기: place(이름) · checklist 두 모양, null 로 비우기", async () => {
+    const { s, work } = await withPlaces();
+    const t = good(await s.todo_save({ title: "장보기", place: " 회사 ", checklist: ["우유", { t: " 빵 ", done: true }] })).task;
+    expect(t).toMatchObject({ place: "회사", checklist: [{ t: "우유", done: false }, { t: "빵", done: true }], version: 1 });
+    expect(await rawTask(t.id)).toMatchObject({ place_id: work.id, checklist: [{ t: "우유", done: false }, { t: "빵", done: true }] });
+    expect(good(await s.todo_list({})).items[0]).toMatchObject({ place: "회사", checklist: [{ t: "우유", done: false }, { t: "빵", done: true }] });
+
+    const same = good(await s.todo_save({ id: t.id, base_version: 1, place: "회사", checklist: [{ t: "우유", done: false }, { t: "빵", done: true }] }));
+    expect(same.changed).toBe(false);
+    const u = good(await s.todo_save({ id: t.id, base_version: 1, checklist: [{ t: "우유", done: true }], place: null })).task;
+    expect(u.checklist).toEqual([{ t: "우유", done: true }]);
+    expect(u.place).toBeUndefined();
+    const v = good(await s.todo_save({ id: t.id, base_version: 2, checklist: null })).task;
+    expect(v.checklist).toBeUndefined();
+    expect((await rawTask(t.id)).checklist).toEqual([]);
+  });
+
+  it("없는 지점 이름이면 가까운 이름 제안", async () => {
+    const { s } = await withPlaces();
+    const d = bad(await s.todo_save({ title: "x", place: "회샤" }), "PLACE_NOT_FOUND");
+    expect(d.suggest).toBe("회사");
+    expect(d.places).toEqual(["집", "회사", "학교"]);
+    const none = bad(await setup().s.todo_save({ title: "x", place: "집" }), "PLACE_NOT_FOUND");
+    expect(none.error.message).toContain("place 를 비우세요");
+    expect(none.error.message).not.toContain("where");
+  });
+
+  it("검사: 체크 항목 0~20개 · 각 1~100자, due_after 0~60 정수", async () => {
+    const { s } = setup();
+    const many = bad(await s.todo_save({ title: "x", checklist: Array.from({ length: 21 }, (_, i) => `항목 ${i}`) }), "BAD_INPUT");
+    expect(many.errors).toEqual([{ path: "checklist", reason: "체크 항목은 20개까지 넣을 수 있습니다 (지금 21개)" }]);
+    const items = bad(await s.todo_save({ title: "x", checklist: ["좋음", "  ", "가".repeat(101), { t: "x", done: "yes" }, 3] }), "BAD_INPUT");
+    expect(items.errors.map((e: Row) => e.path)).toEqual(["checklist[1]", "checklist[2]", "checklist[3]", "checklist[4]"]);
+    expect(items.errors[1].reason).toBe("체크 항목은 100자까지 쓸 수 있습니다 (지금 101자)");
+    expect(bad(await s.todo_save({ title: "x", checklist: "우유" }), "BAD_INPUT").errors[0].path).toBe("checklist");
+    good(await s.todo_save({ title: "x", checklist: Array.from({ length: 20 }, () => "가".repeat(100)) }));
+
+    for (const due_after of [61, -1, 1.5]) {
+      expect(bad(await s.todo_save({ title: "x", repeat: { freq: "daily" }, due_after }), "BAD_INPUT").errors[0].path).toBe("due_after");
+    }
+    // 반복 없이 due_after 만
+    expect(bad(await s.todo_save({ title: "x", due_after: 3 }), "BAD_INPUT").errors[0].path).toBe("due_after");
+    // 반복 모양
+    expect(bad(await s.todo_save({ title: "x", repeat: { freq: "weekly" } }), "BAD_INPUT").errors[0].path).toBe("repeat.days");
+    expect(bad(await s.todo_save({ title: "x", repeat: { freq: "daily", until: "2026-12-31" } }), "BAD_INPUT").errors[0].path).toBe("repeat.until");
+    expect(bad(await s.todo_save({ title: "x", repeat: { after_event: "abc" } }), "BAD_INPUT").errors[0].path).toBe("repeat.after_event");
+    expect(bad(await s.todo_save({ title: "x", repeat: null }), "BAD_INPUT").error.message).toContain("stop: true");
+    expect(good(await s.todo_list({ status: "rules" })).rules).toEqual([]); // 거절된 것은 규칙도 안 남는다
+  });
+
+  it("due_event: 반복 아닌 일정이면 due 가 일정 날짜, 일정이 옮겨지면 따라가고, due 를 바꾸면 연결이 끊긴다", async () => {
+    const { s } = setup();
+    const e = good(await s.schedule_save({ title: "결혼식", date: "2026-10-11", start: "12:00", end: "14:00" })).event;
+    const t = good(await s.todo_save({ title: "축의금 준비", due_event: { id: e.id } })).task;
+    expect(t).toMatchObject({ due: "2026-10-11", due_event: { id: e.id, title: "결혼식" } });
+    expect(good(await s.todo_list({})).items[0]).toMatchObject({ due: "2026-10-11", due_event: { id: e.id, title: "결혼식" } });
+
+    good(await s.schedule_save({ id: e.id, base_version: 1, date: "2026-10-18" }));
+    const moved = good(await s.todo_list({})).items[0];
+    expect(moved).toMatchObject({ due: "2026-10-18", version: 2 });
+
+    // due 만 바꾸면 연결도 같이 끊는다 (DB 는 건 채로 바꾸는 것을 거절)
+    const r = await s.todo_save({ id: t.id, base_version: 2, due: "2026-10-15" });
+    expect(r.summary).toContain("연결을 끊음");
+    expect(good(r).task.due).toBe("2026-10-15");
+    expect(good(r).task.due_event).toBeUndefined();
+    expect((await rawTask(t.id)).due_event_id).toBeNull();
+
+    // 있던 할 일에 걸기 → null 로 끊기 (날짜는 남는다)
+    const again = good(await s.todo_save({ id: t.id, base_version: 3, due_event: { id: e.id } })).task;
+    expect(again).toMatchObject({ due: "2026-10-18", due_event: { id: e.id } });
+    const cut = good(await s.todo_save({ id: t.id, base_version: 4, due_event: null })).task;
+    expect(cut.due).toBe("2026-10-18");
+    expect(cut.due_event).toBeUndefined();
+    // due 를 지워도 끊긴다
+    good(await s.todo_save({ id: t.id, base_version: 5, due_event: { id: e.id } }));
+    const cleared = good(await s.todo_save({ id: t.id, base_version: 6, due: null })).task;
+    expect(cleared.due).toBeUndefined();
+    expect(cleared.due_event).toBeUndefined();
+
+    bad(await s.todo_save({ title: "x", due: "2026-10-12", due_event: { id: e.id } }), "BAD_INPUT");
+    bad(await s.todo_save({ title: "x", due_event: { id: randomUUID() } }), "NOT_FOUND");
+    expect(bad(await s.todo_save({ title: "x", due_event: { on_date: "2026-10-12" } }), "BAD_INPUT").errors[0].path).toBe("due_event");
+  });
+
+  it("due_event: 반복 일정이면 on_date(회차) 필수", async () => {
+    const { s } = setup();
+    const e = good(await s.schedule_save({ title: "수업", date: "2026-10-05", start: "09:00", end: "10:00", repeat: { freq: "weekly", days: ["월", "수"] } })).event;
+    const need = bad(await s.todo_save({ title: "과제", due_event: { id: e.id } }), "NEED_SCOPE");
+    expect(need.errors[0].path).toBe("due_event.on_date");
+    bad(await s.todo_save({ title: "과제", due_event: { id: e.id, on_date: "2026-10-06" } }), "EZ_DATE"); // 화요일
+    const t = good(await s.todo_save({ title: "과제", due_event: { id: e.id, on_date: "2026-10-07" } })).task;
+    expect(t).toMatchObject({ due: "2026-10-07", due_event: { id: e.id, title: "수업" } });
+    // 다른 회차로
+    const u = good(await s.todo_save({ id: t.id, base_version: 1, due_event: { id: e.id, on_date: "2026-10-12" } })).task;
+    expect(u).toMatchObject({ due: "2026-10-12", due_event: { id: e.id } });
+  });
+
+  it("late: 지난 일정 · 지난 마감 · 오늘 끝 시각 경계 (Asia/Seoul)", async () => {
+    const { s, at } = setup();
+    at("2026-10-01T12:00:00+09:00");
+    const mk = async (title: string, extra: Row = {}) => good(await s.todo_save({ title, ...extra })).task;
+    const today = await mk("오늘 일정");
+    good(await s.schedule_save({ title: "오늘 일정", date: "2026-10-01", start: "15:00", end: "15:30", task_id: today.id }));
+    const past = await mk("어제 일정");
+    good(await s.schedule_save({ title: "어제 일정", date: "2026-09-30", start: "23:00", end: "01:00", task_id: past.id })); // 10/1 01:00 에 끝남
+    const allDay = await mk("오늘 종일");
+    good(await s.schedule_save({ title: "오늘 종일", date: "2026-10-01", all_day: true, task_id: allDay.id }));
+    await mk("지난 마감", { due: "2026-09-27" });
+    await mk("오늘 마감", { due: "2026-10-01" });
+    const finished = await mk("끝낸 지난 마감", { due: "2026-09-20" });
+    good(await s.todo_save({ id: finished.id, base_version: 1, done: true }));
+
+    const lates = async () => {
+      const r = await s.todo_list({ status: "all" });
+      return { summary: r.summary, late: Object.fromEntries((good(r).items as Row[]).filter((t) => t.late).map((t) => [t.title, t.late])) };
+    };
+    expect(await lates()).toEqual({
+      summary: "할 일 6개 (전체) · 지남 2개",
+      late: { "어제 일정": "일정 9/30(수) 23:00 지남", "지난 마감": "마감 9/27 지남" },
+    });
+    at("2026-10-01T15:29:00+09:00");
+    expect(Object.keys((await lates()).late)).not.toContain("오늘 일정");
+    at("2026-10-01T15:30:00+09:00"); // 끝 시각과 같으면 지난 것
+    expect((await lates()).late["오늘 일정"]).toBe("일정 10/1(목) 15:00 지남");
+    at("2026-10-01T23:59:00+09:00");
+    expect((await lates()).late["오늘 종일"]).toBeUndefined();
+    at("2026-10-02T00:00:00+09:00"); // 종일은 다음 날부터, 마감도 다음 날부터
+    const next = await lates();
+    expect(next.late).toEqual({
+      "오늘 일정": "일정 10/1(목) 15:00 지남",
+      "어제 일정": "일정 9/30(수) 23:00 지남",
+      "오늘 종일": "일정 10/1(목) 지남",
+      "지난 마감": "마감 9/27 지남",
+      "오늘 마감": "마감 10/1 지남",
+    });
+    expect(next.summary).toBe("할 일 6개 (전체) · 지남 5개");
+    expect(good(await s.todo_list({})).late).toBe(5);
+  });
+});
+
+describe("플래너 v2 — 반복 규칙", () => {
+  it("cycle: 규칙 + 첫 회차, 다음 주 todo_list 에서 새 회차가 생기고 안 끝낸 지난 것은 사라진다 / 끝낸 것은 남는다", async () => {
+    const { s, at, owner } = await withPlaces();
+    at("2026-10-01T12:00:00+09:00"); // 목
+    const r = await s.todo_save({ title: "주간 숙제", repeat: { freq: "weekly", days: ["월요일"] }, due_after: 6, checklist: ["수학", "영어"], est_min: 60, place: "학교" });
+    const first = good(r).task;
+    expect(r.summary).toBe("넣었습니다: 주간 숙제 (반복 매주 월)");
+    expect(first).toMatchObject({ repeat: "매주 월", due: "2026-10-07", place: "학교", checklist: [{ t: "수학", done: false }, { t: "영어", done: false }] });
+    const rule = (await rules(owner))[0]!;
+    expect(rule).toMatchObject({ id: first.rule_id, kind: "cycle", title: "주간 숙제", repeat: { freq: "weekly", days: [1] }, start: "2026-10-01", last_made: "2026-10-01", due_after: 6, checklist: ["수학", "영어"], est_min: 60 });
+    expect(await rawTask(first.id)).toMatchObject({ rule_id: rule.id, rule_date: "2026-10-01" });
+    // 같은 날 다시 불러도 그대로
+    expect((good(await s.todo_list({})).items as Row[]).map((t) => t.id)).toEqual([first.id]);
+    good(await s.todo_save({ id: first.id, base_version: 1, checklist: [{ t: "수학", done: true }, { t: "영어", done: false }] }));
+
+    at("2026-10-05T08:00:00+09:00"); // 월 — 새 회차. 안 끝낸 첫 회차는 사라진다(밀리면 한 건만)
+    const mon = good(await s.todo_list({}));
+    expect(mon.made).toBe(1);
+    expect(mon.items).toHaveLength(1);
+    const second = mon.items[0];
+    expect(second.id).not.toBe(first.id);
+    expect(second).toMatchObject({ title: "주간 숙제", repeat: "매주 월", rule_id: rule.id, due: "2026-10-11", est_min: 60, place: "학교", checklist: [{ t: "수학", done: false }, { t: "영어", done: false }] });
+    expect((await rawTask(first.id)).deleted_at).not.toBeNull();
+    expect(good(await s.todo_list({})).made).toBeUndefined();
+
+    good(await s.todo_save({ id: second.id, base_version: second.version, done: true }));
+    at("2026-10-14T08:00:00+09:00"); // 한 주 건너 수요일 — 10/12 회차 하나. 끝낸 것은 done 에 남는다
+    const third = good(await s.todo_list({})).items as Row[];
+    expect(third).toHaveLength(1);
+    expect(third[0]).toMatchObject({ title: "주간 숙제", due: "2026-10-18" });
+    expect((await rawTask(third[0]!.id)).rule_date).toBe("2026-10-12");
+    expect((good(await s.todo_list({ status: "done" })).items as Row[]).map((t) => t.id)).toEqual([second.id]);
+  });
+
+  it("event: 규칙만 만든다 → 회차가 끝난 뒤 todo_list 에 생긴다", async () => {
+    const { s, at, owner } = setup();
+    at("2026-10-01T12:00:00+09:00");
+    const e = good(await s.schedule_save({ title: "상법", date: "2026-09-28", start: "09:00", end: "10:00", repeat: { freq: "weekly", days: ["월", "수"] } })).event;
+    const once = good(await s.schedule_save({ title: "치과", date: "2026-10-05", start: "15:00", end: "16:00" })).event;
+    bad(await s.todo_save({ title: "x", repeat: { after_event: once.id } }), "EZ_REPEAT");
+    bad(await s.todo_save({ title: "x", repeat: { after_event: randomUUID() } }), "NOT_FOUND");
+    expect(bad(await s.todo_save({ title: "x", repeat: { after_event: e.id }, due: "2026-10-09" }), "BAD_INPUT").errors[0].path).toBe("due");
+
+    const r = await s.todo_save({ title: "상법 내용 정리", repeat: { after_event: e.id }, due_after: 2, note: "노트 정리" });
+    const d = good(r);
+    expect(r.summary).toBe(`반복 규칙을 만들었습니다: '상법' 끝나면 "상법 내용 정리" — 다음 회차가 끝난 뒤부터 할 일이 생깁니다`);
+    expect(d.task).toBeUndefined();
+    expect(d.rule).toMatchObject({ title: "상법 내용 정리", repeat: "'상법' 끝나면", event_id: e.id, due_after: 2, last_made: "2026-10-01", version: 1 });
+    expect((await rules(owner))[0]).toMatchObject({ kind: "event", event_id: e.id, repeat: null, start: null });
+    expect(good(await s.todo_list({})).items).toEqual([]); // 지난 회차(9/28 · 9/30)는 안 생긴다
+
+    at("2026-10-05T09:59:00+09:00");
+    expect(good(await s.todo_list({})).items).toEqual([]);
+    at("2026-10-05T10:00:00+09:00");
+    const items = good(await s.todo_list({})).items as Row[];
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ title: "상법 내용 정리", note: "노트 정리", due: "2026-10-07", repeat: "'상법' 끝나면", rule_id: d.rule.id });
+    expect(items[0]!.late).toBeUndefined();
+  });
+
+  it('status: "rules" — id · title · 요약 · due_after · last_made · version, query', async () => {
+    const { s, at } = setup();
+    at("2026-10-01T12:00:00+09:00");
+    const e = good(await s.schedule_save({ title: "상법", date: "2026-10-05", start: "09:00", end: "10:00", repeat: { freq: "weekly", days: ["월"] } })).event;
+    const a = good(await s.todo_save({ title: "일기", repeat: { freq: "daily" } })).task;
+    const b = good(await s.todo_save({ title: "정리", repeat: { after_event: e.id }, due_after: 0 })).rule;
+    const r = await s.todo_list({ status: "rules" });
+    expect(r.summary).toBe("반복 규칙 2개");
+    expect(good(r)).toEqual({
+      status: "rules",
+      rules: [
+        { id: a.rule_id, title: "일기", repeat: "매일", last_made: "2026-10-01", version: 1 },
+        { id: b.id, title: "정리", repeat: "'상법' 끝나면", event_id: e.id, due_after: 0, last_made: "2026-10-01", version: 1 },
+      ],
+    });
+    expect((good(await s.todo_list({ status: "rules", query: "일기" })).rules as Row[]).map((x) => x.title)).toEqual(["일기"]);
+    // 굴리면 last_made 와 version 이 바뀐다
+    at("2026-10-02T09:00:00+09:00");
+    expect(good(await s.todo_list({ status: "rules", query: "일기" })).rules[0]).toMatchObject({ last_made: "2026-10-02", version: 2 });
+  });
+
+  it("scope once / rule, 있던 할 일에 repeat → 그 할 일이 첫 회차", async () => {
+    const { s, at, owner } = await withPlaces();
+    at("2026-10-01T12:00:00+09:00");
+    const t = good(await s.todo_save({ title: "주간 정리", repeat: { freq: "weekly", days: ["월"] } })).task;
+    // once(기본): 그 할 일만
+    const once = good(await s.todo_save({ id: t.id, base_version: 1, title: "주간 정리 (이번만)" })).task;
+    expect(once.title).toBe("주간 정리 (이번만)");
+    expect((await rules(owner))[0]).toMatchObject({ title: "주간 정리", version: 1 });
+    // once 로는 반복을 못 바꾼다
+    const no = bad(await s.todo_save({ id: t.id, base_version: 2, repeat: { freq: "daily" } }), "BAD_INPUT");
+    expect(no.error.message).toContain('scope: "rule"');
+    expect(no.rule_id).toBe(t.rule_id);
+    // rule: 규칙도 같이
+    const r = await s.todo_save({ id: t.id, base_version: 2, scope: "rule", title: "주간 정리+", est_min: 30, place: "집", checklist: ["책상"], due_after: 3, repeat: { freq: "weekly", days: ["월", "금"] } });
+    expect(r.summary).toBe("고쳤습니다: 주간 정리+ (앞으로 생길 할 일에도 적용)");
+    expect(good(r).task).toMatchObject({ title: "주간 정리+", est_min: 30, place: "집", checklist: [{ t: "책상", done: false }], repeat: "매주 월·금", version: 3 });
+    expect((await rules(owner))[0]).toMatchObject({ title: "주간 정리+", est_min: 30, checklist: ["책상"], due_after: 3, repeat: { freq: "weekly", days: [1, 5] }, version: 2 });
+    // 할 일은 그대로고 규칙만 바뀌는 경우
+    const only = await s.todo_save({ id: t.id, base_version: 3, scope: "rule", due_after: null });
+    expect(only.summary).toContain("앞으로 생길 할 일에도 적용");
+    expect(good(only).task.version).toBe(3);
+    expect((await rules(owner))[0]!.due_after).toBeNull();
+    bad(await s.todo_save({ id: t.id, base_version: 3, scope: "rule", repeat: { after_event: randomUUID() } }), "NOT_FOUND");
+    at("2026-10-02T09:00:00+09:00"); // 금 — 고친 규칙대로 생긴다
+    expect(good(await s.todo_list({})).items[0]).toMatchObject({ title: "주간 정리+", est_min: 30, place: "집", checklist: [{ t: "책상", done: false }] });
+
+    // 있던 할 일에 repeat
+    const plain = good(await s.todo_save({ title: "빨래", checklist: [{ t: "수건", done: true }] })).task;
+    bad(await s.todo_save({ id: plain.id, base_version: 1, scope: "rule", title: "x" }), "BAD_INPUT");
+    const made = await s.todo_save({ id: plain.id, base_version: 1, repeat: { freq: "daily" }, due_after: 1 });
+    expect(made.summary).toBe("고쳤습니다: 빨래 (반복 매일 — 이 할 일이 첫 회차)");
+    expect(good(made).task).toMatchObject({ repeat: "매일", due: "2026-10-03", checklist: [{ t: "수건", done: true }] });
+    const rule = (await rules(owner)).find((x) => x.title === "빨래")!;
+    expect(rule).toMatchObject({ id: good(made).task.rule_id, kind: "cycle", start: "2026-10-02", last_made: "2026-10-02", checklist: ["수건"], due_after: 1 });
+    expect(await rawTask(plain.id)).toMatchObject({ rule_id: rule.id, rule_date: "2026-10-02" });
+  });
+
+  it("rule_id 로 규칙만 고치기(base_version) · stop 으로 멈추기 (이미 생긴 할 일은 남는다)", async () => {
+    const { s, at, owner } = setup();
+    at("2026-10-01T12:00:00+09:00");
+    const t = good(await s.todo_save({ title: "일기", repeat: { freq: "daily" } })).task;
+    const rid = t.rule_id as string;
+    bad(await s.todo_save({ rule_id: rid, title: "x" }), "BAD_INPUT"); // base_version 없음
+    bad(await s.todo_save({ rule_id: rid, base_version: 1, due: "2026-10-05" }), "BAD_INPUT");
+    bad(await s.todo_save({ rule_id: "abc", stop: true }), "BAD_INPUT");
+    bad(await s.todo_save({ stop: true }), "BAD_INPUT");
+    const stale = bad(await s.todo_save({ rule_id: rid, base_version: 9, title: "x" }), "EZ_VERSION");
+    expect(stale.current).toMatchObject({ id: rid, title: "일기", version: 1 });
+    expect(bad(await s.todo_save({ rule_id: rid, base_version: 1, due_after: 99 }), "BAD_INPUT").errors[0].path).toBe("due_after");
+    bad(await s.todo_save({ rule_id: rid, base_version: 1, repeat: { after_event: randomUUID() } }), "NOT_FOUND");
+
+    const r = await s.todo_save({ rule_id: rid, base_version: 1, title: "저녁 일기", checklist: ["한 줄", { t: "사진", done: true }], due_after: 0 });
+    expect(r.summary).toBe("규칙을 고쳤습니다: 저녁 일기 (매일) — 앞으로 생길 할 일부터 적용");
+    expect(good(r).rule).toMatchObject({ title: "저녁 일기", checklist: ["한 줄", "사진"], due_after: 0, version: 2 });
+    expect(good(await s.todo_save({ rule_id: rid, base_version: 2, title: "저녁 일기" })).changed).toBe(false);
+    expect(good(await s.todo_list({})).items[0].title).toBe("일기"); // 이미 생긴 할 일은 그대로
+
+    at("2026-10-02T09:00:00+09:00");
+    const next = good(await s.todo_list({})).items as Row[];
+    expect(next).toHaveLength(1);
+    expect(next[0]).toMatchObject({ title: "저녁 일기", due: "2026-10-02", checklist: [{ t: "한 줄", done: false }, { t: "사진", done: false }] });
+
+    const stop = await s.todo_save({ rule_id: rid, stop: true });
+    expect(stop.summary).toBe("반복을 멈췄습니다: 저녁 일기 (매일) — 이미 생긴 할 일은 남습니다");
+    expect(good(stop)).toEqual({ rule_id: rid, stopped: true });
+    expect((await rules(owner))[0]!.deleted_at).not.toBeNull();
+    expect(good(await s.todo_list({ status: "rules" })).rules).toEqual([]);
+    bad(await s.todo_save({ rule_id: rid, stop: true }), "NOT_FOUND");
+
+    at("2026-10-05T09:00:00+09:00"); // 더 안 생기고, 남은 할 일에는 반복 표시가 없다
+    const left = good(await s.todo_list({})).items as Row[];
+    expect(left.map((x) => x.id)).toEqual([next[0]!.id]);
+    expect(left[0]!.repeat).toBeUndefined();
+    expect(left[0]!.late).toBe("마감 10/2 지남");
+  });
+
+  it("schedule_save following 으로 나누면 '끝나면 할 일' 규칙이 새 일정으로 옮겨 간다", async () => {
+    const { s, at, owner } = setup();
+    at("2026-10-01T12:00:00+09:00");
+    const e = good(await s.schedule_save({ title: "상법", date: "2026-10-05", start: "09:00", end: "10:00", repeat: { freq: "weekly", days: ["월", "수"] } })).event;
+    const rule = good(await s.todo_save({ title: "상법 정리", repeat: { after_event: e.id } })).rule;
+    const r = await s.schedule_save({ id: e.id, base_version: 1, on_date: "2026-10-12", scope: "following", start: "10:00", end: "11:00" });
+    const d = good(r);
+    expect(d).toMatchObject({ split: true, rules_moved: 1 });
+    expect(r.summary).toContain("끝나면 생기는 할 일 규칙 1개도 새 일정으로 옮겼습니다");
+    expect((await rules(owner))[0]).toMatchObject({ id: rule.id, event_id: d.event.id, deleted_at: null });
+    expect(good(await s.todo_list({ status: "rules" })).rules[0]).toMatchObject({ event_id: d.event.id, repeat: "'상법' 끝나면" });
+
+    at("2026-10-12T10:30:00+09:00"); // 새 일정은 11:00 에 끝난다
+    expect(good(await s.todo_list({})).items).toEqual([]);
+    at("2026-10-12T11:00:00+09:00");
+    const items = good(await s.todo_list({})).items as Row[];
+    expect(items.map((t) => t.title)).toEqual(["상법 정리"]);
+    expect((await rawTask(items[0]!.id)).rule_date).toBe("2026-10-12");
+
+    // 규칙이 없으면 알림도 없다
+    const plain = good(await s.schedule_save({ title: "운동", date: "2026-10-05", start: "07:00", end: "08:00", repeat: { freq: "daily" } })).event;
+    const p = await s.schedule_save({ id: plain.id, base_version: 1, on_date: "2026-10-08", scope: "following", start: "06:00" });
+    expect(good(p).rules_moved).toBeUndefined();
+    expect(p.summary).not.toContain("규칙");
+  });
+});
+
 describe("다른 사람 것", () => {
   it("다른 owner 의 일정·할 일은 안 보이고 못 건드린다", async () => {
     const A = setup();
@@ -507,6 +843,14 @@ describe("다른 사람 것", () => {
     expect(good(await B.s.todo_list({ status: "all" })).items).toEqual([]);
     bad(await B.s.todo_save({ id: t.id, base_version: 1, done: true }), "NOT_FOUND");
     bad(await B.s.schedule_save({ title: "x", date: "2026-10-05", start: "09:00", task_id: t.id }), "NOT_FOUND");
+    // 남의 일정에 마감·규칙을 걸 수 없고, 남의 규칙은 안 보이고 못 멈춘다
+    const rep = good(await A.s.schedule_save({ title: "A 수업", date: "2026-10-05", start: "09:00", end: "10:00", repeat: { freq: "daily" } })).event;
+    const rule = good(await A.s.todo_save({ title: "A 정리", repeat: { after_event: rep.id } })).rule;
+    bad(await B.s.todo_save({ title: "x", due_event: { id: e.id } }), "NOT_FOUND");
+    bad(await B.s.todo_save({ title: "x", repeat: { after_event: rep.id } }), "NOT_FOUND");
+    expect(good(await B.s.todo_list({ status: "rules" })).rules).toEqual([]);
+    bad(await B.s.todo_save({ rule_id: rule.id, stop: true }), "NOT_FOUND");
+    expect(good(await A.s.todo_list({ status: "rules" })).rules).toHaveLength(1);
     expect(await raw(e.id)).toMatchObject({ title: "A 일정", version: 1, deleted_at: null });
   });
 });
@@ -542,6 +886,15 @@ describe("MCP 프로토콜", () => {
     expect(okRes.isError).toBeFalsy();
     expect(okRes.content[0].text).toBe("넣었습니다: 회의 · 10/5(월) 09:00–10:00");
     expect(JSON.parse(okRes.content[1].text).event.repeat).toEqual({ freq: "weekly", days: ["월"] });
+    // 플래너 v2 칸이 입력 모양을 통과한다
+    const todo = (await client.callTool({
+      name: "todo_save",
+      arguments: { title: "주간 숙제", checklist: ["수학", { t: "영어", done: true }], repeat: { freq: "weekly", days: ["월"] }, due_after: 6 },
+    })) as any;
+    expect(todo.isError).toBeFalsy();
+    expect(JSON.parse(todo.content[1].text).task).toMatchObject({ repeat: "매주 월", checklist: [{ t: "수학", done: false }, { t: "영어", done: true }] });
+    const ruleList = (await client.callTool({ name: "todo_list", arguments: { status: "rules" } })) as any;
+    expect(ruleList.content[0].text).toBe("반복 규칙 1개");
     const badRes = (await client.callTool({ name: "schedule_get", arguments: { from: "2026-01-01", to: "2026-12-31" } })) as any;
     expect(badRes.isError).toBe(true);
     expect(JSON.parse(badRes.content[1].text).error.code).toBe("RANGE");

@@ -2,16 +2,29 @@
 // 넣을 때 owner 를 명시하고, DB 함수에는 p_as 를 준다. ez_ 일정·플래너 표 밖은 건드리지 않는다.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { DEFAULT_SETTINGS, type DateStr, type EventException, type EventRow, type Place, type Settings, type TaskRow, type Travel } from "../lib/schedule";
+import {
+  DEFAULT_SETTINGS,
+  type DateStr,
+  type EventException,
+  type EventRow,
+  type Place,
+  type Settings,
+  type TaskRow,
+  type TaskRule,
+  type Travel,
+} from "../lib/schedule";
 import { DbError } from "./errors";
 import {
   EVENT_COLS,
   PLACE_COLS,
+  RULE_COLS,
   TASK_COLS,
   type EventPatch,
   type NewEvent,
   type NewPlace,
+  type NewRule,
   type NewTask,
+  type RulePatch,
   type ScheduleStore,
   type SplitPatch,
   type SyncEvent,
@@ -20,6 +33,7 @@ import {
   toEvent,
   toException,
   toPlace,
+  toRule,
   toSettings,
   toTask,
 } from "./schedule-store";
@@ -73,6 +87,10 @@ export class SupabaseScheduleStore implements ScheduleStore {
     return this.sb.from("ez_tasks");
   }
 
+  private ruleTable() {
+    return this.sb.from("ez_task_rules");
+  }
+
   async places(): Promise<Place[]> {
     const rows = await run<Row[]>(this.sb.from("ez_places").select(PLACE_COLS).eq("owner", this.owner).order("sort").order("created_at"));
     return rows.map(toPlace);
@@ -104,6 +122,15 @@ export class SupabaseScheduleStore implements ScheduleStore {
   async getEvent(id: string): Promise<EventRow | null> {
     const row = await run<Row | null>(this.events().select(EVENT_COLS).eq("owner", this.owner).eq("id", id).is("deleted_at", null).maybeSingle());
     return row ? toEvent(row) : null;
+  }
+
+  async eventsByIds(ids: string[]): Promise<EventRow[]> {
+    const out: EventRow[] = [];
+    for (const part of chunks(ids, IN_CHUNK)) {
+      const rows = await run<Row[]>(this.events().select(EVENT_COLS).eq("owner", this.owner).is("deleted_at", null).in("id", part));
+      out.push(...rows.map(toEvent));
+    }
+    return out;
   }
 
   async eventsForTasks(taskIds: string[]): Promise<EventRow[]> {
@@ -233,6 +260,52 @@ export class SupabaseScheduleStore implements ScheduleStore {
         .select("id"),
     );
     return rows.length > 0;
+  }
+
+  async rules(): Promise<TaskRule[]> {
+    const rows = await this.all((a, b) =>
+      this.ruleTable().select(RULE_COLS).eq("owner", this.owner).is("deleted_at", null).order("created_at").order("id").range(a, b),
+    );
+    return rows.map(toRule);
+  }
+
+  async getRule(id: string): Promise<TaskRule | null> {
+    const row = await run<Row | null>(this.ruleTable().select(RULE_COLS).eq("owner", this.owner).eq("id", id).is("deleted_at", null).maybeSingle());
+    return row ? toRule(row) : null;
+  }
+
+  async insertRule(r: NewRule): Promise<TaskRule> {
+    return toRule(await run<Row>(this.ruleTable().insert({ ...r, owner: this.owner }).select(RULE_COLS).single()));
+  }
+
+  async updateRule(id: string, patch: RulePatch, baseVersion: number): Promise<TaskRule | null> {
+    const body = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+    if (Object.keys(body).length === 0) {
+      const cur = await this.getRule(id);
+      return cur && cur.version === baseVersion ? cur : null;
+    }
+    const rows = await run<Row[]>(
+      this.ruleTable().update(body).eq("owner", this.owner).eq("id", id).eq("version", baseVersion).is("deleted_at", null).select(RULE_COLS),
+    );
+    return rows[0] ? toRule(rows[0]) : null;
+  }
+
+  async stopRule(id: string): Promise<boolean> {
+    const rows = await run<Row[]>(
+      this.ruleTable().update({ deleted_at: new Date().toISOString() }).eq("owner", this.owner).eq("id", id).is("deleted_at", null).select("id"),
+    );
+    return rows.length > 0;
+  }
+
+  async moveRules(fromEventId: string, toEventId: string): Promise<number> {
+    const rows = await run<Row[]>(
+      this.ruleTable().update({ event_id: toEventId }).eq("owner", this.owner).eq("event_id", fromEventId).is("deleted_at", null).select("id"),
+    );
+    return rows.length;
+  }
+
+  async roll(today: DateStr, nowMin: number): Promise<number> {
+    return Number(await run<number>(this.sb.rpc("ez_tasks_roll", { p_today: today, p_now_min: nowMin, p_as: this.owner })));
   }
 
   async insertPlace(p: NewPlace): Promise<Place> {
