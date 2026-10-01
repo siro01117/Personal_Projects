@@ -35,6 +35,8 @@ import { useDrawer } from "./DrawerContext";
 import { Icon } from "./Icon";
 import { Menu, type MenuEntry } from "./Menu";
 import { HomeButton } from "./Shell";
+import { slideIn } from "./motion/motion";
+import { useFlip } from "./motion/useFlip";
 import { useToast } from "./Toast";
 
 const ROOT_NAME = "보고서 서랍";
@@ -82,6 +84,9 @@ function keyOf(e: KeyboardEvent): string {
   return e.code.startsWith("Key") ? e.code.slice(3).toLowerCase() : e.key;
 }
 
+/** 마지막으로 본 폴더 (화면이 새로 붙어도 방향을 알게 모듈에 둔다) */
+let lastFolder: { key: string | null; depth: number } = { key: null, depth: 0 };
+
 export function Explorer({ folderId }: { folderId: string | null }) {
   const { data, href, folders, foldersLoaded, refreshFolders, setFolders, tick, fail, rev, clip, setClip, pushUndo, undo } = useDrawer();
   const toast = useToast();
@@ -127,6 +132,18 @@ export function Explorer({ folderId }: { folderId: string | null }) {
   const cutIds = clip?.mode === "cut" ? new Set(clip.items.map((i) => i.id)) : null;
   /** 목록 보기 (찾기 결과는 늘 아이콘) */
   const isList = view === "list" && !find;
+
+  // 전환 (docs/모션.md): 항목이 생기고 · 빠지고 · 순서가 바뀌면 미끄러진다. 폴더를 옮기면 목록이 방향대로 들어온다
+  useFlip(exRef, ".ex[data-id]");
+  const depth = trail?.length ?? 0;
+  const listed = entries !== null;
+  useLayoutEffect(() => {
+    if (!listed) return;
+    const key = folderId ?? "";
+    // 안으로 들어가면 오른쪽에서, 밖으로 나오면 왼쪽에서
+    if (lastFolder.key !== null && lastFolder.key !== key && exRef.current) slideIn([exRef.current], depth >= lastFolder.depth ? 1 : -1, 16);
+    lastFolder = { key, depth };
+  }, [listed, folderId]);
 
   // ------------------------------------------------------------ 불러오기
 
@@ -622,7 +639,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
   // ------------------------------------------------------------ 키보드 (문서 전체에서 받되, 입력칸·다른 곳에 초점이 있으면 무시)
 
   function columns(): number {
-    const items = exRef.current?.querySelectorAll<HTMLElement>(".ex");
+    const items = exRef.current?.querySelectorAll<HTMLElement>(".ex:not([data-ghost])");
     if (!items || items.length === 0) return 1;
     const top = items[0]!.offsetTop;
     let n = 0;

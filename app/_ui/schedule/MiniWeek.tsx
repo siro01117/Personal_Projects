@@ -4,6 +4,7 @@
 // 7시–24시를 화면 높이에 맞춘다. 날짜(머리나 열)를 누르면 그날 하루 보기로.
 
 import type { DateStr, Place } from "../../../lib/schedule";
+import type { Pager } from "../motion/usePager";
 import { WEEKDAYS, type DayColumn } from "../../_logic/schedule";
 
 const M0 = 420;
@@ -16,16 +17,20 @@ export function MiniWeek({
   now,
   places,
   onPick,
+  pager,
 }: {
   cols: DayColumn[];
   today: DateStr;
   now: number;
   places: Map<string, Place>;
   onPick: (d: DateStr) => void;
+  /** 좌우 밀기로 주 이동 */
+  pager: Pager;
 }) {
   const hours = [8, 10, 12, 14, 16, 18, 20, 22];
   return (
-    <>
+    <div className="mini-wrap" ref={pager.area}>
+      <div className="mini-track" ref={pager.track}>
       <div className="mini-head">
         <span />
         {cols.map((c, i) => (
@@ -76,6 +81,7 @@ export function MiniWeek({
           ))}
         </div>
       </div>
-    </>
+      </div>
+    </div>
   );
 }

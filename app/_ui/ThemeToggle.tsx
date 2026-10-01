@@ -5,8 +5,10 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { reducedMotion } from "./motion/motion";
 
 const KEY = "ezwork.theme";
+let animTimer: ReturnType<typeof setTimeout> | undefined;
 
 function currentIsDark(): boolean {
   const t = document.documentElement.dataset.theme;
@@ -29,7 +31,14 @@ export function ThemeToggle({ className }: { className?: string }) {
 
   function toggle() {
     const next = currentIsDark() ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
+    const root = document.documentElement;
+    // 색만 0.2초 동안 바뀐다 (docs/모션.md)
+    if (!reducedMotion()) {
+      root.classList.add("theme-anim");
+      clearTimeout(animTimer);
+      animTimer = setTimeout(() => root.classList.remove("theme-anim"), 240);
+    }
+    root.dataset.theme = next;
     try {
       localStorage.setItem(KEY, next);
     } catch {

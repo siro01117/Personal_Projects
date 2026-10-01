@@ -23,6 +23,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const { href } = useApp();
   const pathname = usePathname();
   const inTrash = under(pathname, TRASH_PATH);
+  const activeIndex = inTrash ? -1 : MENU.findIndex((m) => under(pathname, m.path));
   return (
     <div className="app">
       <section className="work view">
@@ -32,7 +33,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <b>.</b>
             <span>WORK</span>
           </Link>
-          <nav className="nav" aria-label="메뉴">
+          <nav className="nav slide" aria-label="메뉴">
+            {activeIndex >= 0 && <i className="ind" aria-hidden="true" style={{ ["--i" as string]: activeIndex }} />}
             {MENU.map((m) => {
               const on = !inTrash && under(pathname, m.path);
               return (

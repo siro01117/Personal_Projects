@@ -2,6 +2,7 @@
 
 // 알림 한 줄 (목업 .toast). 한 번에 하나. 되돌리기 같은 동작 버튼을 하나 붙일 수 있다.
 
+import { Presence } from "./motion/Presence";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type ToastAction = { label: string; run: () => void };
@@ -29,7 +30,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      {state && (
+      <Presence>
+        {state && (
         <div className="toast" role="status" key={state.key}>
           <span>{state.message}</span>
           {state.action && (
@@ -46,7 +48,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             </button>
           )}
         </div>
-      )}
+        )}
+      </Presence>
     </Ctx.Provider>
   );
 }

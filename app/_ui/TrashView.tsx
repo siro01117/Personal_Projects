@@ -11,12 +11,15 @@ import { useDrawer } from "./DrawerContext";
 import { Icon } from "./Icon";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
+import { useFlip } from "./motion/useFlip";
 
 export function TrashView() {
   const { data, tick, rev, fail, refreshFolders } = useDrawer();
   const toast = useToast();
   const [rows, setRows] = useState<TrashRow[] | null>(null);
   const loadSeq = useRef(0);
+  const listRef = useRef<HTMLUListElement>(null);
+  useFlip(listRef, "li[data-flip]");
 
   const load = useCallback(async () => {
     const seq = ++loadSeq.current;
@@ -59,9 +62,9 @@ export function TrashView() {
       {rows === null ? null : groups.length === 0 ? (
         <div className="empty">휴지통이 비어 있습니다</div>
       ) : (
-        <ul className="trash">
+        <ul className="trash" ref={listRef}>
           {groups.map((g) => (
-            <li key={g.batch}>
+            <li key={g.batch} data-flip={g.batch}>
               <Icon name={g.first.kind === "folder" ? "folder" : "rep"} className="ico" />
               <span className="nm">{trashLabel(g.first.name, g.tops)}</span>
               <span className="when">{formatWhen(g.deleted_at)}</span>

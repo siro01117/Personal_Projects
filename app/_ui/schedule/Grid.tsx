@@ -16,6 +16,8 @@ export type GridCtx = {
   /** 고치는 중인 회차 (끌기 손잡이) */
   editKey: string | null;
   dragging: boolean;
+  /** 방금 생긴 일정 (나타나는 애니메이션) */
+  fresh?: (eventId: string) => boolean;
   onPick: (o: Occurrence, el: HTMLElement) => void;
   /** 고치는 중인 블록을 잡음 (데스크톱 마우스만) */
   onGrab?: (e: ReactPointerEvent<HTMLElement>, o: Occurrence, mode: "move" | "resize") => void;
@@ -123,6 +125,7 @@ function EventBlock({
     editing ? "editing" : "",
     editing && ctx.dragging ? "dragging" : "",
     o.event_id === DRAFT_ID ? "draft" : "",
+    ctx.fresh?.(o.event_id) ? "new" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -184,7 +187,7 @@ export function Axis({ from, to, now }: { from: number; to: number; now: number 
         </span>
       ))}
       {now !== null && now >= from && now <= to && (
-        <b className="nowpill" style={{ top: (now - from) * PX_PER_MIN }}>
+        <b className="nowpill" style={{ transform: `translateY(calc(${(now - from) * PX_PER_MIN}px - 50%))` }}>
           {hm(now)}
         </b>
       )}
@@ -194,7 +197,8 @@ export function Axis({ from, to, now }: { from: number; to: number; now: number 
 
 export function NowLine({ from, to, now }: { from: number; to: number; now: number }) {
   if (now < from || now > to) return null;
-  return <div className="now" style={{ top: (now - from) * PX_PER_MIN }} />;
+  // top 대신 transform — 시각이 바뀌면 부드럽게 옮겨 간다
+  return <div className="now" style={{ transform: `translateY(${(now - from) * PX_PER_MIN}px)` }} />;
 }
 
 /** 종일 줄 한 칸 (종일 일정 · '점심 틈 없음') */
@@ -215,7 +219,7 @@ export function AllDayCell({
           <button
             type="button"
             key={o.key}
-            className={`allday${place ? ` pc-${place.color}` : ""}${ctx.selKey === o.key || ctx.editKey === o.key ? " sel" : ""}`}
+            className={`allday${place ? ` pc-${place.color}` : ""}${ctx.selKey === o.key || ctx.editKey === o.key ? " sel" : ""}${ctx.fresh?.(o.event_id) ? " new" : ""}`}
             title={occTitle(o, ctx)}
             onClick={(e) => ctx.onPick(o, e.currentTarget)}
           >

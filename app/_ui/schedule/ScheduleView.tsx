@@ -6,11 +6,12 @@
 // 누르면 보기만, 고치기는 '수정' 을 한 번 더. 빈 칸 한 번 누르기는 아무것도 안 함, 두 번 누르기(데스크톱)는 새 일정.
 // 고치는 중인 값은 줄에 얹어 미리 그린다(withDraft) — 동선·식사가 같이 따라 움직인다.
 // 주소 ?date=YYYY-MM-DD&event=ID (플래너의 이어진 일정) 면 그 주·그날을 열고 그 일정을 고른다.
+// 전환(docs/모션.md): 폰 하루는 좌우로 밀면 옆 날이 따라 들어온다(옆 칸을 미리 그려 둔다). 주 이동은 방향대로 미끄러진다. 상태는 먼저 바뀌고 화면이 뒤따른다.
 // 반복 일정에는 '끝나면 할 일' 을 딸려 둘 수 있다(반복 규칙, docs/플래너.md 7-2). 일정을 지웠다 되돌리면 딸린 마감 · 규칙도 되살린다.
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   addDays,
   daysBetween,
@@ -58,6 +59,9 @@ import {
 } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
+import { ghostOut, slideIn } from "../motion/motion";
+import { Presence } from "../motion/Presence";
+import { usePager } from "../motion/usePager";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
@@ -142,6 +146,8 @@ export function ScheduleView() {
   const [dragging, setDragging] = useState(false);
   const [scopeAsk, setScopeAsk] = useState<{ x: number; y: number; orig: Draft } | null>(null);
   const [ghost, setGhost] = useState<{ task: TaskRow; x: number; y: number; draft: Draft | null } | null>(null);
+  /** 폰 하루 넘김: 한 칸 넘게 건너뛸 때(주간 띠 · 오늘) 나가는 쪽 칸에 그려 둘 날 */
+  const [from, setFrom] = useState<{ date: DateStr; dir: 1 | -1 } | null>(null);
 
   const D = useScheduleData(week);
   const { meta, rows, tasks, links, rules } = D;
@@ -183,7 +189,8 @@ export function ScheduleView() {
 
   const colsRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const phBodyRef = useRef<HTMLDivElement>(null);
+  const phBodyRef = useRef<HTMLDivElement | null>(null);
+  const wkRef = useRef<HTMLDivElement>(null);
   const grab = useRef<Grab | null>(null);
   const justDragged = useRef(false);
   const live = useRef({ week, range, edit, rows });
@@ -216,11 +223,14 @@ export function ScheduleView() {
   );
   const goDay = useCallback(
     (d: DateStr) => {
+      if (d === day) return;
+      const dir = d > day ? 1 : -1;
+      setFrom(Math.abs(daysBetween(day, d)) > 1 ? { date: day, dir } : null);
       setDay(d);
       const w = mondayOf(d);
       if (w !== week) goWeek(w);
     },
-    [week, goWeek],
+    [day, week, goWeek],
   );
   const goToday = () => {
     if (phone) goDay(today);
@@ -233,6 +243,69 @@ export function ScheduleView() {
       goWeek(w);
       setDay(addDays(day, 7 * n));
     }
+  };
+
+  // ------------------------------------------------------------ 넘기는 모션 (docs/모션.md)
+
+  const dayPager = usePager(
+    (n) => goDay(addDays(day, n)),
+    () => setFrom(null),
+  );
+  const weekPager = usePager((n) => step(n));
+  const setPhBody = useCallback(
+    (el: HTMLDivElement | null) => {
+      phBodyRef.current = el;
+      dayPager.area(el);
+    },
+    [dayPager],
+  );
+  // 날 · 주는 이미 바뀌었다. 화면만 한 폭 옆에서(데스크톱 주간은 짧게) 미끄러져 들어온다
+  const shown = useRef({ day, week });
+  useLayoutEffect(() => {
+    const p = shown.current;
+    shown.current = { day, week };
+    if (p.day !== day) dayPager.shift(day > p.day ? 1 : -1);
+    if (p.week !== week) {
+      const dir = week > p.week ? 1 : -1;
+      weekPager.shift(dir);
+      if (wkRef.current) slideIn(wkRef.current.querySelectorAll(".wk-head .dh, .wk-all .ad, .col-in"), dir);
+    }
+  }, [day, week, dayPager, weekPager]);
+  useEffect(() => {
+    if (!from) return;
+    const id = setTimeout(() => setFrom(null), 320);
+    return () => clearTimeout(id);
+  }, [from]);
+  // 폰 하루: 보이는 시간 범위가 바뀌어도(다른 주) 같은 시각이 그 자리에 있게
+  const lastFrom = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const el = phBodyRef.current;
+    if (el?.dataset.placed && lastFrom.current !== null && lastFrom.current !== range.from) el.scrollTop += (lastFrom.current - range.from) * PX_PER_MIN;
+    lastFrom.current = range.from;
+  });
+
+  // 방금 생긴 일정만 나타나는 애니메이션을 준다 (주를 옮겨 한꺼번에 들어온 것 · 임시 id 가 바뀐 것은 아니다)
+  const seen = useRef<{ week: DateStr | null; ids: Set<string>; fresh: Map<string, number> }>({ week: null, ids: new Set(), fresh: new Map() });
+  {
+    const s = seen.current;
+    const ids = new Set(occs.map((o) => o.event_id));
+    if (!D.loaded) s.week = null;
+    else if (s.week !== week) {
+      s.week = week;
+      s.ids = ids;
+    } else {
+      const added = [...ids].filter((id) => !s.ids.has(id));
+      const lost = [...s.ids].some((id) => !ids.has(id));
+      if (added.length > 0 && added.length <= 3 && !lost) for (const id of added) s.fresh.set(id, performance.now());
+      s.ids = ids;
+    }
+  }
+  const isFresh = (id: string) => {
+    const at = seen.current.fresh.get(id);
+    if (at === undefined) return false;
+    if (performance.now() - at < 400) return true;
+    seen.current.fresh.delete(id);
+    return false;
   };
 
   // ------------------------------------------------------------ 보기 · 고치기 시작
@@ -422,6 +495,7 @@ export function ScheduleView() {
       return;
     }
     const on = selOcc.on_date;
+    ghostOut(document.querySelector<HTMLElement>(`.ev[data-key="${CSS.escape(selOcc.key)}"]`));
     closeAll();
     const undoable = (label: string, undo: (srv: EventRows) => Promise<unknown>) =>
       toast(label, { label: "되돌리기", run: () => void D.run(null, undo) });
@@ -642,11 +716,16 @@ export function ScheduleView() {
   const scrolled = useRef<string | null>(null);
   useEffect(() => {
     if (!plan || width === null || !D.loaded) return;
-    const key = `${week}|${phone ? `p${phoneMode}${day}` : "d"}`;
-    if (scrolled.current === key) return;
     const el = phone ? phBodyRef.current : bodyRef.current;
     if (!el) return;
-    scrolled.current = key;
+    if (phone) {
+      // 폰: 하루 보기를 열 때 한 번만. 날을 넘겨도 스크롤(시각)은 그대로 둔다
+      if (el.dataset.placed) return;
+      el.dataset.placed = "1";
+    } else {
+      if (scrolled.current === week) return;
+      scrolled.current = week;
+    }
     const shown = phone ? cols.filter((c) => c.date === day) : cols;
     const starts = shown.flatMap((c) => c.items.filter((l) => l.item.kind === "ev").map((l) => l.item.start));
     const nowShown = shown.some((c) => c.date === today) && now.min >= range.from && now.min <= range.to;
@@ -682,6 +761,7 @@ export function ScheduleView() {
     selKey: selOcc?.key ?? null,
     editKey: editOcc?.key ?? null,
     dragging,
+    fresh: isFresh,
     onPick: pick,
     onGrab: phone ? undefined : onGrab,
   };
@@ -722,6 +802,12 @@ export function ScheduleView() {
 
   if (phone) {
     const dayCol = cols.find((c) => c.date === day);
+    // 가운데 = 보는 날, 양옆 = 이전 · 다음 날(미리 그려 둔다). 다른 주의 날은 그 주를 읽을 때까지 빈 틀
+    const panes: [DateStr, "l" | "" | "r"][] = [
+      [from?.dir === 1 ? from.date : addDays(day, -1), "l"],
+      [day, ""],
+      [from?.dir === -1 ? from.date : addDays(day, 1), "r"],
+    ];
     return (
       <div className="sched phone">
         <div className="ph-top">
@@ -763,7 +849,7 @@ export function ScheduleView() {
           <ThemeToggle />
         </div>
         {phoneMode === "day" ? (
-          <>
+          <div className="ph-view" key="day">
             <div className="strip">
               {cols.map((c, i) => (
                 <button
@@ -771,7 +857,7 @@ export function ScheduleView() {
                   key={c.date}
                   className={`sd${c.date === today ? " today" : ""}${c.date === day ? " pick" : ""}`}
                   aria-pressed={c.date === day}
-                  onClick={() => setDay(c.date)}
+                  onClick={() => goDay(c.date)}
                 >
                   <span className="w">{WEEKDAYS[i]}</span>
                   <span className="d num">{Number(c.date.slice(8))}</span>
@@ -780,49 +866,56 @@ export function ScheduleView() {
               ))}
             </div>
             <div className="ph-all">{dayCol && <AllDayCell allDay={dayCol.allDay} missing={dayCol.missing} ctx={ctx} />}</div>
-            <div className="ph-body" ref={phBodyRef} {...swipe((n) => goDay(addDays(day, n)))}>
+            <div className="ph-body" ref={setPhBody}>
               <div className="ph-grid" style={{ height }}>
                 <Axis from={range.from} to={range.to} now={day === today ? now.min : null} />
-                <div className="ph-col">
-                  {dayCol && <ColumnItems items={dayCol.items} from={range.from} ctx={ctx} />}
-                  {day === today && <NowLine from={range.from} to={range.to} now={now.min} />}
+                <div className="pg">
+                  <div className="pg-track" ref={dayPager.track}>
+                    {panes.map(([d, slot]) => {
+                      const c = cols.find((x) => x.date === d);
+                      return (
+                        <div key={d} className={slot ? `ph-col pg-pane ${slot}` : "ph-col pg-pane"} inert={slot !== ""} aria-hidden={slot !== "" || undefined}>
+                          {c && <ColumnItems items={c.items} from={range.from} ctx={ctx} />}
+                          {d === today && <NowLine from={range.from} to={range.to} now={now.min} />}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          </>
+          </div>
         ) : (
-          <MiniWeek
-            cols={cols}
-            today={today}
-            now={now.min}
-            places={places}
-            onPick={(d) => {
-              setDay(d);
-              setPhoneMode("day");
-            }}
-          />
+          <div className="ph-view" key="week">
+            <MiniWeek
+              cols={cols}
+              today={today}
+              now={now.min}
+              places={places}
+              pager={weekPager}
+              onPick={(d) => {
+                setFrom(null);
+                setDay(d);
+                setPhoneMode("day");
+              }}
+            />
+          </div>
         )}
         <button type="button" className="fab" aria-label="새 일정" onClick={newHere}>
           <Icon name="plus" />
         </button>
-        {selOcc && !edit && (
-          <>
-            <div className="scrim light" onClick={() => setSel(null)} />
-            <div className="sheet peek" role="dialog" aria-label={selOcc.title}>
+        <Presence>{(selOcc || edit) && <div className={edit ? "scrim" : "scrim light"} onClick={edit ? cancelEdit : () => setSel(null)} />}</Presence>
+        <Presence>
+          {(selOcc || edit) && (
+            <div className={edit ? "sheet" : "sheet peek"} role="dialog" aria-label={edit ? (edit.target ? "일정 수정" : "새 일정") : selOcc!.title}>
               <span className="grab" />
-              {detail}
+              {/* 보기 → 수정: 같은 시트가 커지고 내용만 새로 나타난다 */}
+              <div className="sh-in" key={edit ? "edit" : `view:${selOcc!.key}`}>
+                {edit ? form : detail}
+              </div>
             </div>
-          </>
-        )}
-        {edit && (
-          <>
-            <div className="scrim" onClick={cancelEdit} />
-            <div className="sheet" role="dialog" aria-label={edit.target ? "일정 수정" : "새 일정"}>
-              <span className="grab" />
-              {form}
-            </div>
-          </>
-        )}
+          )}
+        </Presence>
       </div>
     );
   }
@@ -883,7 +976,7 @@ export function ScheduleView() {
         <ThemeToggle />
       </div>
       <div className="stage">
-        <div className="wk">
+        <div className="wk" ref={wkRef}>
           <div className="wk-row wk-head">
             <span />
             {dates.map((d, i) => (
@@ -921,7 +1014,9 @@ export function ScheduleView() {
               >
                 {cols.map((c) => (
                   <div key={c.date} className="col">
-                    <ColumnItems items={c.items} from={range.from} ctx={ctx} />
+                    <div className="col-in">
+                      <ColumnItems items={c.items} from={range.from} ctx={ctx} />
+                    </div>
                     {c.date === today && <NowLine from={range.from} to={range.to} now={now.min} />}
                   </div>
                 ))}
@@ -929,26 +1024,31 @@ export function ScheduleView() {
             </div>
           </div>
         </div>
-        {wide ? (
+        {wide && (
           <aside className="dp" aria-label={edit ? "일정 수정" : selOcc ? "고른 일정" : "할 일"}>
-            {panel}
+            <div className="dp-in" key={edit ? `e:${edit.target ? `${edit.target.event_id}:${edit.target.on_date}` : "new"}` : selOcc ? `v:${selOcc.key}` : "tasks"}>
+              {panel}
+            </div>
           </aside>
-        ) : (
-          edit && (
+        )}
+        <Presence>
+          {!wide && edit && (
             <aside className="dp float" aria-label="일정 수정">
               {form}
             </aside>
-          )
-        )}
+          )}
+        </Presence>
       </div>
-      {popStyle && (
-        <div className="pop" style={popStyle} role="dialog" aria-label={selOcc!.title}>
-          <button type="button" className="iconbtn x" aria-label="닫기" onClick={() => setSel(null)}>
-            <Icon name="x" />
-          </button>
-          {detail}
-        </div>
-      )}
+      <Presence>
+        {popStyle && (
+          <div className="pop" style={popStyle} role="dialog" aria-label={selOcc!.title}>
+            <button type="button" className="iconbtn x" aria-label="닫기" onClick={() => setSel(null)}>
+              <Icon name="x" />
+            </button>
+            {detail}
+          </div>
+        )}
+      </Presence>
       {scopeAsk && (
         <div className="pop scope-pop" style={{ left: Math.min(scopeAsk.x + 12, innerWidth - 220), top: Math.min(scopeAsk.y + 12, innerHeight - 64) }} role="dialog" aria-label="바꿀 범위">
           <div className="scope">
@@ -968,25 +1068,4 @@ export function ScheduleView() {
       )}
     </div>
   );
-}
-
-/** 좌우로 밀면 하루씩 (세로 스크롤보다 가로가 확실히 클 때만) */
-function swipe(go: (n: number) => void) {
-  let sx = 0;
-  let sy = 0;
-  return {
-    onTouchStart: (e: ReactTouchEvent) => {
-      const t = e.touches[0];
-      if (!t) return;
-      sx = t.clientX;
-      sy = t.clientY;
-    },
-    onTouchEnd: (e: ReactTouchEvent) => {
-      const t = e.changedTouches[0];
-      if (!t) return;
-      const dx = t.clientX - sx;
-      const dy = t.clientY - sy;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
-    },
-  };
 }

@@ -13,7 +13,10 @@
   --font-sans:'Pretendard','IBM Plex Sans KR',system-ui,-apple-system,'Segoe UI',sans-serif;
   --font-num:'Poppins','Pretendard','IBM Plex Sans KR',sans-serif;
   --r-s:8px; --r-m:10px; --r-l:16px;
-  --t:.16s cubic-bezier(.2,.8,.2,1);
+  /* 모션 토큰 (docs/모션.md). --t 는 transition 축약 전용 — animation 축약에 쓰면 둘째 시간이 지연이 된다 */
+  --ease-out:cubic-bezier(.2,.8,.2,1); --ease-in:cubic-bezier(.4,0,1,1);
+  --m-fast:.14s; --m-base:.18s; --m-slow:.24s;
+  --t:var(--m-fast) var(--ease-out);
   /* 지점 색 8개 (일정). 바탕 --pl-*, 심볼 --pl-*-ink. 목업 schedule-v1 값 + 같은 톤으로 민트·분홍·청록·노랑 */
   --pl-sky:#e4eefb; --pl-sky-ink:#3b6cb0; --pl-violet:#ece7fa; --pl-violet-ink:#6a55b5;
   --pl-peach:#fbebe1; --pl-peach-ink:#b0653a; --pl-sand:#f3efe3; --pl-sand-ink:#8a7444;
@@ -288,7 +291,7 @@ sup.r a:hover{background:var(--point-soft)}
 .toast button{font-weight:600;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .rp{position:absolute;border-radius:50%;transform:scale(0);background:currentColor;opacity:.18;pointer-events:none;animation:rp .5s ease-out forwards}
 @keyframes rp{to{transform:scale(2.6);opacity:0}}
-.view{animation:in .28s var(--t)}
+.view{animation:in var(--m-base) var(--ease-out)}
 @keyframes in{from{opacity:.001;transform:translateY(6px)}}
 @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
 
@@ -576,8 +579,8 @@ input.pill[type="time"]::-webkit-calendar-picker-indicator{display:none}
 /* 시트: 보기(반쯤) · 수정(거의 전부) */
 .scrim{position:fixed;inset:0;background:rgb(10 10 12 / .42);z-index:30}
 .scrim.light{background:rgb(10 10 12 / .18)}
-.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92dvh;z-index:31;background:var(--surface);border-top:1px solid var(--border);border-radius:24px 24px 0 0;display:flex;flex-direction:column;padding:8px 16px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;animation:up .22s var(--t)}
-@keyframes up{from{transform:translateY(24px);opacity:.001}}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:92dvh;z-index:31;background:var(--surface);border-top:1px solid var(--border);border-radius:24px 24px 0 0;display:flex;flex-direction:column;padding:8px 16px calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;animation:up var(--m-slow) var(--ease-out)}
+@keyframes up{from{transform:translateY(100%)}}
 .sheet.peek{padding:8px 20px calc(24px + env(safe-area-inset-bottom,0px))}
 .sheet.peek .dp-h{margin:6px 0 8px}
 .sheet.peek .dp-acts{margin-top:12px}
@@ -773,3 +776,108 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .planner .f > .line{min-height:32px}
 .iconbtn.clr{width:32px;height:32px}
 .iconbtn.clr .i{width:16px;height:16px}
+
+/* ====================================================================================
+   모션 (docs/모션.md). transform · opacity 만, 140~240ms, 감속 곡선 하나. 조작을 막지 않는다.
+   움직임 줄이기면 위의 전역 규칙이 전부 끈다(JS 쪽은 reducedMotion()).
+   ==================================================================================== */
+@keyframes fade-in{from{opacity:0}}
+@keyframes fade-out{to{opacity:0}}
+/* 나가는 중인 것(Presence): 뒤의 화면이 바로 눌린다 */
+[data-leaving],[data-ghost]{pointer-events:none!important}
+
+/* 눌림 */
+.ghost,.chip,.rf,.scope button,.del,.fab{transition:background var(--t),color var(--t),transform var(--t),box-shadow var(--t)}
+.ghost:active,.chip:active,.rf:active,.scope button:active,.del:active,.fab:active{transform:scale(.97)}
+.seg button{transition:background var(--t),color var(--t)}
+.sd .d{transition:background var(--t),transform var(--t)}
+.sd:active .d{transform:scale(.94)}
+
+/* 사이드바: 선택 표시가 자리로 옮겨 간다 */
+.nav.slide{position:relative}
+.nav.slide .ind{position:absolute;left:0;right:0;top:0;height:38px;border-radius:var(--r-m);background:var(--surface-2);transform:translateY(calc(var(--i) * 40px));transition:transform var(--m-base) var(--ease-out);pointer-events:none}
+.nav.slide a{position:relative}
+.nav.slide .on{background:none}
+
+/* 홈 타일: 아주 짧은 순차 등장 (전체 200ms 안) */
+.home.view{animation:none}
+.bento .tile{animation:tile-in var(--m-fast) var(--ease-out) backwards}
+.bento .tile:nth-child(2){animation-delay:7ms} .bento .tile:nth-child(3){animation-delay:14ms}
+.bento .tile:nth-child(4){animation-delay:21ms} .bento .tile:nth-child(5){animation-delay:28ms}
+.bento .tile:nth-child(6){animation-delay:35ms} .bento .tile:nth-child(7){animation-delay:42ms}
+.bento .tile:nth-child(8){animation-delay:49ms} .bento .tile:nth-child(n+9){animation-delay:56ms}
+@keyframes tile-in{from{opacity:.001;transform:translateY(6px)}}
+
+/* 밝기 전환: 색만 짧게 (ThemeToggle 이 0.2초 동안 붙인다) */
+.theme-anim,.theme-anim *,.theme-anim *::before,.theme-anim *::after{transition:background-color .2s linear,color .2s linear,border-color .2s linear,fill .2s linear,stroke .2s linear,box-shadow .2s linear!important}
+
+/* 알림 */
+.toast{animation:toast-in var(--m-base) var(--ease-out)}
+@keyframes toast-in{from{opacity:.001;transform:translate(-50%,8px)}}
+.toast[data-leaving]{animation:toast-out var(--m-fast) var(--ease-in) forwards}
+@keyframes toast-out{to{opacity:0;transform:translate(-50%,8px)}}
+
+/* 메뉴 · 작은 창 */
+.menu,.share-pop,.pop{animation:pop-in var(--m-fast) var(--ease-out);transform-origin:top left}
+.share-pop{transform-origin:top right}
+@keyframes pop-in{from{opacity:.001;transform:scale(.97)}}
+.pop[data-leaving]{animation:pop-out var(--m-fast) var(--ease-in) forwards}
+@keyframes pop-out{to{opacity:0;transform:scale(.97)}}
+.lightbox{animation:fade-in var(--m-fast) linear}
+
+/* 시트 · 스크림 */
+.scrim{animation:fade-in var(--m-base) linear;transition:background-color var(--m-base) linear}
+.scrim[data-leaving]{animation:fade-out var(--m-base) linear forwards}
+.sheet[data-leaving]{animation:sheet-out var(--m-base) var(--ease-in) forwards}
+@keyframes sheet-out{to{transform:translateY(100%)}}
+
+/* 패널: 내용이 바뀌면 페이드 + 6px. 떠 있는 패널은 오른쪽에서 */
+.dp-in{flex:0 0 auto;display:flex;flex-direction:column;gap:2px;animation:in var(--m-base) var(--ease-out)}
+/* 시트 안 내용 (보기 → 수정 때 새로 나타난다). 시트의 세로 배치를 그대로 잇는다 */
+.sh-in{flex:1 0 auto;display:flex;flex-direction:column;animation:in var(--m-base) var(--ease-out)}
+.dp.float{animation:float-in var(--m-base) var(--ease-out)}
+@keyframes float-in{from{opacity:.001;transform:translateX(16px)}}
+.dp.float[data-leaving]{animation:float-out var(--m-fast) var(--ease-in) forwards}
+@keyframes float-out{to{opacity:0;transform:translateX(16px)}}
+
+/* 폰 일정: 하루 ↔ 주 */
+.ph-view{flex:1;min-height:0;display:flex;flex-direction:column;animation:view-in var(--m-base) var(--ease-out)}
+@keyframes view-in{from{opacity:.001;transform:scale(.985)}}
+/* 좌우 밀기: 트랙(.pg-track)을 JS 가 옮긴다. 가운데 칸 양옆에 이전 · 다음 칸을 미리 그려 둔다. 시간 축은 밖이라 고정 */
+.ph-body,.mini-wrap{touch-action:pan-y}
+.pg{position:relative;min-width:0;overflow:hidden;margin-left:-5px;padding-left:5px}
+.pg-track{position:relative;height:100%}
+.ph-col.pg-pane{position:absolute;top:0;bottom:0;left:0;right:0}
+.ph-col.pg-pane.l{left:-100%;right:100%}
+.ph-col.pg-pane.r{left:100%;right:-100%}
+.mini-wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.mini-track{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* 데스크톱 주간: 블록은 .col-in 안 — 주를 옮기면 이것만 미끄러진다(격자 선 · 지금 선은 그대로) */
+.col-in{position:absolute;inset:0}
+
+/* 일정 블록 */
+.ev{transition:box-shadow var(--t),opacity var(--t)}
+.allday{transition:box-shadow var(--t)}
+.ev.new,.allday.new{animation:ev-in var(--m-base) var(--ease-out)}
+@keyframes ev-in{from{opacity:.001;transform:scale(.96)}}
+.col .now,.ph-col .now{top:0;transition:transform .4s var(--ease-out)}
+.nowpill{top:0;transition:transform .4s var(--ease-out)}
+
+/* 플래너 · 서랍 목록: 재배치는 JS(FLIP). 사라지는 줄의 복제가 놓일 기준 */
+.pl-list,.pl-rows,.explorer,.trash{position:relative}
+.pl-row[data-ghost]{background:none;box-shadow:none}
+.pl-row[data-ghost].checked .chk{position:relative;color:var(--point-ink)}
+.pl-row[data-ghost].checked .chk::after{content:"";position:absolute;left:10px;top:6px;width:4px;height:8px;border:solid currentColor;border-width:0 1.6px 1.6px 0;transform:rotate(45deg);animation:tick-in var(--m-fast) var(--ease-out)}
+@keyframes tick-in{from{opacity:0;transform:rotate(45deg) scale(.6)}}
+.chk[aria-checked="true"] .i,.ck.on .i{animation:chk-in var(--m-base) var(--ease-out)}
+@keyframes chk-in{from{opacity:.4;transform:scale(.7)}}
+/* 끝냄 카드 접기/펴기 */
+.fold{display:grid;grid-template-rows:1fr;animation:fold-open var(--m-base) var(--ease-out)}
+.fold > div{min-height:0;overflow:hidden}
+@keyframes fold-open{from{grid-template-rows:0fr;opacity:0}}
+.fold[data-leaving]{animation:fold-close var(--m-fast) var(--ease-in) forwards}
+@keyframes fold-close{to{grid-template-rows:0fr;opacity:0}}
+
+/* 보고서 종이 */
+.doc-body .page{animation:in var(--m-base) var(--ease-out)}

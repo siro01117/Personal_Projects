@@ -3,6 +3,7 @@
 // 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 정렬 줄(7-12) → 목록 넷(지남 · 할 일 · 시간 정함 · 끝냄).
 // 줄 누르기는 보기만(넓은 데스크톱 오른쪽 패널 · 좁은 데스크톱 떠 있는 패널 · 폰 보기 시트), 고치기는 '수정' 을 한 번 더.
 // 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 '직접' 정렬일 때 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
+// 전환(docs/모션.md): 줄이 생기고 · 빠지고 · 자리를 바꾸면 FLIP 으로 미끄러진다(useFlip). 데이터는 먼저 바뀐다.
 // 지남은 자동으로 넘기지 않는다 — 다시 정하기 · 시간 없음으로 · 마감 바꾸기 · 마감 지우기를 사람이 고른다.
 
 import {
@@ -62,6 +63,8 @@ import { draftInput, newDraft, nowIn, type Draft } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { Menu } from "../Menu";
+import { Presence } from "../motion/Presence";
+import { useFlip } from "../motion/useFlip";
 import { EventForm } from "../schedule/EventForm";
 import { PlaceDot } from "../schedule/PlaceSymbol";
 import { HomeButton } from "../Shell";
@@ -164,6 +167,15 @@ export function PlannerView() {
   const dragRef = useRef<Drag | null>(null);
   dragRef.current = drag;
   const justDragged = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  useFlip(listRef, ".pl-row[data-id], .pl-g[data-flip]", {
+    // 끝내서 빠지는 줄은 체크가 그려진 채 잠깐 머물렀다 사라진다
+    onGhost: (g, id) => {
+      if (!state?.tasks.find((t) => t.id === id)?.done_at) return false;
+      g.classList.add("checked");
+      return true;
+    },
+  });
 
   const lists = useMemo(
     () => splitTasks(state?.tasks ?? [], state?.links ?? [], new Date(clock), { date: today, min: nowMin }),
@@ -314,11 +326,13 @@ export function PlannerView() {
         document.body.classList.add("pl-grabbing");
         setDrag({ id: t.id, to: from });
       }
-      const rows = [...(openRef.current?.querySelectorAll<HTMLElement>("li[data-id]") ?? [])].filter((el) => el.dataset.id !== t.id);
+      const ul = openRef.current;
+      const rows = [...(ul?.querySelectorAll<HTMLElement>("li[data-id]") ?? [])].filter((el) => el.dataset.id !== t.id);
+      // 놓인 자리(offsetTop)로 잰다 — 미끄러지는 중인 줄의 transform 에 흔들리지 않게
+      const top = ul?.getBoundingClientRect().top ?? 0;
       let to = 0;
       for (const el of rows) {
-        const r = el.getBoundingClientRect();
-        if (ev.clientY > r.top + r.height / 2) to++;
+        if (ev.clientY > top + el.offsetTop + el.offsetHeight / 2) to++;
       }
       setDrag((d) => (d && d.to !== to ? { ...d, to } : d));
     };
@@ -777,12 +791,12 @@ export function PlannerView() {
 
   /** 한 카드의 줄들: 정렬에 따라 구분 묶음으로. 역할 · 장소 정렬이면 묶음마다 라벨 줄(소제목 + 가는 선) */
   const groupsOf = (list: readonly Row[]): SortGroup<Row>[] => sortGroups(list, sort, { roles, places: D.places });
-  const rows = (list: readonly Row[], movable = false) => (
+  const rows = (sec: string, list: readonly Row[], movable = false) => (
     <div className="pl-groups">
       {groupsOf(list).map((g) => (
         <Fragment key={g.key}>
           {g.kind !== "all" && (
-            <h3 className="pl-g">
+            <h3 className="pl-g" data-flip={`g:${sec}:${g.key}`}>
               {g.kind === "place" && (
                 <span className={`sym pc-${placeOf.get(g.key)?.color}`}>
                   <PlaceDot />
@@ -806,6 +820,8 @@ export function PlannerView() {
   const sendTask = taskById(send?.id);
   let panel: ReactNode = null;
   let panelLabel = "";
+  /** 패널 내용이 바뀌면(다른 할 일 · 보기 → 수정) 새로 나타난다 */
+  const panelKey = roleEdit ? "roles" : send ? `send:${send.id}` : dueEdit ? `due:${dueEdit.id}` : plan ? `plan:${plan.id}` : edit ? `edit:${edit.id}` : `view:${sel}`;
   if (roleEdit) {
     panelLabel = "역할 편집";
     panel = <RoleEdit roles={roles} onRename={renameRole} onAdd={addRole} onMove={moveRole} onDelete={(r) => void removeRole(r)} />;
@@ -950,6 +966,7 @@ export function PlannerView() {
       <div className="pl-stage">
         <div
           className="pl-list"
+          ref={listRef}
           onClick={(e) => {
             // 빈 곳을 누르면 보기를 닫는다 (고치는 중에는 그대로)
             if (viewing && !(e.target as HTMLElement).closest("li, button, a")) closeAll();
@@ -963,7 +980,7 @@ export function PlannerView() {
                   <h2 className="pl-h">
                     지남<span className="num">{lists.late.length}</span>
                   </h2>
-                  {rows(lists.late.map((l) => ({ task: l.task, link: l.link, late: l })))}
+                  {rows("late", lists.late.map((l) => ({ task: l.task, link: l.link, late: l })))}
                 </section>
               )}
               {openShown.length > 0 && (
@@ -972,6 +989,7 @@ export function PlannerView() {
                     할 일<span className="num">{openShown.length}</span>
                   </h2>
                   {rows(
+                    "open",
                     openShown.map((task) => ({ task })),
                     true,
                   )}
@@ -985,7 +1003,7 @@ export function PlannerView() {
                     <h2 className="pl-h">
                       시간 정함<span className="num">{lists.timed.length}</span>
                     </h2>
-                    {rows(lists.timed)}
+                    {rows("timed", lists.timed)}
                   </section>
                 )}
                 {lists.done.length > 0 && (
@@ -995,22 +1013,40 @@ export function PlannerView() {
                       <span className="num">{lists.done.length}</span>
                       <Icon name={showDone ? "up" : "down"} />
                     </button>
-                    {showDone && rows(lists.done.map((task) => ({ task })))}
+                    <Presence>
+                      {showDone && (
+                        <div className="fold" data-flip-skip="">
+                          <div>{rows("done", lists.done.map((task) => ({ task })))}</div>
+                        </div>
+                      )}
+                    </Presence>
                   </section>
                 )}
               </div>
             )}
           </div>
         </div>
-        {!phone && panel && (
-          <aside className={wide ? "dp pl-dp" : "dp pl-dp float"} aria-label={panelLabel}>
+        {!phone && wide && panel && (
+          <aside className="dp pl-dp" aria-label={panelLabel}>
             {viewing && close}
-            {panel}
+            <div className="dp-in" key={panelKey}>
+              {panel}
+            </div>
           </aside>
         )}
+        <Presence>
+          {!phone && !wide && panel && (
+            <aside className="dp pl-dp float" aria-label={panelLabel}>
+              {viewing && close}
+              <div className="dp-in" key={panelKey}>
+                {panel}
+              </div>
+            </aside>
+          )}
+        </Presence>
       </div>
-      {phone && panel && (
-        <>
+      <Presence>
+        {phone && panel && (
           <div
             className={viewing ? "scrim light" : "scrim"}
             onClick={() => {
@@ -1018,12 +1054,18 @@ export function PlannerView() {
               else closeForms();
             }}
           />
+        )}
+      </Presence>
+      <Presence>
+        {phone && panel && (
           <div className={viewing ? "sheet peek" : "sheet"} role="dialog" aria-label={panelLabel}>
             <span className="grab" />
-            {panel}
+            <div className="sh-in" key={panelKey}>
+              {panel}
+            </div>
           </div>
-        </>
-      )}
+        )}
+      </Presence>
       {menu && viewing && (
         <Menu x={menu.x} y={menu.y} entries={[{ kind: "item", icon: "cal", label: "일정으로", run: startSend }]} onClose={() => setMenu(null)} />
       )}
