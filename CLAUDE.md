@@ -11,7 +11,7 @@
 - 라칸(`Personal_Projects`) 코드를 가져오지 않는다. 가져갈 것이 있으면 사용자가 말한다
 - 데이터: RA-KAN Supabase 의 `ez_` 접두 테이블만 쓴다. `kv` 등 다른 테이블은 읽지도 쓰지도 않는다
 - 비밀 키는 `.env.local` 에만. 커밋 금지
-- 배포: GitHub `siro01117/Personal_Projects` 의 `main` 에 푸시하면 Vercel(`multiverse-time-grid`)이 **ra-kan.cloud** 로 바로 배포한다. 푸시는 사용자가 배포하라고 할 때만
+- 배포: GitHub `siro01117/Personal_Projects` 의 `main` 에 푸시하면 Vercel(`multiverse-time-grid`)이 **ra-kan.cloud** 로 바로 배포한다. **시험·타입 검사·빌드가 통과하면 묻지 않고 바로 푸시해 배포한다**(2026-10-02 결정 — 개인 프로젝트라 문제가 생기면 롤백하면 된다). 배포 상태는 Vercel 도구로 확인하고, 사이트를 curl 로 반복해서 찌르지 않는다(봇 차단에 걸린다)
 - 옛 라칸 코드는 같은 저장소의 `rakan-archive` 브랜치 · `rakan-final-2026-10-01` 태그에 남아 있다. `Documents/GitHub/Personal_Projects` 폴더는 옛 라칸 — 거기서 main 에 푸시하지 않는다
 
 ## 명령
