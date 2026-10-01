@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>EZ.WORK 일정 목업 v1</title>
+<!-- 일정 모듈 정적 목업. 토큰·사이드바·버튼은 app/globals.css · Shell.tsx 와 같다. 데이터는 하드코딩.
+     블록 위치: --s / --e = 그날 0시부터 분. 1분 = 0.8px (1시간 48px). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Poppins:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#f4f4f6; --surface-3:#e9e9ee;
+  --border:#e6e6ea; --text-1:#161619; --text-2:#46464d; --text-3:#6b6b72;
+  --point:#9be15d; --on-point:#161619; --point-ink:#4a7a12; --point-soft:#eef8e2;
+  --ink:#161619; --on-ink:#f3f3f6; --on-ink-2:#a9a9b3;
+  --canvas:#ececef; --paper:#ffffff;
+  --fact:#1f7a52; --guess:#9a5b00; --danger:#b42318;
+  --font-sans:'Pretendard','IBM Plex Sans KR',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-num:'Poppins','Pretendard','IBM Plex Sans KR',sans-serif;
+  --r-s:8px; --r-m:10px; --r-l:16px;
+  --t:.16s cubic-bezier(.2,.8,.2,1);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f0f12; --surface:#17171b; --surface-2:#1c1c21; --surface-3:#26262d;
+  --border:#2b2b32; --text-1:#f3f3f6; --text-2:#c3c3cb; --text-3:#94949e;
+  --point:#a8e063; --on-point:#11140c; --point-ink:#a8e063; --point-soft:#1f2616;
+  --ink:#ececf0; --on-ink:#141417; --on-ink-2:#55555d;
+  --canvas:#0a0a0c; --paper:#16161a;
+  --fact:#5fd6a0; --guess:#f0b35a; --danger:#ff8a80; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f0f12; --surface:#17171b; --surface-2:#1c1c21; --surface-3:#26262d;
+  --border:#2b2b32; --text-1:#f3f3f6; --text-2:#c3c3cb; --text-3:#94949e;
+  --point:#a8e063; --on-point:#11140c; --point-ink:#a8e063; --point-soft:#1f2616;
+  --ink:#ececf0; --on-ink:#141417; --on-ink-2:#55555d;
+  --canvas:#0a0a0c; --paper:#16161a;
+  --fact:#5fd6a0; --guess:#f0b35a; --danger:#ff8a80; color-scheme:dark }
+
+/* 일정 전용 (목업에서 정함) */
+:root{ --pm:.8px; --stripe:color-mix(in srgb,var(--text-3) 24%,transparent); --dash:color-mix(in srgb,var(--text-3) 70%,transparent) }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text-2);font-family:var(--font-sans);font-size:14px;line-height:1.6;font-weight:500;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:2px solid var(--point-ink);outline-offset:2px;border-radius:var(--r-s)}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.iconbtn{width:36px;height:36px;display:grid;place-items:center;border-radius:var(--r-m);color:var(--text-2);transition:background var(--t),transform var(--t)}
+.iconbtn:hover{background:var(--surface-2);color:var(--text-1)}
+.iconbtn:active{transform:scale(.97)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 12px;border-radius:var(--r-m);font-size:12px;font-weight:600;background:var(--point);color:var(--on-point);transition:transform var(--t),filter var(--t)}
+.btn:hover{filter:brightness(1.05)}
+.btn:active{transform:scale(.97)}
+.btn .i{width:16px;height:16px;stroke-width:2}
+.ghost{display:inline-flex;align-items:center;justify-content:center;height:34px;padding:0 12px;border-radius:var(--r-m);font-size:13px;font-weight:600;color:var(--text-1);border:1px solid var(--border)}
+.ghost:hover{background:var(--surface-2)}
+
+/* ---------- 목업 조작 (앱 밖) ---------- */
+.mockbar{height:52px;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 16px}
+.seg{display:flex;padding:3px;border-radius:var(--r-m);background:var(--surface-2)}
+.seg button{height:30px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--text-3)}
+.seg button[aria-pressed="true"]{background:var(--bg);color:var(--text-1)}
+body.is-desk .mockbar .theme-btn{display:none}
+
+/* ---------- 작업면 (Shell 과 같음) ---------- */
+.app{container:app/inline-size;background:var(--bg);height:calc(100vh - 52px);border-top:1px solid var(--border)}
+.work{display:grid;grid-template-columns:220px minmax(0,1fr);height:100%}
+.side{border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:20px}
+.logo{font-family:var(--font-num);font-weight:600;font-size:18px;letter-spacing:.01em;color:var(--text-1);text-decoration:none;padding:0 10px;align-self:flex-start}
+.logo b{color:var(--point-ink);font-weight:600}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;height:38px;padding:0 10px;border-radius:var(--r-m);font-size:14px;color:var(--text-2);text-decoration:none;transition:background var(--t)}
+.nav a:hover{background:var(--surface-2)}
+.nav .on{background:var(--surface-2);color:var(--text-1);font-weight:600}
+.nav .on svg{color:var(--point-ink)}
+.main{min-width:0;min-height:0;display:flex;flex-direction:column}
+.bar-top{height:60px;flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:0 clamp(16px,3cqw,56px);border-bottom:1px solid var(--border)}
+.bar-top .grow{flex:1}
+.bar-top h1{margin:0 0 0 8px;font-size:16px;font-weight:600;color:var(--text-1);white-space:nowrap}
+.bar-top .btn{margin:0 4px}
+
+/* ---------- 주간 격자 ---------- */
+.wk{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 clamp(8px,1.6cqw,32px)}
+.wk-row{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));overflow:hidden;scrollbar-gutter:stable}
+.wk-head{height:64px;align-items:center}
+.dh{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.dh .w{font-size:12px;color:var(--text-3)}
+.dh .d{font-size:18px;font-weight:600;color:var(--text-1);width:32px;height:32px;display:grid;place-items:center;border-radius:50%}
+.dh.today .w{color:var(--point-ink);font-weight:600}
+.dh.today .d{background:var(--point);color:var(--on-point)}
+.wk-all{border-bottom:1px solid var(--border);padding-bottom:6px;min-height:34px}
+.ad{display:flex;flex-direction:column;gap:3px;padding:0 4px 0 2px;min-width:0}
+.allday{height:22px;border-radius:6px;padding:0 8px;font-size:12px;font-weight:600;line-height:22px;color:var(--text-1);background:var(--point-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nofit{align-self:flex-start;max-width:100%;height:20px;border-radius:6px;padding:0 6px;font-size:11px;line-height:18px;color:var(--text-3);border:1px dashed var(--dash);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-body{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable}
+.wk-grid{display:grid;grid-template-columns:56px minmax(0,1fr);height:calc(1440 * var(--pm));margin:8px 0 16px}
+.axis{position:relative}
+.axis span{position:absolute;right:10px;transform:translateY(-50%);font-family:var(--font-num);font-size:11px;color:var(--text-3);line-height:1}
+.nowpill{position:absolute;right:4px;top:calc(var(--s) * var(--pm));transform:translateY(-50%);height:18px;padding:0 6px;border-radius:999px;background:var(--point);color:var(--on-point);font-family:var(--font-num);font-size:11px;font-weight:600;line-height:18px;z-index:2}
+.cols{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% 48px;border-bottom:1px solid var(--border)}
+.col{position:relative;border-left:1px solid var(--border);min-width:0;container:col/inline-size}
+@container col (max-width: 120px){ .ev .src{display:none} .ev{padding:3px 5px} }
+.col:last-child{border-right:1px solid var(--border)}
+
+/* 블록 */
+.ev,.band,.meal{position:absolute;left:2px;right:4px;top:calc(var(--s) * var(--pm));height:calc((var(--e) - var(--s)) * var(--pm));overflow:hidden;min-width:0}
+.ev{border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.3;z-index:1}
+.ev .r{display:flex;align-items:baseline;gap:6px;min-width:0}
+.ev .t{font-weight:600;color:var(--text-1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ev .src{flex:0 0 auto;font-size:10.5px;color:var(--text-3)}
+.ev .h{display:block;font-family:var(--font-num);font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev.mine{background:var(--point-soft)}
+.ev.ext{background:var(--surface-3)}
+.ev.sel{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.ev.cut-b{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.ev.cut-t{border-top-left-radius:0;border-top-right-radius:0}
+.band{height:calc((var(--e) - var(--s)) * var(--pm) - 1px);border-radius:4px;background:repeating-linear-gradient(135deg,var(--stripe) 0 1.5px,transparent 1.5px 6px);display:flex;align-items:center;padding:0 7px;font-size:10.5px;line-height:1;color:var(--text-3);white-space:nowrap}
+.band.warn{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);font-weight:600}
+.meal{border:1px dashed var(--dash);border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.3;color:var(--text-3)}
+.now{position:absolute;left:0;right:0;top:calc(var(--s) * var(--pm));height:1.5px;margin-top:-.75px;background:var(--point-ink);z-index:3}
+.now::before{content:"";position:absolute;left:-4px;top:-3.25px;width:8px;height:8px;border-radius:50%;background:var(--point-ink)}
+
+/* 상세 팝오버 */
+.pop{position:absolute;z-index:5;width:236px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-l);padding:14px 14px 12px;display:flex;flex-direction:column;gap:2px;box-shadow:0 8px 24px rgb(0 0 0 / .08)}
+.pop .t{margin:0 0 4px;font-size:16px;font-weight:600;color:var(--text-1);line-height:1.35}
+.pop .m{font-size:13px;color:var(--text-2)}
+.pop .m.dim{color:var(--text-3)}
+.pop .acts{display:flex;gap:6px;margin-top:10px}
+.pop .acts .ghost{height:32px;font-size:12px}
+.pop .del{height:32px;padding:0 10px;border-radius:var(--r-m);font-size:12px;font-weight:600;color:var(--danger)}
+.pop .del:hover{background:var(--surface-2)}
+
+@container app (max-width: 1000px){
+  .work{grid-template-columns:64px minmax(0,1fr)}
+  .logo span,.nav .txt{display:none}
+  .logo{font-size:14px;padding:0 6px}
+  .nav a{justify-content:center;padding:0}
+}
+@container app (max-width: 760px){
+  .work{grid-template-columns:minmax(0,1fr)}
+  .side{display:none}
+  .bar-top{padding:0 8px;gap:0}
+  .bar-top h1{font-size:14px;margin-left:4px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .bar-top .btn{width:34px;padding:0;font-size:0;gap:0}
+  .wk-row,.wk-grid{grid-template-columns:40px repeat(7,minmax(0,1fr))}
+  .wk-grid{grid-template-columns:40px minmax(0,1fr)}
+  .axis span{right:6px;font-size:10px}
+}
+
+/* ---------- 폰 ---------- */
+.phones{display:flex;flex-wrap:wrap;justify-content:center;gap:32px;padding:16px 16px 48px;border-top:1px solid var(--border);background:var(--canvas);min-height:calc(100vh - 52px)}
+.ph{position:relative;width:375px;max-width:100%;height:812px;flex:0 0 auto;border:1px solid var(--border);border-radius:36px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;container:ph/inline-size}
+.ph-top{height:56px;flex:0 0 auto;display:flex;align-items:center;gap:2px;padding:12px 12px 0 8px}
+.ph-top h2{margin:0 2px;font-size:16px;font-weight:600;color:var(--text-1);white-space:nowrap}
+.ph-top .grow{flex:1}
+.ph-top .ghost{height:32px;font-size:12px}
+.strip{flex:0 0 auto;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));padding:6px 8px 8px;border-bottom:1px solid var(--border)}
+.sd{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.2}
+.sd .w{font-size:11px;color:var(--text-3)}
+.sd .d{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;font-size:15px;font-weight:600;color:var(--text-1)}
+.sd .dot{width:4px;height:4px;border-radius:50%;background:var(--text-3)}
+.sd .dot.no{visibility:hidden}
+.sd.today .w{color:var(--point-ink);font-weight:600}
+.sd.today .d{background:var(--point);color:var(--on-point)}
+.sd.pick .d{background:var(--surface-3)}
+.ph-body{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none}
+.ph-body::-webkit-scrollbar{display:none}
+.ph-grid{display:grid;grid-template-columns:52px minmax(0,1fr);height:calc(1440 * var(--pm));margin:8px 0 96px}
+.ph-col{position:relative;background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% 48px;border-left:1px solid var(--border);margin-right:12px}
+.ph-col .ev,.ph-col .band,.ph-col .meal{left:4px;right:4px}
+.ph-col .ev{font-size:13px;padding:4px 10px}
+.ph-col .ev .r{gap:8px}
+.ph-col .ev .src{font-size:11px}
+.fab{position:absolute;right:20px;bottom:28px;width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--point);color:var(--on-point);box-shadow:0 6px 18px rgb(0 0 0 / .14);z-index:4}
+.fab .i{width:24px;height:24px;stroke-width:2}
+
+/* 바텀 시트 */
+.scrim{position:absolute;inset:0;background:rgb(10 10 12 / .42);z-index:5}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:672px;z-index:6;background:var(--surface);border-top:1px solid var(--border);border-radius:24px 24px 0 0;display:flex;flex-direction:column;padding:8px 16px 24px}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--surface-3);margin:0 auto 10px}
+.ttl{width:100%;height:48px;border:0;border-bottom:1px solid var(--border);background:none;font:inherit;font-size:20px;font-weight:600;color:var(--text-1);padding:0 2px;outline:none}
+.f{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px;padding:12px 0;border-bottom:1px solid var(--border);align-items:start}
+.f > .i{margin-top:7px;color:var(--text-3)}
+.f .v{display:flex;flex-direction:column;gap:8px;min-width:0}
+.line{display:flex;align-items:center;gap:8px;min-height:32px;color:var(--text-1)}
+.line .grow{flex:1}
+.pill{height:32px;padding:0 10px;border-radius:var(--r-s);background:var(--surface-2);display:inline-flex;align-items:center;font-size:14px;font-weight:600;color:var(--text-1)}
+.dash{color:var(--text-3)}
+.sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2)}
+.sw i{width:36px;height:20px;border-radius:999px;background:var(--surface-3);position:relative}
+.sw i::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{height:32px;padding:0 11px;border-radius:999px;font-size:13px;color:var(--text-2);background:var(--surface-2);display:inline-flex;align-items:center;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--point-soft);color:var(--text-1);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.days .chip{width:34px;height:34px;padding:0;justify-content:center}
+.memo{width:100%;min-height:56px;resize:none;border:0;background:none;font:inherit;font-size:14px;color:var(--text-1);padding:5px 0;outline:none}
+.memo::placeholder{color:var(--text-3)}
+.sheet .grow{flex:1}
+.scope{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;border:1px solid var(--border);border-radius:var(--r-l);background:var(--surface);margin-bottom:8px;box-shadow:0 8px 24px rgb(0 0 0 / .1)}
+.scope button{height:44px;border-radius:var(--r-m);background:var(--surface-2);font-size:14px;font-weight:600;color:var(--text-1)}
+.scope button:hover{background:var(--surface-3)}
+.save{width:100%;height:48px;font-size:15px;border-radius:var(--r-l)}
+</style>
+</head>
+<body class="is-desk">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-rep" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M13.3 16.3 15 18"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-memo" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+</svg>
+
+<div class="mockbar">
+  <div class="seg" role="group" aria-label="보기">
+    <button type="button" data-view="desk" aria-pressed="true">데스크톱</button>
+    <button type="button" data-view="phone" aria-pressed="false">폰</button>
+  </div>
+  <button type="button" class="iconbtn theme-btn" aria-label="밝기 전환" title="밝기 전환"><svg class="i"><use href="#i-moon"/></svg></button>
+</div>
+
+<!-- ================= 데스크톱 ================= -->
+<div class="app" id="desk">
+  <section class="work">
+    <aside class="side">
+      <a class="logo" href="#" aria-label="홈으로"><span>EZ</span><b>.</b><span>WORK</span></a>
+      <nav class="nav" aria-label="메뉴">
+        <a href="#"><svg class="i"><use href="#i-rep"/></svg><span class="txt">보고서 서랍</span></a>
+        <a class="on" href="#" aria-current="page"><svg class="i"><use href="#i-cal"/></svg><span class="txt">일정</span></a>
+      </nav>
+    </aside>
+
+    <div class="main">
+      <div class="bar-top">
+        <button type="button" class="ghost">오늘</button>
+        <button type="button" class="iconbtn" aria-label="지난주"><svg class="i"><use href="#i-left"/></svg></button>
+        <button type="button" class="iconbtn" aria-label="다음 주"><svg class="i"><use href="#i-right"/></svg></button>
+        <h1>9월 28일 – 10월 4일</h1>
+        <span class="grow"></span>
+        <button type="button" class="iconbtn" aria-label="설정" title="설정"><svg class="i"><use href="#i-gear"/></svg></button>
+        <button type="button" class="btn"><svg class="i"><use href="#i-plus"/></svg>새 일정</button>
+        <button type="button" class="iconbtn theme-btn" aria-label="밝기 전환" title="밝기 전환"><svg class="i"><use href="#i-moon"/></svg></button>
+      </div>
+
+      <div class="wk">
+        <div class="wk-row wk-head">
+          <span></span>
+          <div class="dh"><span class="w">월</span><span class="d num">28</span></div>
+          <div class="dh"><span class="w">화</span><span class="d num">29</span></div>
+          <div class="dh"><span class="w">수</span><span class="d num">30</span></div>
+          <div class="dh today"><span class="w">목</span><span class="d num">1</span></div>
+          <div class="dh"><span class="w">금</span><span class="d num">2</span></div>
+          <div class="dh"><span class="w">토</span><span class="d num">3</span></div>
+          <div class="dh"><span class="w">일</span><span class="d num">4</span></div>
+        </div>
+        <div class="wk-row wk-all">
+          <span></span>
+          <div class="ad"><span class="nofit">저녁 틈 없음</span></div>
+          <div class="ad"><span class="nofit">저녁 틈 없음</span></div>
+          <div class="ad"><span class="nofit">저녁 틈 없음</span></div>
+          <div class="ad"></div>
+          <div class="ad"><span class="nofit">저녁 틈 없음</span></div>
+          <div class="ad"><span class="allday">추석 연휴</span></div>
+          <div class="ad"></div>
+        </div>
+
+        <div class="wk-body" id="wkBody">
+          <div class="wk-grid">
+            <div class="axis">
+              <span style="top:48px">1:00</span><span style="top:96px">2:00</span><span style="top:144px">3:00</span><span style="top:192px">4:00</span><span style="top:240px">5:00</span><span style="top:288px">6:00</span><span style="top:336px">7:00</span><span style="top:384px">8:00</span><span style="top:432px">9:00</span><span style="top:480px">10:00</span><span style="top:528px">11:00</span><span style="top:576px">12:00</span><span style="top:624px">13:00</span><span style="top:672px">14:00</span><span style="top:720px">15:00</span><span style="top:768px">16:00</span><span style="top:816px">17:00</span><span style="top:864px">18:00</span><span style="top:912px">19:00</span><span style="top:960px">20:00</span><span style="top:1008px">21:00</span><span style="top:1056px">22:00</span><span style="top:1104px">23:00</span>
+              <b class="nowpill" style="--s:860">14:20</b>
+            </div>
+            <div class="cols">
+              <!-- 월 9/28 -->
+              <div class="col">
+                <div class="band" style="--s:565;--e:600">준비 35</div>
+                <div class="band" style="--s:600;--e:630">등교 30</div>
+                <div class="ev ext" style="--s:630;--e:720"><div class="r"><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
+                <div class="band" style="--s:720;--e:750">귀가 30</div>
+                <div class="meal" style="--s:750;--e:790">점심</div>
+                <div class="band" style="--s:990;--e:1000"></div>
+                <div class="band" style="--s:1000;--e:1020">출근 20</div>
+                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
+                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+              </div>
+              <!-- 화 9/29 -->
+              <div class="col">
+                <div class="meal" style="--s:675;--e:715">점심</div>
+                <div class="band" style="--s:715;--e:750">준비 35</div>
+                <div class="band" style="--s:750;--e:780">등교 30</div>
+                <div class="ev ext" style="--s:780;--e:870"><div class="r"><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
+                <div class="band" style="--s:870;--e:900">귀가 30</div>
+                <div class="band" style="--s:1040;--e:1050"></div>
+                <div class="band" style="--s:1050;--e:1080">등교 30</div>
+                <div class="ev mine" style="--s:1080;--e:1130"><div class="r"><span class="t">스터디</span></div><span class="h">18:00–18:50</span></div>
+                <div class="band warn" style="--s:1130;--e:1150;right:auto;width:calc(42% - 4px)">10분 늦음</div>
+                <div class="ev mine" style="--s:1140;--e:1260;left:42%"><div class="r"><span class="t">APPTIVE 회의</span></div><span class="h">19:00–21:00</span></div>
+                <div class="band" style="--s:1260;--e:1275">귀가 15</div>
+              </div>
+              <!-- 수 9/30 -->
+              <div class="col">
+                <div class="band" style="--s:565;--e:600">준비 35</div>
+                <div class="band" style="--s:600;--e:630">등교 30</div>
+                <div class="ev ext" style="--s:630;--e:720"><div class="r"><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
+                <div class="band" style="--s:720;--e:750">귀가 30</div>
+                <div class="meal" style="--s:750;--e:790">점심</div>
+                <div class="band" style="--s:990;--e:1000"></div>
+                <div class="band" style="--s:1000;--e:1020">출근 20</div>
+                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
+                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+              </div>
+              <!-- 목 10/1 (오늘) -->
+              <div class="col">
+                <div class="meal" style="--s:675;--e:715">점심</div>
+                <div class="band" style="--s:715;--e:750">준비 35</div>
+                <div class="band" style="--s:750;--e:780">등교 30</div>
+                <div class="ev ext" style="--s:780;--e:870"><div class="r"><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
+                <div class="band" style="--s:870;--e:900">귀가 30</div>
+                <div class="ev mine sel" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h">15:30–16:30</span></div>
+                <div class="meal" style="--s:1080;--e:1120">저녁</div>
+                <div class="now" style="--s:860"></div>
+              </div>
+              <!-- 금 10/2 -->
+              <div class="col">
+                <div class="meal" style="--s:720;--e:760">점심</div>
+                <div class="band" style="--s:965;--e:1000">준비 35</div>
+                <div class="band" style="--s:1000;--e:1020">출근 20</div>
+                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
+                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+                <div class="ev mine cut-b" style="--s:1380;--e:1440"><div class="r"><span class="t">마감 작업</span></div><span class="h">23:00–01:00</span></div>
+              </div>
+              <!-- 토 10/3 -->
+              <div class="col">
+                <div class="ev mine cut-t" style="--s:0;--e:60"><div class="r"><span class="t">마감 작업</span></div><span class="h">23:00–01:00</span></div>
+                <div class="meal" style="--s:720;--e:760">점심</div>
+                <div class="meal" style="--s:1080;--e:1120">저녁</div>
+              </div>
+              <!-- 일 10/4 -->
+              <div class="col">
+                <div class="meal" style="--s:720;--e:760">점심</div>
+                <div class="meal" style="--s:1080;--e:1120">저녁</div>
+              </div>
+
+              <!-- 선택한 일정: 목 팀플 정리 -->
+              <div class="pop" role="dialog" aria-label="팀플 정리" style="left:calc(400% / 7 + 8px);top:calc(930 * var(--pm) - 6px)">
+                <p class="t">팀플 정리</p>
+                <span class="m num">10월 1일 목 · 15:30–16:30</span>
+                <span class="m dim">지점 없음</span>
+                <div class="acts">
+                  <button type="button" class="ghost">수정</button>
+                  <button type="button" class="del">없애기</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= 폰 ================= -->
+<div class="phones" id="phones" hidden>
+  <!-- 1. 하루 보기 (목) -->
+  <div class="ph">
+    <div class="ph-top">
+      <button type="button" class="iconbtn" aria-label="전날"><svg class="i"><use href="#i-left"/></svg></button>
+      <h2>10월 1일 목</h2>
+      <button type="button" class="iconbtn" aria-label="다음날"><svg class="i"><use href="#i-right"/></svg></button>
+      <span class="grow"></span>
+      <button type="button" class="ghost">오늘</button>
+    </div>
+    <div class="strip">
+      <div class="sd"><span class="w">월</span><span class="d num">28</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">화</span><span class="d num">29</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">수</span><span class="d num">30</span><i class="dot"></i></div>
+      <div class="sd today"><span class="w">목</span><span class="d num">1</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">금</span><span class="d num">2</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">토</span><span class="d num">3</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">일</span><span class="d num">4</span><i class="dot no"></i></div>
+    </div>
+    <div class="ph-body" id="phBody">
+      <div class="ph-grid">
+        <div class="axis">
+          <span style="top:48px">1:00</span><span style="top:96px">2:00</span><span style="top:144px">3:00</span><span style="top:192px">4:00</span><span style="top:240px">5:00</span><span style="top:288px">6:00</span><span style="top:336px">7:00</span><span style="top:384px">8:00</span><span style="top:432px">9:00</span><span style="top:480px">10:00</span><span style="top:528px">11:00</span><span style="top:576px">12:00</span><span style="top:624px">13:00</span><span style="top:672px">14:00</span><span style="top:720px">15:00</span><span style="top:768px">16:00</span><span style="top:816px">17:00</span><span style="top:864px">18:00</span><span style="top:912px">19:00</span><span style="top:960px">20:00</span><span style="top:1008px">21:00</span><span style="top:1056px">22:00</span><span style="top:1104px">23:00</span>
+          <b class="nowpill" style="--s:860">14:20</b>
+        </div>
+        <div class="ph-col">
+          <div class="meal" style="--s:675;--e:715">점심</div>
+          <div class="band" style="--s:715;--e:750">준비 35</div>
+          <div class="band" style="--s:750;--e:780">등교 30</div>
+          <div class="ev ext" style="--s:780;--e:870"><div class="r"><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
+          <div class="band" style="--s:870;--e:900">귀가 30</div>
+          <div class="ev mine" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h">15:30–16:30</span></div>
+          <div class="meal" style="--s:1080;--e:1120">저녁</div>
+          <div class="now" style="--s:860"></div>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="fab" aria-label="새 일정"><svg class="i"><use href="#i-plus"/></svg></button>
+  </div>
+
+  <!-- 2. 일정 수정 바텀 시트 (반복 일정: 매주 화 APPTIVE 회의) -->
+  <div class="ph">
+    <div class="ph-top">
+      <button type="button" class="iconbtn" aria-label="전날"><svg class="i"><use href="#i-left"/></svg></button>
+      <h2>9월 29일 화</h2>
+      <button type="button" class="iconbtn" aria-label="다음날"><svg class="i"><use href="#i-right"/></svg></button>
+      <span class="grow"></span>
+      <button type="button" class="ghost">오늘</button>
+    </div>
+    <div class="strip">
+      <div class="sd"><span class="w">월</span><span class="d num">28</span><i class="dot"></i></div>
+      <div class="sd pick"><span class="w">화</span><span class="d num">29</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">수</span><span class="d num">30</span><i class="dot"></i></div>
+      <div class="sd today"><span class="w">목</span><span class="d num">1</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">금</span><span class="d num">2</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">토</span><span class="d num">3</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">일</span><span class="d num">4</span><i class="dot no"></i></div>
+    </div>
+    <div class="scrim"></div>
+    <form class="sheet" onsubmit="return false" aria-label="일정 수정">
+      <span class="grab"></span>
+      <input class="ttl" value="APPTIVE 회의" aria-label="제목">
+      <div class="f">
+        <svg class="i"><use href="#i-clock"/></svg>
+        <div class="v">
+          <div class="line"><button type="button" class="pill">9월 29일 화</button><span class="grow"></span><span class="sw" role="switch" aria-checked="false">종일<i></i></span></div>
+          <div class="line"><button type="button" class="pill num">19:00</button><span class="dash">–</span><button type="button" class="pill num">21:00</button></div>
+        </div>
+      </div>
+      <div class="f">
+        <svg class="i"><use href="#i-pin"/></svg>
+        <div class="chips">
+          <button type="button" class="chip" aria-pressed="false">집</button>
+          <button type="button" class="chip" aria-pressed="false">학교</button>
+          <button type="button" class="chip" aria-pressed="false">스터디큐브</button>
+          <button type="button" class="chip" aria-pressed="true">카페</button>
+          <button type="button" class="chip" aria-pressed="false">없음</button>
+        </div>
+      </div>
+      <div class="f">
+        <svg class="i"><use href="#i-repeat"/></svg>
+        <div class="v">
+          <div class="chips">
+            <button type="button" class="chip" aria-pressed="false">안 함</button>
+            <button type="button" class="chip" aria-pressed="false">매일</button>
+            <button type="button" class="chip" aria-pressed="true">매주</button>
+          </div>
+          <div class="chips days">
+            <button type="button" class="chip" aria-pressed="false">월</button>
+            <button type="button" class="chip" aria-pressed="true">화</button>
+            <button type="button" class="chip" aria-pressed="false">수</button>
+            <button type="button" class="chip" aria-pressed="false">목</button>
+            <button type="button" class="chip" aria-pressed="false">금</button>
+            <button type="button" class="chip" aria-pressed="false">토</button>
+            <button type="button" class="chip" aria-pressed="false">일</button>
+          </div>
+        </div>
+      </div>
+      <div class="f">
+        <svg class="i"><use href="#i-memo"/></svg>
+        <textarea class="memo" placeholder="메모" aria-label="메모"></textarea>
+      </div>
+      <span class="grow"></span>
+      <div class="scope" role="group" aria-label="반복 일정 저장 범위">
+        <button type="button">이번만</button>
+        <button type="button">이후 모두</button>
+      </div>
+      <button type="submit" class="btn save">저장</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  function isDark(){ var t=root.dataset.theme; if(t==='dark')return true; if(t==='light')return false; return matchMedia('(prefers-color-scheme: dark)').matches; }
+  function paint(){ var d=isDark(); document.querySelectorAll('.theme-btn use').forEach(function(u){ u.setAttribute('href', d?'#i-sun':'#i-moon'); }); document.querySelectorAll('.theme-btn').forEach(function(b){ b.setAttribute('aria-label', d?'밝게':'어둡게'); b.title=d?'밝게':'어둡게'; }); }
+  document.querySelectorAll('.theme-btn').forEach(function(b){ b.addEventListener('click', function(){ root.dataset.theme=isDark()?'light':'dark'; paint(); }); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paint);
+  paint();
+
+  var desk=document.getElementById('desk'), phones=document.getElementById('phones');
+  function show(v){
+    var p=v==='phone';
+    desk.hidden=p; phones.hidden=!p;
+    document.body.classList.toggle('is-desk', !p);
+    document.querySelectorAll('.seg button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.view===v)); });
+    // 보이는 시간대: 데스크톱 8:30부터, 폰 10:30부터
+    if(p) document.getElementById('phBody').scrollTop=10.5*48; else document.getElementById('wkBody').scrollTop=8.5*48;
+  }
+  document.querySelectorAll('.seg button').forEach(function(b){ b.addEventListener('click', function(){ show(b.dataset.view); }); });
+  var first=location.hash==='#phone'?'phone':'desk';
+  show(first);
+  addEventListener('load', function(){ show(first); });
+})();
+</script>
+</body>
+</html>
