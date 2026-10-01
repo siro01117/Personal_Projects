@@ -1,19 +1,22 @@
 "use client";
 
-// 플래너 화면 데이터: 할 일 + 이어진 일정.
+// 플래너 화면 데이터: 할 일 + 이어진 일정 + 반복 규칙 + 딸린 일정 제목 + 지점.
+// 열 때와 창이 다시 보일 때 먼저 규칙을 굴리고(roll — 때가 된 반복 할 일을 만든다) 목록을 읽는다.
 // 저장은 화면 먼저 바꾸고(낙관적) 줄 세워 하나씩 부른다. 실패하면 되돌리고 알린다. 끝나면 새로 읽어 버전을 맞춘다.
 // 버전 충돌이면 "방금 다른 곳에서 이 할 일을 고쳤습니다" + 새로 불러오기.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TaskRow } from "../../../lib/schedule";
+import { DEFAULT_SETTINGS, type Place, type TaskRow, type TaskRule } from "../../../lib/schedule";
 import type { TaskLink } from "../../_data/types";
 import { plannerKorean } from "../../_logic/planner";
+import { nowIn } from "../../_logic/schedule";
 import { AUTH_MESSAGE, useApp } from "../AppContext";
 import { useToast } from "../Toast";
 
-export type PlannerState = { tasks: TaskRow[]; links: TaskLink[] };
+/** titles = 마감을 딸려 둔 일정 · 규칙이 딸린 일정의 제목 (id → 제목) */
+export type PlannerState = { tasks: TaskRow[]; links: TaskLink[]; rules: TaskRule[]; titles: Record<string, string> };
 
-const EMPTY: PlannerState = { tasks: [], links: [] };
+const EMPTY: PlannerState = { tasks: [], links: [], rules: [], titles: {} };
 
 export function usePlannerData() {
   const { src, fail, tick } = useApp();
@@ -22,6 +25,7 @@ export function usePlannerData() {
   const S = src.schedule;
 
   const [state, setStateRaw] = useState<PlannerState | null>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
   const stateRef = useRef<PlannerState>(EMPTY);
   /** 마지막으로 서버에서 읽은 것 — 버전은 여기서 */
   const serverRef = useRef<PlannerState>(EMPTY);
@@ -36,19 +40,35 @@ export function usePlannerData() {
   const load = useCallback(async () => {
     const n = ++seq.current;
     try {
-      const [tasks, links] = await Promise.all([T.tasks(), T.links()]);
+      const [tasks, links, rules] = await Promise.all([T.tasks(), T.links(), T.rules()]);
+      const ids = [...tasks.map((t) => t.due_event_id), ...rules.map((r) => r.event_id)].filter((x): x is string => x !== null);
+      const titles = ids.length > 0 ? await T.eventTitles(ids) : {};
       if (n !== seq.current) return;
-      serverRef.current = { tasks, links };
-      setState({ tasks, links });
+      const next = { tasks, links, rules, titles };
+      serverRef.current = next;
+      setState(next);
     } catch (e) {
       if (n === seq.current) fail(e);
     }
   }, [T, fail, setState]);
 
-  // 처음 + 창이 다시 보일 때(tick)
+  // 처음 + 창이 다시 보일 때(tick): 규칙을 굴린 뒤 읽는다. 굴리기가 실패해도 목록은 읽는다(읽기가 실패하면 거기서 알린다)
   useEffect(() => {
-    void load();
-  }, [load, tick]);
+    let alive = true;
+    const at = nowIn(DEFAULT_SETTINGS.tz);
+    T.roll(at.date, at.min)
+      .catch(() => 0)
+      .then(() => {
+        if (alive) void load();
+      });
+    S.places().then(
+      (p) => alive && setPlaces(p),
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [T, S, load, tick]);
 
   const onError = useCallback(
     (e: unknown) => {
@@ -88,7 +108,7 @@ export function usePlannerData() {
   /** 서버에서 읽은 그 할 일의 지금 버전 */
   const versionOf = (server: PlannerState, id: string, fallback: number) => server.tasks.find((t) => t.id === id)?.version ?? fallback;
 
-  return { T, S, state, ready: state !== null, run, versionOf, reload: load };
+  return { T, S, state, places, ready: state !== null, run, versionOf, reload: load };
 }
 
 export type PlannerDataHook = ReturnType<typeof usePlannerData>;

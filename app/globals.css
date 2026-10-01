@@ -461,7 +461,8 @@ svg.ps{width:13px;height:13px;flex:0 0 auto;fill:none;stroke:currentColor;stroke
 .tasks li{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:38px;padding:6px 8px;border-radius:var(--r-m);color:var(--text-1);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
 .tasks li:hover{background:var(--surface-2)}
 .tasks li .ring{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--text-3)}
-.tasks li .nm{min-width:0;overflow-wrap:anywhere}
+.tasks li .nm{min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.tasks li .nm .ps{display:inline-block;width:14px;height:14px;margin-right:6px;vertical-align:-2px}
 .tasks li .est{font-family:var(--font-num);font-size:12px;color:var(--text-3);white-space:nowrap}
 .tasks-empty{font-size:13px;color:var(--text-3)}
 .drag-ghost{position:fixed;z-index:60;pointer-events:none;padding:6px 12px;border-radius:var(--r-m);background:var(--surface);border:1px solid var(--border);box-shadow:0 8px 24px rgb(0 0 0 / .12);font-size:13px;font-weight:600;color:var(--text-1);white-space:nowrap;transform:translate(10px,10px)}
@@ -650,14 +651,31 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-row.done .nm{color:var(--text-3)}
 .pl-row .nm:focus-visible{outline:none}
 .pl-row:has(.nm:focus-visible){box-shadow:inset 0 0 0 2px var(--point-ink)}
-.pl-row .due,.pl-row .est,.pl-row .when{flex:0 0 auto;font-size:12.5px;line-height:22px;color:var(--text-3);white-space:nowrap;text-align:right}
+.pl-row .due,.pl-row .est,.pl-row .when,.pl-row .cnt{flex:0 0 auto;font-size:12.5px;line-height:22px;color:var(--text-3);white-space:nowrap;text-align:right}
+.pl-row .cnt{min-width:28px}
+.pl-row .cnt.all{color:var(--point-ink);font-weight:600}
 .pl-row .due{min-width:60px}
 .pl-row .est{min-width:64px}
 .pl-row .when{min-width:96px;color:var(--text-2)}
 .pl-row .late{color:var(--danger)}
-/* 좁아지면 걸릴 시간 → 마감 순으로 뺀다 */
-@container plist (max-width: 480px){ .pl-row .est{display:none} .pl-row .when{min-width:0} }
-@container plist (max-width: 300px){ .pl-row .due{display:none} }
+/* 지점 심볼 (제목 앞, 지점 색) · 반복 표시 */
+.pl-row .sym{flex:0 0 auto;display:grid;place-items:center;height:22px;margin-right:-4px}
+.pl-row .sym .ps{width:15px;height:15px}
+.pl-row.done .sym{opacity:.5}
+.pl-row .rpt{flex:0 0 auto;display:grid;place-items:center;height:22px;color:var(--text-3)}
+.pl-row .rpt .i{width:14px;height:14px}
+/* 좁아지면 걸릴 시간 → 체크 수 → 마감 → 반복 표시 순으로 뺀다. 지남 글자(.keep)와 지점 심볼은 남긴다.
+   일정 시각이 붙는 줄(.has-when)은 오른쪽이 더 길어서 한 단계씩 먼저 뺀다 */
+@container plist (max-width: 480px){
+  .pl-row .est{display:none}
+  .pl-row .when,.pl-row .due,.pl-row .cnt{min-width:0}
+  .pl-row .due:empty,.pl-row .cnt:empty{display:none}
+  .pl-row.has-when .cnt{display:none}
+}
+@container plist (max-width: 400px){ .pl-row.has-when .due:not(.keep){display:none} }
+@container plist (max-width: 330px){ .pl-row .cnt{display:none} .pl-row.has-when .rpt{display:none} }
+@container plist (max-width: 290px){ .pl-row .due:not(.keep){display:none} }
+@container plist (max-width: 250px){ .pl-row .rpt{display:none} }
 /* 줄이 너무 길면 제목과 마감·시간이 멀어진다 — 목록과 입력 칸은 760px 까지 */
 .pl-list > *{max-width:760px}
 .pl-add{max-width:760px}
@@ -677,8 +695,29 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .planner .dp-h .chk{margin-top:3px}
 .planner .dp-h .chk .i{width:22px;height:22px}
 .planner .late-t{color:var(--danger);font-weight:600}
+/* 보기: 버튼 줄 나누기(지남 버튼 아래에 수정 · 없애기) · 더보기 · 체크 항목 */
+.dp-acts .brk{flex:0 0 100%;height:0}
+.dp-acts .more-b{width:34px;height:34px}
+.planner .menu{z-index:40}
+.ck-list{list-style:none;margin:0;padding:5px 0;display:flex;flex-direction:column}
+.ck-list .ck{width:100%;display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:6px 0;text-align:left;font-size:14px;line-height:20px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.ck-list .ck .i{width:18px;height:18px;margin-top:1px;color:var(--text-3)}
+.ck-list .ck:hover .i,.ck-list .ck.on .i{color:var(--point-ink)}
+.ck-list .ck.on span{color:var(--text-3)}
+/* 수정 칸: 마감을 일정으로 · 체크 항목 */
+.due-ev{gap:8px;max-width:100%;height:auto;min-height:32px;padding:5px 10px;font-weight:600}
+.due-ev .t{min-width:0;font-weight:500;color:var(--text-2);word-break:keep-all;overflow-wrap:anywhere}
+.due-opts{list-style:none;margin:0;padding:4px;max-height:216px;overflow-y:auto;border-radius:var(--r-m);background:var(--surface-2);display:flex;flex-direction:column}
+.due-opts button{width:100%;display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-height:34px;padding:6px 8px;border-radius:6px;text-align:left;font-size:13px;color:var(--text-1)}
+.due-opts button:hover,.due-opts button[aria-pressed="true"]{background:var(--surface-3)}
+.due-opts .t{min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.due-opts .num{flex:0 0 auto;font-size:12.5px;color:var(--text-3);white-space:nowrap}
+.due-opts .none{padding:8px;font-size:13px;color:var(--text-3)}
+.memo.checks{min-height:32px;padding:5px 0}
+.warn-t{margin:0;font-size:12.5px;color:var(--danger)}
 .planner .go-ev{align-self:flex-start;color:var(--text-1);text-decoration:none;border-bottom:1px solid var(--border)}
 .planner .go-ev:hover{border-bottom-color:var(--text-1)}
+.planner .go-ev.late-t{color:var(--danger)}
 .planner .f > .line{min-height:32px}
 .iconbtn.clr{width:32px;height:32px}
 .iconbtn.clr .i{width:16px;height:16px}

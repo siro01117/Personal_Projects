@@ -2,7 +2,22 @@
 // 실패는 DbError 모양({ code, message })으로 던지고, 화면은 lib/errors 의 toKorean 으로 한국어로 바꾼다.
 
 import type { ReportKind } from "../../lib/blocks";
-import type { DateStr, EventException, EventRow, ExceptionPatch, Place, PlaceColor, PlaceRole, PlaceSymbol, Repeat, Settings, TaskRow, Travel } from "../../lib/schedule";
+import type {
+  CheckItem,
+  DateStr,
+  EventException,
+  EventRow,
+  ExceptionPatch,
+  Place,
+  PlaceColor,
+  PlaceRole,
+  PlaceSymbol,
+  Repeat,
+  Settings,
+  TaskRow,
+  TaskRule,
+  Travel,
+} from "../../lib/schedule";
 
 export type Kind = "folder" | "report";
 
@@ -138,6 +153,12 @@ export type SplitPatch = ExceptionPatch & { repeat?: Repeat };
 /** 한 주(또는 기간)를 그리는 데 필요한 일정 줄 + 예외 */
 export type EventRows = { events: EventRow[]; exceptions: EventException[] };
 
+/**
+ * 일정을 지울 때 같이 끊기는 것 (0007 ez_events_after): 마감을 딸려 둔 할 일 · 딸린 반복 규칙.
+ * 지우기 전에 읽어 두었다가 되돌릴 때(restoreEvent) 다시 잇는다
+ */
+export type EventDeps = { tasks: string[]; rules: string[] };
+
 export type PlaceInput = { name: string; role: PlaceRole | null; symbol?: PlaceSymbol; color?: PlaceColor; sort?: number };
 
 export interface ScheduleData {
@@ -156,13 +177,19 @@ export interface ScheduleData {
   createEvent(input: EventInput): Promise<EventRow>;
   /** 버전이 다르면 [EZ_VERSION], 바깥 일정이면 [EZ_EXTERNAL] */
   updateEvent(id: string, baseVersion: number, patch: Partial<EventInput>): Promise<EventRow>;
-  /** 지우기 (deleted_at). 되돌리기는 restoreEvent */
+  /** 이 일정을 지우면 끊길 것 (지우기 전에 읽어 둔다) */
+  dependents(id: string): Promise<EventDeps>;
+  /** 지우기 (deleted_at). 딸린 마감은 연결만 끊기고 딸린 규칙은 멈춘다. 되돌리기는 restoreEvent */
   deleteEvent(id: string, baseVersion: number): Promise<void>;
-  restoreEvent(id: string): Promise<EventRow>;
+  /** deps 를 주면 끊긴 마감 연결과 멈춘 규칙도 되살린다 */
+  restoreEvent(id: string, deps?: EventDeps): Promise<EventRow>;
   /** 반복의 '이번만' — 건너뛰기(patch null) 또는 그 회차만 바꾼 칸. 이미 있으면 갈아끼운다 */
   setException(eventId: string, onDate: DateStr, patch: ExceptionPatch | null): Promise<void>;
   clearException(eventId: string, onDate: DateStr): Promise<void>;
-  /** ez_event_split — on_date 회차부터 patch 를 얹어 새 일정으로. 첫 회차면 원래 일정을 고친다 */
+  /**
+   * ez_event_split — on_date 회차부터 patch 를 얹어 새 일정으로. 첫 회차면 원래 일정을 고친다.
+   * 새 일정이 생기면 원래 일정에 딸린 반복 규칙(끝나면 할 일)을 새 일정으로 옮긴다
+   */
   split(id: string, baseVersion: number, onDate: DateStr, patch: SplitPatch): Promise<EventRow>;
   /** ez_event_cut — on_date 회차부터 지우기. 첫 회차면 일정을 지운다 */
   cut(id: string, baseVersion: number, onDate: DateStr): Promise<EventRow>;
@@ -180,16 +207,39 @@ export interface ScheduleData {
 // 플래너 (docs/플래너.md 2장) — 시간이 안 정해진 할 일
 // ---------------------------------------------------------------------------
 
-export type TaskInput = { title: string; note?: string | null; due?: DateStr | null; est_min?: number | null };
+export type TaskInput = {
+  title: string;
+  note?: string | null;
+  due?: DateStr | null;
+  est_min?: number | null;
+  place_id?: string | null;
+  /** 마감을 딸려 둘 일정. 반복 아닌 일정이면 due 는 일정 날짜로 덮인다. 건 채로 due 만 바꿀 수 없다 — 바꾸거나 지울 땐 null 을 같이 */
+  due_event_id?: string | null;
+  checklist?: CheckItem[];
+  rule_id?: string | null;
+  rule_date?: DateStr | null;
+};
 
-/** 할 일과 이어진 살아 있는 일정 (할 일 하나에 하나) */
-export type TaskLink = { task_id: string; event_id: string; date: DateStr; start_min: number | null; repeating: boolean };
+/** 할 일과 이어진 살아 있는 일정 (할 일 하나에 하나). end_min 은 지남 판정에 쓴다 */
+export type TaskLink = { task_id: string; event_id: string; date: DateStr; start_min: number | null; end_min: number | null; repeating: boolean };
+
+/** 반복 규칙에 넣는 칸 (ez_task_rules). cycle 은 repeat · start, event 는 event_id */
+export type RuleInput = Omit<TaskRule, "id" | "version">;
 
 export interface PlannerData {
   /** 지우지 않은 할 일 전부 (끝낸 것 포함). 순서는 sort 오름차순 */
   tasks(): Promise<TaskRow[]>;
   /** 할 일과 이어진 일정들 */
   links(): Promise<TaskLink[]>;
+  /** 살아 있는(안 멈춘) 반복 규칙 */
+  rules(): Promise<TaskRule[]>;
+  /** 일정 제목 (딸린 마감 · 딸린 규칙을 보여 줄 때). 지운 일정은 빠진다 */
+  eventTitles(ids: readonly string[]): Promise<Record<string, string>>;
+  /**
+   * ez_tasks_roll — 규칙마다 가장 최근 회차 하나를 할 일로 만든다. 만든 개수.
+   * today · nowMin 은 Asia/Seoul 의 오늘 날짜와 0시부터 센 분. 화면을 열 때와 창이 다시 보일 때 부른다
+   */
+  roll(today: DateStr, nowMin: number): Promise<number>;
   /** 맨 위에 넣는다 */
   createTask(input: TaskInput): Promise<TaskRow>;
   updateTask(id: string, baseVersion: number, patch: Partial<TaskInput>): Promise<TaskRow>;
@@ -199,6 +249,11 @@ export interface PlannerData {
   restoreTask(id: string): Promise<TaskRow>;
   /** 손으로 정한 순서. 사이에 끼우려면 앞뒤 sort 의 가운데 값 */
   reorder(id: string, sort: number): Promise<TaskRow>;
+
+  createRule(input: RuleInput): Promise<TaskRule>;
+  updateRule(id: string, patch: Partial<RuleInput>): Promise<TaskRule>;
+  /** 멈추기 (deleted_at). 이미 생긴 할 일은 남는다 */
+  stopRule(id: string): Promise<void>;
 }
 
 export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; auth: Auth; demo: boolean };

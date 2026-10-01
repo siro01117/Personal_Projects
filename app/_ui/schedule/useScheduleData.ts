@@ -1,13 +1,14 @@
 "use client";
 
-// 일정 화면 데이터: 지점·이동시간·설정·출처(메타) + 보는 주의 일정 줄 + 할 일.
+// 일정 화면 데이터: 지점·이동시간·설정·출처(메타) + 보는 주의 일정 줄 + 할 일 + 반복 규칙(끝나면 할 일).
+// 열 때와 창이 다시 보일 때 먼저 규칙을 굴리고(roll) 할 일을 읽는다.
 // 저장은 화면 먼저 바꾸고(낙관적) 줄 세워 하나씩 부른다. 실패하면 되돌리고 알린다. 끝나면 새로 읽어 버전을 맞춘다.
 // 버전 충돌이면 "방금 다른 곳에서 이 일정을 고쳤습니다" + 새로 불러오기.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { addDays, DEFAULT_SETTINGS, type DateStr, type EventRow, type Place, type Settings, type TaskRow, type Travel } from "../../../lib/schedule";
+import { addDays, DEFAULT_SETTINGS, type DateStr, type EventRow, type Place, type Settings, type TaskRow, type TaskRule, type Travel } from "../../../lib/schedule";
 import type { EventRows, SourceInfo, TaskLink } from "../../_data/types";
-import { scheduleKorean } from "../../_logic/schedule";
+import { nowIn, scheduleKorean } from "../../_logic/schedule";
 import { AUTH_MESSAGE, useApp } from "../AppContext";
 import { useToast } from "../Toast";
 
@@ -27,6 +28,7 @@ export function useScheduleData(week: DateStr) {
   const [loadedFor, setLoadedFor] = useState<DateStr | null>(null);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [links, setLinks] = useState<TaskLink[]>([]);
+  const [rules, setRules] = useState<TaskRule[]>([]);
   /** 화면에 보이는 줄 (낙관적 반영 포함) */
   const rowsRef = useRef<EventRows>(EMPTY);
   /** 마지막으로 서버에서 읽은 줄 — 버전은 여기서 */
@@ -77,9 +79,10 @@ export function useScheduleData(week: DateStr) {
 
   const loadTasks = useCallback(async () => {
     try {
-      const [t, l] = await Promise.all([T.tasks(), T.links()]);
+      const [t, l, r] = await Promise.all([T.tasks(), T.links(), T.rules()]);
       setTasks(t);
       setLinks(l);
+      setRules(r);
     } catch (e) {
       fail(e);
     }
@@ -90,10 +93,14 @@ export function useScheduleData(week: DateStr) {
   }, [loadMeta, loadWeek, loadTasks]);
 
   // 처음 + 창이 다시 보일 때(tick)
+  // 규칙을 굴린 뒤 할 일을 읽는다. 굴리기가 실패해도 읽는다(읽기가 실패하면 거기서 알린다)
   useEffect(() => {
     void loadMeta();
-    void loadTasks();
-  }, [loadMeta, loadTasks, tick]);
+    const at = nowIn(DEFAULT_SETTINGS.tz);
+    void T.roll(at.date, at.min)
+      .catch(() => 0)
+      .then(() => loadTasks());
+  }, [T, loadMeta, loadTasks, tick]);
   useEffect(() => {
     void loadWeek();
   }, [loadWeek, week, tick]);
@@ -168,6 +175,7 @@ export function useScheduleData(week: DateStr) {
     loaded: rows !== null && meta !== null && loadedFor === week,
     tasks,
     links,
+    rules,
     setLinks,
     run,
     runTask,

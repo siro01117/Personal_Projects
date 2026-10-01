@@ -16,6 +16,7 @@ export function Detail({
   sources,
   segments,
   task,
+  after,
   tz,
   deleting,
   onEdit,
@@ -29,6 +30,8 @@ export function Detail({
   sources: SourceInfo[];
   segments: Segment[];
   task: TaskRow | null;
+  /** 끝나면 생기는 할 일의 제목 (반복 일정에 딸린 규칙) */
+  after: string | null;
   tz: string;
   /** 반복 회차를 없애려는 중 — 범위를 고른다 */
   deleting: boolean;
@@ -99,6 +102,12 @@ export function Detail({
             <Icon name={done ? "ring-check" : "ring"} />
           </button>
           <div>할 일에서 옴</div>
+        </div>
+      )}
+      {after && (
+        <div className="dp-f">
+          <Icon name="plan" />
+          <div>끝나면: {after}</div>
         </div>
       )}
       {occ.note && (

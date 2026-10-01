@@ -1,14 +1,18 @@
 // 개발 확인용 일정·플래너 메모리 저장소 (`?demo=1`, NODE_ENV=development 에서만 쓰인다).
 //
-// !! 진짜 규칙의 출처는 DB 다 (db/migrations/0006_ez_schedule.sql).
+// !! 진짜 규칙의 출처는 DB 다 (db/migrations/0006_ez_schedule.sql · 0007_ez_planner.sql).
 // 여기서는 화면이 의지하는 것만 흉내 낸다: 버전 확인 · 바깥 일정 거절 · 집 하나 · 할 일 하나에 일정 하나 ·
-// 지점 이름 겹침 · 지점 12개 · 반복 회차 검사 · split/cut. 칸 검사는 lib/schedule 의 validateEvent 를 그대로 쓰고,
-// 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
+// 지점 이름 겹침 · 지점 12개 · 반복 회차 검사 · split/cut · 일정에 딸린 마감(따라가기 · 끊기) · 반복 규칙 굴리기(roll).
+// 칸 검사는 lib/schedule 의 validateEvent 를 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
 import { DbError } from "../../lib/errors";
 import {
   addDays,
+  CHECK_ITEM_MAX,
+  CHECKLIST_MAX,
+  daysBetween,
   DEFAULT_SETTINGS,
+  DUE_AFTER_MAX,
   occursOn,
   PLACE_COLORS,
   PLACES_MAX,
@@ -22,13 +26,16 @@ import {
   type PlaceSymbol,
   type Settings,
   type TaskRow,
+  type TaskRule,
   type Travel,
 } from "../../lib/schedule";
 import type {
+  EventDeps,
   EventInput,
   EventRows,
   PlaceInput,
   PlannerData,
+  RuleInput,
   ScheduleData,
   SourceInfo,
   SplitPatch,
@@ -43,6 +50,7 @@ const clone = <T>(x: T): T => structuredClone(x);
 type EvRow = EventRow & { deleted_at: string | null };
 type PlRow = Place & { deleted_at: string | null };
 type TkRow = TaskRow & { deleted_at: string | null };
+type RlRow = TaskRule & { deleted_at: string | null };
 
 export type ScheduleSeed = {
   places?: Place[];
@@ -52,7 +60,13 @@ export type ScheduleSeed = {
   events?: (Partial<EventRow> & Pick<EventRow, "id" | "title" | "date">)[];
   exceptions?: EventException[];
   tasks?: (Partial<TaskRow> & Pick<TaskRow, "id" | "title">)[];
+  rules?: (Partial<TaskRule> & Pick<TaskRule, "id" | "kind" | "title">)[];
 };
+
+const RULE_KEYS = ["kind", "title", "note", "est_min", "place_id", "checklist", "repeat", "start", "event_id", "due_after", "last_made"] as const;
+const TASK_KEYS = ["title", "note", "due", "est_min", "place_id", "due_event_id", "checklist", "rule_id", "rule_date"] as const;
+/** roll 이 돌아보는 날 수 */
+const ROLL_BACK = 60;
 
 const EVENT_KEYS = ["title", "date", "start_min", "end_min", "place_id", "where_text", "travel_min", "note", "repeat", "task_id"] as const;
 const PATCH_KEYS = ["date", "start_min", "end_min", "title", "place_id", "where_text", "travel_min", "note"] as const;
@@ -74,6 +88,8 @@ export class MemorySchedule implements ScheduleData, PlannerData {
   private readonly ev = new Map<string, EvRow>();
   private readonly pl = new Map<string, PlRow>();
   private readonly tk = new Map<string, TkRow>();
+  /** 넣은 순서 = 만든 순서 (roll 이 이 순서로 돈다) */
+  private readonly rl = new Map<string, RlRow>();
   private ex: EventException[] = [];
   private tr: Travel[] = [];
   private st: Settings;
@@ -117,11 +133,32 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         done_at: null,
         origin_kind: null,
         origin_id: null,
+        place_id: null,
+        due_event_id: null,
+        checklist: [],
+        rule_id: null,
+        rule_date: null,
         version: 1,
         created_at: at,
         updated_at: at,
         deleted_at: null,
-        ...t,
+        ...clone(t),
+      });
+    }
+    for (const r of seed.rules ?? []) {
+      this.rl.set(r.id, {
+        note: null,
+        est_min: null,
+        place_id: null,
+        checklist: [],
+        repeat: null,
+        start: null,
+        event_id: null,
+        due_after: null,
+        last_made: null,
+        version: 1,
+        deleted_at: null,
+        ...clone(r),
       });
     }
   }
@@ -243,11 +280,56 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     for (const k of EVENT_KEYS) if (k in patch) (next as Record<string, unknown>)[k] = patch[k];
     this.check(next);
     const changed = EVENT_KEYS.some((k) => JSON.stringify(next[k]) !== JSON.stringify(r[k]));
+    const old = { ...r };
     Object.assign(r, next);
     if (changed) this.touch(r);
     this.pruneExceptions(r);
+    this.afterEvent(old, r);
     const { deleted_at: _, ...out } = r;
     return clone(out);
+  }
+
+  /**
+   * 일정이 바뀐 뒤 딸린 것 (0007 ez_events_after): 지우면 딸린 마감은 연결만 끊기고 규칙은 멈춘다,
+   * 반복이 아니게 되면 규칙이 멈춘다, 반복 아닌 일정의 날짜가 바뀌면 딸린 마감이 따라간다
+   */
+  private afterEvent(old: EvRow, r: EvRow): void {
+    const at = new Date().toISOString();
+    const stopRules = () => {
+      for (const x of this.rl.values()) {
+        if (x.event_id === r.id && x.deleted_at === null) {
+          x.deleted_at = at;
+          x.version += 1;
+        }
+      }
+    };
+    if (r.deleted_at !== null && old.deleted_at === null) {
+      for (const t of this.tk.values()) {
+        if (t.due_event_id === r.id) {
+          t.due_event_id = null;
+          this.bumpTask(t);
+        }
+      }
+      stopRules();
+      return;
+    }
+    if (r.repeat === null && old.repeat !== null) stopRules();
+    if (r.repeat === null && r.deleted_at === null && r.date !== old.date) {
+      for (const t of this.tk.values()) {
+        if (t.due_event_id === r.id && t.deleted_at === null && t.due !== r.date) {
+          t.due = r.date;
+          this.bumpTask(t);
+        }
+      }
+    }
+  }
+
+  async dependents(id: string): Promise<EventDeps> {
+    await this.wait();
+    return {
+      tasks: [...this.tk.values()].filter((t) => t.due_event_id === id).map((t) => t.id),
+      rules: [...this.rl.values()].filter((r) => r.event_id === id && r.deleted_at === null).map((r) => r.id),
+    };
   }
 
   async deleteEvent(id: string, baseVersion: number): Promise<void> {
@@ -255,11 +337,13 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     const r = this.row(id);
     this.notExternal(r);
     this.version(r, baseVersion);
+    const old = { ...r };
     r.deleted_at = new Date().toISOString();
     this.touch(r);
+    this.afterEvent(old, r);
   }
 
-  async restoreEvent(id: string): Promise<EventRow> {
+  async restoreEvent(id: string, deps?: EventDeps): Promise<EventRow> {
     await this.wait();
     const r = this.ev.get(id);
     if (!r) throw ez("EZ_NOT_FOUND", "되돌릴 일정이 없습니다");
@@ -268,6 +352,25 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     this.check(next);
     r.deleted_at = null;
     this.touch(r);
+    // 끊긴 마감 연결 · 멈춘 규칙을 다시 잇는다. 그 사이 달라진 것(다른 일정에 걺 · 지움 · 회차가 아님)은 건너뛴다
+    for (const tid of deps?.tasks ?? []) {
+      const t = this.tk.get(tid);
+      if (!t || t.deleted_at !== null || t.due_event_id !== null) continue;
+      const linked: TkRow = { ...t, due_event_id: id };
+      try {
+        this.guardDue(linked, t);
+      } catch {
+        continue;
+      }
+      Object.assign(t, linked);
+      this.bumpTask(t);
+    }
+    for (const rid of deps?.rules ?? []) {
+      const x = this.rl.get(rid);
+      if (!x || x.deleted_at === null || x.event_id !== id || r.repeat === null) continue;
+      x.deleted_at = null;
+      x.version += 1;
+    }
     const { deleted_at: _, ...out } = r;
     return clone(out);
   }
@@ -316,9 +419,11 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     if (onDate === firstOn(r)) {
       const next: EvRow = { ...r, ...clone(patch) };
       this.check(next);
+      const old = { ...r };
       Object.assign(r, next);
       this.touch(r);
       this.pruneExceptions(r);
+      this.afterEvent(old, r);
       const { deleted_at: _, ...out } = r;
       return clone(out);
     }
@@ -344,6 +449,15 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     });
     r.repeat = cut.repeat;
     this.touch(r);
+    // 딸린 규칙(끝나면 할 일)은 새 일정으로 옮긴다. 새 일정이 반복이 아니면 옮길 수 없어 그대로 둔다
+    if (n.repeat !== null) {
+      for (const x of this.rl.values()) {
+        if (x.event_id === id && x.deleted_at === null) {
+          x.event_id = n.id;
+          x.version += 1;
+        }
+      }
+    }
     const { deleted_at: _, ...out } = n;
     return clone(out);
   }
@@ -352,8 +466,10 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     await this.wait();
     const r = this.lock(id, baseVersion, onDate);
     if (onDate === firstOn(r)) {
+      const old = { ...r };
       r.deleted_at = new Date().toISOString();
       this.touch(r);
+      this.afterEvent(old, r);
     } else {
       this.ex = this.ex.filter((x) => x.event_id !== id || x.on_date < onDate);
       r.repeat = r.repeat ? { ...r.repeat, until: addDays(onDate, -1) } : null;
@@ -472,13 +588,77 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     await this.wait();
     return [...this.ev.values()]
       .filter((e) => e.deleted_at === null && e.task_id !== null)
-      .map((e) => ({ task_id: e.task_id!, event_id: e.id, date: e.date, start_min: e.start_min, repeating: e.repeat !== null }));
+      .map((e) => ({ task_id: e.task_id!, event_id: e.id, date: e.date, start_min: e.start_min, end_min: e.end_min, repeating: e.repeat !== null }));
+  }
+
+  async rules(): Promise<TaskRule[]> {
+    await this.wait();
+    return [...this.rl.values()].filter((r) => r.deleted_at === null).map((r) => this.outRule(r));
+  }
+
+  async eventTitles(ids: readonly string[]): Promise<Record<string, string>> {
+    await this.wait();
+    const out: Record<string, string> = {};
+    for (const id of ids) {
+      const e = this.ev.get(id);
+      if (e && e.deleted_at === null) out[id] = e.title;
+    }
+    return out;
+  }
+
+  /**
+   * 일정에 딸린 마감 (0007 ez_tasks_guard). 반복 아닌 일정: 걸 때 due 를 일정 날짜로 맞추고, 건 채로 due 만 바꾸면 거절.
+   * 반복 일정: due 가 있어야 하고 그 일정의 회차여야 한다. old 가 없으면 넣기
+   */
+  private guardDue(next: TkRow, old: TkRow | null): void {
+    if (next.due_event_id === null) return;
+    const link = old === null || next.due_event_id !== old.due_event_id;
+    if (!link && next.due === old!.due) return;
+    const e = this.ev.get(next.due_event_id);
+    if (!e) throw new DbError('insert or update on table "ez_tasks" violates foreign key constraint "ez_tasks_due_event_fk"', "23503");
+    if (e.deleted_at !== null) throw ez("EZ_EVENT", "지운 일정에는 마감을 걸 수 없습니다");
+    if (e.repeat === null) {
+      if (link) next.due = e.date;
+      else if (next.due !== e.date) {
+        throw ez("EZ_VALUE", "일정에 딸린 마감은 일정 날짜를 따라갑니다. 날짜를 따로 정하려면 일정 연결(due_event_id)을 비우세요");
+      }
+    } else {
+      if (next.due === null) throw ez("EZ_VALUE", "반복 일정에 마감을 걸 때는 어느 회차인지 날짜(due)를 같이 써 주세요");
+      if (!occursOn(e, next.due)) throw ez("EZ_DATE", `${next.due} 는 이 일정이 반복되는 날이 아닙니다`);
+    }
+  }
+
+  private checkTask(next: TkRow, old: TkRow | null): void {
+    const issues = validateTask(next);
+    if (issues.length > 0) throw ez("EZ_VALUE", issues[0]!.reason);
+    const list = next.checklist;
+    const ok =
+      Array.isArray(list) &&
+      list.length <= CHECKLIST_MAX &&
+      list.every((c) => typeof c.t === "string" && typeof c.done === "boolean" && c.t === c.t.trim() && [...c.t].length >= 1 && [...c.t].length <= CHECK_ITEM_MAX);
+    if (!ok) throw new DbError('new row for relation "ez_tasks" violates check constraint "ez_tasks_checklist_check"', "23514");
+    if (next.place_id !== null && !this.pl.has(next.place_id)) {
+      throw new DbError('insert or update on table "ez_tasks" violates foreign key constraint "ez_tasks_place_fk"', "23503");
+    }
+    if ((next.rule_id === null) !== (next.rule_date === null)) {
+      throw new DbError('new row for relation "ez_tasks" violates check constraint "ez_tasks_rule_check"', "23514");
+    }
+    if (next.rule_id !== null) {
+      if (!this.rl.has(next.rule_id)) throw new DbError('insert or update on table "ez_tasks" violates foreign key constraint "ez_tasks_rule_fk"', "23503");
+      for (const o of this.tk.values()) {
+        if (o.id !== next.id && o.rule_id === next.rule_id && o.rule_date === next.rule_date) throw unique("ez_tasks_rule_once");
+      }
+    }
+    this.guardDue(next, old);
+  }
+
+  private topSort(): number {
+    const live = [...this.tk.values()].filter((t) => t.deleted_at === null);
+    return live.length === 0 ? 0 : Math.min(...live.map((x) => x.sort)) - 1;
   }
 
   async createTask(input: TaskInput): Promise<TaskRow> {
     await this.wait();
-    const issues = validateTask(input);
-    if (issues.length > 0) throw ez("EZ_VALUE", issues[0]!.reason);
     const at = new Date().toISOString();
     const live = [...this.tk.values()].filter((t) => t.deleted_at === null);
     const t: TkRow = {
@@ -491,11 +671,17 @@ export class MemorySchedule implements ScheduleData, PlannerData {
       done_at: null,
       origin_kind: null,
       origin_id: null,
+      place_id: input.place_id ?? null,
+      due_event_id: input.due_event_id ?? null,
+      checklist: clone(input.checklist ?? []),
+      rule_id: input.rule_id ?? null,
+      rule_date: input.rule_date ?? null,
       version: 1,
       created_at: at,
       updated_at: at,
       deleted_at: null,
     };
+    this.checkTask(t, null);
     this.tk.set(t.id, t);
     return this.out(t);
   }
@@ -509,9 +695,9 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     await this.wait();
     const t = this.task(id);
     this.taskVersion(t, baseVersion);
-    const next = { ...t, ...patch };
-    const issues = validateTask(next);
-    if (issues.length > 0) throw ez("EZ_VALUE", issues[0]!.reason);
+    const next: TkRow = { ...t };
+    for (const k of TASK_KEYS) if (k in patch && patch[k] !== undefined) (next as Record<string, unknown>)[k] = clone(patch[k]);
+    this.checkTask(next, t);
     Object.assign(t, next);
     this.bumpTask(t);
     return this.out(t);
@@ -550,5 +736,157 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     t.sort = sort;
     this.bumpTask(t);
     return this.out(t);
+  }
+
+  // ------------------------------------------------------------ 반복 규칙 (0007 ez_task_rules · ez_tasks_roll)
+
+  private outRule(r: RlRow): TaskRule {
+    const { deleted_at: _, ...rest } = r;
+    return clone(rest);
+  }
+
+  /** 칸 범위 · kind 별 칸 · 살아 있는 반복 일정 (ez_task_rules 의 CHECK 와 ez_task_rules_guard) */
+  private checkRule(r: RlRow, old: RlRow | null): void {
+    const bad = (name: string) => new DbError(`new row for relation "ez_task_rules" violates check constraint "ez_task_rules_${name}_check"`, "23514");
+    const len = [...r.title].length;
+    if (r.title !== r.title.trim() || len < 1 || len > 200) throw bad("title");
+    if (r.note !== null && [...r.note].length > 2000) throw bad("note");
+    if (r.est_min !== null && (!Number.isInteger(r.est_min) || r.est_min < 5 || r.est_min > 600)) throw bad("est");
+    const texts = r.checklist;
+    if (!Array.isArray(texts) || texts.length > CHECKLIST_MAX || !texts.every((t) => typeof t === "string" && t === t.trim() && [...t].length >= 1 && [...t].length <= CHECK_ITEM_MAX)) {
+      throw bad("checklist");
+    }
+    if (r.due_after !== null && (!Number.isInteger(r.due_after) || r.due_after < 0 || r.due_after > DUE_AFTER_MAX)) throw bad("due_after");
+    if (r.place_id !== null && !this.pl.has(r.place_id)) {
+      throw new DbError('insert or update on table "ez_task_rules" violates foreign key constraint "ez_task_rules_place_fk"', "23503");
+    }
+    if (r.kind === "cycle") {
+      if (r.repeat === null || r.start === null || r.event_id !== null) throw bad("kind");
+      if (r.repeat.until) throw ez("EZ_VALUE", "반복 할 일에는 끝나는 날(until)을 쓰지 않습니다. 그만하려면 규칙을 멈추세요");
+      const issue = validateEvent({ title: "x", date: r.start, repeat: r.repeat }).find((i) => i.path.startsWith("repeat") || i.path === "date");
+      if (issue) throw ez("EZ_VALUE", issue.reason);
+      return;
+    }
+    if (r.kind !== "event" || r.event_id === null || r.repeat !== null || r.start !== null) throw bad("kind");
+    // 넣을 때 · 일정을 바꿀 때 · 멈춘 규칙을 되살릴 때만 본다
+    if (r.deleted_at === null && (old === null || old.event_id !== r.event_id || old.deleted_at !== null || old.kind !== r.kind)) {
+      const e = this.ev.get(r.event_id);
+      if (!e) throw new DbError('insert or update on table "ez_task_rules" violates foreign key constraint "ez_task_rules_event_fk"', "23503");
+      if (e.deleted_at !== null) throw ez("EZ_NOT_FOUND", "지운 일정에는 반복 할 일을 걸 수 없습니다");
+      if (e.repeat === null) throw ez("EZ_REPEAT", "반복 일정이 아니라 끝날 때마다 할 일을 만들 수 없습니다. 반복 일정을 고르세요");
+    }
+  }
+
+  async createRule(input: RuleInput): Promise<TaskRule> {
+    await this.wait();
+    const r: RlRow = { id: globalThis.crypto.randomUUID(), ...clone(input), version: 1, deleted_at: null };
+    this.checkRule(r, null);
+    this.rl.set(r.id, r);
+    return this.outRule(r);
+  }
+
+  async updateRule(id: string, patch: Partial<RuleInput>): Promise<TaskRule> {
+    await this.wait();
+    const r = this.rl.get(id);
+    if (!r || r.deleted_at !== null) throw ez("EZ_NOT_FOUND", "반복 규칙이 없습니다");
+    const next: RlRow = { ...r };
+    for (const k of RULE_KEYS) if (k in patch && patch[k] !== undefined) (next as Record<string, unknown>)[k] = clone(patch[k]);
+    this.checkRule(next, r);
+    Object.assign(r, next);
+    r.version += 1;
+    return this.outRule(r);
+  }
+
+  async stopRule(id: string): Promise<void> {
+    await this.wait();
+    const r = this.rl.get(id);
+    if (!r || r.deleted_at !== null) return;
+    r.deleted_at = new Date().toISOString();
+    r.version += 1;
+  }
+
+  /**
+   * 그 회차가 끝나는 시각 (회차 날짜 0시부터 센 분). 이번만 바꾼 end_min 이 있으면 그것, 종일이면 1440.
+   * 건너뛴 회차는 null
+   */
+  private occurrenceEnd(e: EvRow, d: DateStr): number | null {
+    const x = this.ex.find((y) => y.event_id === e.id && y.on_date === d);
+    if (x?.skip) return null;
+    const end = x?.patch && "end_min" in x.patch ? (x.patch.end_min ?? null) : e.end_min;
+    return end ?? 1440;
+  }
+
+  async roll(today: DateStr, nowMin: number): Promise<number> {
+    await this.wait();
+    if (!Number.isInteger(nowMin) || nowMin < 0 || nowMin > 1439) throw ez("EZ_VALUE", "지금 시각(p_now_min)은 0~1439분(00:00~23:59)이어야 합니다");
+    const floor = addDays(today, -ROLL_BACK);
+    const later = (a: DateStr, b: DateStr) => (a >= b ? a : b);
+    let made = 0;
+    for (const r of [...this.rl.values()]) {
+      if (r.deleted_at !== null) continue;
+      // 가장 최근 회차 하나: last_made 다음 날(없으면 시작)과 60일 전 중 늦은 날부터 오늘까지에서 가장 늦은 날
+      let d: DateStr | null = null;
+      if (r.kind === "cycle") {
+        if (r.repeat === null || r.start === null) continue;
+        const base = { date: r.start, repeat: r.repeat } as EventRow;
+        const from = later(r.last_made ? addDays(r.last_made, 1) : r.start, floor);
+        for (let x = today; x >= from; x = addDays(x, -1)) {
+          if (occursOn(base, x)) {
+            d = x;
+            break;
+          }
+        }
+      } else {
+        const e = r.event_id ? this.ev.get(r.event_id) : undefined;
+        if (!e || e.deleted_at !== null || e.repeat === null) continue;
+        const from = later(r.last_made ? addDays(r.last_made, 1) : e.date, floor);
+        for (let x = today; x >= from; x = addDays(x, -1)) {
+          if (!occursOn(e, x)) continue;
+          const end = this.occurrenceEnd(e, x);
+          // 끝나야 만든다: 끝 시각이 지금(그 회차 날짜 0시부터 센 분)보다 뒤면 아직
+          if (end === null || end > daysBetween(x, today) * 1440 + nowMin) continue;
+          d = x;
+          break;
+        }
+      }
+      if (d === null) continue;
+
+      // 밀리면 한 건만: 안 끝낸 지난 회차는 지운다
+      for (const t of this.tk.values()) {
+        if (t.rule_id === r.id && t.rule_date !== null && t.rule_date < d && t.done_at === null && t.deleted_at === null) {
+          t.deleted_at = new Date().toISOString();
+          this.bumpTask(t);
+        }
+      }
+      // 같은 (규칙, 회차)가 이미 있으면(지운 것 포함) 만들지 않는다
+      const on = d;
+      if (![...this.tk.values()].some((t) => t.rule_id === r.id && t.rule_date === on)) {
+        const at = new Date().toISOString();
+        const t: TkRow = {
+          id: globalThis.crypto.randomUUID(),
+          title: r.title,
+          note: r.note,
+          due: r.due_after !== null ? addDays(on, r.due_after) : null,
+          est_min: r.est_min,
+          sort: this.topSort(),
+          done_at: null,
+          origin_kind: null,
+          origin_id: null,
+          place_id: r.place_id,
+          due_event_id: null,
+          checklist: r.checklist.map((c) => ({ t: c, done: false })),
+          rule_id: r.id,
+          rule_date: on,
+          version: 1,
+          created_at: at,
+          updated_at: at,
+          deleted_at: null,
+        };
+        this.tk.set(t.id, t);
+        made += 1;
+      }
+      r.last_made = on;
+    }
+    return made;
   }
 }

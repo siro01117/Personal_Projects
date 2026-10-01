@@ -1,11 +1,30 @@
-// 플래너 화면 계산 (docs/플래너.md 3장). DOM 없이 시험할 수 있는 것만:
-// 목록 셋으로 나누기 · 정렬, 사이 sort 값, 시간 정하기의 기본 시작 시각, "10/5 까지" 같은 글자.
+// 플래너 화면 계산 (docs/플래너.md 3장 · 7장). DOM 없이 시험할 수 있는 것만:
+// 목록 넷으로 나누기(지남 · 할 일 · 시간 정함 · 끝냄) · 지남 판정, 사이 sort 값, 시간 정하기의 기본 시작 시각,
+// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도'.
 // 빈 시간 계산은 lib/schedule 의 planRange + freeSlots 가 한다.
 
 import type { KoreanError } from "../../lib/errors";
-import { freeSlots, planRange, weekday, type DateStr, type Place, type Settings, type TaskRow, type Travel } from "../../lib/schedule";
+import {
+  addDays,
+  CHECK_ITEM_MAX,
+  CHECKLIST_MAX,
+  daysBetween,
+  DEFAULT_SETTINGS,
+  DUE_AFTER_MAX,
+  expand,
+  freeSlots,
+  planRange,
+  weekday,
+  type CheckItem,
+  type DateStr,
+  type Place,
+  type Settings,
+  type TaskRow,
+  type TaskRule,
+  type Travel,
+} from "../../lib/schedule";
 import type { EventRows, TaskLink } from "../_data/types";
-import { hm, scheduleKorean, WEEKDAYS } from "./schedule";
+import { hm, nowIn, repeatLabel, scheduleKorean, WEEKDAYS } from "./schedule";
 
 /** 끝낸 것은 최근 며칠만 */
 export const DONE_DAYS = 14;
@@ -17,16 +36,51 @@ export const DAY_FROM = 540;
 export const STEP = 15;
 
 export type Timed = { task: TaskRow; link: TaskLink };
-export type Lists = { open: TaskRow[]; timed: Timed[]; done: TaskRow[] };
+/** 지남 묶음의 한 줄. why = 무엇이 지났나 (둘 다면 일정 쪽) */
+export type Late = { task: TaskRow; link: TaskLink | null; why: "event" | "due" };
+export type Lists = { late: Late[]; open: TaskRow[]; timed: Timed[]; done: TaskRow[] };
+/** 지금: 오늘 날짜와 0시부터 센 분 (Asia/Seoul) */
+export type At = { date: DateStr; min: number };
 
 /**
- * 할 일(시간 없음 · 안 끝남, sort 순) · 시간 정함(이어진 일정의 날짜·시각 순) · 끝냄(최근 14일, 최근 것부터).
- * 끝낸 할 일은 일정이 있어도 끝냄으로 간다
+ * 이어진 일정이 끝났나: 날짜가 지났거나, 오늘이고 끝 시각이 됐다. 자정을 넘기는 일정은 다음 날 그 시각,
+ * 종일 일정은 그날이 다 가야(다음 날부터). 반복 일정은 다음 회차가 있으니 지남으로 치지 않는다
  */
-export function splitTasks(tasks: readonly TaskRow[], links: readonly TaskLink[], now: Date = new Date(), days = DONE_DAYS): Lists {
+export function eventEnded(link: TaskLink, at: At): boolean {
+  if (link.repeating) return false;
+  const end = link.start_min === null || link.end_min === null ? 1440 : link.end_min;
+  return daysBetween(link.date, at.date) * 1440 + at.min >= end;
+}
+
+/** 안 끝낸 할 일의 무엇이 지났나. 일정과 마감이 둘 다 지났으면 일정. 안 지났으면 null */
+export function lateOf(task: TaskRow, link: TaskLink | null | undefined, at: At): "event" | "due" | null {
+  if (task.done_at !== null) return null;
+  if (link && eventEnded(link, at)) return "event";
+  return overdue(task.due, at.date) ? "due" : null;
+}
+
+/** 지남 줄의 정렬 열쇠: 지난 때 (오래된 것부터) */
+function lateKey(l: Late): string {
+  if (l.why === "event" && l.link) return `${l.link.date} ${String(l.link.start_min ?? 0).padStart(4, "0")}`;
+  return `${l.task.due ?? ""} 9999`;
+}
+
+/**
+ * 지남(이어진 일정이 끝났거나 마감이 지난 것, 오래된 것부터) · 할 일(시간 없음 · 안 끝남, sort 순) ·
+ * 시간 정함(이어진 일정의 날짜·시각 순) · 끝냄(최근 14일, 최근 것부터).
+ * 끝낸 할 일은 일정이 있어도 끝냄으로 간다. at = 지금(주입) — 안 주면 now 를 Asia/Seoul 로 읽는다
+ */
+export function splitTasks(
+  tasks: readonly TaskRow[],
+  links: readonly TaskLink[],
+  now: Date = new Date(),
+  at: At = nowIn(DEFAULT_SETTINGS.tz, now),
+  days = DONE_DAYS,
+): Lists {
   const linkOf = new Map<string, TaskLink>();
   for (const l of links) if (!linkOf.has(l.task_id)) linkOf.set(l.task_id, l);
   const since = now.getTime() - days * 86_400_000;
+  const late: Late[] = [];
   const open: TaskRow[] = [];
   const timed: Timed[] = [];
   const done: TaskRow[] = [];
@@ -36,16 +90,19 @@ export function splitTasks(tasks: readonly TaskRow[], links: readonly TaskLink[]
       continue;
     }
     const link = linkOf.get(t.id);
-    if (link) timed.push({ task: t, link });
+    const why = lateOf(t, link, at);
+    if (why) late.push({ task: t, link: link ?? null, why });
+    else if (link) timed.push({ task: t, link });
     else open.push(t);
   }
+  late.sort((a, b) => lateKey(a).localeCompare(lateKey(b)) || a.task.sort - b.task.sort);
   open.sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at));
   timed.sort(
     (a, b) =>
       a.link.date.localeCompare(b.link.date) || (a.link.start_min ?? -1) - (b.link.start_min ?? -1) || a.task.sort - b.task.sort,
   );
   done.sort((a, b) => b.done_at!.localeCompare(a.done_at!));
-  return { open, timed, done };
+  return { late, open, timed, done };
 }
 
 /** 두 sort 사이 값. 맨 앞이면 다음 것 - 1, 맨 뒤면 앞 것 + 1 */
@@ -93,6 +150,148 @@ export function overdue(due: DateStr | null, today: DateStr): boolean {
 /** 시간 정함 줄 오른쪽 "10/3 금 14:00" (종일이면 "10/3 금") */
 export function whenLabel(date: DateStr, start: number | null): string {
   return start === null ? `${md(date)} ${wd(date)}` : `${md(date)} ${wd(date)} ${hm(start)}`;
+}
+
+/** 지남 줄 오른쪽: 지난 일정이면 "10/1 목 15:30 지남", 지난 마감이면 "9/27 까지" */
+export function lateLabel(l: Late): string {
+  if (l.why === "event" && l.link) return `${whenLabel(l.link.date, l.link.start_min)} 지남`;
+  return l.task.due ? dueLabel(l.task.due) : "";
+}
+
+/** 줄의 체크 수 "1/2". 다 했으면 all. 체크 항목이 없으면 null */
+export function checkLabel(list: readonly CheckItem[]): { text: string; all: boolean } | null {
+  if (list.length === 0) return null;
+  const n = list.filter((c) => c.done).length;
+  return { text: `${n}/${list.length}`, all: n === list.length };
+}
+
+/** 반복 한 줄: "매주 월" · "매일" · 일정에 딸렸으면 "자료구조 끝나면" */
+export function ruleLabel(rule: TaskRule, eventTitle?: string | null): string {
+  if (rule.kind === "event") return eventTitle ? `${eventTitle} 끝나면` : "일정 끝나면";
+  return repeatLabel(rule.repeat) ?? "";
+}
+
+// ------------------------------------------------------------ 체크 항목
+
+/** 수정 칸의 여러 줄 → 항목 글자. 한 줄에 하나, 앞뒤 공백을 떼고 빈 줄은 버린다. 넘치면 issue */
+export function parseChecks(text: string): { texts: string[]; issue: string | null } {
+  const texts = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l !== "");
+  let issue: string | null = null;
+  if (texts.length > CHECKLIST_MAX) issue = `체크 항목은 ${CHECKLIST_MAX}개까지입니다 (지금 ${texts.length}개)`;
+  else if (texts.some((t) => [...t].length > CHECK_ITEM_MAX)) issue = `체크 항목 하나는 ${CHECK_ITEM_MAX}자까지입니다`;
+  return { texts, issue };
+}
+
+/** 고친 글자에 체크를 얹는다: 글자가 같은 항목은 체크를 지킨다 (같은 글자가 여럿이면 앞에서부터 하나씩) */
+export function mergeChecklist(prev: readonly CheckItem[], texts: readonly string[]): CheckItem[] {
+  const left = prev.map((c) => ({ ...c }));
+  return texts.map((t) => {
+    const i = left.findIndex((c) => c.t === t);
+    if (i < 0) return { t, done: false };
+    const [hit] = left.splice(i, 1);
+    return { t, done: hit!.done };
+  });
+}
+
+/** i 번째 항목의 체크를 바꾼 목록 */
+export function toggleCheck(list: readonly CheckItem[], i: number, done: boolean): CheckItem[] {
+  return list.map((c, k) => (k === i ? { ...c, done } : c));
+}
+
+// ------------------------------------------------------------ 수정 칸
+
+export type RepeatKind = "none" | "daily" | "weekly" | "event";
+
+/** 수정 칸의 값. 글 칸은 빈 글자 = 없음 */
+export type TaskDraft = {
+  title: string;
+  due: string;
+  /** 마감을 딸려 둔 일정 (due 는 그 회차 날짜) */
+  dueEvent: { id: string; title: string } | null;
+  est: string;
+  note: string;
+  place_id: string | null;
+  /** 체크 항목 — 한 줄에 하나 */
+  checks: string;
+  /** event = 일정에 딸린 규칙에서 온 할 일 (여기서는 멈추기만) */
+  repeat: RepeatKind;
+  days: number[];
+  /** 마감까지 며칠 (빈칸 = 마감 없음) */
+  dueAfter: string;
+};
+
+/** 할 일 → 수정 칸. rule = 이 할 일이 나온 살아 있는 규칙 (없으면 null) */
+export function taskDraft(t: TaskRow, rule: TaskRule | null, titles: Readonly<Record<string, string>> = {}): TaskDraft {
+  const r = rule?.repeat ?? null;
+  return {
+    title: t.title,
+    due: t.due ?? "",
+    dueEvent: t.due_event_id ? { id: t.due_event_id, title: titles[t.due_event_id] ?? "" } : null,
+    est: t.est_min === null ? "" : String(t.est_min),
+    note: t.note ?? "",
+    place_id: t.place_id,
+    checks: t.checklist.map((c) => c.t).join("\n"),
+    repeat: !rule ? "none" : rule.kind === "event" ? "event" : r?.freq === "weekly" ? "weekly" : "daily",
+    days: r?.freq === "weekly" ? [...r.days].sort((a, b) => a - b) : [],
+    dueAfter: rule?.due_after == null ? "" : String(rule.due_after),
+  };
+}
+
+/** 마감까지 며칠 칸 → 숫자. 빈칸이면 null, 0~60 정수가 아니면 NaN */
+export function parseDueAfter(s: string): number | null {
+  const t = s.trim();
+  if (t === "") return null;
+  if (!/^\d+$/.test(t)) return Number.NaN;
+  const n = Number(t);
+  return n <= DUE_AFTER_MAX ? n : Number.NaN;
+}
+
+export type TaskScope = "once" | "future";
+
+/** 반복 설정(매일 / 매주 요일 · 마감까지 며칠)을 바꿨나 */
+export function repeatChanged(d: TaskDraft, base: TaskDraft): boolean {
+  return d.repeat !== base.repeat || (d.repeat === "weekly" && d.days.join() !== base.days.join()) || d.dueAfter.trim() !== base.dueAfter.trim();
+}
+
+/** 규칙이 만들 할 일의 모양(제목 · 걸릴 시간 · 지점 · 메모 · 체크 항목 글자)을 바꿨나 */
+export function templateChanged(d: TaskDraft, base: TaskDraft): boolean {
+  return (
+    d.title.trim() !== base.title.trim() ||
+    d.est.trim() !== base.est.trim() ||
+    d.note !== base.note ||
+    d.place_id !== base.place_id ||
+    parseChecks(d.checks).texts.join("\n") !== parseChecks(base.checks).texts.join("\n")
+  );
+}
+
+/**
+ * 저장할 때 고를 범위. 반복에서 온 할 일(base.repeat 이 none 이 아님)만:
+ * 반복 설정을 바꾸면 '앞으로도' 만, 모양만 바꾸면 '이번만 / 앞으로도'. 반복을 끄거나 새로 켜면 빈 목록(그냥 저장)
+ */
+export function taskScopes(d: TaskDraft, base: TaskDraft): TaskScope[] {
+  if (base.repeat === "none" || d.repeat === "none") return [];
+  if (repeatChanged(d, base)) return ["future"];
+  return templateChanged(d, base) ? ["once", "future"] : [];
+}
+
+// ------------------------------------------------------------ 일정에 딸린 마감
+
+/** 마감으로 고를 수 있는 일정 회차 하나. due = 할 일에 넣을 날짜(반복이면 규칙상 회차 날짜) */
+export type DueOption = { key: string; event_id: string; due: DateStr; date: DateStr; title: string };
+
+/** 오늘부터 days 일 안의 일정 회차 (종일 포함), 날짜 · 시각 순 */
+export function dueOptions(rows: EventRows, today: DateStr, days = 60): DueOption[] {
+  return expand(rows.events, rows.exceptions, today, addDays(today, days))
+    .filter((o) => o.date >= today)
+    .map((o) => ({ key: o.key, event_id: o.event_id, due: o.repeating ? o.on_date : o.date, date: o.date, title: o.title }));
+}
+
+/** 고르는 목록의 날짜 "10/11 일" */
+export function dateLabel(d: DateStr): string {
+  return `${md(d)} ${wd(d)}`;
 }
 
 /** 할 일 쪽 DB 오류를 화면 문구로 */

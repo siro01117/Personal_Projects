@@ -6,6 +6,7 @@
 // 누르면 보기만, 고치기는 '수정' 을 한 번 더. 빈 칸 한 번 누르기는 아무것도 안 함, 두 번 누르기(데스크톱)는 새 일정.
 // 고치는 중인 값은 줄에 얹어 미리 그린다(withDraft) — 동선·식사가 같이 따라 움직인다.
 // 주소 ?date=YYYY-MM-DD&event=ID (플래너의 이어진 일정) 면 그 주·그날을 열고 그 일정을 고른다.
+// 반복 일정에는 '끝나면 할 일' 을 딸려 둘 수 있다(반복 규칙, docs/플래너.md 7-2). 일정을 지웠다 되돌리면 딸린 마감 · 규칙도 되살린다.
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -16,6 +17,7 @@ import {
   DEFAULT_SETTINGS,
   isDateStr,
   planRange,
+  TITLE_MAX,
   validateEvent,
   type DateStr,
   type EventRow,
@@ -23,7 +25,8 @@ import {
   type Place,
   type TaskRow,
 } from "../../../lib/schedule";
-import type { EventRows } from "../../_data/types";
+import type { EventDeps, EventRows } from "../../_data/types";
+import { parseDueAfter } from "../../_logic/planner";
 import {
   buildColumns,
   dayLabel,
@@ -58,9 +61,10 @@ import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
 import { Detail } from "./Detail";
-import { EventForm } from "./EventForm";
+import { EventForm, NO_AFTER, type AfterDraft } from "./EventForm";
 import { AllDayCell, Axis, ColumnItems, NowLine, type GridCtx } from "./Grid";
 import { MiniWeek } from "./MiniWeek";
+import { PlaceSymbol } from "./PlaceSymbol";
 import { useScheduleData } from "./useScheduleData";
 
 const PHONE_MAX = 760;
@@ -69,7 +73,8 @@ const PANEL_MIN = 1180;
 const CLOCK_MS = 30_000;
 
 type Sel = { event_id: string; on_date: DateStr };
-type Edit = { target: Sel | null; draft: Draft; base: Draft; taskId: string | null };
+/** after = 끝나면 할 일 (반복 일정에 딸린 규칙), afterBase = 고치기 전 */
+type Edit = { target: Sel | null; draft: Draft; base: Draft; taskId: string | null; after: AfterDraft; afterBase: AfterDraft };
 type Anchor = { left: number; right: number; top: number };
 type Grab = { mode: "move" | "resize"; x: number; y: number; orig: Draft; offset: number; moved: boolean };
 
@@ -138,7 +143,7 @@ export function ScheduleView() {
   const [ghost, setGhost] = useState<{ task: TaskRow; x: number; y: number; draft: Draft | null } | null>(null);
 
   const D = useScheduleData(week);
-  const { meta, rows, tasks, links } = D;
+  const { meta, rows, tasks, links, rules } = D;
   const tz = meta?.settings.tz ?? DEFAULT_SETTINGS.tz;
   const now = nowIn(tz, new Date(clock));
   const today = now.date;
@@ -172,6 +177,8 @@ export function ScheduleView() {
   const linked = useMemo(() => new Set(links.map((l) => l.task_id)), [links]);
   const openTasks = tasks.filter((t) => !t.done_at && !linked.has(t.id));
   const taskOf = (id: string | null) => (id ? (tasks.find((t) => t.id === id) ?? null) : null);
+  /** 그 일정에 딸린 살아 있는 규칙 (끝나면 할 일) */
+  const afterRule = (eventId: string) => rules.find((r) => r.kind === "event" && r.event_id === eventId) ?? null;
 
   const colsRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -250,7 +257,7 @@ export function ScheduleView() {
     setAnchor(null);
     setDeleting(false);
     const d = newDraft(date, start, end);
-    setEdit({ target: null, draft: d, base: d, taskId: null });
+    setEdit({ target: null, draft: d, base: d, taskId: null, after: NO_AFTER, afterBase: NO_AFTER });
   }
 
   function newHere() {
@@ -265,7 +272,9 @@ export function ScheduleView() {
     if (!ev || ev.source) return;
     const d = draftOf(selOcc, ev);
     setDeleting(false);
-    setEdit({ target: { event_id: selOcc.event_id, on_date: selOcc.on_date }, draft: d, base: d, taskId: ev.task_id });
+    const rule = afterRule(ev.id);
+    const after: AfterDraft = rule ? { title: rule.title, dueAfter: rule.due_after === null ? "" : String(rule.due_after) } : NO_AFTER;
+    setEdit({ target: { event_id: selOcc.event_id, on_date: selOcc.on_date }, draft: d, base: d, taskId: ev.task_id, after, afterBase: after });
   }
 
   function cancelEdit() {
@@ -287,6 +296,39 @@ export function ScheduleView() {
       toast(issue.path === "title" && input.title === "" ? "제목을 써 주세요" : issue.reason);
       return;
     }
+    // 끝나면 할 일: 반복 일정에만. 제목을 비우면 없음(있던 규칙은 멈춘다)
+    const afterTitle = draft.repeat === null ? "" : editState.after.title.trim();
+    const afterDue = parseDueAfter(editState.after.dueAfter);
+    if (afterTitle !== "" && Number.isNaN(afterDue)) {
+      toast("마감까지는 0~60일입니다");
+      return;
+    }
+    const afterChanged = afterTitle !== editState.afterBase.title.trim() || (afterTitle !== "" && editState.after.dueAfter.trim() !== editState.afterBase.dueAfter.trim());
+    /** 일정을 저장한 뒤 규칙을 맞춘다. from = 고치기 전 일정(규칙이 딸려 있던 곳), to = 저장한 뒤의 일정 */
+    const saveAfter = async (from: string | null, to: string) => {
+      if (!afterChanged) return;
+      const rule = from ? afterRule(from) : null;
+      await D.runTask(async () => {
+        if (!rule) {
+          if (afterTitle === "") return;
+          // last_made = 오늘 — 지난 회차의 할 일이 바로 생기지 않게
+          await D.T.createRule({
+            kind: "event",
+            title: afterTitle,
+            note: null,
+            est_min: null,
+            place_id: null,
+            checklist: [],
+            repeat: null,
+            start: null,
+            event_id: to,
+            due_after: afterDue,
+            last_made: today,
+          });
+        } else if (afterTitle === "") await D.T.stopRule(rule.id);
+        else await D.T.updateRule(rule.id, { title: afterTitle, due_after: afterDue });
+      });
+    };
     const ev = target ? (rows.events.find((e) => e.id === target.event_id) ?? null) : null;
     if (target && !ev) {
       toast("일정이 없습니다. 새로 불러오세요");
@@ -297,7 +339,7 @@ export function ScheduleView() {
     const how = savePlan(draft, base, ev, scope, prev);
     const ver = (srv: EventRows) => srv.events.find((e) => e.id === ev!.id)?.version ?? ev!.version;
     const after = (next: Sel | null) => {
-      if (keep && next) setEdit({ target: next, draft, base: draft, taskId });
+      if (keep && next) setEdit({ ...editState, target: next, draft, base: draft });
       else setEdit(null);
       setSel(next);
     };
@@ -309,6 +351,7 @@ export function ScheduleView() {
 
     if (how.kind === "none") {
       after(target);
+      if (ev) await saveAfter(ev.id, ev.id);
       return;
     }
     if (how.kind === "create") {
@@ -321,8 +364,10 @@ export function ScheduleView() {
         },
         () => D.S.createEvent({ ...how.input, task_id: taskId }),
       );
-      if (row) setSel({ event_id: row.id, on_date: row.date });
-      else failed();
+      if (row) {
+        setSel({ event_id: row.id, on_date: row.date });
+        await saveAfter(null, row.id);
+      } else failed();
       return;
     }
     const onDate = target!.on_date;
@@ -330,6 +375,7 @@ export function ScheduleView() {
       after({ event_id: ev!.id, on_date: draft.date });
       const row = await D.run(preview, (srv) => D.S.updateEvent(ev!.id, ver(srv), how.patch));
       if (!row) failed();
+      else await saveAfter(ev!.id, row.id);
       return;
     }
     if (how.kind === "once") {
@@ -339,6 +385,7 @@ export function ScheduleView() {
         return true;
       });
       if (!ok) failed();
+      else await saveAfter(ev!.id, ev!.id);
       return;
     }
     // 이후 모두
@@ -351,6 +398,8 @@ export function ScheduleView() {
     const next = { event_id: row.id, on_date: how.patch.date ?? onDate };
     if (keep) setEdit((e) => (e ? { ...e, target: next } : e));
     setSel(next);
+    // 나누면 규칙은 새 일정으로 옮겨져 있다 (데이터 층). 화면의 규칙 목록은 아직 옛 일정을 가리킨다
+    await saveAfter(ev!.id, row.id);
   }
 
   const saveRef = useRef(save);
@@ -370,16 +419,19 @@ export function ScheduleView() {
     closeAll();
     const undoable = (label: string, undo: (srv: EventRows) => Promise<unknown>) =>
       toast(label, { label: "되돌리기", run: () => void D.run(null, undo) });
+    /** 일정을 지우면 끊기는 것(딸린 마감 · 규칙)을 먼저 읽어 두고 지운다. 되돌릴 때 같이 되살린다 */
+    const dropEvent = async (srv: EventRows, call: (version: number) => Promise<unknown>): Promise<EventDeps> => {
+      const deps = await D.S.dependents(ev.id);
+      await call(srv.events.find((e) => e.id === ev.id)?.version ?? ev.version);
+      return deps;
+    };
 
     if (ev.repeat === null) {
-      const ok = await D.run(
+      const deps = await D.run(
         (r) => ({ ...r, events: r.events.filter((e) => e.id !== ev.id) }),
-        async (srv) => {
-          await D.S.deleteEvent(ev.id, srv.events.find((e) => e.id === ev.id)?.version ?? ev.version);
-          return true;
-        },
+        (srv) => dropEvent(srv, (v) => D.S.deleteEvent(ev.id, v)),
       );
-      if (ok) undoable("일정을 없앴습니다", () => D.S.restoreEvent(ev.id));
+      if (deps) undoable("일정을 없앴습니다", () => D.S.restoreEvent(ev.id, deps));
       return;
     }
     if (scope === "once") {
@@ -401,7 +453,7 @@ export function ScheduleView() {
     const first = firstOccurrence(ev) === on;
     const oldRepeat = ev.repeat;
     const removed = rows.exceptions.filter((x) => x.event_id === ev.id && x.on_date >= on);
-    const ok = await D.run(
+    const deps = await D.run(
       (r) =>
         first
           ? { ...r, events: r.events.filter((e) => e.id !== ev.id) }
@@ -409,14 +461,11 @@ export function ScheduleView() {
               events: r.events.map((e) => (e.id === ev.id && e.repeat ? { ...e, repeat: { ...e.repeat, until: addDays(on, -1) } } : e)),
               exceptions: r.exceptions.filter((x) => !(x.event_id === ev.id && x.on_date >= on)),
             },
-      async (srv) => {
-        await D.S.cut(ev.id, srv.events.find((e) => e.id === ev.id)?.version ?? ev.version, on);
-        return true;
-      },
+      (srv) => dropEvent(srv, (v) => D.S.cut(ev.id, v, on)),
     );
-    if (!ok) return;
+    if (!deps) return;
     undoable("일정을 없앴습니다", async (srv) => {
-      if (first) return D.S.restoreEvent(ev.id);
+      if (first) return D.S.restoreEvent(ev.id, deps);
       const v = srv.events.find((e) => e.id === ev.id)?.version ?? ev.version + 1;
       await D.S.updateEvent(ev.id, v, { repeat: oldRepeat });
       for (const x of removed) await D.S.setException(x.event_id, x.on_date, x.skip ? null : x.patch);
@@ -527,7 +576,7 @@ export function ScheduleView() {
       const len = task.est_min ?? 60;
       if (h) {
         const start = Math.min(1440 - 15, Math.max(0, snap(h.min - 15)));
-        last = { ...newDraft(addDays(live.current.week, h.dayIndex), start, start + len), title: task.title };
+        last = { ...newDraft(addDays(live.current.week, h.dayIndex), start, start + len), title: [...task.title].slice(0, TITLE_MAX).join("").trim(), place_id: task.place_id };
       } else last = null;
       setGhost({ task, x: ev.clientX, y: ev.clientY, draft: last });
     };
@@ -543,7 +592,7 @@ export function ScheduleView() {
 
   async function placeTask(task: TaskRow, d: Draft) {
     const id = tempId();
-    D.setLinks((l) => [...l, { task_id: task.id, event_id: id, date: d.date, start_min: d.start, repeating: false }]);
+    D.setLinks((l) => [...l, { task_id: task.id, event_id: id, date: d.date, start_min: d.start, end_min: d.end, repeating: false }]);
     const row = await D.run(
       (r) => {
         const w = withDraft(r, null, d, task.id);
@@ -640,6 +689,7 @@ export function ScheduleView() {
       sources={meta.sources}
       segments={segsOf(selOcc.date)}
       task={taskOf(selOcc.task_id)}
+      after={ev?.repeat ? (afterRule(ev.id)?.title ?? null) : null}
       tz={tz}
       deleting={deleting}
       onEdit={startEdit}
@@ -657,6 +707,8 @@ export function ScheduleView() {
       places={placeList}
       scopes={scopesFor(edit.draft, edit.base, editEv)}
       isNew={edit.target === null}
+      after={edit.after}
+      onAfter={(a) => setEdit((x) => (x ? { ...x, after: a } : x))}
       onSave={(s) => void save(s)}
       onCancel={cancelEdit}
     />
@@ -774,13 +826,19 @@ export function ScheduleView() {
       <h2 className="tasks-h">할 일</h2>
       {openTasks.length > 0 ? (
         <ul className="tasks" aria-label="할 일 (시간 없음)">
-          {openTasks.map((t) => (
-            <li key={t.id} onPointerDown={(e) => grabTask(e, t)} title="끌어서 시간표에 놓기">
-              <span className="ring" aria-hidden="true" />
-              <span className="nm">{t.title}</span>
-              {t.est_min !== null && <span className="est">{duration(t.est_min)}</span>}
-            </li>
-          ))}
+          {openTasks.map((t) => {
+            const place = t.place_id ? places.get(t.place_id) : undefined;
+            return (
+              <li key={t.id} onPointerDown={(e) => grabTask(e, t)} title="끌어서 시간표에 놓기">
+                <span className="ring" aria-hidden="true" />
+                <span className={place ? `nm pc-${place.color}` : "nm"}>
+                  {place && <PlaceSymbol symbol={place.symbol} />}
+                  {t.title}
+                </span>
+                {t.est_min !== null && <span className="est">{duration(t.est_min)}</span>}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="tasks-empty">할 일이 없습니다</p>

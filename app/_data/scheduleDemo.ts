@@ -64,16 +64,48 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
       { id: ID(122), title: "팀플 정리", date: d(3), start_min: 930, end_min: 990, note: "발표 자료 역할 나누기", task_id: ID(201) },
       { id: ID(123), title: "마감 작업", date: d(4), start_min: 1380, end_min: 1500 },
       { id: ID(124), title: "본가", date: d(5), start_min: null, end_min: null },
+      { id: ID(125), title: "송현이 누나 결혼식", date: addDays(today, 10), start_min: 720, end_min: 840 },
+      // 어제 잡아 둔 시간이 지나간 할 일 (지남 묶음)
+      { id: ID(126), title: "교수님 메일 답장", date: addDays(today, -1), start_min: 930, end_min: 960, task_id: ID(209) },
     ],
     tasks: [
-      { id: ID(201), title: "팀플 발표 자료", est_min: 60, sort: 1 },
-      { id: ID(202), title: "운영체제 과제 3", due: d(6), est_min: 120, sort: 2 },
+      {
+        id: ID(201),
+        title: "팀플 발표 자료",
+        est_min: 60,
+        sort: 1,
+        checklist: [
+          { t: "자료 조사", done: true },
+          { t: "슬라이드 초안", done: false },
+        ],
+      },
+      { id: ID(202), title: "운영체제 과제 3", due: d(6), est_min: 120, sort: 2, place_id: P.school },
       { id: ID(203), title: "자취방 계약서 확인", est_min: 30, sort: 3 },
-      { id: ID(204), title: "APPTIVE 회고 정리", sort: 4 },
+      { id: ID(204), title: "APPTIVE 회고 정리", sort: 4, place_id: P.cafe },
       { id: ID(205), title: "도서관 책 반납", sort: 5, done_at: ago(60 * 20) },
       { id: ID(206), title: "장학금 서류 제출", due: addDays(today, -1), est_min: 20, sort: 0.5 },
       { id: ID(207), title: "엄마 생일 선물 고르기", due: addDays(today, 4), est_min: 45, note: "향수 말고 다른 것. 예산 5만 원 안쪽", sort: 6 },
       { id: ID(208), title: "자료구조 퀴즈 복습", sort: 7, done_at: ago(60 * 24 * 3) },
+      { id: ID(209), title: "교수님 메일 답장", est_min: 30, sort: 8 },
+      // 일정에 딸린 마감
+      { id: ID(210), title: "축의금 봉투 준비", due: addDays(today, 10), due_event_id: ID(125), sort: 9 },
+      // 주간 반복 규칙의 이번 주 회차
+      { id: ID(211), title: "주간 정리", due: d(6), est_min: 40, sort: 10, rule_id: ID(301), rule_date: d(0), checklist: [{ t: "받은 편지함 비우기", done: false }, { t: "다음 주 일정 확인", done: false }] },
+    ],
+    rules: [
+      {
+        id: ID(301),
+        kind: "cycle",
+        title: "주간 정리",
+        est_min: 40,
+        checklist: ["받은 편지함 비우기", "다음 주 일정 확인"],
+        repeat: { freq: "weekly", days: [1] },
+        start: d(-14),
+        due_after: 6,
+        last_made: d(0),
+      },
+      // 수업(반복 일정)에 딸린 규칙 — 열 때 roll 이 가장 최근에 끝난 수업의 할 일을 만든다
+      { id: ID(302), kind: "event", title: "자료구조 내용 정리", est_min: 30, place_id: P.school, event_id: ID(101), due_after: 6 },
     ],
   };
 }

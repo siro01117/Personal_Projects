@@ -1,13 +1,18 @@
 "use client";
 
 // 수정 칸 (목업 수정 시트): 제목 · 날짜 · 시작–끝(종일) · 지점 칩 · 반복(안 함/매일/매주+요일, 끝나는 날) · 메모,
-// '더보기' 아래 상세 장소 · 이동시간. 데스크톱 패널과 폰 시트가 같이 쓴다. 한글 조합 중 Enter 는 무시.
+// '더보기' 아래 상세 장소 · 이동시간 · (반복 일정이면) 끝나면 할 일. 데스크톱 패널과 폰 시트가 같이 쓴다.
+// 한글 조합 중 Enter 는 무시.
 
 import { useState } from "react";
-import { weekday, type Place, type Repeat } from "../../../lib/schedule";
+import { TASK_TITLE_MAX, weekday, type Place, type Repeat } from "../../../lib/schedule";
 import { hm, WEEKDAYS, type Draft, type Scope } from "../../_logic/schedule";
 import { Icon } from "../Icon";
 import { PlaceSymbol } from "./PlaceSymbol";
+
+/** 끝나면 할 일 (docs/플래너.md 7-2): 회차가 끝날 때마다 생길 할 일의 제목(비우면 없음)과 마감까지 며칠 */
+export type AfterDraft = { title: string; dueAfter: string };
+export const NO_AFTER: AfterDraft = { title: "", dueAfter: "" };
 
 /** "HH:MM" → 분 (못 읽으면 null) */
 function parseHm(s: string): number | null {
@@ -24,6 +29,8 @@ export function EventForm({
   places,
   scopes,
   isNew,
+  after,
+  onAfter,
   onSave,
   onCancel,
 }: {
@@ -34,10 +41,13 @@ export function EventForm({
   /** 반복 회차면 저장 범위. 빈 목록이면 그냥 저장 */
   scopes: Scope[];
   isNew: boolean;
+  /** 끝나면 할 일. 안 주면 칸을 그리지 않는다 (플래너의 '일정으로') */
+  after?: AfterDraft;
+  onAfter?: (a: AfterDraft) => void;
   onSave: (scope: Scope | null) => void;
   onCancel: () => void;
 }) {
-  const [more, setMore] = useState(draft.where_text !== "" || draft.travel !== "");
+  const [more, setMore] = useState(draft.where_text !== "" || draft.travel !== "" || (after?.title ?? "") !== "");
   const set = (p: Partial<Draft>) => onChange({ ...draft, ...p });
   const shown = places.filter((p) => !p.deleted || p.id === draft.place_id);
 
@@ -178,6 +188,7 @@ export function EventForm({
         <textarea className="memo" placeholder="메모" aria-label="메모" maxLength={2000} value={draft.note} onChange={(e) => set({ note: e.target.value })} />
       </div>
       {more ? (
+        <>
         <div className="f">
           <Icon name="route" />
           <div className="v">
@@ -202,6 +213,38 @@ export function EventForm({
             </label>
           </div>
         </div>
+        {after && onAfter && draft.repeat !== null && (
+          <div className="f">
+            <Icon name="plan" />
+            <div className="v">
+              <input
+                className="txt-in"
+                placeholder="끝나면 할 일"
+                aria-label="끝나면 할 일"
+                maxLength={TASK_TITLE_MAX}
+                value={after.title}
+                onChange={(e) => onAfter({ ...after, title: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.nativeEvent.isComposing || e.keyCode === 229)) e.preventDefault();
+                }}
+              />
+              {after.title.trim() !== "" && (
+                <label className="unit">
+                  마감까지
+                  <input
+                    className="txt-in"
+                    inputMode="numeric"
+                    aria-label="마감까지 며칠 (0~60, 빈칸이면 마감 없음)"
+                    value={after.dueAfter}
+                    onChange={(e) => onAfter({ ...after, dueAfter: e.target.value.replace(/[^0-9]/g, "").slice(0, 2) })}
+                  />
+                  일
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+        </>
       ) : (
         <button type="button" className="more" onClick={() => setMore(true)}>
           <Icon name="down" />
