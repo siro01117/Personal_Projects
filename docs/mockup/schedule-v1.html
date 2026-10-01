@@ -94,7 +94,7 @@ body.is-desk .mockbar .theme-btn{display:none}
 .dh.today .d{background:var(--point);color:var(--on-point)}
 .wk-all{border-bottom:1px solid var(--border);padding-bottom:6px;min-height:34px}
 .ad{display:flex;flex-direction:column;gap:3px;padding:0 4px 0 2px;min-width:0}
-.allday{height:22px;border-radius:6px;padding:0 8px;font-size:12px;font-weight:600;line-height:22px;color:var(--text-1);background:var(--point-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.allday{height:24px;border-radius:6px;padding:0 10px;font-size:12px;font-weight:600;line-height:22px;color:var(--text-1);background:var(--point-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nofit{align-self:flex-start;max-width:100%;height:20px;border-radius:6px;padding:0 6px;font-size:11px;line-height:18px;color:var(--text-3);border:1px dashed var(--dash);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk-body{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;scrollbar-gutter:stable}
 .wk-grid{display:grid;grid-template-columns:56px minmax(0,1fr);height:calc(1440 * var(--pm));margin:8px 0 16px}
@@ -103,14 +103,15 @@ body.is-desk .mockbar .theme-btn{display:none}
 .nowpill{position:absolute;right:4px;top:calc(var(--s) * var(--pm));transform:translateY(-50%);height:18px;padding:0 6px;border-radius:999px;background:var(--point);color:var(--on-point);font-family:var(--font-num);font-size:11px;font-weight:600;line-height:18px;z-index:2}
 .cols{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% 48px;border-bottom:1px solid var(--border)}
 .col{position:relative;border-left:1px solid var(--border);min-width:0;container:col/inline-size}
-@container col (max-width: 120px){ .ev .src{display:none} .ev{padding:3px 5px} }
+@container col (max-width: 120px){ .ev .src{display:none} .ev{padding:5px 8px} .band{padding:0 7px} }
 .col:last-child{border-right:1px solid var(--border)}
 
 /* 블록 */
-.ev,.band,.meal{position:absolute;left:2px;right:4px;top:calc(var(--s) * var(--pm));height:calc((var(--e) - var(--s)) * var(--pm));overflow:hidden;min-width:0}
-.ev{border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.3;z-index:1}
-.ev .r{display:flex;align-items:baseline;gap:6px;min-width:0}
-.ev .t{font-weight:600;color:var(--text-1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ev,.band,.meal{position:absolute;left:4px;right:4px;top:calc(var(--s) * var(--pm));height:calc((var(--e) - var(--s)) * var(--pm));overflow:hidden;min-width:0}
+.ev{border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.3;z-index:1}
+.ev .r{display:flex;align-items:center;gap:6px;min-width:0}
+.ps{width:13px;height:13px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;color:var(--text-2)}
+.ev .t{font-weight:600;color:var(--text-1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;word-break:keep-all}
 .ev .src{flex:0 0 auto;font-size:10.5px;color:var(--text-3)}
 .ev .h{display:block;font-family:var(--font-num);font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ev.mine{background:var(--point-soft)}
@@ -118,9 +119,11 @@ body.is-desk .mockbar .theme-btn{display:none}
 .ev.sel{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
 .ev.cut-b{border-bottom-left-radius:0;border-bottom-right-radius:0}
 .ev.cut-t{border-top-left-radius:0;border-top-right-radius:0}
-.band{height:calc((var(--e) - var(--s)) * var(--pm) - 1px);border-radius:4px;background:repeating-linear-gradient(135deg,var(--stripe) 0 1.5px,transparent 1.5px 6px);display:flex;align-items:center;padding:0 7px;font-size:10.5px;line-height:1;color:var(--text-3);white-space:nowrap}
-.band.warn{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);font-weight:600}
-.meal{border:1px dashed var(--dash);border-radius:6px;padding:3px 7px;font-size:12px;line-height:1.3;color:var(--text-3)}
+.band{height:calc((var(--e) - var(--s)) * var(--pm) - 1px);border-radius:0;border-left:2px solid var(--dash);display:flex;align-items:center;gap:5px;padding:0 10px;font-size:10.5px;line-height:1;color:var(--text-3);white-space:nowrap}
+.band .ps{width:11px;height:11px;color:var(--text-3)}
+.band.warn{padding:0 6px;border-left-color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,transparent);color:var(--danger);font-weight:600}
+.band.warn .ps{color:var(--danger)}
+.meal{border:1px dashed var(--dash);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.3;color:var(--text-3)}
 .now{position:absolute;left:0;right:0;top:calc(var(--s) * var(--pm));height:1.5px;margin-top:-.75px;background:var(--point-ink);z-index:3}
 .now::before{content:"";position:absolute;left:-4px;top:-3.25px;width:8px;height:8px;border-radius:50%;background:var(--point-ink)}
 
@@ -172,7 +175,10 @@ body.is-desk .mockbar .theme-btn{display:none}
 .ph-grid{display:grid;grid-template-columns:52px minmax(0,1fr);height:calc(1440 * var(--pm));margin:8px 0 96px}
 .ph-col{position:relative;background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% 48px;border-left:1px solid var(--border);margin-right:12px}
 .ph-col .ev,.ph-col .band,.ph-col .meal{left:4px;right:4px}
-.ph-col .ev{font-size:13px;padding:4px 10px}
+.ph-col .ev{font-size:13px;padding:8px 14px}
+.ph-col .ps{width:14px;height:14px}
+.ph-col .band{padding:0 14px}
+.ph-col .meal{padding:8px 14px}
 .ph-col .ev .r{gap:8px}
 .ph-col .ev .src{font-size:11px}
 .fab{position:absolute;right:20px;bottom:28px;width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--point);color:var(--on-point);box-shadow:0 6px 18px rgb(0 0 0 / .14);z-index:4}
@@ -194,7 +200,7 @@ body.is-desk .mockbar .theme-btn{display:none}
 .sw i{width:36px;height:20px;border-radius:999px;background:var(--surface-3);position:relative}
 .sw i::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--bg)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{height:32px;padding:0 11px;border-radius:999px;font-size:13px;color:var(--text-2);background:var(--surface-2);display:inline-flex;align-items:center;white-space:nowrap}
+.chip{height:32px;padding:0 12px;border-radius:999px;font-size:13px;color:var(--text-2);background:var(--surface-2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--point-soft);color:var(--text-1);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--point-ink)}
 .days .chip{width:34px;height:34px;padding:0;justify-content:center}
 .memo{width:100%;min-height:56px;resize:none;border:0;background:none;font:inherit;font-size:14px;color:var(--text-1);padding:5px 0;outline:none}
@@ -208,6 +214,10 @@ body.is-desk .mockbar .theme-btn{display:none}
 </head>
 <body class="is-desk">
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="p-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></symbol>
+  <symbol id="p-school" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/><path d="M22 9v6"/></symbol>
+  <symbol id="p-work" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M3 13h18"/></symbol>
+  <symbol id="p-cafe" viewBox="0 0 24 24"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></symbol>
   <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
   <symbol id="i-rep" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M13.3 16.3 15 18"/></symbol>
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
@@ -285,48 +295,48 @@ body.is-desk .mockbar .theme-btn{display:none}
               <!-- 월 9/28 -->
               <div class="col">
                 <div class="band" style="--s:565;--e:600">준비 35</div>
-                <div class="band" style="--s:600;--e:630">등교 30</div>
-                <div class="ev ext" style="--s:630;--e:720"><div class="r"><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
-                <div class="band" style="--s:720;--e:750">귀가 30</div>
+                <div class="band" style="--s:600;--e:630"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span>등교 30</span></div>
+                <div class="ev ext" style="--s:630;--e:720"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
+                <div class="band" style="--s:720;--e:750"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 30</span></div>
                 <div class="meal" style="--s:750;--e:790">점심</div>
                 <div class="band" style="--s:990;--e:1000"></div>
-                <div class="band" style="--s:1000;--e:1020">출근 20</div>
-                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
-                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+                <div class="band" style="--s:1000;--e:1020"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg><span>출근 20</span></div>
+                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
+                <div class="band" style="--s:1320;--e:1340"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 20</span></div>
               </div>
               <!-- 화 9/29 -->
               <div class="col">
                 <div class="meal" style="--s:675;--e:715">점심</div>
                 <div class="band" style="--s:715;--e:750">준비 35</div>
-                <div class="band" style="--s:750;--e:780">등교 30</div>
-                <div class="ev ext" style="--s:780;--e:870"><div class="r"><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
-                <div class="band" style="--s:870;--e:900">귀가 30</div>
+                <div class="band" style="--s:750;--e:780"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span>등교 30</span></div>
+                <div class="ev ext" style="--s:780;--e:870"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
+                <div class="band" style="--s:870;--e:900"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 30</span></div>
                 <div class="band" style="--s:1040;--e:1050"></div>
-                <div class="band" style="--s:1050;--e:1080">등교 30</div>
-                <div class="ev mine" style="--s:1080;--e:1130"><div class="r"><span class="t">스터디</span></div><span class="h">18:00–18:50</span></div>
+                <div class="band" style="--s:1050;--e:1080"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span>등교 30</span></div>
+                <div class="ev mine" style="--s:1080;--e:1130"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span class="t">스터디</span></div><span class="h">18:00–18:50</span></div>
                 <div class="band warn" style="--s:1130;--e:1150;right:auto;width:calc(42% - 4px)">10분 늦음</div>
-                <div class="ev mine" style="--s:1140;--e:1260;left:42%"><div class="r"><span class="t">APPTIVE 회의</span></div><span class="h">19:00–21:00</span></div>
-                <div class="band" style="--s:1260;--e:1275">귀가 15</div>
+                <div class="ev mine" style="--s:1140;--e:1260;left:42%"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-cafe"/></svg><span class="t">APPTIVE 회의</span></div><span class="h">19:00–21:00</span></div>
+                <div class="band" style="--s:1260;--e:1275"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 15</span></div>
               </div>
               <!-- 수 9/30 -->
               <div class="col">
                 <div class="band" style="--s:565;--e:600">준비 35</div>
-                <div class="band" style="--s:600;--e:630">등교 30</div>
-                <div class="ev ext" style="--s:630;--e:720"><div class="r"><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
-                <div class="band" style="--s:720;--e:750">귀가 30</div>
+                <div class="band" style="--s:600;--e:630"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span>등교 30</span></div>
+                <div class="ev ext" style="--s:630;--e:720"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
+                <div class="band" style="--s:720;--e:750"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 30</span></div>
                 <div class="meal" style="--s:750;--e:790">점심</div>
                 <div class="band" style="--s:990;--e:1000"></div>
-                <div class="band" style="--s:1000;--e:1020">출근 20</div>
-                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
-                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+                <div class="band" style="--s:1000;--e:1020"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg><span>출근 20</span></div>
+                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
+                <div class="band" style="--s:1320;--e:1340"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 20</span></div>
               </div>
               <!-- 목 10/1 (오늘) -->
               <div class="col">
                 <div class="meal" style="--s:675;--e:715">점심</div>
                 <div class="band" style="--s:715;--e:750">준비 35</div>
-                <div class="band" style="--s:750;--e:780">등교 30</div>
-                <div class="ev ext" style="--s:780;--e:870"><div class="r"><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
-                <div class="band" style="--s:870;--e:900">귀가 30</div>
+                <div class="band" style="--s:750;--e:780"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span>등교 30</span></div>
+                <div class="ev ext" style="--s:780;--e:870"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
+                <div class="band" style="--s:870;--e:900"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 30</span></div>
                 <div class="ev mine sel" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h">15:30–16:30</span></div>
                 <div class="meal" style="--s:1080;--e:1120">저녁</div>
                 <div class="now" style="--s:860"></div>
@@ -335,9 +345,9 @@ body.is-desk .mockbar .theme-btn{display:none}
               <div class="col">
                 <div class="meal" style="--s:720;--e:760">점심</div>
                 <div class="band" style="--s:965;--e:1000">준비 35</div>
-                <div class="band" style="--s:1000;--e:1020">출근 20</div>
-                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
-                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+                <div class="band" style="--s:1000;--e:1020"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg><span>출근 20</span></div>
+                <div class="ev ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
+                <div class="band" style="--s:1320;--e:1340"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 20</span></div>
                 <div class="ev mine cut-b" style="--s:1380;--e:1440"><div class="r"><span class="t">마감 작업</span></div><span class="h">23:00–01:00</span></div>
               </div>
               <!-- 토 10/3 -->
@@ -399,9 +409,9 @@ body.is-desk .mockbar .theme-btn{display:none}
         <div class="ph-col">
           <div class="meal" style="--s:675;--e:715">점심</div>
           <div class="band" style="--s:715;--e:750">준비 35</div>
-          <div class="band" style="--s:750;--e:780">등교 30</div>
-          <div class="ev ext" style="--s:780;--e:870"><div class="r"><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
-          <div class="band" style="--s:870;--e:900">귀가 30</div>
+          <div class="band" style="--s:750;--e:780"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span>등교 30</span></div>
+          <div class="ev ext" style="--s:780;--e:870"><div class="r"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
+          <div class="band" style="--s:870;--e:900"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg><span>귀가 30</span></div>
           <div class="ev mine" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h">15:30–16:30</span></div>
           <div class="meal" style="--s:1080;--e:1120">저녁</div>
           <div class="now" style="--s:860"></div>
@@ -443,10 +453,10 @@ body.is-desk .mockbar .theme-btn{display:none}
       <div class="f">
         <svg class="i"><use href="#i-pin"/></svg>
         <div class="chips">
-          <button type="button" class="chip" aria-pressed="false">집</button>
-          <button type="button" class="chip" aria-pressed="false">학교</button>
-          <button type="button" class="chip" aria-pressed="false">스터디큐브</button>
-          <button type="button" class="chip" aria-pressed="true">카페</button>
+          <button type="button" class="chip" aria-pressed="false"><svg class="ps" aria-hidden="true"><use href="#p-home"/></svg>집</button>
+          <button type="button" class="chip" aria-pressed="false"><svg class="ps" aria-hidden="true"><use href="#p-school"/></svg>학교</button>
+          <button type="button" class="chip" aria-pressed="false"><svg class="ps" aria-hidden="true"><use href="#p-work"/></svg>스터디큐브</button>
+          <button type="button" class="chip" aria-pressed="true"><svg class="ps" aria-hidden="true"><use href="#p-cafe"/></svg>카페</button>
           <button type="button" class="chip" aria-pressed="false">없음</button>
         </div>
       </div>
