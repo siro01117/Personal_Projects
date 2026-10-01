@@ -255,6 +255,12 @@ body.is-desk .mockbar .theme-btn{display:none}
 .mini-cols .ev.sel{box-shadow:none}
 .mini-cols .now{top:calc((var(--s) - var(--m0)) * var(--mpm))}
 
+/* 보기 시트: 누르면 정보만. 고치기는 '수정' 을 한 번 더 */
+.scrim.light{background:rgb(10 10 12 / .18)}
+.sheet.peek{height:auto;padding:8px 20px calc(24px + env(safe-area-inset-bottom,0px));gap:0}
+.sheet.peek .dp-h{margin:6px 0 8px}
+.sheet.peek .dp-acts{margin-top:12px}
+
 /* 바텀 시트 */
 .scrim{position:absolute;inset:0;background:rgb(10 10 12 / .42);z-index:5}
 .sheet{position:absolute;left:0;right:0;bottom:0;height:672px;z-index:6;background:var(--surface);border-top:1px solid var(--border);border-radius:24px 24px 0 0;display:flex;flex-direction:column;padding:8px 16px 24px}
@@ -494,6 +500,55 @@ body.is-desk .mockbar .theme-btn{display:none}
     <button type="button" class="fab" aria-label="새 일정"><svg class="i"><use href="#i-plus"/></svg></button>
   </div>
 
+
+  <!-- 1-2. 블록을 누르면: 보기만 (수정은 버튼을 한 번 더) -->
+  <div class="ph">
+    <div class="ph-top">
+      <button type="button" class="iconbtn" aria-label="전날"><svg class="i"><use href="#i-left"/></svg></button>
+      <h2>10월 1일 목</h2>
+      <button type="button" class="iconbtn" aria-label="다음날"><svg class="i"><use href="#i-right"/></svg></button>
+      <span class="grow"></span>
+      <div class="seg vseg"><button type="button" aria-pressed="true">하루</button><button type="button" aria-pressed="false">주</button></div>
+      <button type="button" class="ghost">오늘</button>
+    </div>
+    <div class="strip">
+      <div class="sd"><span class="w">월</span><span class="d num">28</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">화</span><span class="d num">29</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">수</span><span class="d num">30</span><i class="dot"></i></div>
+      <div class="sd today"><span class="w">목</span><span class="d num">1</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">금</span><span class="d num">2</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">토</span><span class="d num">3</span><i class="dot"></i></div>
+      <div class="sd"><span class="w">일</span><span class="d num">4</span><i class="dot no"></i></div>
+    </div>
+    <div class="ph-body" id="phBody2">
+      <div class="ph-grid">
+        <div class="axis">
+          <span style="top:48px">1:00</span><span style="top:96px">2:00</span><span style="top:144px">3:00</span><span style="top:192px">4:00</span><span style="top:240px">5:00</span><span style="top:288px">6:00</span><span style="top:336px">7:00</span><span style="top:384px">8:00</span><span style="top:432px">9:00</span><span style="top:480px">10:00</span><span style="top:528px">11:00</span><span style="top:576px">12:00</span><span style="top:624px">13:00</span><span style="top:672px">14:00</span><span style="top:720px">15:00</span><span style="top:768px">16:00</span><span style="top:816px">17:00</span><span style="top:864px">18:00</span><span style="top:912px">19:00</span><span style="top:960px">20:00</span><span style="top:1008px">21:00</span><span style="top:1056px">22:00</span><span style="top:1104px">23:00</span>
+          <b class="nowpill" style="--s:860">14:20</b>
+        </div>
+        <div class="ph-col">
+          <div class="meal" style="--s:675;--e:715">점심</div>
+          <div class="band prep" style="--s:715;--e:750"><b>준비</b><span class="m">35</span></div>
+          <div class="band" style="--s:750;--e:780"><b>등교</b><span class="m">30</span></div>
+          <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h"><span class="hs">13:00</span><span class="he">–14:30</span></span></div>
+          <div class="band" style="--s:870;--e:900"><b>귀가</b><span class="m">30</span></div>
+          <div class="ev sel" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h"><span class="hs">15:30</span><span class="he">–16:30</span></span></div>
+          <div class="meal" style="--s:1080;--e:1120">저녁</div>
+          <div class="now" style="--s:860"></div>
+        </div>
+      </div>
+    </div>
+        <div class="scrim light"></div>
+    <div class="sheet peek" role="dialog" aria-label="팀플 정리">
+      <div class="grab"></div>
+      <div class="dp-h"><h2>팀플 정리</h2></div>
+      <div class="dp-f"><svg class="i"><use href="#i-clock"/></svg><div><span class="num">10월 1일 목 · 15:30–16:30</span></div></div>
+      <div class="dp-f"><svg class="i"><use href="#i-pin"/></svg><div>지점 없음</div></div>
+      <div class="dp-f"><svg class="i"><use href="#i-memo"/></svg><div>발표 자료 역할 나누기</div></div>
+      <div class="dp-acts"><button type="button" class="ghost">수정</button><button type="button" class="del">없애기</button></div>
+    </div>
+  </div>
+
   <!-- 3. 주 미니어처 -->
   <div class="ph">
     <div class="ph-top">
@@ -633,7 +688,7 @@ body.is-desk .mockbar .theme-btn{display:none}
     document.body.classList.toggle('is-desk', !p);
     document.querySelectorAll('.mockbar .seg button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.view===v)); });
     // 보이는 시간대: 데스크톱 8:30부터, 폰 10:30부터
-    if(p) document.getElementById('phBody').scrollTop=10.5*48; else document.getElementById('wkBody').scrollTop=8.5*48;
+    if(p){ document.getElementById('phBody').scrollTop=10.5*48; document.getElementById('phBody2').scrollTop=10.5*48; } else document.getElementById('wkBody').scrollTop=8.5*48;
   }
   document.querySelectorAll('.mockbar .seg button').forEach(function(b){ b.addEventListener('click', function(){ show(b.dataset.view); }); });
   var first=location.hash==='#phone'?'phone':'desk';
