@@ -155,10 +155,50 @@ export type TaskRow = {
   done_at: string | null;
   origin_kind: OriginKind | null;
   origin_id: string | null;
+  /** 지점 (docs/플래너.md 7-4) */
+  place_id: string | null;
+  /** 마감을 딸려 둔 일정. due 는 그 회차 날짜의 사본 (7-3) */
+  due_event_id: string | null;
+  /** 체크 항목 한 단 (7-6) */
+  checklist: CheckItem[];
+  /** 반복 규칙에서 생겼으면 그 규칙과 회차 날짜 (7-2) */
+  rule_id: string | null;
+  rule_date: DateStr | null;
   version: number;
   created_at: string;
   updated_at: string;
 };
+
+export type CheckItem = { t: string; done: boolean };
+
+export const TASK_RULE_KINDS = ["cycle", "event"] as const;
+export type TaskRuleKind = (typeof TASK_RULE_KINDS)[number];
+
+/** ez_task_rules 한 줄 — 때가 되면 할 일을 만든다 (docs/플래너.md 7-2) */
+export type TaskRule = {
+  id: string;
+  kind: TaskRuleKind;
+  title: string;
+  note: string | null;
+  est_min: number | null;
+  place_id: string | null;
+  /** 만들 할 일의 체크 항목 글자 */
+  checklist: string[];
+  /** cycle 만: 매일 / 매주 요일. until 은 쓰지 않는다 */
+  repeat: Exclude<Repeat, null> | null;
+  /** cycle 만: 이 날부터 */
+  start: DateStr | null;
+  /** event 만: 반복 일정 */
+  event_id: string | null;
+  /** 생긴 날부터 마감까지 며칠 (0~60). null 이면 마감 없음 */
+  due_after: number | null;
+  last_made: DateStr | null;
+  version: number;
+};
+
+export const CHECKLIST_MAX = 20;
+export const CHECK_ITEM_MAX = 100;
+export const DUE_AFTER_MAX = 60;
 
 export const TITLE_MAX = 100;
 export const TASK_TITLE_MAX = 200;
