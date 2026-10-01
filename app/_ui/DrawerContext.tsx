@@ -5,12 +5,16 @@
 // 로그인 · 데이터 구현 · 오류 처리 · 다시 불러오기 신호(tick)는 모듈 공용 AppProvider 에서 온다.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { DRAWER, KEY } from "../_data/cache";
 import type { DrawerData, Entry, Folder } from "../_data/types";
 import { useApp } from "./AppContext";
 
 export { AUTH_MESSAGE, REFRESH_MS, useSignedIn } from "./AppContext";
 
 export type Clip = { mode: "copy" | "cut"; items: Entry[] };
+
+/** 새 값 알림을 모으는 시간 — 목록 · 안 읽음 · 폴더가 거의 같이 오니 한 번만 다시 그린다 */
+const FRESH_GAP_MS = 60;
 
 /** 실행취소 스택 길이 */
 const UNDO_MAX = 50;
@@ -46,13 +50,34 @@ export function useDrawer(): DrawerCtx {
 }
 
 export function DrawerProvider({ children }: { children: ReactNode }) {
-  const { src, demo, href, fail, tick } = useApp();
-  const [folders, setFoldersState] = useState<Folder[]>([]);
-  const [foldersLoaded, setFoldersLoaded] = useState(false);
+  const { src, demo, href, fail, tick: appTick } = useApp();
+  const cache = src.cache;
+  // 폴더 목록은 담아 둔 것으로 바로 시작한다 (경로 · 옮길 곳이 처음부터 보인다)
+  const [folders, setFoldersState] = useState<Folder[]>(() => cache.peek<Folder[]>(KEY.folders) ?? []);
+  const [foldersLoaded, setFoldersLoaded] = useState(() => cache.peek(KEY.folders) !== undefined);
   const [rev, setRev] = useState(0);
   const [clip, setClip] = useState<Clip | null>(null);
   const undoStack = useRef<{ id: number; run: () => Promise<void> }[]>([]);
   const undoSeq = useRef(0);
+
+  // 담아 둔 것을 먼저 그린 뒤, 뒤에서 읽은 새 값이 다르면 다시 불러오기 신호를 한 번 더 올린다.
+  // tick 과 같은 길이라 저장 중 · 이름 입력 중에는 화면이 알아서 미룬다 (그때는 다음 신호에 새 값이 온다)
+  const [fresh, setFresh] = useState(0);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = cache.subscribe((key) => {
+      if (!key.startsWith(DRAWER) || timer !== undefined) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        setFresh((n) => n + 1);
+      }, FRESH_GAP_MS);
+    });
+    return () => {
+      off();
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [cache]);
+  const tick = appTick + fresh;
 
   const data = src.data;
   const refreshFolders = useCallback(async () => {

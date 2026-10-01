@@ -19,6 +19,7 @@ import type {
   TaskRule,
   Travel,
 } from "../../lib/schedule";
+import type { DataCache } from "./cache";
 
 export type Kind = "folder" | "report";
 
@@ -280,4 +281,5 @@ export interface PlannerData {
   restoreRole(id: string, deps?: RoleDeps): Promise<Role>;
 }
 
-export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; auth: Auth; demo: boolean };
+/** cache = 마지막으로 읽은 것 (먼저 그리기용). data 는 이미 캐시를 낀 서랍 */
+export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; auth: Auth; demo: boolean; cache: DataCache };

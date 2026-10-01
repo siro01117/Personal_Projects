@@ -87,21 +87,21 @@ export class SupabaseSchedule implements ScheduleData, PlannerData {
 
   async events(from: DateStr, to: DateStr): Promise<EventRows> {
     const lo = addDays(from, -2);
-    const events = await all<EventRow>((a, b) =>
+    // 예외는 일정에 끼워 한 요청으로 읽는다 (예전에는 일정 → 예외 두 차례였다). FK: ez_event_exceptions.event_id → ez_events.id
+    const rows = await all<EventRow & { exceptions: EventException[] | null }>((a, b) =>
       this.t("ez_events")
-        .select(EVENT_COLS)
+        .select(`${EVENT_COLS}, exceptions:ez_event_exceptions(event_id, on_date, skip, patch)`)
         .is("deleted_at", null)
         .or(`repeat.not.is.null,and(date.gte.${lo},date.lte.${to})`)
         .order("id")
         .range(a, b),
     );
-    const ids = events.filter((e) => e.repeat !== null).map((e) => e.id);
+    const events: EventRow[] = [];
     const exceptions: EventException[] = [];
-    for (let i = 0; i < ids.length; i += IN_CHUNK) {
-      const chunk = ids.slice(i, i + IN_CHUNK);
-      exceptions.push(
-        ...(await run<EventException[]>(this.t("ez_event_exceptions").select("event_id, on_date, skip, patch").in("event_id", chunk))),
-      );
+    for (const { exceptions: ex, ...e } of rows) {
+      events.push(e);
+      // 반복 일정의 예외만 (반복을 푼 일정에 남은 것은 싣지 않는다 — 예전과 같다)
+      if (e.repeat !== null && ex) exceptions.push(...ex);
     }
     return { events, exceptions };
   }

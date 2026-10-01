@@ -2,6 +2,7 @@
 // 개발 모드에서만 불린다 (source.ts 가 NODE_ENV 로 막는다).
 
 import { sampleBlocks } from "../../lib/fixtures";
+import { cachedDrawer, DataCache } from "./cache";
 import { MemoryDrawer, type Seed } from "./memory";
 import { scheduleSeed } from "./scheduleDemo";
 import { MemorySchedule } from "./scheduleMemory";
@@ -175,6 +176,9 @@ export function demoSchedule(): MemorySchedule {
   return scheduleInstance;
 }
 
+/** 확인 모드 캐시: 메모리만 (저장소에 안 남긴다 — 새로 고치면 데이터도 처음으로 돌아가니까). 진짜 캐시와 따로 */
+const demoCache = new DataCache(null, "demo");
+
 const demoAuth: Auth = {
   signedIn: async () => true,
   signIn: async () => {},
@@ -196,5 +200,5 @@ export function demoSource(): Source {
       bumpEvent: (id: string) => schedule.bump(id),
     };
   }
-  return { data, schedule, planner: schedule, auth: demoAuth, demo: true };
+  return { data: cachedDrawer(data, demoCache), schedule, planner: schedule, auth: demoAuth, demo: true, cache: demoCache };
 }

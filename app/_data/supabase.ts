@@ -4,6 +4,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueName } from "../../lib/names";
 import { DbError } from "../../lib/errors";
+import { browserStore, cachedDrawer, DataCache } from "./cache";
 import { SupabaseSchedule } from "./scheduleSupabase";
 import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow } from "./types";
 
@@ -32,13 +33,30 @@ function env(): { url: string; key: string } {
   return { url, key };
 }
 
+/** 개발 모드: 요청마다 번호를 찍는다 — 화면 하나를 여는 데 몇 번 부르는지 콘솔에서 센다 */
+let requestNo = 0;
+const countingFetch: typeof fetch = (input, init) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  const at = url.indexOf("/rest/v1/");
+  if (at >= 0) console.debug(`[ez] 요청 ${++requestNo} ${init?.method ?? "GET"} ${url.slice(at + 9).split("?")[0]} @${Math.round(performance.now())}ms`);
+  return fetch(input, init);
+};
+
 let client: SupabaseClient | null = null;
 export function sb(): SupabaseClient {
   if (!client) {
     const { url, key } = env();
-    client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    client = createClient(url, key, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      ...(process.env.NODE_ENV === "development" ? { global: { fetch: countingFetch } } : {}),
+    });
   }
   return client;
+}
+
+/** 시험용: 가짜 클라이언트를 끼운다 (null 이면 되돌린다) */
+export function setClient(c: SupabaseClient | null): void {
+  client = c;
 }
 
 /** 공유 페이지용 — 세션 없이 anon 으로만 */
@@ -209,27 +227,45 @@ const SIGN_SECONDS = 3600;
 /** 이 페이지 안에서 받은 주소 (만료 5분 전까지 다시 쓴다) — 30초마다 다시 불러와도 사진이 깜빡이지 않게 */
 const signed = new Map<string, { url: string; until: number }>();
 
+/** 마지막으로 읽은 것 (먼저 그리기). 사람 id 로 나뉜다 — 로그인을 확인할 때 정해지고, 로그아웃하면 전부 지운다 */
+const cache = new DataCache(browserStore());
+
 const auth: Auth = {
+  // getSession 은 기기에 저장된 세션을 읽는다 (네트워크를 타지 않는다. 토큰이 만료됐을 때만 갱신 요청 하나)
   async signedIn() {
     const { data } = await sb().auth.getSession();
+    // 세션이 없으면(닫아 둔 사이 만료 등) 담아 둔 것도 지운다
+    if (!data.session) cache.clear();
+    cache.setScope(data.session?.user.id ?? null);
     return data.session !== null;
   },
   async signIn(email, password) {
-    const { error } = await sb().auth.signInWithPassword({ email, password });
+    const { data, error } = await sb().auth.signInWithPassword({ email, password });
     if (error) throw error;
+    cache.setScope(data.user?.id ?? null);
   },
   async signOut() {
+    cache.clear();
+    cache.setScope(null);
     await sb().auth.signOut();
   },
   onSignedOut(cb) {
     const { data } = sb().auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") cb();
+      if (event !== "SIGNED_OUT") return;
+      cache.clear();
+      cache.setScope(null);
+      cb();
     });
     return () => data.subscription.unsubscribe();
   },
 };
 
+let source: Source | null = null;
+/** 하나만 만든다 — 모듈을 오가도 같은 것을 쓴다 (로그인 확인 · 캐시를 이어 쓴다) */
 export function supabaseSource(): Source {
-  const schedule = new SupabaseSchedule();
-  return { data: new SupabaseDrawer(), schedule, planner: schedule, auth, demo: false };
+  if (!source) {
+    const schedule = new SupabaseSchedule();
+    source = { data: cachedDrawer(new SupabaseDrawer(), cache), schedule, planner: schedule, auth, demo: false, cache };
+  }
+  return source;
 }

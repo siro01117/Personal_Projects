@@ -43,21 +43,34 @@ function useHere(): RefObject<string> {
   return ref;
 }
 
-/** 로그인 확인. 안 됐으면 로그인 화면으로 보내고 false */
+/**
+ * 이 탭에서 이미 로그인을 확인한 구현. 모듈(서랍 · 일정 · 플래너 · 홈)을 오갈 때 다시 기다리지 않고 바로 그린다.
+ * 새로 고치면 비어 있어서 서버가 그린 것(빈 화면)과 첫 그림이 같다
+ */
+const known = new WeakSet<object>();
+
+/**
+ * 로그인 확인. 안 됐으면 로그인 화면으로 보내고 false.
+ * 확인은 기기에 저장된 세션을 읽는 것이라 네트워크를 타지 않는다. 한 번 확인했으면 바로 ready 이고 뒤에서 다시 본다
+ */
 export function useSignedIn(): { ready: boolean; src: ReturnType<typeof useSource> } {
   const src = useSource();
   const router = useRouter();
   const hereRef = useHere();
-  const [ready, setReady] = useState(false);
+  const [checked, setChecked] = useState<object | null>(null);
 
   useEffect(() => {
     if (!src) return;
     let alive = true;
-    const toLogin = () => router.replace(`/login?next=${encodeURIComponent(hereRef.current)}`);
+    const toLogin = () => {
+      known.delete(src);
+      router.replace(`/login?next=${encodeURIComponent(hereRef.current)}`);
+    };
     src.auth.signedIn().then(
       (ok) => {
+        if (ok) known.add(src);
         if (!alive) return;
-        if (ok) setReady(true);
+        if (ok) setChecked(src);
         else toLogin();
       },
       () => alive && toLogin(),
@@ -69,8 +82,11 @@ export function useSignedIn(): { ready: boolean; src: ReturnType<typeof useSourc
     };
   }, [src, router, hereRef]);
 
-  return { ready, src };
+  return { ready: src !== null && (checked === src || known.has(src)), src };
 }
+
+/** 창 복귀는 focus 와 visibilitychange 가 같이 온다 — 이 안에 온 두 번째는 버린다 */
+const BUMP_GAP_MS = 1_000;
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { ready, src } = useSignedIn();
@@ -94,8 +110,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // 창에 다시 들어올 때 + 보이는 동안 30초마다
   useEffect(() => {
     if (!ready) return;
+    let last = 0;
     const bump = () => {
-      if (document.visibilityState === "visible") setTick((t) => t + 1);
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - last < BUMP_GAP_MS) return;
+      last = now;
+      setTick((t) => t + 1);
     };
     const id = setInterval(bump, REFRESH_MS);
     addEventListener("focus", bump);
