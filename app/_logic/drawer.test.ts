@@ -4,6 +4,12 @@ import {
   canDrop,
   collapseTrail,
   domainOf,
+  dropLine,
+  dropSlot,
+  orderMoved,
+  orderStepped,
+  orderWithout,
+  type Box,
   folderTrail,
   formatDay,
   formatToday,
@@ -304,5 +310,94 @@ describe("사진 출처 한 줄", () => {
     expect(imageCredit({ local_path: "C:/Users/PC/a.png" }, undefined)).toEqual({ kind: "local", path: "C:/Users/PC/a.png" });
     // 공유 페이지: local_path 가 빠져 오면 한 줄 없음
     expect(imageCredit({}, sources)).toBeNull();
+  });
+});
+
+describe("블록 고르기 · 지우기 · 옮기기", () => {
+  const keys = ["a", "b", "c", "d", "e"];
+
+  it("끌어서 고르기: 시작 블록부터 지금 블록까지, 방향과 상관없이 문서 순서로", () => {
+    expect(selectRange(keys, "b", "d")).toEqual(["b", "c", "d"]);
+    expect(selectRange(keys, "d", "b")).toEqual(["b", "c", "d"]);
+    expect(selectRange(keys, "c", "c")).toEqual(["c"]);
+    // 기준이 없어졌으면(지워짐) 누른 것 하나
+    expect(selectRange(keys, "x", "c")).toEqual(["c"]);
+    expect(toggleId(["a", "c"], "c")).toEqual(["a"]);
+    expect(toggleId(["a"], "c")).toEqual(["a", "c"]);
+  });
+
+  it("지우기: 고른 것을 뺀 순서", () => {
+    expect(orderWithout(5, [1, 3])).toEqual([0, 2, 4]);
+    expect(orderWithout(5, [])).toEqual([0, 1, 2, 3, 4]);
+    expect(orderWithout(3, [0, 1, 2])).toEqual([]);
+    expect(orderWithout(3, [2, 2, 9])).toEqual([0, 1]);
+  });
+
+  it("옮기기: 하나를 slot(그 번호 블록의 앞) 자리로", () => {
+    expect(orderMoved(5, [3], 1)).toEqual([0, 3, 1, 2, 4]);
+    expect(orderMoved(5, [0], 5)).toEqual([1, 2, 3, 4, 0]);
+    expect(orderMoved(5, [1], 4)).toEqual([0, 2, 3, 1, 4]);
+    // 제자리(자기 앞 · 자기 뒤)는 그대로
+    expect(orderMoved(5, [2], 2)).toEqual([0, 1, 2, 3, 4]);
+    expect(orderMoved(5, [2], 3)).toEqual([0, 1, 2, 3, 4]);
+    // 범위 밖 slot 은 끝으로 붙는다
+    expect(orderMoved(5, [2], -4)).toEqual([2, 0, 1, 3, 4]);
+    expect(orderMoved(5, [2], 99)).toEqual([0, 1, 3, 4, 2]);
+  });
+
+  it("옮기기: 여러 개는 원래 순서대로 한 덩어리로 간다 (떨어져 있었어도, 고른 순서와 상관없이)", () => {
+    expect(orderMoved(6, [4, 1], 0)).toEqual([1, 4, 0, 2, 3, 5]);
+    expect(orderMoved(6, [1, 4], 6)).toEqual([0, 2, 3, 5, 1, 4]);
+    expect(orderMoved(6, [1, 4], 3)).toEqual([0, 2, 1, 4, 3, 5]);
+    // 고른 것 사이로 놓으면 그 자리로 모인다
+    expect(orderMoved(6, [0, 5], 3)).toEqual([1, 2, 0, 5, 3, 4]);
+    // 이어진 덩어리를 자기 안에 놓으면 그대로
+    expect(orderMoved(6, [2, 3], 3)).toEqual([0, 1, 2, 3, 4, 5]);
+    // 결과는 늘 0~n-1 을 한 번씩
+    for (let slot = 0; slot <= 6; slot++) expect([...orderMoved(6, [5, 2, 2], slot)].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it("Alt+↑/↓: 한 칸씩, 끝에서는 그대로, 떨어진 것은 모인다", () => {
+    expect(orderStepped(5, [2], -1)).toEqual([0, 2, 1, 3, 4]);
+    expect(orderStepped(5, [2], 1)).toEqual([0, 1, 3, 2, 4]);
+    expect(orderStepped(5, [0], -1)).toEqual([0, 1, 2, 3, 4]);
+    expect(orderStepped(5, [4], 1)).toEqual([0, 1, 2, 3, 4]);
+    expect(orderStepped(5, [1, 2], 1)).toEqual([0, 3, 1, 2, 4]);
+    expect(orderStepped(5, [3, 4], 1)).toEqual([0, 1, 2, 3, 4]);
+    expect(orderStepped(5, [1, 3], -1)).toEqual([1, 3, 0, 2, 4]);
+    expect(orderStepped(5, [1, 3], 1)).toEqual([0, 2, 4, 1, 3]);
+    expect(orderStepped(5, [], 1)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  // 세로로 쌓인 블록 셋 (사이 40px), 넷째·다섯째는 한 행에 나란히
+  const box = (left: number, top: number, w: number, h: number): Box => ({ left, top, right: left + w, bottom: top + h });
+  const boxes = [box(100, 0, 800, 100), box(100, 140, 800, 60), box(100, 240, 800, 100), box(100, 380, 380, 200), box(520, 380, 380, 120)];
+
+  it("놓일 자리: 가까운 블록의 위 절반이면 앞, 아래 절반이면 뒤", () => {
+    expect(dropSlot(boxes, 300, 10)).toBe(0);
+    expect(dropSlot(boxes, 300, 90)).toBe(1);
+    expect(dropSlot(boxes, 300, 150)).toBe(1);
+    expect(dropSlot(boxes, 300, 195)).toBe(2);
+    // 블록 사이 빈 곳 · 맨 위 · 맨 아래 · 옆 여백
+    expect(dropSlot(boxes, 300, 125)).toBe(1);
+    expect(dropSlot(boxes, 300, -50)).toBe(0);
+    expect(dropSlot(boxes, 300, 900)).toBe(4);
+    expect(dropSlot(boxes, 20, 260)).toBe(2);
+    // 한 행에 나란한 둘은 가로로 가까운 쪽
+    expect(dropSlot(boxes, 200, 400)).toBe(3);
+    expect(dropSlot(boxes, 200, 560)).toBe(4);
+    expect(dropSlot(boxes, 700, 400)).toBe(4);
+    expect(dropSlot(boxes, 700, 490)).toBe(5);
+    expect(dropSlot([], 0, 0)).toBe(0);
+  });
+
+  it("놓일 선: 위아래 이웃 사이는 가운데, 맨 앞 · 맨 뒤 · 나란한 블록은 그 블록 바깥", () => {
+    expect(dropLine(boxes, 1)).toEqual({ x: 100, y: 120, w: 800 });
+    expect(dropLine(boxes, 0, 14)).toEqual({ x: 100, y: -14, w: 800 });
+    expect(dropLine(boxes, 3)).toEqual({ x: 100, y: 360, w: 380 });
+    // 나란한 둘 사이: 오른쪽 블록 위
+    expect(dropLine(boxes, 4, 14)).toEqual({ x: 520, y: 366, w: 380 });
+    expect(dropLine(boxes, 5, 14)).toEqual({ x: 520, y: 514, w: 380 });
+    expect(dropLine([], 0)).toBeNull();
   });
 });

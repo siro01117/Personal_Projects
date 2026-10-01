@@ -4,8 +4,9 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { sampleImage } from "../../lib/fixtures";
-import { Blocks, enterAction, tocOf } from "./Blocks";
+import { arrangeBlocks } from "../../lib/blocks";
+import { sampleBlocks, sampleImage } from "../../lib/fixtures";
+import { Blocks, enterAction, tocOf, type ArrangeCtx, type EditCtx } from "./Blocks";
 
 const css = readFileSync(new URL("../globals.css", import.meta.url), "utf8");
 
@@ -182,5 +183,81 @@ describe("줄바꿈", () => {
     }
     expect(enterAction(k({ shiftKey: true }), false)).toBe("break");
     expect(enterAction(k({ shiftKey: true }), true)).toBe("none");
+  });
+});
+
+describe("블록 고르기 · 옮기기 표시", () => {
+  const blocks = () => [...sampleBlocks(), sampleImage(), { type: "모르는 종류" }];
+  const KEYS = ["k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8"];
+  const arrange = (selected: string[] = [], moving: string[] = []): ArrangeCtx => ({
+    selected: new Set(selected),
+    moving: new Set(moving),
+    onGripDown: () => {},
+    onGripClick: () => {},
+  });
+  const ctx = (editing: boolean, a?: ArrangeCtx, raw: unknown[] = blocks()): EditCtx => ({ raw, editing, commit: async () => {}, arrange: a });
+  /** 블록 맨 바깥 요소의 여는 태그들 (문서 순서) */
+  const roots = (html: string) => [...html.matchAll(/<(?:div|figure) class="blk [^>]*>/g)].map((m) => m[0]);
+  const count = (html: string, needle: string) => html.split(needle).length - 1;
+
+  it("읽을 때 · 공유 페이지(ctx 없음)에는 손잡이도 열쇠도 없다 — id 만", () => {
+    for (const html of [renderToStaticMarkup(<Blocks blocks={blocks()} />), renderToStaticMarkup(<Blocks blocks={blocks()} ctx={ctx(false, arrange(["k1"]))} keys={KEYS} />)]) {
+      expect(html).not.toContain("grip");
+      expect(html).not.toContain("data-bk");
+      expect(html).not.toContain("data-flip");
+      expect(html).not.toContain("data-sel");
+      expect(roots(html).map((t) => /id="(b\d+)"/.exec(t)![1])).toEqual(["b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8"]);
+    }
+  });
+
+  it("고치기 모드라도 arrange 가 없으면 손잡이가 없다", () => {
+    const html = renderToStaticMarkup(<Blocks blocks={blocks()} ctx={ctx(true)} keys={KEYS} />);
+    expect(html).not.toContain("grip");
+    expect(html).toContain("data-edit");
+  });
+
+  it("고치기 모드: 블록마다 손잡이 하나 — 사진 · 모르는 블록에도", () => {
+    const html = renderToStaticMarkup(<Blocks blocks={blocks()} ctx={ctx(true, arrange())} keys={KEYS} />);
+    expect(count(html, 'class="grip"')).toBe(9);
+    expect(count(html, 'aria-label="블록 고르기"')).toBe(9);
+    expect(roots(html).map((t) => /data-bk="(\w+)"/.exec(t)![1])).toEqual(KEYS);
+    expect(roots(html).every((t) => /data-flip="k\d"/.test(t))).toBe(true);
+    // 설명 글자 · 개수 표시는 없다: 손잡이 안은 아이콘뿐
+    expect(/<button[^>]*class="grip"[^>]*>(.*?)<\/button>/.exec(html)![1]).toMatch(/^<svg[^>]*>.*<\/svg>$/);
+  });
+
+  it("고른 블록 · 끌리는 블록만 표시가 붙는다", () => {
+    const html = renderToStaticMarkup(<Blocks blocks={blocks()} ctx={ctx(true, arrange(["k1", "k7"], ["k7"]))} keys={KEYS} />);
+    const tags = roots(html);
+    expect(tags.filter((t) => t.includes("data-sel")).map((t) => /data-bk="(\w+)"/.exec(t)![1])).toEqual(["k1", "k7"]);
+    expect(tags.filter((t) => t.includes("data-moving")).map((t) => /data-bk="(\w+)"/.exec(t)![1])).toEqual(["k7"]);
+    expect(count(html, 'aria-pressed="true"')).toBe(2);
+  });
+
+  it("순서를 바꾸면 열쇠는 블록을 따라가고 id 와 차례는 새 번호를 따른다", () => {
+    const order = [6, 3, 0, 1, 2, 4, 5, 7, 8];
+    const moved = arrangeBlocks(blocks(), order);
+    const keys = order.map((i) => KEYS[i]!);
+    const html = renderToStaticMarkup(<Blocks blocks={moved} ctx={ctx(true, arrange(), moved)} keys={keys} />);
+    const tags = roots(html);
+    expect(tags.map((t) => /id="(b\d+)"/.exec(t)![1])).toEqual(["b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8"]);
+    expect(tags.map((t) => /data-bk="(\w+)"/.exec(t)![1])).toEqual(keys);
+    expect(tags[0]).toContain("b-sources");
+    expect(tags[1]).toContain("b-list");
+    expect(tocOf(moved)).toEqual([[0, "출처"], [1, "후보"], [2, "판정"], [3, "배경"], [5, "비교"], [6, "근거"]]);
+    // 고칠 칸의 경로도 새 번호: 출처가 맨 앞이어도 인용 번호는 그 출처를 가리킨다
+    expect(html).toContain('id="src-1"');
+  });
+
+  it("고르기 · 손잡이 스타일은 키위 토큰만 쓴다 (밝기 양쪽에서 같은 규칙)", () => {
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector}{`);
+      expect(at, selector).toBeGreaterThan(-1);
+      return css.slice(at + selector.length + 1, css.indexOf("}", at));
+    };
+    expect(rule(".editing .blk[data-sel]")).toBe("background:var(--point-soft);box-shadow:0 0 0 10px var(--point-soft)");
+    expect(rule(".drop-line")).toContain("background:var(--point-ink)");
+    expect(rule(".grip")).toContain("touch-action:none");
+    for (const r of [rule(".grip"), rule(".drop-line"), rule(".editing .blk[data-moving]")]) expect(r).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(/i);
   });
 });

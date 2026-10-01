@@ -187,6 +187,10 @@ class SupabaseDrawer implements DrawerData {
     );
   }
 
+  async arrangeBlocks(id: string, baseVersion: number, order: readonly number[]): Promise<number> {
+    return run<number>(sb().rpc("ez_blocks_arrange", { p_id: id, p_base_version: baseVersion, p_order: [...order] }));
+  }
+
   async share(id: string): Promise<string> {
     return run<string>(sb().rpc("ez_share", { p_id: id }));
   }

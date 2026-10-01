@@ -10,8 +10,10 @@
 // 블록은 행으로 묶어 그린다(app/_logic/rows — 한 행에 객체 최대 2개). 옆 사진은 다음 글과 2칸 행, 아니면 혼자 한쪽.
 // 사진 주소는 볼 때만 잠깐 유효한 것을 받고, 못 받거나 깨지면 설명 글자로.
 // 가장자리가 화면 바탕과 같은 밝기(라이트+light · 다크+dark)인 사진만 포인트색 테두리 — globals.css --img-edge-*.
+// 고치기 모드에서 arrange 를 받으면 블록마다 손잡이(점 여섯 개)와 고름 표시가 붙는다 — 고르기 · 지우기 · 옮기기는 useArrange 가 한다.
+// 블록의 React 열쇠는 keys(순서가 바뀌어도 유지) — id="b{번호}" 는 늘 지금 순서의 번호다.
 
-import { Component, Fragment, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type ReactNode } from "react";
+import { Component, Fragment, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { blockSchema, editRule, type Block, type ImageBlock, type SourcesBlock } from "../../lib/blocks";
 import { splitMarks, stripMarks } from "../../lib/marks";
@@ -23,12 +25,23 @@ export const UNKNOWN_BLOCK = "이 블록은 아직 볼 수 없습니다";
 
 export type Path = (string | number)[];
 
+/** 블록 고르기 · 옮기기 (설계서 3장). 열쇠는 Blocks 의 keys */
+export type ArrangeCtx = {
+  selected: ReadonlySet<string>;
+  /** 지금 끌려가는 블록 */
+  moving: ReadonlySet<string>;
+  onGripDown: (e: PointerEvent<HTMLButtonElement>, key: string) => void;
+  onGripClick: (e: MouseEvent<HTMLButtonElement>, key: string) => void;
+};
+
 export type EditCtx = {
   /** 원본 블록 배열 — 고칠 수 있는 칸인지 여기서 본다 */
   raw: unknown[];
   editing: boolean;
   /** 칸에서 벗어날 때. 저장이 끝나면(성공이든 실패든) 칸 글자를 그때의 값으로 맞춘다 */
   commit: (path: Path, value: string) => Promise<void>;
+  /** 있으면 고치기 모드에서 손잡이가 보인다 */
+  arrange?: ArrangeCtx;
 };
 
 export type EnterAction = "ignore" | "save" | "break" | "none";
@@ -147,14 +160,34 @@ export function Field({
   );
 }
 
-class Boundary extends Component<{ children: ReactNode }, { broken: boolean }> {
+class Boundary extends Component<{ children: ReactNode; fallback: ReactNode }, { broken: boolean }> {
   override state = { broken: false };
   static getDerivedStateFromError() {
     return { broken: true };
   }
   override render() {
-    return this.state.broken ? <div className="blk b-unknown">{UNKNOWN_BLOCK}</div> : this.props.children;
+    return this.state.broken ? this.props.fallback : this.props.children;
   }
+}
+
+/** 블록 맨 바깥 요소에 싣는 것: 지금 번호의 id, 고치기 모드면 열쇠 · 고름 · 끌림 */
+type RootAttrs = { id: string; "data-bk"?: string; "data-flip"?: string; "data-sel"?: ""; "data-moving"?: "" };
+
+/** 손잡이: 누르면 고르고, 끌면 옮긴다. 블록 왼쪽 바깥에 선다 (globals.css .grip) */
+function Grip({ k, a }: { k: string; a: ArrangeCtx }) {
+  return (
+    <button
+      type="button"
+      className="grip"
+      aria-label="블록 고르기"
+      aria-pressed={a.selected.has(k)}
+      onPointerDown={(e) => a.onGripDown(e, k)}
+      onClick={(e) => a.onGripClick(e, k)}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <Icon name="grip" />
+    </button>
+  );
 }
 
 /** 블록 하나를 검사해 본다. 틀리면 null (자리표시) */
@@ -349,7 +382,23 @@ function CreditLine({ c }: { c: NonNullable<ImageCredit> }) {
 }
 
 /** url: undefined = 받는 중, null = 못 받음 */
-function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?: EditCtx; sources?: Source[]; url: string | null | undefined }) {
+function ImageView({
+  b,
+  i,
+  ctx,
+  sources,
+  url,
+  root,
+  grip,
+}: {
+  b: ImageBlock;
+  i: number;
+  ctx?: EditCtx;
+  sources?: Source[];
+  url: string | null | undefined;
+  root: RootAttrs;
+  grip: ReactNode;
+}) {
   const [broken, setBroken] = useState(false);
   const [big, setBig] = useState(false);
   useEffect(() => setBroken(false), [url]);
@@ -358,7 +407,7 @@ function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?
   const box = { maxWidth: `${b.w}px` };
   const editing = !!ctx?.editing;
   return (
-    <figure className={cls} id={`b${i}`} data-edge={b.edge}>
+    <figure className={cls} {...root} data-edge={b.edge}>
       {url === undefined ? (
         <div className="img-wait" style={{ ...box, aspectRatio: `${b.w} / ${b.h}` }} />
       ) : url === null || broken ? (
@@ -367,7 +416,8 @@ function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?
         </div>
       ) : (
         <button type="button" className="img" style={box} onClick={() => setBig(true)}>
-          <img src={url} alt={b.alt} width={b.w} height={b.h} decoding="async" onError={() => setBroken(true)} />
+          {/* 고치기 모드: 사진에서 누른 채 끌어 블록을 고를 수 있게 사진 끌어 내기를 끈다 */}
+          <img src={url} alt={b.alt} width={b.w} height={b.h} decoding="async" draggable={editing ? false : undefined} onError={() => setBroken(true)} />
         </button>
       )}
       {(editing || b.caption || credit) && (
@@ -378,6 +428,7 @@ function ImageView({ b, i, ctx, sources, url }: { b: ImageBlock; i: number; ctx?
         </figcaption>
       )}
       {big && url && !broken && <Lightbox url={url} b={b} onClose={() => setBig(false)} />}
+      {grip}
     </figure>
   );
 }
@@ -389,6 +440,8 @@ function BlockView({
   sources,
   isFirstSources,
   urls,
+  root,
+  grip,
 }: {
   b: Block;
   i: number;
@@ -396,41 +449,45 @@ function BlockView({
   sources?: Source[];
   isFirstSources: boolean;
   urls: Record<string, string> | null;
+  root: RootAttrs;
+  grip: ReactNode;
 }) {
-  const id = `b${i}`;
   const editing = !!ctx?.editing;
   const F = (props: { as: ElementType; className?: string; path: Path; value: string }) => <Field {...props} ctx={ctx} />;
   /** 빈 칸은 읽을 때 안 그린다. 고치기 모드에서는 그려서 다시 채울 수 있게 (키가 없는 선택 칸은 그대로 없음) */
   const show = (v: string | undefined): v is string => v !== undefined && (v !== "" || editing);
   switch (b.type) {
     case "image":
-      return <ImageView b={b} i={i} ctx={ctx} sources={sources} url={urls === null ? undefined : (urls[b.src] ?? null)} />;
+      return <ImageView b={b} i={i} ctx={ctx} sources={sources} url={urls === null ? undefined : (urls[b.src] ?? null)} root={root} grip={grip} />;
     case "verdict":
       return (
-        <div className="blk b-verdict" id={id}>
+        <div className="blk b-verdict" {...root}>
           {show(b.v) && F({ as: "p", className: "v", path: [i, "v"], value: b.v })}
           {show(b.w) && F({ as: "p", className: "w", path: [i, "w"], value: b.w })}
+          {grip}
         </div>
       );
     case "text":
       return (
-        <div className="blk b-text" id={id}>
+        <div className="blk b-text" {...root}>
           {show(b.h) && F({ as: "h3", path: [i, "h"], value: b.h })}
           {show(b.body) && F({ as: "p", path: [i, "body"], value: b.body })}
+          {grip}
         </div>
       );
     case "list":
       return (
-        <div className="blk b-list" id={id}>
+        <div className="blk b-list" {...root}>
           {show(b.h) && F({ as: "h3", path: [i, "h"], value: b.h })}
           <ul>
             {b.items.map((t, j) => show(t) && <li key={j}>{F({ as: "span", path: [i, "items", j], value: t })}</li>)}
           </ul>
+          {grip}
         </div>
       );
     case "table":
       return (
-        <div className="blk b-table" id={id}>
+        <div className="blk b-table" {...root}>
           {show(b.h) && F({ as: "h3", path: [i, "h"], value: b.h })}
           <div className="tbl-wrap">
             <table>
@@ -452,11 +509,12 @@ function BlockView({
               </tbody>
             </table>
           </div>
+          {grip}
         </div>
       );
     case "claims":
       return (
-        <div className="blk b-claims" id={id}>
+        <div className="blk b-claims" {...root}>
           {show(b.h) && F({ as: "h3", path: [i, "h"], value: b.h })}
           {b.items.map(
             (c, j) =>
@@ -472,11 +530,12 @@ function BlockView({
                 </div>
               ),
           )}
+          {grip}
         </div>
       );
     case "sources":
       return (
-        <div className="blk b-sources" id={id}>
+        <div className="blk b-sources" {...root}>
           {show(b.h) && F({ as: "h3", path: [i, "h"], value: b.h })}
           <ol>
             {b.items.map((s, j) => {
@@ -498,6 +557,7 @@ function BlockView({
               );
             })}
           </ol>
+          {grip}
         </div>
       );
   }
@@ -514,7 +574,18 @@ function rowClass(r: Row, parsed: (Block | null)[]): string {
   return `row${shape}${img}${sec ? " sec" : ""}`;
 }
 
-export function Blocks({ blocks, ctx, images }: { blocks: unknown[]; ctx?: EditCtx; images?: ImageUrls }) {
+export function Blocks({
+  blocks,
+  ctx,
+  images,
+  keys,
+}: {
+  blocks: unknown[];
+  ctx?: EditCtx;
+  images?: ImageUrls;
+  /** 블록마다 순서가 바뀌어도 유지되는 열쇠 (blocks 와 같은 길이). 없으면 번호 */
+  keys?: readonly string[];
+}) {
   const parsed = blocks.map(parseBlock);
   // 인용 번호는 첫 출처 블록을 가리킨다 (lib/blocks 검사와 같다)
   const firstSources = parsed.findIndex((b) => b?.type === "sources");
@@ -537,15 +608,29 @@ export function Blocks({ blocks, ctx, images }: { blocks: unknown[]; ctx?: EditC
   }, [key, images]);
   const map = !images ? {} : urls && urls.key === key ? urls.map : null;
 
+  const keyOf = (i: number) => keys?.[i] ?? `k${i}`;
+  const arrange = ctx?.editing ? ctx.arrange : undefined;
+
   const one = (i: number) => {
     const b = parsed[i];
+    const k = keyOf(i);
+    const root: RootAttrs = { id: `b${i}` };
+    if (arrange) {
+      root["data-bk"] = k;
+      root["data-flip"] = k;
+      if (arrange.selected.has(k)) root["data-sel"] = "";
+      if (arrange.moving.has(k)) root["data-moving"] = "";
+    }
+    const grip = arrange ? <Grip k={k} a={arrange} /> : null;
+    const unknown = (
+      <div className="blk b-unknown" {...root}>
+        {UNKNOWN_BLOCK}
+        {grip}
+      </div>
+    );
     return (
-      <Boundary key={i}>
-        {b ? (
-          <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} urls={map} />
-        ) : (
-          <div className="blk b-unknown" id={`b${i}`}>{UNKNOWN_BLOCK}</div>
-        )}
+      <Boundary key={k} fallback={unknown}>
+        {b ? <BlockView b={b} i={i} ctx={ctx} sources={sources} isFirstSources={i === firstSources} urls={map} root={root} grip={grip} /> : unknown}
       </Boundary>
     );
   };
@@ -556,7 +641,7 @@ export function Blocks({ blocks, ctx, images }: { blocks: unknown[]; ctx?: EditC
         // 읽을 때: 보일 것이 없는 블록(사람이 다 비운 블록)은 건너뛰고, 그런 블록뿐인 행은 안 그린다
         const shown = rowBlocks(r).filter((k) => ctx?.editing || !(parsed[k] && isBlankBlock(parsed[k])));
         return shown.length === 0 ? null : (
-          <div key={r.i} className={rowClass(r, parsed)}>
+          <div key={keyOf(r.i)} className={rowClass(r, parsed)}>
             {shown.map(one)}
           </div>
         );

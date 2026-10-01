@@ -311,3 +311,71 @@ export function imageCredit(
   if (b.local_path !== undefined) return { kind: "local", path: b.local_path };
   return null;
 }
+
+// ---------------------------------------------------------------- 블록 고르기 · 지우기 · 옮기기 (설계서 3장)
+// 순서(order)는 새 순서로 늘어놓은 옛 블록 번호 — DB ez_blocks_arrange 에 그대로 보낸다.
+
+const sortedUnique = (count: number, picked: readonly number[]): number[] =>
+  [...new Set(picked)].filter((i) => Number.isInteger(i) && i >= 0 && i < count).sort((a, b) => a - b);
+
+/** 고른 블록을 뺀 순서 */
+export function orderWithout(count: number, picked: readonly number[]): number[] {
+  const gone = new Set(picked);
+  return Array.from({ length: count }, (_, i) => i).filter((i) => !gone.has(i));
+}
+
+/**
+ * 고른 블록들을 slot 자리에 한 덩어리로 옮긴 순서. slot 은 옛 번호 기준 0~count — 그 번호 블록의 앞(count = 맨 끝).
+ * 고른 것끼리는 원래 순서를 지킨다
+ */
+export function orderMoved(count: number, picked: readonly number[], slot: number): number[] {
+  const group = sortedUnique(count, picked);
+  const rest = orderWithout(count, group);
+  const at = Math.max(0, Math.min(count, Math.trunc(slot)));
+  const before = rest.filter((i) => i < at);
+  return [...before, ...group, ...rest.slice(before.length)];
+}
+
+/** Alt+↑(-1) / Alt+↓(1): 고른 덩어리를 한 칸. 떨어져 있던 것은 맨 위(아래) 것 자리로 모인다. 더 갈 곳이 없으면 그대로 */
+export function orderStepped(count: number, picked: readonly number[], dir: -1 | 1): number[] {
+  const group = sortedUnique(count, picked);
+  if (group.length === 0) return orderWithout(count, []);
+  return orderMoved(count, group, dir < 0 ? group[0]! - 1 : group[group.length - 1]! + 2);
+}
+
+export type Box = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * 끌고 있는 자리(x, y)에서 놓일 자리: 0~boxes.length (그 번호 블록의 앞, 끝이면 맨 뒤). boxes 는 블록 순서대로.
+ * 세로로 가장 가까운 블록을 고르고(한 행에 둘이 서면 가로로 가까운 쪽), 그 블록의 위 절반이면 앞, 아래 절반이면 뒤
+ */
+export function dropSlot(boxes: readonly Box[], x: number, y: number): number {
+  let best = -1;
+  let bestDy = Infinity;
+  let bestDx = Infinity;
+  boxes.forEach((r, i) => {
+    const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+    const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+    if (dy < bestDy || (dy === bestDy && dx < bestDx)) {
+      best = i;
+      bestDy = dy;
+      bestDx = dx;
+    }
+  });
+  if (best < 0) return 0;
+  const r = boxes[best]!;
+  return y < (r.top + r.bottom) / 2 ? best : best + 1;
+}
+
+/** 놓일 선의 자리: 위아래로 이웃한 두 블록 사이면 가운데, 아니면 그 블록에서 gap 만큼 바깥. 폭은 뒤(없으면 앞) 블록 */
+export function dropLine(boxes: readonly Box[], slot: number, gap = 14): { x: number; y: number; w: number } | null {
+  if (boxes.length === 0) return null;
+  const next = boxes[slot];
+  const prev = boxes[slot - 1];
+  if (next) {
+    const stacked = prev !== undefined && prev.bottom <= next.top;
+    return { x: next.left, y: stacked ? (prev.bottom + next.top) / 2 : next.top - gap, w: next.right - next.left };
+  }
+  if (!prev) return null;
+  return { x: prev.left, y: prev.bottom + gap, w: prev.right - prev.left };
+}

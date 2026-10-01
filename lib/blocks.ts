@@ -414,6 +414,41 @@ export function withoutLocalPaths(blocks: readonly unknown[]): unknown[] {
   });
 }
 
+// ---------- 사람이 블록을 지우고 옮기기 ----------
+
+/**
+ * order(새 순서로 늘어놓은 옛 블록 번호, 0부터)가 받을 수 있는 모양인지. 틀리면 이유(한국어), 맞으면 null.
+ * DB ez_blocks_arrange 와 같은 규칙 · 같은 문구: 비었거나, 범위 밖이거나, 겹치면 거절
+ */
+export function arrangeError(count: number, order: readonly number[]): string | null {
+  if (order.length === 0) return "블록이 하나는 남아야 합니다";
+  if (order.some((x) => !Number.isInteger(x) || x < 0 || x >= count)) return `없는 블록 번호가 있습니다 (블록은 0~${count - 1}번)`;
+  if (new Set(order).size !== order.length) return "같은 블록 번호가 두 번 들어 있습니다";
+  return null;
+}
+
+/** 순서도 그대로, 지운 것도 없음 */
+export function isSameOrder(count: number, order: readonly number[]): boolean {
+  return order.length === count && order.every((x, i) => x === i);
+}
+
+/**
+ * order 대로 늘어놓은 새 블록 배열 (원본은 그대로). 빠진 번호 = 지움. order 는 arrangeError 를 통과한 것이어야 한다.
+ * 출처 블록이 하나도 안 남으면 근거 블록의 출처 번호(refs)를 비우고 사진 블록의 ref 를 뺀다 — 가리킬 곳이 없어지므로. 그 밖의 블록 안은 건드리지 않는다
+ */
+export function arrangeBlocks(blocks: readonly unknown[], order: readonly number[]): unknown[] {
+  const out = order.map((i) => blocks[i]);
+  if (out.some((b) => isObj(b) && b.type === "sources")) return out;
+  return out.map((b) => {
+    if (isObj(b) && b.type === "image" && Object.hasOwn(b, "ref")) {
+      const { ref: _ref, ...rest } = b;
+      return rest;
+    }
+    if (!isObj(b) || b.type !== "claims" || !Array.isArray(b.items)) return b;
+    return { ...b, items: b.items.map((it: unknown) => (isObj(it) && Object.hasOwn(it, "refs") ? { ...it, refs: [] } : it)) };
+  });
+}
+
 /** 설계서 3장 "사람이 고칠 수 있는 칸" */
 export function isEditablePath(blocks: unknown, path: readonly (string | number)[]): boolean {
   return editRule(blocks, path) !== null;

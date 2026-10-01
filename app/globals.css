@@ -198,6 +198,18 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .editing .by [data-edit]:empty::before{content:"작성자"}
 .editing [data-edit]:hover{background:var(--surface-2)}
 .editing [data-edit]:focus{outline:2px solid var(--point-ink);outline-offset:2px;background:var(--surface)}
+/* 블록 고르기 · 옮기기 (고치기 모드에서만, 설계서 3장). 고른 블록은 키위 옅은 바탕 하나 — 점선 경계까지 채운다.
+   손잡이는 블록 왼쪽 바깥. 놓일 자리는 선 하나(.drop-line, 화면 기준 좌표를 transform 으로) */
+.editing .blk[data-sel]{background:var(--point-soft);box-shadow:0 0 0 10px var(--point-soft)}
+.editing .blk[data-moving]{opacity:.45}
+.grip{position:absolute;left:-40px;top:-2px;width:26px;height:32px;display:grid;place-items:center;border-radius:6px;background:var(--paper);color:var(--text-3);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;z-index:1;transition:background var(--t),color var(--t)}
+.grip .i{width:20px;height:20px}
+.grip:hover{background:var(--surface-2);color:var(--text-1)}
+.grip[aria-pressed="true"]{color:var(--point-ink)}
+.doc-body[data-picking]{user-select:none;-webkit-user-select:none;cursor:default}
+.doc-body[data-picking] .grip{cursor:grabbing}
+.drop-line{position:fixed;left:0;top:0;height:3px;margin-top:-1.5px;border-radius:2px;background:var(--point-ink);pointer-events:none;opacity:0;z-index:6}
+.drop-line[data-on]{opacity:1}
 
 /* 강조는 한 가지: 본문(--text-2)보다 진한 --text-1 + 굵기 600. 배경·밑줄·다른 색 없음. 글 안 ==강조== 와 판정 한 줄이 같다 */
 .page strong{font-weight:600;color:var(--text-1)}
@@ -334,6 +346,8 @@ sup.r a:hover{background:var(--point-soft)}
   .mhome{display:inline-flex!important}
   .mtrash{display:grid!important}
   .bar-top{padding:0 8px}
+  /* 폰: 긴 보고서 아래쪽에서도 닿게 휴지통을 아래에 띄운다 */
+  .sel-trash{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;background:var(--paper);border:1px solid var(--border);box-shadow:0 4px 14px rgb(0 0 0 / .14);z-index:7}
   .crumbs button{max-width:14ch}
   .explorer{grid-template-columns:repeat(3,minmax(0,1fr));padding:16px 8px 48px;gap:4px}
   .ex{padding:14px 4px 10px}
@@ -341,6 +355,9 @@ sup.r a:hover{background:var(--point-soft)}
   .ex .dot{top:12px;left:calc(50% + 16px)}
   .doc-body{padding:0;background:var(--paper)}
   .page{border:0;border-radius:0;padding:24px 16px 48px}
+  /* 폰: 고치기 모드에서는 손잡이 자리만큼 왼쪽을 비운다 */
+  .page.editing{padding-left:46px}
+  .grip{left:-40px;width:28px;height:36px}
   .page > * + *{margin-top:36px}
   .page > .row.has-img,.page > .row.has-img + *{margin-top:44px}
   .page > .row.sec{margin-top:40px;padding-top:36px}

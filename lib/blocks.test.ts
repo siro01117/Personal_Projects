@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockSchema, editRule, isEditablePath, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, tidyText, validateBlocks, withoutLocalPaths } from "./blocks";
+import { arrangeBlocks, arrangeError, blockSchema, editRule, isEditablePath, isSameOrder, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, tidyText, validateBlocks, withoutLocalPaths } from "./blocks";
 import { sampleBlocks, sampleImage, sampleSrc } from "./fixtures";
 
 type Any = any; // 시험용으로 일부러 틀린 모양을 만든다
@@ -472,5 +472,51 @@ describe("image 사진", () => {
     expect(out[0]).toMatchObject({ alt: "PGlite 문서 첫 화면", ref: 1 });
     expect(out[1]).toBe(blocks[1]);
     expect(blocks[0]).toHaveProperty("local_path");
+  });
+});
+
+describe("사람이 블록을 지우고 옮기기 (ez_blocks_arrange 와 같은 규칙)", () => {
+  it("order: 비었거나 · 범위 밖이거나 · 겹치면 이유를 돌려준다", () => {
+    expect(arrangeError(7, [6, 0, 1])).toBeNull();
+    expect(arrangeError(7, [0, 1, 2, 3, 4, 5, 6])).toBeNull();
+    expect(arrangeError(7, [])).toBe("블록이 하나는 남아야 합니다");
+    expect(arrangeError(7, [7])).toBe("없는 블록 번호가 있습니다 (블록은 0~6번)");
+    expect(arrangeError(7, [-1])).toBe("없는 블록 번호가 있습니다 (블록은 0~6번)");
+    expect(arrangeError(7, [1.5])).toBe("없는 블록 번호가 있습니다 (블록은 0~6번)");
+    expect(arrangeError(7, [2, 3, 2])).toBe("같은 블록 번호가 두 번 들어 있습니다");
+    expect(isSameOrder(3, [0, 1, 2])).toBe(true);
+    expect(isSameOrder(3, [0, 1])).toBe(false);
+    expect(isSameOrder(3, [0, 2, 1])).toBe(false);
+  });
+
+  it("순서대로 늘어놓는다 — 블록은 그대로(같은 객체), 원본 배열은 안 바뀐다", () => {
+    const blocks = sampleBlocks();
+    const out = arrangeBlocks(blocks, [6, 0, 5]);
+    expect(out).toHaveLength(3);
+    expect(out[0]).toBe(blocks[6]);
+    expect(out[1]).toBe(blocks[0]);
+    expect(out[2]).toBe(blocks[5]);
+    expect(blocks).toEqual(sampleBlocks());
+    expect(validateBlocks(out).ok).toBe(true);
+  });
+
+  it("출처 블록이 안 남으면 근거의 refs 를 비운다 — 그래야 에이전트 검사(출처 범위)를 통과한다", () => {
+    const blocks = sampleBlocks();
+    const out = arrangeBlocks(blocks, [0, 1, 2, 3, 4, 5]) as Any[];
+    expect(out[5].items.map((c: Any) => c.refs)).toEqual([[], [], []]);
+    expect(out[5].items.map((c: Any) => c.text)).toEqual((blocks[5] as Any).items.map((c: Any) => c.text));
+    expect(out.slice(0, 5)).toEqual(blocks.slice(0, 5));
+    expect(validateBlocks(out).ok).toBe(true);
+    // 원본은 그대로
+    expect((blocks[5] as Any).items[0].refs).toEqual([1]);
+    // 사진의 ref 도 뺀다
+    const img = arrangeBlocks([...blocks, sampleImage()], [7, 5]) as Any[];
+    expect(img[0].ref).toBeUndefined();
+    expect(img[1].items[0].refs).toEqual([]);
+  });
+
+  it("모르는 모양이 섞여 있어도 깨지지 않는다", () => {
+    const odd = ["글자", null, { type: "claims", items: "배열 아님" }, { type: "claims", items: [1, { refs: [3] }, { text: "refs 없음" }] }];
+    expect(arrangeBlocks(odd, [3, 2, 1, 0])).toEqual([{ type: "claims", items: [1, { refs: [] }, { text: "refs 없음" }] }, { type: "claims", items: "배열 아님" }, null, "글자"]);
   });
 });

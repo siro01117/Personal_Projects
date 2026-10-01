@@ -340,6 +340,7 @@ export function cachedDrawer<D extends DrawerData>(raw: D, cache: DataCache): Dr
     restore: write((batch: string) => raw.restore(batch)),
     markRead: write((id: string) => raw.markRead(id)),
     editText: write((id: string, baseVersion: number, path: readonly (string | number)[], value: string) => raw.editText(id, baseVersion, path, value)),
+    arrangeBlocks: write((id: string, baseVersion: number, order: readonly number[]) => raw.arrangeBlocks(id, baseVersion, order)),
     share: write((id: string) => raw.share(id)),
     unshare: write((id: string) => raw.unshare(id)),
   };

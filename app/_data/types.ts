@@ -110,6 +110,11 @@ export interface DrawerData {
    * 블록 칸과 작성자는 빈 값('')으로 둘 수 있다(작성자는 null 이 된다). 제목만 비울 수 없다
    */
   editText(id: string, baseVersion: number, path: Path, value: string): Promise<number>;
+  /**
+   * ez_blocks_arrange — 블록 지우기 · 옮기기. order 는 새 순서로 늘어놓은 옛 블록 번호(0부터), 빠진 번호 = 지움. 새 version.
+   * 비었거나 겹치거나 범위 밖이면 [EZ_VALUE]. 출처 블록이 안 남으면 근거의 출처 번호가 비워진다. 그대로면 version 도 그대로
+   */
+  arrangeBlocks(id: string, baseVersion: number, order: readonly number[]): Promise<number>;
   /** ez_share — 새 열쇠(이전 열쇠는 무효) */
   share(id: string): Promise<string>;
   unshare(id: string): Promise<void>;

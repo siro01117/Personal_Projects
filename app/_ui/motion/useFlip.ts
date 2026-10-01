@@ -18,6 +18,8 @@ const GHOST_MAX = 12;
 export type FlipOptions = {
   /** 사라지는 줄의 복제가 붙기 직전. true 를 돌려주면 잠깐 머물렀다 흐려진다 */
   onGhost?: (ghost: HTMLElement, id: string) => boolean | void;
+  /** 있으면 true 를 돌려준 커밋에서만 움직인다. 자리는 매번 잰다 — 순서가 바뀔 때만 움직이고 싶은 목록(보고서 블록)용 */
+  when?: () => boolean;
 };
 
 export function useFlip(container: RefObject<HTMLElement | null>, selector: string, options?: FlipOptions): void {
@@ -65,6 +67,7 @@ export function useFlip(container: RefObject<HTMLElement | null>, selector: stri
     prev.current = next;
     lastWidth.current = rr.width;
     if (!before || still || resized) return;
+    if (opts.current?.when && !opts.current.when()) return;
 
     const byEl = new Map<HTMLElement, Rec>();
     for (const rec of before.values()) byEl.set(rec.el, rec);

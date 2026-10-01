@@ -5,7 +5,7 @@
 // 여기 있는 순환·깊이·삭제 묶음·복원·버전·복사·찾기는 화면을 로그인 없이 확인하려고 흉내 낸 것일 뿐이다.
 // 이름 규칙·(2)·'- 복사본' 붙이기·고칠 수 있는 칸은 lib 을 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
-import { editRule, LIMITS, tidyText, withoutLocalPaths } from "../../lib/blocks";
+import { arrangeBlocks, arrangeError, editRule, isSameOrder, LIMITS, tidyText, withoutLocalPaths } from "../../lib/blocks";
 import { DbError } from "../../lib/errors";
 import { charCount, copyName, sameName, uniqueName, validateName } from "../../lib/names";
 import { isUnread } from "../_logic/drawer";
@@ -517,6 +517,20 @@ export class MemoryDrawer implements DrawerData {
       r.blocks = blocks;
       this.touchContent(r);
     }
+    return r.version;
+  }
+
+  async arrangeBlocks(id: string, baseVersion: number, order: readonly number[]): Promise<number> {
+    await this.wait();
+    const r = this.live(id);
+    if (!r || r.kind !== "report") throw ez("EZ_NOT_FOUND", "고칠 보고서가 없습니다");
+    if (baseVersion !== r.version) throw ez("EZ_VERSION", `그 사이 다른 곳에서 고쳤습니다. 새로 불러오세요 (지금 버전 ${r.version})`);
+    const blocks = r.blocks ?? [];
+    const bad = arrangeError(blocks.length, order);
+    if (bad) throw ez("EZ_VALUE", bad);
+    if (isSameOrder(blocks.length, order)) return r.version;
+    r.blocks = clone(arrangeBlocks(blocks, order));
+    this.touchContent(r);
     return r.version;
   }
 

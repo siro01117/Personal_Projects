@@ -214,6 +214,8 @@ const PATHS = {
     </>
   ),
   dots: <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="2.6" />,
+  /** 블록 손잡이: 점 여섯 개 */
+  grip: <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" strokeWidth="2.6" />,
   user: (
     <>
       <circle cx="12" cy="8" r="4" />

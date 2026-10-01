@@ -334,3 +334,40 @@ describe("사진 (확인 모드 흉내)", () => {
     expect(e).toMatchObject({ report_kind: "data", created_at: expect.any(String) });
   });
 });
+
+describe("블록 지우기 · 옮기기 (ez_blocks_arrange 흉내)", () => {
+  const types = async (d: MemoryDrawer) => ((await d.report(ROOT_REPORT))!.blocks as { type: string }[]).map((b) => b.type);
+
+  it("옮기고 지운다 — 버전이 오르고 agent_updated_at 은 그대로", async () => {
+    const d = drawer();
+    expect(await d.arrangeBlocks(ROOT_REPORT, 1, [0, 3, 1, 2, 4, 5, 6])).toBe(2);
+    expect(await types(d)).toEqual(["verdict", "list", "text", "text", "table", "claims", "sources"]);
+    expect(await d.arrangeBlocks(ROOT_REPORT, 2, [0, 1, 4])).toBe(3);
+    expect(await types(d)).toEqual(["verdict", "list", "table"]);
+    expect((await d.report(ROOT_REPORT))!.agent_updated_at).toBe("2026-09-01T10:00:00Z");
+  });
+
+  it("그대로면 버전도 그대로, 출처가 안 남으면 근거의 refs 가 비워진다", async () => {
+    const d = drawer();
+    expect(await d.arrangeBlocks(ROOT_REPORT, 1, [0, 1, 2, 3, 4, 5, 6])).toBe(1);
+    expect(await d.arrangeBlocks(ROOT_REPORT, 1, [5, 0])).toBe(2);
+    const claims = (await d.report(ROOT_REPORT))!.blocks[0] as { items: { refs: number[] }[] };
+    expect(claims.items.map((c) => c.refs)).toEqual([[], [], []]);
+  });
+
+  it("DB 와 같은 오류: EZ_VALUE · EZ_VERSION · EZ_NOT_FOUND", async () => {
+    const d = drawer();
+    expect(await code(d.arrangeBlocks(ROOT_REPORT, 1, []))).toBe("EZ_VALUE");
+    expect(await code(d.arrangeBlocks(ROOT_REPORT, 1, [0, 0]))).toBe("EZ_VALUE");
+    expect(await code(d.arrangeBlocks(ROOT_REPORT, 1, [7]))).toBe("EZ_VALUE");
+    expect(await code(d.arrangeBlocks(ROOT_REPORT, 9, [1, 0]))).toBe("EZ_VERSION");
+    expect(await code(d.arrangeBlocks("A", 1, [0]))).toBe("EZ_NOT_FOUND");
+    expect(await code(d.arrangeBlocks("없음", 1, [0]))).toBe("EZ_NOT_FOUND");
+    expect((await d.report(ROOT_REPORT))!.version).toBe(1);
+    // 지운 뒤 글자 고치기는 새 번호 · 새 버전으로
+    const v = await d.arrangeBlocks(ROOT_REPORT, 1, [1, 2]);
+    expect(await code(d.editText(ROOT_REPORT, 1, [0, "body"], "낡은 버전"))).toBe("EZ_VERSION");
+    expect(await d.editText(ROOT_REPORT, v, [0, "body"], "새 번호")).toBe(v + 1);
+    expect(((await d.report(ROOT_REPORT))!.blocks[0] as { body: string }).body).toBe("새 번호");
+  });
+});
