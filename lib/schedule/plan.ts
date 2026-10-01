@@ -132,6 +132,16 @@ export function planDay(
 
     // 들어가는 이동 (+ 준비)
     const mins = (o.travel_min ?? 0) > 0 ? o.travel_min! : tmin(loc, dest?.id ?? null);
+    // 집에서 하는 일정으로 가는 귀가는 앞 일정이 끝나자마자 출발한다 (밖에서 기다렸다 가지 않는다)
+    if (home && dest?.id === home.id && loc !== home.id && prevEnd !== null && mins > 0) {
+      const r = dodgeOut(prevEnd, mins, start, floating);
+      segs.push({ kind: "travel", date, ...r, label: "귀가", from: loc, to: home.id, for_key: o.key, late: Math.max(0, r.end - start) });
+      loc = home.id;
+      prevEnd = o.end_min!;
+      floor = prevEnd;
+      continue;
+    }
+
     let prep = 0;
     if (home && loc === home.id && (!dest || dest.id !== home.id)) {
       prep = prepOn ? (wentOut ? prepAgain : settings.prep_first) : 0;

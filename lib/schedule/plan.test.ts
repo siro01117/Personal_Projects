@@ -144,6 +144,16 @@ describe("planDay 동선", () => {
     expect(bands(p)).toEqual(["준비 8:55–9:30", "등교 9:30–10:00", "이동 11:50–12:10 늦음10", "귀가 13:20–13:35"]);
   });
 
+  it("집에서 하는 일정으로 가는 귀가는 앞 일정이 끝나자마자 출발한다", () => {
+    const p = plan([occ("수업", 900, 1000, "school"), occ("회의", 1320, 1380, "home")]);
+    expect(bands(p)).toEqual(["준비 13:55–14:30", "등교 14:30–15:00", "귀가 16:40–17:10"]);
+  });
+
+  it("집에서 하는 일정에 못 맞추면 귀가에 늦음", () => {
+    const p = plan([occ("수업", 900, 1310, "school"), occ("회의", 1320, 1380, "home")]);
+    expect(bands(p)).toEqual(["준비 13:55–14:30", "등교 14:30–15:00", "귀가 21:50–22:20 늦음20"]);
+  });
+
   it("늦음: 전날 귀가(carry)보다 준비가 이르면", () => {
     const p = plan([occ("수업", 50, 120, "school")], NO_MEAL, PLACES, { home_from: 30 });
     const t = p.segments.find((s) => s.kind === "travel" && s.for_key);
