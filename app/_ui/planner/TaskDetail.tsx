@@ -176,6 +176,18 @@ export function TaskDetail({
             시간 정하기
           </button>
         )}
+        {/* 아직 안 지난 '시간 정함': 옮기거나 시간을 비울 수 있다 (반복 일정에 이어진 것은 일정 쪽에서) */}
+        {!late && link && !link.repeating && !done && (
+          <>
+            <button type="button" className="ghost" onClick={onPlan}>
+              다시 정하기
+            </button>
+            <button type="button" className="ghost" onClick={onUnplan}>
+              시간 없음으로
+            </button>
+            <span className="brk" />
+          </>
+        )}
         <button type="button" className="ghost" onClick={onEdit}>
           수정
         </button>

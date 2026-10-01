@@ -45,8 +45,8 @@ export function PlanForm({
   const { src, fail } = useApp();
   const S = src.schedule;
   const [meta, setMeta] = useState<Meta | null>(null);
-  /** 시작 시각을 손으로 바꿨으면 기본값으로 덮지 않는다 */
-  const touched = useRef(false);
+  /** 시작 시각을 손으로 바꿨거나, 다시 정하기처럼 시각을 갖고 열렸으면 기본값으로 덮지 않는다 */
+  const touched = useRef(draft.start !== null);
   const live = useRef({ draft, onChange, now });
   live.current = { draft, onChange, now };
 

@@ -420,7 +420,13 @@ export function PlannerView() {
   function startPlan() {
     if (!selTask) return;
     closeForms();
-    setPlan({ id: selTask.id, draft: planDraftFor(selTask, today) });
+    const draft = planDraftFor(selTask, today);
+    // 아직 안 지난 일정을 다시 정할 때는 지금 정해 둔 날짜·시각에서 시작한다
+    const keep = selLink && selLink.date >= today && selLink.start_min !== null && selLink.end_min !== null;
+    setPlan({
+      id: selTask.id,
+      draft: keep ? { ...draft, date: selLink.date, start: selLink.start_min, len: String(selLink.end_min! - selLink.start_min!) } : draft,
+    });
   }
 
   async function savePlan() {
