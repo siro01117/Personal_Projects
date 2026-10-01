@@ -5,7 +5,7 @@
 // 여기 있는 순환·깊이·삭제 묶음·복원·버전·복사·찾기는 화면을 로그인 없이 확인하려고 흉내 낸 것일 뿐이다.
 // 이름 규칙·(2)·'- 복사본' 붙이기·고칠 수 있는 칸은 lib 을 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
-import { editRule, withoutLocalPaths } from "../../lib/blocks";
+import { editRule, LIMITS, tidyText, withoutLocalPaths } from "../../lib/blocks";
 import { DbError } from "../../lib/errors";
 import { charCount, copyName, sameName, uniqueName, validateName } from "../../lib/names";
 import { isUnread } from "../_logic/drawer";
@@ -473,9 +473,9 @@ export class MemoryDrawer implements DrawerData {
     const r = this.live(id);
     if (!r) throw ez("EZ_NOT_FOUND", "고칠 항목이 없습니다");
     if (baseVersion !== r.version) throw ez("EZ_VERSION", `그 사이 다른 곳에서 고쳤습니다. 새로 불러오세요 (지금 버전 ${r.version})`);
-    const v = value.trim();
 
     if (path.length === 1 && path[0] === "title") {
+      const v = value.trim();
       if (v === "") throw ez("EZ_EMPTY", "이름이 비어 있습니다");
       this.checkName(v, r.parent_id, r.id);
       if (v !== r.name) {
@@ -485,9 +485,25 @@ export class MemoryDrawer implements DrawerData {
       return r.version;
     }
 
+    // 작성자: 보고서만, 1~100자 한 줄, 비우면 없음(null). agent_updated_at 은 그대로 — 안 읽음 점이 생기지 않는다
+    if (path.length === 1 && path[0] === "agent") {
+      if (r.kind !== "report") throw ez("EZ_PATH", "이 칸은 고칠 수 없습니다");
+      const v = value.trim();
+      const n = charCount(v);
+      if (n > LIMITS.agent) throw ez("EZ_VALUE", `${LIMITS.agent}자까지 쓸 수 있습니다 (지금 ${n}자)`);
+      if (LINE_BREAK.test(v)) throw ez("EZ_VALUE", "한 줄로 써야 합니다 (줄바꿈 없이)");
+      const next = v === "" ? null : v;
+      if (next !== r.agent) {
+        r.agent = next;
+        this.touchContent(r);
+      }
+      return r.version;
+    }
+
     const rule = r.kind === "report" ? editRule(r.blocks, path) : null;
     if (!rule) throw ez("EZ_PATH", "이 칸은 고칠 수 없습니다");
-    if (v === "") throw ez("EZ_EMPTY", "빈 칸으로 둘 수 없습니다");
+    // 블록 칸은 빈 값으로 둘 수 있다 (제목만 예외). 줄 끝 공백·연속 빈 줄 다듬기는 ez_edit_text 와 같다
+    const v = tidyText(value);
     const n = charCount(v);
     if (n > rule.maxLength) throw ez("EZ_VALUE", `${rule.maxLength}자까지 쓸 수 있습니다 (지금 ${n}자)`);
     if (rule.oneLine && LINE_BREAK.test(v)) throw ez("EZ_VALUE", "한 줄로 써야 합니다 (줄바꿈 없이)");

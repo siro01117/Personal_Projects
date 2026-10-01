@@ -350,7 +350,7 @@ describe("ez_roles_seed", () => {
 
 describe("마이그레이션 — 이미 쓰던 사람", () => {
   it("할 일이나 지점이 있는 주인에게 기본 셋을 넣는다. 있던 할 일 · 규칙의 역할은 비어 있다", async () => {
-    const all = migrations();
+    const all = migrations("0008_ez_roles.sql");
     const before = migrations("0007_ez_planner.sql");
     expect(all.length).toBe(before.length + 1);
     const old = new PGlite();

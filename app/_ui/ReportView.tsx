@@ -5,6 +5,7 @@
 import { ThemeToggle } from "./ThemeToggle";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { editRule, tidyText } from "../../lib/blocks";
 import { toKorean } from "../../lib/errors";
 import { blocksToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
@@ -103,18 +104,30 @@ export function ReportView({ id }: { id: string }) {
     async (path: Path, raw: string) => {
       if (doc === null || doc === "missing") return;
       const isTitle = path.length === 1 && path[0] === "title";
-      const orig = isTitle ? doc.name : textAt(doc.blocks, path);
-      if (orig === null) return;
-      const value = raw.trim();
+      const isAgent = path.length === 1 && path[0] === "agent";
+      const rule = editRule(doc.blocks, path);
+      const orig = isTitle ? doc.name : isAgent ? (doc.agent ?? "") : textAt(doc.blocks, path);
+      if (orig === null || !rule) return;
+      // 가운데 줄바꿈은 지키고 줄 끝 공백·앞뒤 빈 줄만 다듬는다. 한 줄 칸에 붙여 넣은 여러 줄은 한 줄로 잇는다
+      const value = tidyText(raw, rule.oneLine);
       if (value === orig) return;
-      if (value === "") return void toast(isTitle ? "이름이 비어 있습니다" : "빈 칸으로 둘 수 없습니다");
+      // 빈 칸으로 둘 수 있다 — 보고서 제목만 예외
       if (isTitle) {
+        if (value === "") return void toast("이름이 비어 있습니다");
         const bad = validateName(value);
         if (bad) return void toast(bad);
       }
 
       const apply = (v: string) =>
-        setDoc((d) => (d && d !== "missing" ? (isTitle ? { ...d, name: v } : { ...d, blocks: withTextAt(d.blocks, path, v) }) : d));
+        setDoc((d) =>
+          d && d !== "missing"
+            ? isTitle
+              ? { ...d, name: v }
+              : isAgent
+                ? { ...d, agent: v === "" ? null : v }
+                : { ...d, blocks: withTextAt(d.blocks, path, v) }
+            : d,
+        );
       apply(value);
       pending.current++;
       const job = queue.current.then(async () => {
@@ -222,8 +235,6 @@ export function ReportView({ id }: { id: string }) {
   if (ready) crumbs.push({ id: doc.id, name: doc.name, current: true });
 
   const ctx: EditCtx | undefined = ready ? { raw: doc.blocks, editing, commit } : undefined;
-  // 신선도: 작성 에이전트 · n일 전 (에이전트가 마지막으로 쓴 때, 없으면 만든 때). 색·경고 없음
-  const by = ready ? [doc.agent, relativeDay(freshAt(doc))].filter(Boolean).join(" · ") : "";
 
   return (
     <>
@@ -294,7 +305,16 @@ export function ReportView({ id }: { id: string }) {
           <article className={editing ? "page editing" : "page"}>
             <div className="blk b-head">
               <Field as="h1" path={["title"]} value={doc.name} ctx={ctx} />
-              <div className="by">{by}</div>
+              {/* 작성자 · n일 전 (에이전트가 마지막으로 쓴 때, 없으면 만든 때). 작성자는 고칠 수 있고 날짜는 자동. 작성자가 없으면 날짜만 */}
+              <div className="by">
+                {(editing || doc.agent) && (
+                  <>
+                    <Field as="span" className="who" path={["agent"]} value={doc.agent ?? ""} ctx={ctx} plain />
+                    {" · "}
+                  </>
+                )}
+                <span>{relativeDay(freshAt(doc))}</span>
+              </div>
             </div>
             <Blocks blocks={doc.blocks} ctx={ctx} images={images} />
           </article>

@@ -105,7 +105,10 @@ export interface DrawerData {
   restore(batch: string): Promise<Restored[]>;
 
   markRead(id: string): Promise<void>;
-  /** ez_edit_text — path 는 blocks 기준([2,'body']) 또는 ['title']. 새 version */
+  /**
+   * ez_edit_text — path 는 blocks 기준([2,'body']) · ['title'](제목) · ['agent'](작성자, 보고서만). 새 version.
+   * 블록 칸과 작성자는 빈 값('')으로 둘 수 있다(작성자는 null 이 된다). 제목만 비울 수 없다
+   */
   editText(id: string, baseVersion: number, path: Path, value: string): Promise<number>;
   /** ez_share — 새 열쇠(이전 열쇠는 무효) */
   share(id: string): Promise<string>;

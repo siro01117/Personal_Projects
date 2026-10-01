@@ -191,7 +191,11 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 /* 블록 — 에이전트가 조립한다. 편집 모드에서만 경계가 보이고 글자를 고칠 수 있다 */
 .blk{position:relative;border-radius:var(--r-m);scroll-margin-top:24px}
 .editing .blk{outline:1px dashed var(--border);outline-offset:10px}
-.editing [data-edit]{cursor:text;border-radius:4px}
+.editing [data-edit]{cursor:text;border-radius:4px;white-space:pre-wrap}
+/* 비운 칸: 고치기 모드에서만 옅은 자리표시 — 실제 글자가 아니라 저장되지 않는다 */
+.editing [data-edit]:empty::before{content:"비어 있음";color:var(--text-3);font-weight:400}
+.editing h3[data-edit]:empty::before{content:"소제목"}
+.editing .by [data-edit]:empty::before{content:"작성자"}
 .editing [data-edit]:hover{background:var(--surface-2)}
 .editing [data-edit]:focus{outline:2px solid var(--point-ink);outline-offset:2px;background:var(--surface)}
 
@@ -214,22 +218,24 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .blk h3{margin:0 0 16px;font-size:21px;line-height:1.4;font-weight:600;color:var(--text-1)}
 .b-text p{margin:0;white-space:pre-line}
 .b-list ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
-.b-list li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:12px}
+.b-list li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:12px;white-space:pre-line}
 .b-list li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--text-2);margin-top:calc(.85em - 3px)}
 
 .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-l)}
 table{border-collapse:collapse;width:100%;min-width:560px;font-size:17px;line-height:1.6}
 th,td{text-align:left;padding:13px 20px;border-bottom:1px solid var(--border);vertical-align:top}
+td{white-space:pre-line}
 th{font-weight:600;color:var(--text-3);background:var(--surface-2);white-space:nowrap;font-size:16px}
 tr:last-child td{border-bottom:0}
-td:first-child{font-weight:600;color:var(--text-1);white-space:nowrap}
+/* 첫 열은 폭에 맞춰 접지 않되, 사람이 넣은 줄바꿈은 지킨다 */
+td:first-child{font-weight:600;color:var(--text-1);white-space:pre}
 
 .b-claims .c{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:18px 0;border-top:1px solid var(--border)}
 .b-claims .c:first-of-type{border-top:0;padding-top:0}
 .tag{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;font-size:15px;font-weight:600;white-space:nowrap}
 .tag.fact{color:var(--fact);border:1px solid currentColor}
 .tag.guess{color:var(--guess);border:1px dashed currentColor}
-.b-claims p{margin:0}
+.b-claims p{margin:0;white-space:pre-line}
 sup.r{font-family:var(--font-num);font-size:14px;color:var(--point-ink);font-weight:600;margin-left:2px}
 sup.r a{color:inherit;text-decoration:none;padding:0 2px;border-radius:4px}
 sup.r a:hover{background:var(--point-soft)}

@@ -1,4 +1,5 @@
 // ez_items 마이그레이션을 PGlite(진짜 Postgres, WASM)에서 그대로 돌려 본다.
+// 글자 고치기 규칙(ez_edit_rule · ez_edit_text)은 0009 가 바꿨으므로 0001 위에 0009 를 얹는다 — 자세한 시험은 ez_edit_blank.test.ts.
 // Supabase 흉내: auth.uid() = request.jwt.claim.sub, 역할 anon/authenticated.
 
 import { PGlite } from "@electric-sql/pglite";
@@ -9,7 +10,9 @@ import { editRule, LIMITS, validateBlocks } from "../lib/blocks";
 import { sampleBlocks } from "../lib/fixtures";
 import { normalizeName, uniqueName, validateName } from "../lib/names";
 
-const MIGRATION = readFileSync(new URL("./migrations/0001_ez_items.sql", import.meta.url), "utf8");
+const MIGRATION =
+  readFileSync(new URL("./migrations/0001_ez_items.sql", import.meta.url), "utf8") +
+  readFileSync(new URL("./migrations/0009_ez_edit_blank.sql", import.meta.url), "utf8");
 
 const SUPABASE_STUB = `
   create schema auth;
@@ -524,11 +527,12 @@ describe("ez_edit_text", () => {
     expect((await item(id)).blocks[1].body).toBe("첫 수정");
   });
 
-  it("빈 값은 EZ_EMPTY", async () => {
+  it("제목만 빈 값 EZ_EMPTY — 블록 칸은 비울 수 있다", async () => {
     const { a, id } = await fresh();
-    await fails(edit(a, id, 1, [1, "body"], "   \n\u3000"), "EZ_EMPTY");
     await fails(edit(a, id, 1, ["title"], " "), "EZ_EMPTY");
-    await fails(sql(a, "select ez_edit_text($1, 1, '{1,body}', null)", [id]), "EZ_EMPTY");
+    await fails(sql(a, "select ez_edit_text($1, 1, '{title}', null)", [id]), "EZ_EMPTY");
+    expect(await edit(a, id, 1, [1, "body"], "   \n\u3000")).toBe(2);
+    expect((await item(id)).blocks[1].body).toBe("");
   });
 
   it("길이 상한·한 줄 규칙은 블록 규칙과 같다", async () => {
@@ -539,6 +543,7 @@ describe("ez_edit_text", () => {
     await fails(edit(a, id, v, [0, "v"], "a".repeat(301)), "EZ_VALUE");
     await fails(edit(a, id, v, [0, "v"], "두\n줄"), "EZ_VALUE");
     v = await edit(a, id, v, [1, "body"], "문단은\n여러 줄 가능");
+    await fails(edit(a, id, v, [1, "h"], "소제목은\n한 줄"), "EZ_VALUE");
     await fails(edit(a, id, v, [4, "rows", 0, 0], "x".repeat(301)), "EZ_VALUE");
   });
 

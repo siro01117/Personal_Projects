@@ -563,6 +563,8 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
         });
 
         const blocks = [...rep.blocks];
+        // 이번 ops 로 에이전트가 넣거나 바꾼 블록 (blocks 와 같은 자리) — 빈 값 검사를 엄격하게 할 대상
+        const fresh: boolean[] = blocks.map(() => false);
         for (let k = 0; k < ops.length; k++) {
           const op = ops[k];
           const bad = (msg: string) => fail(`ops[${k}]: ${msg}`, "BAD_OP", { op_index: k });
@@ -575,27 +577,39 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
               if (at < 0 || at > n) return bad(`insert 의 at 은 0~${n} 입니다 (지금 블록 ${n}개, ${n} 이면 맨 끝)`);
               if (op.block === undefined) return bad("insert 에는 block 이 필요합니다");
               blocks.splice(at, 0, op.block);
+              fresh.splice(at, 0, true);
               break;
             case "replace":
               if (at < 0 || at >= n) return bad(`replace 의 at 은 0~${n - 1} 입니다`);
               if (op.block === undefined) return bad("replace 에는 block 이 필요합니다");
               blocks[at] = op.block;
+              fresh[at] = true;
               break;
             case "remove":
               if (at < 0 || at >= n) return bad(`remove 의 at 은 0~${n - 1} 입니다`);
               blocks.splice(at, 1);
+              fresh.splice(at, 1);
               break;
             default:
               return bad("op 는 insert · replace · remove 중 하나입니다");
           }
         }
 
-        const v = validateBlocks(blocks);
-        if (!v.ok) {
+        // 결과 전체는 사람이 비워 둔 칸('')을 봐주고, 에이전트가 이번에 넣거나 바꾼 블록은 엄격하게(빈 값 거절) 본다
+        const v = validateBlocks(blocks, { allowEmpty: true });
+        const strict = validateBlocks(blocks);
+        const errors: BlockError[] = v.ok ? [] : [...v.errors];
+        if (!strict.ok) {
+          for (const e of strict.errors) {
+            const m = /^blocks\[(\d+)\]/.exec(e.path);
+            if (m && fresh[Number(m[1])] && !errors.some((x) => x.path === e.path && x.message === e.message)) errors.push(e);
+          }
+        }
+        if (!v.ok || errors.length > 0) {
           return fail(
-            `고친 결과가 블록 검사에서 ${v.errors.length}곳 틀렸습니다 (자리는 ops 를 모두 적용한 뒤의 번호) — 아무것도 바꾸지 않았습니다`,
+            `고친 결과가 블록 검사에서 ${errors.length}곳 틀렸습니다 (자리는 ops 를 모두 적용한 뒤의 번호) — 아무것도 바꾸지 않았습니다`,
             "INVALID_BLOCKS",
-            { errors: v.errors },
+            { errors },
           );
         }
 

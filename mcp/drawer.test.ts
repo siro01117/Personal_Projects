@@ -556,6 +556,82 @@ describe("report_edit", () => {
     expect((await raw(rep.id)).version).toBe(1);
   });
 
+  it("사람이 비워 둔 칸이 있어도 고칠 수 있다 — 빈 칸은 그대로 남는다", async () => {
+    const { drawer } = setup();
+    const rep = await newReport(drawer, "/", "사람이 비움");
+    // 사람이 웹에서 소제목·목록 항목·표 칸·근거 글·출처 제목을 비운 것처럼 (ez_edit_text 는 로그인한 사람만 — 여기서는 직접 넣는다)
+    const b = sampleBlocks() as any[];
+    b[1].h = "";
+    b[3].items[1] = "";
+    b[4].rows[0][1] = "";
+    b[5].items[1].text = "";
+    b[6].items[1].title = "";
+    await db.query("update ez_items set blocks = $2 where id = $1", [rep.id, JSON.stringify(b)]);
+    const ver = (await raw(rep.id)).version;
+
+    const r = await drawer.report_edit({
+      id: rep.id,
+      base_version: ver,
+      ops: [
+        { op: "insert", at: 2, block: { type: "text", body: "에이전트가 더한 문단" } },
+        { op: "remove", at: 3 },
+      ],
+    });
+    expect(good(r).version).toBe(ver + 1);
+    const row = await raw(rep.id);
+    expect(row.blocks[1].h).toBe("");
+    expect(row.blocks[2]).toEqual({ type: "text", body: "에이전트가 더한 문단" });
+    expect(row.blocks[3].items).toEqual(["PGlite", "", "Supabase 브랜치"]);
+    expect(row.blocks[6].items[1].title).toBe("");
+    // 범위 읽기에도 빈 칸 그대로
+    expect((good(await drawer.report_get({ id: rep.id, from: 1, to: 1 })).blocks[0] as Row).h).toBe("");
+  });
+
+  it("에이전트가 새로 넣거나 바꾸는 블록의 빈 값은 거절 — 사람이 비운 다른 블록은 탓하지 않는다", async () => {
+    const { drawer } = setup();
+    const rep = await newReport(drawer, "/", "에이전트 빈 값");
+    const b = sampleBlocks() as any[];
+    b[1].h = "";
+    await db.query("update ez_items set blocks = $2 where id = $1", [rep.id, JSON.stringify(b)]);
+    const ver = (await raw(rep.id)).version;
+
+    const d = bad(
+      await drawer.report_edit({
+        id: rep.id,
+        base_version: ver,
+        ops: [
+          { op: "insert", at: 0, block: { type: "text", h: "", body: "새 문단" } }, // 뒤 블록이 한 칸씩 밀린다
+          { op: "replace", at: 4, block: { type: "list", h: "후보", items: ["하나", " "] } },
+        ],
+      }),
+      "INVALID_BLOCKS",
+    );
+    expect(d.errors).toEqual([
+      { path: "blocks[0].h", message: "비어 있습니다" },
+      { path: "blocks[4].items[1]", message: "비어 있습니다" },
+    ]);
+    expect((await raw(rep.id)).version).toBe(ver);
+
+    // 사람이 비운 블록을 에이전트가 통째로 바꾸면 그 블록은 다시 엄격하게
+    bad(await drawer.report_edit({ id: rep.id, base_version: ver, ops: [{ op: "replace", at: 1, block: { type: "text", h: "", body: "x" } }] }), "INVALID_BLOCKS");
+    good(await drawer.report_edit({ id: rep.id, base_version: ver, ops: [{ op: "replace", at: 1, block: { type: "text", h: "배경", body: "x" } }] }));
+  });
+
+  it("report_create 는 빈 값을 받지 않는다", async () => {
+    const { drawer } = setup();
+    const d = bad(await drawer.report_create({ title: "빈 값", kind: "data", folder: "/", blocks: [{ type: "text", h: "", body: "글" }] }), "INVALID_BLOCKS");
+    expect(d.errors).toEqual([{ path: "blocks[0].h", message: "비어 있습니다" }]);
+  });
+
+  it("사람이 고친 작성자는 에이전트가 다시 고치면 에이전트 이름으로 돌아간다", async () => {
+    const { drawer } = setup();
+    const rep = await newReport(drawer, "/", "작성자");
+    await db.query("update ez_items set agent = '김조사' where id = $1", [rep.id]);
+    const ver = (await raw(rep.id)).version;
+    good(await drawer.report_edit({ id: rep.id, base_version: ver, ops: [{ op: "insert", at: 2, block: { type: "text", body: "더함" } }] }));
+    expect((await raw(rep.id)).agent).toBe("Claude Code");
+  });
+
   it("op 모양·범위 오류", async () => {
     const { drawer } = setup();
     const rep = await newReport(drawer, "/", "op");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blockSchema, editRule, isEditablePath, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, validateBlocks, withoutLocalPaths } from "./blocks";
+import { blockSchema, editRule, isEditablePath, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, tidyText, validateBlocks, withoutLocalPaths } from "./blocks";
 import { sampleBlocks, sampleImage, sampleSrc } from "./fixtures";
 
 type Any = any; // 시험용으로 일부러 틀린 모양을 만든다
@@ -274,6 +274,122 @@ describe("사람이 고칠 수 있는 칸", () => {
     expect(editRule(blocks, [1, "body"])).toEqual({ maxLength: 4000, oneLine: false });
     expect(editRule(blocks, [4, "rows", 0, 0])).toEqual({ maxLength: 300, oneLine: false });
     expect(editRule(blocks, ["title"])).toEqual({ maxLength: 100, oneLine: true });
+    expect(editRule(blocks, ["agent"])).toEqual({ maxLength: 100, oneLine: true });
+  });
+
+  it("줄바꿈이 되는 칸: 문단 · 판정 풀이 · 목록 항목 · 표 칸 · 근거 글. 나머지는 한 줄", () => {
+    const all = [...blocks, sampleImage()];
+    const multi: (string | number)[][] = [[0, "w"], [1, "body"], [2, "body"], [3, "items", 0], [4, "rows", 0, 0], [4, "rows", 1, 2], [5, "items", 0, "text"]];
+    const single: (string | number)[][] = [
+      ["title"], ["agent"], [0, "v"], [1, "h"], [3, "h"], [4, "h"], [5, "h"], [6, "h"],
+      [4, "cols", 0], [6, "items", 0, "title"], [7, "alt"], [7, "caption"],
+    ];
+    for (const p of multi) expect(editRule(all, p)?.oneLine, JSON.stringify(p)).toBe(false);
+    for (const p of single) expect(editRule(all, p)?.oneLine, JSON.stringify(p)).toBe(true);
+    // 고칠 수 있는 칸을 빠짐없이 나눴다
+    const paths: (string | number)[][] = [];
+    const walk = (node: unknown, path: (string | number)[]) => {
+      if (typeof node === "string" && isEditablePath(all, path)) paths.push(path);
+      else if (Array.isArray(node)) node.forEach((v, i) => walk(v, [...path, i]));
+      else if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) walk(v, [...path, k]);
+    };
+    walk(all, []);
+    const key = (p: (string | number)[]) => {
+      const b = all[p[0] as number] as { type: string };
+      return `${b.type}.${p.slice(1).filter((x) => typeof x === "string").join(".")}`;
+    };
+    const lines = Object.fromEntries(paths.map((p) => [key(p), editRule(all, p)!.oneLine ? "한 줄" : "여러 줄"]));
+    expect(lines).toEqual({
+      "verdict.v": "한 줄", "verdict.w": "여러 줄",
+      "text.h": "한 줄", "text.body": "여러 줄",
+      "list.h": "한 줄", "list.items": "여러 줄",
+      "table.h": "한 줄", "table.cols": "한 줄", "table.rows": "여러 줄",
+      "claims.h": "한 줄", "claims.items.text": "여러 줄",
+      "sources.h": "한 줄", "sources.items.title": "한 줄",
+      "image.alt": "한 줄", "image.caption": "한 줄",
+    });
+  });
+
+  it("에이전트 쪽 검사는 줄 규칙을 좁히지 않는다 — 소제목·표 머리·출처 제목에 줄바꿈이 든 기존 보고서도 통과", () => {
+    const old = sampleBlocks() as any[];
+    old[1].h = "배경\n둘째 줄";
+    old[4].cols[0] = "도구\n(이름)";
+    old[6].items[0].title = "PGlite\n문서";
+    expect(validateBlocks(old).ok).toBe(true);
+  });
+});
+
+describe("빈 칸 (사람이 비워 둔 칸)", () => {
+  /** 사람이 고칠 수 있는 칸을 모두 비운 보고서 */
+  function blanked(): any[] {
+    const b = [...sampleBlocks(), sampleImage()] as any[];
+    b[0].v = ""; b[0].w = "";
+    b[1].h = ""; b[1].body = "";
+    b[3].h = ""; b[3].items[1] = "";
+    b[4].h = ""; b[4].cols[0] = ""; b[4].rows[1][2] = "";
+    b[5].h = ""; b[5].items[1].text = "";
+    b[6].h = ""; b[6].items[1].title = "";
+    b[7].alt = ""; b[7].caption = "";
+    return b;
+  }
+
+  it("기본은 거절 — 빈 칸마다 위치를 알려준다", () => {
+    const errs = errorsOf(blanked());
+    expect(errs).toHaveLength(15);
+    expect(errs.every((e) => e.message === "비어 있습니다")).toBe(true);
+    expect(errs.map((e) => e.path)).toContain("blocks[4].rows[1][2]");
+  });
+
+  it("allowEmpty 면 통과하고 빈 값 그대로 돌려준다 (공백만이면 '' 로)", () => {
+    const b = blanked();
+    b[1].body = "  \n ";
+    const r = validateBlocks(b, { allowEmpty: true });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect((r.blocks[1] as any).body).toBe("");
+      expect((r.blocks[6] as any).items[1]).toEqual({ title: "", url: (sampleBlocks()[6] as any).items[1].url });
+    }
+  });
+
+  it("allowEmpty 는 사람이 고칠 수 있는 칸만 — 주소·사진 출처 글·경로는 여전히 거절, 다른 규칙도 그대로", () => {
+    const loose = (blocks: unknown) => {
+      const r = validateBlocks(blocks, { allowEmpty: true });
+      return r.ok ? [] : r.errors;
+    };
+    const b = sampleBlocks() as any[];
+    b[6].items[0].url = "";
+    expect(loose(b)).toEqual([{ path: "blocks[6].items[0].url", message: "비어 있습니다" }]);
+    expect(loose([...sampleBlocks(), sampleImage({ credit: "" })])).toEqual([{ path: "blocks[7].credit", message: "비어 있습니다" }]);
+    expect(loose([...sampleBlocks(), sampleImage({ ref: undefined, local_path: " " })])).toEqual([{ path: "blocks[7].local_path", message: "비어 있습니다" }]);
+    // 길이·한 줄·빠진 칸·개수는 그대로
+    expect(loose([{ type: "verdict", v: "두\n줄" }])[0]!.message).toBe("한 줄로 써야 합니다 (줄바꿈 없이)");
+    expect(loose([{ type: "text", body: "가".repeat(4001) }])).toHaveLength(1);
+    expect(loose([{ type: "text" }])).toEqual([{ path: "blocks[0].body", message: "필요한 칸이 빠졌습니다" }]);
+    expect(loose([{ type: "list", h: "", items: [] }])).toEqual([{ path: "blocks[0].items", message: "1개 이상 있어야 합니다" }]);
+    expect(loose([])).toHaveLength(1);
+  });
+
+  it("그리기용 blockSchema 는 빈 칸이 든 블록을 읽는다", () => {
+    for (const b of blanked()) expect(blockSchema.safeParse(b).success, b.type).toBe(true);
+  });
+
+  it("비운 칸도 여전히 고칠 수 있는 칸이다 (없는 칸은 아니다)", () => {
+    const b = blanked();
+    expect(isEditablePath(b, [1, "h"])).toBe(true);
+    expect(isEditablePath(b, [4, "rows", 1, 2])).toBe(true);
+    expect(isEditablePath(b, [2, "h"])).toBe(false);
+  });
+});
+
+describe("tidyText — 사람이 고친 글자 다듬기", () => {
+  it("앞뒤 공백·빈 줄과 줄 끝 공백을 지우고, 가운데 줄바꿈은 지키고, 연속 빈 줄은 하나로", () => {
+    expect(tidyText("  \n 첫 줄  \r\n둘째 줄\t\n\n\n\n넷째\u3000\n마지막 \n\n ")).toBe("첫 줄\n둘째 줄\n\n넷째\n마지막");
+    expect(tidyText("   ")).toBe("");
+    expect(tidyText("한 줄")).toBe("한 줄");
+    expect(tidyText("  들여쓴 둘째 줄\n  은 그대로")).toBe("들여쓴 둘째 줄\n  은 그대로");
+  });
+  it("한 줄 칸: 줄바꿈을 공백 하나로 잇는다", () => {
+    expect(tidyText(" 첫 줄 \n\n 둘째 줄\r\n셋째 ", true)).toBe("첫 줄 둘째 줄 셋째");
   });
 });
 

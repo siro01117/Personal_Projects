@@ -209,9 +209,53 @@ describe("MemoryDrawer — 글자 고치기", () => {
     expect(await code(d.editText(ROOT_REPORT, 1, [0, "v"], "x"))).toBe("EZ_VERSION");
     expect(await code(d.editText(ROOT_REPORT, 2, [0, "type"], "x"))).toBe("EZ_PATH");
     expect(await code(d.editText(ROOT_REPORT, 2, [6, "items", 0, "url"], "https://x"))).toBe("EZ_PATH");
-    expect(await code(d.editText(ROOT_REPORT, 2, [0, "v"], "   "))).toBe("EZ_EMPTY");
     expect(await code(d.editText(ROOT_REPORT, 2, [0, "v"], "두\n줄"))).toBe("EZ_VALUE");
     expect(await code(d.editText(ROOT_REPORT, 2, [3, "items", 0], "가".repeat(601)))).toBe("EZ_VALUE");
+  });
+
+  it("블록 칸은 비울 수 있고 다시 채울 수 있다 (공백만이면 빈 값)", async () => {
+    const d = drawer();
+    const at = async () => (await d.report(ROOT_REPORT))!.blocks as any[];
+    expect(await d.editText(ROOT_REPORT, 1, [1, "h"], "  \n ")).toBe(2);
+    expect((await at())[1].h).toBe("");
+    expect(await d.editText(ROOT_REPORT, 2, [4, "rows", 0, 1], "")).toBe(3);
+    expect((await at())[4].rows[0][1]).toBe("");
+    // 이미 빈 칸에 빈 값 — 바뀐 것이 없어 버전 그대로
+    expect(await d.editText(ROOT_REPORT, 3, [1, "h"], "")).toBe(3);
+    // 비운 칸은 여전히 고칠 수 있는 칸 (구조는 그대로)
+    expect(await d.editText(ROOT_REPORT, 3, [1, "h"], "다시 채움")).toBe(4);
+    expect((await at())[1].h).toBe("다시 채움");
+    // 키가 없는 선택 칸은 새로 만들 수 없다
+    expect(await code(d.editText(ROOT_REPORT, 4, [2, "h"], "x"))).toBe("EZ_PATH");
+  });
+
+  it("줄바꿈: 되는 칸은 가운데 줄바꿈을 지키고 다듬는다, 한 줄 칸은 거절", async () => {
+    const d = drawer();
+    const at = async () => (await d.report(ROOT_REPORT))!.blocks as any[];
+    let v = await d.editText(ROOT_REPORT, 1, [3, "items", 0], "  첫 줄  \r\n둘째 줄 \n\n\n\n넷째\n  ");
+    expect((await at())[3].items[0]).toBe("첫 줄\n둘째 줄\n\n넷째");
+    v = await d.editText(ROOT_REPORT, v, [4, "rows", 0, 0], "칸\n둘");
+    v = await d.editText(ROOT_REPORT, v, [5, "items", 0, "text"], "근거\n둘");
+    v = await d.editText(ROOT_REPORT, v, [0, "w"], "풀이\n둘");
+    for (const p of [[1, "h"], [3, "h"], [0, "v"], [4, "cols", 0], [6, "items", 0, "title"]]) {
+      expect(await code(d.editText(ROOT_REPORT, v, p, "두\n줄")), JSON.stringify(p)).toBe("EZ_VALUE");
+    }
+  });
+
+  it("작성자: 고치고 비운다. 버전은 오르고 agent_updated_at 은 그대로. 폴더는 거절", async () => {
+    const d = drawer();
+    expect(await d.editText(ROOT_REPORT, 1, ["agent"], "  김조사  ")).toBe(2);
+    let r = (await d.report(ROOT_REPORT))!;
+    expect(r.agent).toBe("김조사");
+    expect(r.agent_updated_at).toBe("2026-09-01T10:00:00Z");
+    expect(await code(d.editText(ROOT_REPORT, 2, ["agent"], "가".repeat(101)))).toBe("EZ_VALUE");
+    expect(await code(d.editText(ROOT_REPORT, 2, ["agent"], "두\n줄"))).toBe("EZ_VALUE");
+    expect(await code(d.editText(ROOT_REPORT, 1, ["agent"], "x"))).toBe("EZ_VERSION");
+    expect(await d.editText(ROOT_REPORT, 2, ["agent"], "   ")).toBe(3);
+    r = (await d.report(ROOT_REPORT))!;
+    expect(r.agent).toBeNull();
+    expect(r.agent_updated_at).toBe("2026-09-01T10:00:00Z");
+    expect(await code(d.editText("A", 1, ["agent"], "x"))).toBe("EZ_PATH");
   });
 
   it("제목은 이름 규칙 + 겹침", async () => {

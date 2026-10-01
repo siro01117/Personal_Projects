@@ -68,6 +68,52 @@ describe("blocksToMarkdown", () => {
     expect(md).toContain("- 첫 줄  \n  둘째 줄");
   });
 
+  it("근거 글·목록 항목 안 줄바꿈은 들여쓴 이어지는 줄, 표 칸은 <br>", () => {
+    const md = blocksToMarkdown("t", [
+      { type: "list", h: "목록", items: ["하나\n둘\n\n넷", "다음"] },
+      { type: "table", h: "표", cols: ["a", "b"], rows: [["첫 줄\n둘째 줄", "x"]] },
+      { type: "claims", h: "근거", items: [{ tag: "fact", text: "사실\n이어짐", refs: [1] }] },
+      { type: "sources", h: "출처", items: [{ title: "문서", url: "https://a.dev" }] },
+    ]);
+    expect(md).toContain("- 하나  \n  둘\n\n  넷\n- 다음");
+    expect(md).toContain("| 첫 줄<br>둘째 줄 | x |");
+    expect(md).toContain("- [사실] 사실  \n  이어짐[^1]");
+  });
+
+  it("사람이 비운 칸은 건너뛴다 — 소제목 · 문단 · 목록 항목 · 근거 줄 · 판정 · 캡션. 표 칸은 빈 칸, 출처 제목이 비면 주소만", () => {
+    const md = blocksToMarkdown("제목", [
+      { type: "verdict", v: "", w: "풀이만" },
+      { type: "text", h: "", body: "문단" },
+      { type: "text", h: "소제목만", body: "" },
+      { type: "text", body: "" },
+      { type: "list", h: "", items: ["하나", "", "셋"] },
+      { type: "list", h: "다 비운 목록", items: ["", ""] },
+      { type: "table", h: "", cols: ["a", ""], rows: [["", "2"]] },
+      { type: "claims", h: "", items: [{ tag: "fact", text: "", refs: [1] }, { tag: "guess", text: "남는 근거", refs: [] }] },
+      { type: "sources", h: "", items: [{ title: "", url: "https://a.dev/x" }, { title: "둘째", url: "https://b.dev" }] },
+      { type: "image", src: sampleImage().src, w: 10, h: 10, alt: "", caption: "", place: "full", credit: "직접 캡처" },
+    ], { agent: "", date: "10월 2일" });
+    expect(md).toBe(
+      [
+        "# 제목",
+        "10월 2일",
+        "> 풀이만",
+        "문단",
+        "## 소제목만",
+        "- 하나\n- 셋",
+        "## 다 비운 목록",
+        "| a |  |\n| --- | --- |\n|  | 2 |",
+        "- [추정] 남는 근거",
+        "[^1]: <https://a.dev/x>\n[^2]: [둘째](<https://b.dev/>)",
+        "![]()",
+      ].join("\n\n") + "\n",
+    );
+    expect(md).not.toContain("##\n");
+    // 판정을 다 비우면 줄이 없다. 작성자가 없으면(null) 날짜만
+    expect(blocksToMarkdown("t", [{ type: "verdict", v: "", w: "" }, { type: "text", body: "글" }], { agent: null, date: "오늘" })).toBe("# t\n\n오늘\n\n글\n");
+    expect(blocksToMarkdown("t", [{ type: "verdict", v: "한 줄", w: "" }])).toBe("# t\n\n> **한 줄**\n");
+  });
+
   it("사진: ![설명](출처 링크) + 캡션 한 줄. 출처 링크가 없으면 ()", () => {
     const md = blocksToMarkdown("t", [
       ...sampleBlocks(),
