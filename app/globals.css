@@ -842,6 +842,8 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 
 /* 폰 일정: 하루 ↔ 주 */
 .ph-view{flex:1;min-height:0;display:flex;flex-direction:column;animation:view-in var(--m-base) var(--ease-out)}
+/* 페이지 전환: 모듈 사이는 오른쪽 내용만 짧게 나타난다(움직임 없이 흐림 → 또렷). 사이드바는 그대로 */
+.page-in{animation:fade-in var(--m-fast) var(--ease-out)}
 @keyframes view-in{from{opacity:.001;transform:scale(.985)}}
 /* 좌우 밀기: 트랙(.pg-track)을 JS 가 옮긴다. 가운데 칸 양옆에 이전 · 다음 칸을 미리 그려 둔다. 시간 축은 밖이라 고정 */
 .ph-body,.mini-wrap{touch-action:pan-y}

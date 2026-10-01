@@ -52,7 +52,10 @@ export function Shell({ children }: { children: ReactNode }) {
             </Link>
           </nav>
         </aside>
-        <div className="main">{children}</div>
+        {/* 모듈이 바뀔 때만 다시 붙어 짧게 나타난다 (모듈 안에서 폴더·주를 오갈 때는 그대로) */}
+        <div className="main page-in" key={inTrash ? "trash" : (MENU[activeIndex]?.path ?? pathname)}>
+          {children}
+        </div>
       </section>
     </div>
   );

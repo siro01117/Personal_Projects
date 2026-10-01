@@ -1,6 +1,6 @@
-import { ReportView } from "../../../_ui/ReportView";
+import { Explorer } from "../../../../_ui/Explorer";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <ReportView id={id} />;
+  return <Explorer folderId={id} />;
 }
