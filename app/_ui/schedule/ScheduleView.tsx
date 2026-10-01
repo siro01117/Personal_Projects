@@ -1,0 +1,903 @@
+"use client";
+
+// 일정 화면 (docs/일정.md 6장, 목업 docs/mockup/schedule-v1.html).
+// 데스크톱(앱 폭 760px 초과): 이번 주 7열 + 오른쪽 상세 패널(1180px 이상) / 블록 옆 작은 창(그 아래).
+// 폰(760px 이하): 하루 타임라인 · 주 미니어처 + 보기 시트 · 수정 시트.
+// 누르면 보기만, 고치기는 '수정' 을 한 번 더. 빈 칸 한 번 누르기는 아무것도 안 함, 두 번 누르기(데스크톱)는 새 일정.
+// 고치는 중인 값은 줄에 얹어 미리 그린다(withDraft) — 동선·식사가 같이 따라 움직인다.
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent } from "react";
+import {
+  addDays,
+  daysBetween,
+  DEFAULT_SETTINGS,
+  planRange,
+  validateEvent,
+  type DateStr,
+  type EventRow,
+  type Occurrence,
+  type Place,
+  type TaskRow,
+} from "../../../lib/schedule";
+import type { EventRows } from "../../_data/types";
+import {
+  buildColumns,
+  dayLabel,
+  draftInput,
+  draftOf,
+  DRAFT_ID,
+  duration,
+  firstOccurrence,
+  hourRange,
+  mondayOf,
+  moveTo,
+  newAt,
+  newDraft,
+  nowIn,
+  PX_PER_MIN,
+  resizeTo,
+  savePlan,
+  scopesFor,
+  shortWeekTitle,
+  snap,
+  spansOf,
+  weekDates,
+  weekTitle,
+  WEEKDAYS,
+  withDraft,
+  type Draft,
+  type Scope,
+} from "../../_logic/schedule";
+import { useApp } from "../AppContext";
+import { Icon } from "../Icon";
+import { HomeButton } from "../Shell";
+import { ThemeToggle } from "../ThemeToggle";
+import { useToast } from "../Toast";
+import { Detail } from "./Detail";
+import { EventForm } from "./EventForm";
+import { AllDayCell, Axis, ColumnItems, NowLine, type GridCtx } from "./Grid";
+import { MiniWeek } from "./MiniWeek";
+import { useScheduleData } from "./useScheduleData";
+
+const PHONE_MAX = 760;
+const PANEL_MIN = 1180;
+/** 지금 선 갱신 간격 */
+const CLOCK_MS = 30_000;
+
+type Sel = { event_id: string; on_date: DateStr };
+type Edit = { target: Sel | null; draft: Draft; base: Draft; taskId: string | null };
+type Anchor = { left: number; right: number; top: number };
+type Grab = { mode: "move" | "resize"; x: number; y: number; orig: Draft; offset: number; moved: boolean };
+
+function useViewportWidth(): number | null {
+  const [w, setW] = useState<number | null>(null);
+  useEffect(() => {
+    const f = () => setW(document.documentElement.clientWidth);
+    f();
+    addEventListener("resize", f);
+    return () => removeEventListener("resize", f);
+  }, []);
+  return w;
+}
+
+/** 선택 → 지금 그리는 회차. 반복이 아닌 일정은 id 만으로 (날짜를 옮겨도 따라간다) */
+function findOcc(occs: readonly Occurrence[], rows: EventRows, sel: Sel | null): Occurrence | null {
+  if (!sel) return null;
+  const ev = rows.events.find((e) => e.id === sel.event_id);
+  if (ev && ev.repeat === null) return occs.find((o) => o.event_id === sel.event_id) ?? null;
+  return occs.find((o) => o.event_id === sel.event_id && o.on_date === sel.on_date) ?? null;
+}
+
+function isTyping(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+}
+
+const tempId = () => `tmp-${globalThis.crypto.randomUUID()}`;
+
+export function ScheduleView() {
+  const { href } = useApp();
+  const toast = useToast();
+  const width = useViewportWidth();
+  const phone = (width ?? 1440) <= PHONE_MAX;
+  const wide = (width ?? 1440) >= PANEL_MIN;
+
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), CLOCK_MS);
+    const vis = () => document.visibilityState === "visible" && setClock(Date.now());
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", vis);
+    };
+  }, []);
+
+  const [week, setWeek] = useState<DateStr>(() => mondayOf(nowIn(DEFAULT_SETTINGS.tz).date));
+  const [day, setDay] = useState<DateStr>(() => nowIn(DEFAULT_SETTINGS.tz).date);
+  const [phoneMode, setPhoneMode] = useState<"day" | "week">("day");
+  const [sel, setSel] = useState<Sel | null>(null);
+  const [edit, setEdit] = useState<Edit | null>(null);
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [scopeAsk, setScopeAsk] = useState<{ x: number; y: number; orig: Draft } | null>(null);
+  const [ghost, setGhost] = useState<{ task: TaskRow; x: number; y: number; draft: Draft | null } | null>(null);
+
+  const D = useScheduleData(week);
+  const { meta, rows, tasks, links } = D;
+  const tz = meta?.settings.tz ?? DEFAULT_SETTINGS.tz;
+  const now = nowIn(tz, new Date(clock));
+  const today = now.date;
+
+  // ------------------------------------------------------------ 계산
+
+  const view = useMemo(() => {
+    if (edit) return withDraft(rows, edit.target, edit.draft, edit.taskId);
+    if (ghost?.draft) return withDraft(rows, null, ghost.draft, ghost.task.id);
+    return rows;
+  }, [rows, edit, ghost]);
+
+  const dates = useMemo(() => weekDates(week), [week]);
+  const plan = useMemo(() => {
+    if (!meta) return null;
+    return planRange(week, addDays(week, 6), view.events, view.exceptions, meta.places, meta.travel, meta.settings);
+  }, [meta, week, view]);
+  const cols = useMemo(() => (plan ? buildColumns(dates, plan.occurrences, plan.days) : []), [plan, dates]);
+  const liveRange = useMemo(() => hourRange(spansOf(cols)), [cols]);
+  const frozen = useRef<{ from: number; to: number } | null>(null);
+  const range = dragging || ghost ? (frozen.current ?? liveRange) : liveRange;
+  if (!dragging && !ghost) frozen.current = liveRange;
+
+  const places = useMemo(() => new Map((meta?.places ?? []).map((p) => [p.id, p])), [meta]);
+  const placeList = useMemo<Place[]>(() => meta?.places ?? [], [meta]);
+  const occs = plan?.occurrences ?? [];
+  const selOcc = edit ? null : findOcc(occs, view, sel);
+  const editOcc = edit ? (edit.target ? findOcc(occs, view, edit.target) : (occs.find((o) => o.event_id === DRAFT_ID) ?? null)) : null;
+  const evOf = (id: string): EventRow | null => view.events.find((e) => e.id === id) ?? null;
+  const segsOf = (d: DateStr) => plan?.days.find((p) => p.date === d)?.segments ?? [];
+  const linked = useMemo(() => new Set(links.map((l) => l.task_id)), [links]);
+  const openTasks = tasks.filter((t) => !t.done_at && !linked.has(t.id));
+  const taskOf = (id: string | null) => (id ? (tasks.find((t) => t.id === id) ?? null) : null);
+
+  const colsRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const phBodyRef = useRef<HTMLDivElement>(null);
+  const grab = useRef<Grab | null>(null);
+  const justDragged = useRef(false);
+  const live = useRef({ week, range, edit, rows });
+  live.current = { week, range, edit, rows };
+
+  // 고른 회차가 사라지면(지움 · 다른 주) 보기를 닫는다
+  useEffect(() => {
+    if (sel && plan && !edit && !findOcc(plan.occurrences, view, sel)) {
+      setSel(null);
+      setAnchor(null);
+    }
+  }, [sel, plan, view, edit]);
+
+  // ------------------------------------------------------------ 옮겨 다니기
+
+  const closeAll = useCallback(() => {
+    setSel(null);
+    setEdit(null);
+    setAnchor(null);
+    setDeleting(false);
+    setScopeAsk(null);
+  }, []);
+
+  const goWeek = useCallback(
+    (w: DateStr) => {
+      if (!edit) closeAll();
+      setWeek(w);
+    },
+    [edit, closeAll],
+  );
+  const goDay = useCallback(
+    (d: DateStr) => {
+      setDay(d);
+      const w = mondayOf(d);
+      if (w !== week) goWeek(w);
+    },
+    [week, goWeek],
+  );
+  const goToday = () => {
+    if (phone) goDay(today);
+    else goWeek(mondayOf(today));
+  };
+  const step = (n: number) => {
+    if (phone && phoneMode === "day") goDay(addDays(day, n));
+    else {
+      const w = addDays(week, 7 * n);
+      goWeek(w);
+      setDay(addDays(day, 7 * n));
+    }
+  };
+
+  // ------------------------------------------------------------ 보기 · 고치기 시작
+
+  const pick = useCallback(
+    (o: Occurrence, el: HTMLElement) => {
+      if (o.event_id === DRAFT_ID || justDragged.current) return;
+      if (edit) {
+        if (editOcc?.key === o.key) return;
+        setEdit(null);
+      }
+      setScopeAsk(null);
+      setDeleting(false);
+      setSel({ event_id: o.event_id, on_date: o.on_date });
+      const r = el.getBoundingClientRect();
+      setAnchor({ left: r.left, right: r.right, top: r.top });
+    },
+    [edit, editOcc],
+  );
+
+  function openNew(date: DateStr, start: number, end: number) {
+    setSel(null);
+    setAnchor(null);
+    setDeleting(false);
+    const d = newDraft(date, start, end);
+    setEdit({ target: null, draft: d, base: d, taskId: null });
+  }
+
+  function newHere() {
+    const date = phone ? day : today >= week && today <= addDays(week, 6) ? today : week;
+    const start = date === today ? Math.min(1410, Math.ceil((now.min + 1) / 30) * 30) : 540;
+    openNew(date, start, start + 60);
+  }
+
+  function startEdit() {
+    if (!selOcc) return;
+    const ev = evOf(selOcc.event_id);
+    if (!ev || ev.source) return;
+    const d = draftOf(selOcc, ev);
+    setDeleting(false);
+    setEdit({ target: { event_id: selOcc.event_id, on_date: selOcc.on_date }, draft: d, base: d, taskId: ev.task_id });
+  }
+
+  function cancelEdit() {
+    const target = edit?.target ?? null;
+    setEdit(null);
+    setScopeAsk(null);
+    setSel(target);
+  }
+
+  // ------------------------------------------------------------ 저장
+
+  /** keep = 끌어 놓아 저장(고치기 상태 유지). revertTo = 실패하면 돌아갈 칸(끌기 전) */
+  async function save(scope: Scope | null, keep = false, editState: Edit | null = edit, revertTo: Draft | null = null) {
+    if (!editState) return;
+    const { target, draft, base, taskId } = editState;
+    const input = draftInput(draft);
+    const issue = validateEvent(input)[0];
+    if (issue) {
+      toast(issue.path === "title" && input.title === "" ? "제목을 써 주세요" : issue.reason);
+      return;
+    }
+    const ev = target ? (rows.events.find((e) => e.id === target.event_id) ?? null) : null;
+    if (target && !ev) {
+      toast("일정이 없습니다. 새로 불러오세요");
+      setEdit(null);
+      return;
+    }
+    const prev = target ? (rows.exceptions.find((x) => x.event_id === target.event_id && x.on_date === target.on_date)?.patch ?? null) : null;
+    const how = savePlan(draft, base, ev, scope, prev);
+    const ver = (srv: EventRows) => srv.events.find((e) => e.id === ev!.id)?.version ?? ev!.version;
+    const after = (next: Sel | null) => {
+      if (keep && next) setEdit({ target: next, draft, base: draft, taskId });
+      else setEdit(null);
+      setSel(next);
+    };
+    const failed = () => {
+      setEdit(revertTo ? { ...editState, draft: revertTo } : editState);
+      setSel(null);
+    };
+    const preview = (r: EventRows) => withDraft(r, target, draft, taskId);
+
+    if (how.kind === "none") {
+      after(target);
+      return;
+    }
+    if (how.kind === "create") {
+      setEdit(null);
+      const id = tempId();
+      const row = await D.run(
+        (r) => {
+          const w = withDraft(r, null, draft, taskId);
+          return { ...w, events: w.events.map((e) => (e.id === DRAFT_ID ? { ...e, id } : e)) };
+        },
+        () => D.S.createEvent({ ...how.input, task_id: taskId }),
+      );
+      if (row) setSel({ event_id: row.id, on_date: row.date });
+      else failed();
+      return;
+    }
+    const onDate = target!.on_date;
+    if (how.kind === "update") {
+      after({ event_id: ev!.id, on_date: draft.date });
+      const row = await D.run(preview, (srv) => D.S.updateEvent(ev!.id, ver(srv), how.patch));
+      if (!row) failed();
+      return;
+    }
+    if (how.kind === "once") {
+      after(target);
+      const ok = await D.run(preview, async () => {
+        await D.S.setException(ev!.id, onDate, how.patch);
+        return true;
+      });
+      if (!ok) failed();
+      return;
+    }
+    // 이후 모두
+    after(target);
+    const row = await D.run(preview, (srv) => D.S.split(ev!.id, ver(srv), onDate, how.patch));
+    if (!row) {
+      failed();
+      return;
+    }
+    const next = { event_id: row.id, on_date: how.patch.date ?? onDate };
+    if (keep) setEdit((e) => (e ? { ...e, target: next } : e));
+    setSel(next);
+  }
+
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  // ------------------------------------------------------------ 없애기
+
+  async function remove(scope: Scope | null) {
+    if (!selOcc) return;
+    const ev = evOf(selOcc.event_id);
+    if (!ev || ev.source) return;
+    if (ev.repeat !== null && scope === null) {
+      setDeleting(true);
+      return;
+    }
+    const on = selOcc.on_date;
+    closeAll();
+    const undoable = (label: string, undo: (srv: EventRows) => Promise<unknown>) =>
+      toast(label, { label: "되돌리기", run: () => void D.run(null, undo) });
+
+    if (ev.repeat === null) {
+      const ok = await D.run(
+        (r) => ({ ...r, events: r.events.filter((e) => e.id !== ev.id) }),
+        async (srv) => {
+          await D.S.deleteEvent(ev.id, srv.events.find((e) => e.id === ev.id)?.version ?? ev.version);
+          return true;
+        },
+      );
+      if (ok) undoable("일정을 없앴습니다", () => D.S.restoreEvent(ev.id));
+      return;
+    }
+    if (scope === "once") {
+      const prev = rows.exceptions.find((x) => x.event_id === ev.id && x.on_date === on) ?? null;
+      const ok = await D.run(
+        (r) => ({
+          ...r,
+          exceptions: [...r.exceptions.filter((x) => !(x.event_id === ev.id && x.on_date === on)), { event_id: ev.id, on_date: on, skip: true, patch: null }],
+        }),
+        async () => {
+          await D.S.setException(ev.id, on, null);
+          return true;
+        },
+      );
+      if (ok) undoable("일정을 없앴습니다", () => (prev && !prev.skip ? D.S.setException(ev.id, on, prev.patch) : D.S.clearException(ev.id, on)));
+      return;
+    }
+    // 이후 모두
+    const first = firstOccurrence(ev) === on;
+    const oldRepeat = ev.repeat;
+    const removed = rows.exceptions.filter((x) => x.event_id === ev.id && x.on_date >= on);
+    const ok = await D.run(
+      (r) =>
+        first
+          ? { ...r, events: r.events.filter((e) => e.id !== ev.id) }
+          : {
+              events: r.events.map((e) => (e.id === ev.id && e.repeat ? { ...e, repeat: { ...e.repeat, until: addDays(on, -1) } } : e)),
+              exceptions: r.exceptions.filter((x) => !(x.event_id === ev.id && x.on_date >= on)),
+            },
+      async (srv) => {
+        await D.S.cut(ev.id, srv.events.find((e) => e.id === ev.id)?.version ?? ev.version, on);
+        return true;
+      },
+    );
+    if (!ok) return;
+    undoable("일정을 없앴습니다", async (srv) => {
+      if (first) return D.S.restoreEvent(ev.id);
+      const v = srv.events.find((e) => e.id === ev.id)?.version ?? ev.version + 1;
+      await D.S.updateEvent(ev.id, v, { repeat: oldRepeat });
+      for (const x of removed) await D.S.setException(x.event_id, x.on_date, x.skip ? null : x.patch);
+    });
+  }
+
+  async function toggleTask(t: TaskRow) {
+    const done = !t.done_at;
+    const row = await D.runTask(() => D.T.setDone(t.id, t.version, done));
+    if (row && done) toast("끝냈습니다", { label: "되돌리기", run: () => void D.runTask(() => D.T.setDone(row.id, row.version, false)) });
+  }
+
+  // ------------------------------------------------------------ 끌기 (데스크톱 마우스, 고치는 블록만) · 할 일 놓기
+
+
+  /** 격자 위 좌표 → 몇째 날 · 몇 분 (밖이면 null, clamp 면 가장자리로) */
+  const hit = useCallback((x: number, y: number, clamp = false): { dayIndex: number; min: number } | null => {
+    const el = colsRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const inside = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    if (!inside && !clamp) return null;
+    const cx = Math.min(r.right - 1, Math.max(r.left, x));
+    const cy = Math.min(r.bottom, Math.max(r.top, y));
+    const { range: rg } = live.current;
+    return { dayIndex: Math.min(6, Math.max(0, Math.floor(((cx - r.left) / r.width) * 7))), min: rg.from + (cy - r.top) / PX_PER_MIN };
+  }, []);
+
+  const onGrab = useCallback(
+    (e: ReactPointerEvent<HTMLElement>, _o: Occurrence, mode: "move" | "resize") => {
+      const cur = live.current.edit;
+      if (e.pointerType !== "mouse" || e.button !== 0 || !cur || cur.draft.allDay) return;
+      const h = hit(e.clientX, e.clientY, true);
+      if (!h) return;
+      e.preventDefault();
+      const occDay = daysBetween(live.current.week, cur.draft.date);
+      grab.current = { mode, x: e.clientX, y: e.clientY, orig: cur.draft, offset: h.dayIndex * 1440 + h.min - (occDay * 1440 + cur.draft.start), moved: false };
+
+      const move = (ev: PointerEvent) => {
+        const g = grab.current;
+        if (!g) return;
+        if (!g.moved && Math.hypot(ev.clientX - g.x, ev.clientY - g.y) < 4) return;
+        if (!g.moved) {
+          g.moved = true;
+          setDragging(true);
+        }
+        const p = hit(ev.clientX, ev.clientY, true)!;
+        const w = live.current.week;
+        let next: Pick<Draft, "date" | "start" | "end">;
+        if (g.mode === "move") {
+          const abs = p.dayIndex * 1440 + p.min - g.offset;
+          const di = Math.min(6, Math.max(0, Math.floor(abs / 1440)));
+          const m = moveTo(g.orig.start, g.orig.end, abs - di * 1440);
+          next = { date: addDays(w, di), ...m };
+        } else {
+          const occDay2 = daysBetween(w, g.orig.date);
+          next = { date: g.orig.date, start: g.orig.start, end: resizeTo(g.orig.start, (p.dayIndex - occDay2) * 1440 + p.min) };
+        }
+        setEdit((x) => (x ? { ...x, draft: { ...x.draft, ...next } } : x));
+      };
+      const up = (ev: PointerEvent) => {
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", up);
+        const g = grab.current;
+        grab.current = null;
+        if (!g?.moved) return;
+        justDragged.current = true;
+        setTimeout(() => (justDragged.current = false), 0);
+        setDragging(false);
+        const st = live.current.edit;
+        if (!st) return;
+        const d = st.draft;
+        if (d.date === g.orig.date && d.start === g.orig.start && d.end === g.orig.end) return;
+        if (!st.target) return; // 새 일정은 칸만 바뀐다
+        const ev0 = live.current.rows.events.find((x) => x.id === st.target!.event_id);
+        if (ev0?.repeat) setScopeAsk({ x: ev.clientX, y: ev.clientY, orig: g.orig });
+        else void saveRef.current(null, true, st, g.orig);
+      };
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", up);
+    },
+    // 놓을 때는 live · saveRef 로 최신 상태를 읽는다
+    [hit],
+  );
+
+  function dropScope(scope: Scope | null) {
+    const ask = scopeAsk;
+    setScopeAsk(null);
+    if (!ask || !edit) return;
+    if (scope === null) {
+      setEdit({ ...edit, draft: { ...edit.draft, date: ask.orig.date, start: ask.orig.start, end: ask.orig.end } });
+      return;
+    }
+    void save(scope, true, edit, ask.orig);
+  }
+
+  function grabTask(e: ReactPointerEvent<HTMLElement>, task: TaskRow) {
+    if (e.button !== 0 || e.pointerType !== "mouse") return;
+    e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    let moved = false;
+    let last: Draft | null = null;
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
+      moved = true;
+      const h = hit(ev.clientX, ev.clientY);
+      const len = task.est_min ?? 60;
+      if (h) {
+        const start = Math.min(1440 - 15, Math.max(0, snap(h.min - 15)));
+        last = { ...newDraft(addDays(live.current.week, h.dayIndex), start, start + len), title: task.title };
+      } else last = null;
+      setGhost({ task, x: ev.clientX, y: ev.clientY, draft: last });
+    };
+    const up = () => {
+      removeEventListener("pointermove", move);
+      removeEventListener("pointerup", up);
+      setGhost(null);
+      if (moved && last) void placeTask(task, last);
+    };
+    addEventListener("pointermove", move);
+    addEventListener("pointerup", up);
+  }
+
+  async function placeTask(task: TaskRow, d: Draft) {
+    const id = tempId();
+    D.setLinks((l) => [...l, { task_id: task.id, event_id: id, date: d.date, start_min: d.start, repeating: false }]);
+    const row = await D.run(
+      (r) => {
+        const w = withDraft(r, null, d, task.id);
+        return { ...w, events: w.events.map((e) => (e.id === DRAFT_ID ? { ...e, id } : e)) };
+      },
+      () => D.S.createEvent({ ...draftInput(d), task_id: task.id }),
+    );
+    if (row) setSel({ event_id: row.id, on_date: row.date });
+  }
+
+  // ------------------------------------------------------------ 키보드
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "Escape") {
+        if (scopeAsk) dropScope(null);
+        else if (deleting) setDeleting(false);
+        else if (edit) cancelEdit();
+        else if (sel) {
+          setSel(null);
+          setAnchor(null);
+        } else return;
+        e.preventDefault();
+        return;
+      }
+      if (isTyping(e.target) || edit) return;
+      if (e.key === "ArrowLeft") step(-1);
+      else if (e.key === "ArrowRight") step(1);
+      else if (e.key === "t" || e.key === "T") goToday();
+      else if (e.key === "n" || e.key === "N") newHere();
+      else return;
+      e.preventDefault();
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  });
+
+  // ------------------------------------------------------------ 처음 열 때 스크롤
+
+  const scrolled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!plan || width === null || !D.loaded) return;
+    const key = `${week}|${phone ? `p${phoneMode}${day}` : "d"}`;
+    if (scrolled.current === key) return;
+    const el = phone ? phBodyRef.current : bodyRef.current;
+    if (!el) return;
+    scrolled.current = key;
+    const shown = phone ? cols.filter((c) => c.date === day) : cols;
+    const starts = shown.flatMap((c) => c.items.filter((l) => l.item.kind === "ev").map((l) => l.item.start));
+    const nowShown = shown.some((c) => c.date === today) && now.min >= range.from && now.min <= range.to;
+    const target = nowShown ? now.min - 90 : starts.length ? Math.min(...starts) - 30 : range.from;
+    el.scrollTop = Math.max(0, (target - range.from) * PX_PER_MIN);
+  });
+
+  // ------------------------------------------------------------ 그리기
+
+  if (width === null || !meta || !plan || !D.ready) return <div className="sched" />;
+
+  const ctx: GridCtx = {
+    places,
+    sourceLabel: (s) => meta.sources.find((x) => x.source === s)?.label ?? s,
+    taskDone: (id) => {
+      if (!id) return null;
+      const t = taskOf(id);
+      return t ? t.done_at !== null : null;
+    },
+    selKey: selOcc?.key ?? null,
+    editKey: editOcc?.key ?? null,
+    dragging,
+    onPick: pick,
+    onGrab: phone ? undefined : onGrab,
+  };
+  const height = (range.to - range.from) * PX_PER_MIN;
+  const ev = selOcc ? evOf(selOcc.event_id) : null;
+  const detail = selOcc && (
+    <Detail
+      occ={selOcc}
+      ev={ev}
+      places={places}
+      sources={meta.sources}
+      segments={segsOf(selOcc.date)}
+      task={taskOf(selOcc.task_id)}
+      tz={tz}
+      deleting={deleting}
+      onEdit={startEdit}
+      onDelete={(s) => void remove(s)}
+      onCancelDelete={() => setDeleting(false)}
+      onToggleTask={(t) => void toggleTask(t)}
+    />
+  );
+  const editEv = edit?.target ? (rows.events.find((e) => e.id === edit.target!.event_id) ?? null) : null;
+  const form = edit && (
+    <EventForm
+      key={edit.target ? `${edit.target.event_id}:${edit.target.on_date}` : "new"}
+      draft={edit.draft}
+      onChange={(d) => setEdit((x) => (x ? { ...x, draft: d } : x))}
+      places={placeList}
+      scopes={scopesFor(edit.draft, edit.base, editEv)}
+      isNew={edit.target === null}
+      onSave={(s) => void save(s)}
+      onCancel={cancelEdit}
+    />
+  );
+
+  if (phone) {
+    const dayCol = cols.find((c) => c.date === day);
+    return (
+      <div className="sched phone">
+        <div className="ph-top">
+          <HomeButton />
+          <button type="button" className="iconbtn" aria-label={phoneMode === "day" ? "전날" : "지난주"} onClick={() => step(-1)}>
+            <Icon name="left" />
+          </button>
+          <h2>
+            {phoneMode === "day" ? (
+              <>
+                {dayLabel(day, false)}
+                <span className="wd"> {WEEKDAYS[daysBetween(week, day)]}</span>
+              </>
+            ) : (
+              shortWeekTitle(week)
+            )}
+          </h2>
+          <button type="button" className="iconbtn" aria-label={phoneMode === "day" ? "다음날" : "다음 주"} onClick={() => step(1)}>
+            <Icon name="right" />
+          </button>
+          <span className="grow" />
+          <div className="seg vseg" role="group" aria-label="보기">
+            <button type="button" aria-pressed={phoneMode === "day"} onClick={() => setPhoneMode("day")}>
+              하루
+            </button>
+            <button type="button" aria-pressed={phoneMode === "week"} onClick={() => setPhoneMode("week")}>
+              주
+            </button>
+          </div>
+          {phoneMode === "day" ? (
+            <button type="button" className="ghost" onClick={goToday}>
+              오늘
+            </button>
+          ) : (
+            <Link className="iconbtn" href={href("/schedule/settings")} aria-label="설정" title="설정">
+              <Icon name="gear" />
+            </Link>
+          )}
+          <ThemeToggle />
+        </div>
+        {phoneMode === "day" ? (
+          <>
+            <div className="strip">
+              {cols.map((c, i) => (
+                <button
+                  type="button"
+                  key={c.date}
+                  className={`sd${c.date === today ? " today" : ""}${c.date === day ? " pick" : ""}`}
+                  aria-pressed={c.date === day}
+                  onClick={() => setDay(c.date)}
+                >
+                  <span className="w">{WEEKDAYS[i]}</span>
+                  <span className="d num">{Number(c.date.slice(8))}</span>
+                  <i className={c.allDay.length > 0 || c.items.some((l) => l.item.kind === "ev") ? "dot" : "dot no"} />
+                </button>
+              ))}
+            </div>
+            <div className="ph-all">{dayCol && <AllDayCell allDay={dayCol.allDay} missing={dayCol.missing} ctx={ctx} />}</div>
+            <div className="ph-body" ref={phBodyRef} {...swipe((n) => goDay(addDays(day, n)))}>
+              <div className="ph-grid" style={{ height }}>
+                <Axis from={range.from} to={range.to} now={day === today ? now.min : null} />
+                <div className="ph-col">
+                  {dayCol && <ColumnItems items={dayCol.items} from={range.from} ctx={ctx} />}
+                  {day === today && <NowLine from={range.from} to={range.to} now={now.min} />}
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <MiniWeek
+            cols={cols}
+            today={today}
+            now={now.min}
+            places={places}
+            onPick={(d) => {
+              setDay(d);
+              setPhoneMode("day");
+            }}
+          />
+        )}
+        <button type="button" className="fab" aria-label="새 일정" onClick={newHere}>
+          <Icon name="plus" />
+        </button>
+        {selOcc && !edit && (
+          <>
+            <div className="scrim light" onClick={() => setSel(null)} />
+            <div className="sheet peek" role="dialog" aria-label={selOcc.title}>
+              <span className="grab" />
+              {detail}
+            </div>
+          </>
+        )}
+        {edit && (
+          <>
+            <div className="scrim" onClick={cancelEdit} />
+            <div className="sheet" role="dialog" aria-label={edit.target ? "일정 수정" : "새 일정"}>
+              <span className="grab" />
+              {form}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const panel = form ?? detail ?? (
+    <>
+      <h2 className="tasks-h">할 일</h2>
+      {openTasks.length > 0 ? (
+        <ul className="tasks" aria-label="할 일 (시간 없음)">
+          {openTasks.map((t) => (
+            <li key={t.id} onPointerDown={(e) => grabTask(e, t)} title="끌어서 시간표에 놓기">
+              <span className="ring" aria-hidden="true" />
+              <span className="nm">{t.title}</span>
+              {t.est_min !== null && <span className="est">{duration(t.est_min)}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="tasks-empty">할 일이 없습니다</p>
+      )}
+    </>
+  );
+
+  let popStyle: { left: number; top: number } | null = null;
+  if (!wide && selOcc && anchor && !edit) {
+    const w = 268;
+    const left = anchor.right + 8 + w <= innerWidth ? anchor.right + 8 : Math.max(8, anchor.left - w - 8);
+    popStyle = { left, top: Math.max(8, Math.min(anchor.top, innerHeight - 360)) };
+  }
+
+  return (
+    <div className="sched">
+      <div className="bar-top">
+        <button type="button" className="ghost" onClick={goToday}>
+          오늘
+        </button>
+        <button type="button" className="iconbtn" aria-label="지난주" title="지난주" onClick={() => step(-1)}>
+          <Icon name="left" />
+        </button>
+        <button type="button" className="iconbtn" aria-label="다음 주" title="다음 주" onClick={() => step(1)}>
+          <Icon name="right" />
+        </button>
+        <h1>{weekTitle(week)}</h1>
+        <span className="grow" />
+        <Link className="iconbtn" href={href("/schedule/settings")} aria-label="설정" title="설정">
+          <Icon name="gear" />
+        </Link>
+        <button type="button" className="btn" onClick={newHere}>
+          <Icon name="plus" />
+          <span className="bt-label">새 일정</span>
+        </button>
+        <ThemeToggle />
+      </div>
+      <div className="stage">
+        <div className="wk">
+          <div className="wk-row wk-head">
+            <span />
+            {dates.map((d, i) => (
+              <div key={d} className={d === today ? "dh today" : "dh"}>
+                <span className="w">{WEEKDAYS[i]}</span>
+                <span className="d num">{Number(d.slice(8))}</span>
+              </div>
+            ))}
+          </div>
+          <div className="wk-row wk-all">
+            <span />
+            {cols.map((c) => (
+              <div key={c.date} className="ad">
+                <AllDayCell allDay={c.allDay} missing={c.missing} ctx={ctx} />
+              </div>
+            ))}
+          </div>
+          <div className="wk-body" ref={bodyRef}>
+            <div className="wk-grid" style={{ height }}>
+              <Axis from={range.from} to={range.to} now={today >= week && today <= addDays(week, 6) ? now.min : null} />
+              <div
+                className="cols"
+                ref={colsRef}
+                onClick={() => {
+                  // 빈 칸 한 번 누르기는 아무것도 만들지 않는다. 좁은 화면의 작은 창만 닫는다
+                  if (!wide && anchor && !edit) setSel(null);
+                }}
+                onDoubleClick={(e) => {
+                  if ((e.target as HTMLElement).closest(".ev")) return;
+                  const h = hit(e.clientX, e.clientY);
+                  if (!h) return;
+                  const t = newAt(h.min);
+                  openNew(addDays(week, h.dayIndex), t.start, t.end);
+                }}
+              >
+                {cols.map((c) => (
+                  <div key={c.date} className="col">
+                    <ColumnItems items={c.items} from={range.from} ctx={ctx} />
+                    {c.date === today && <NowLine from={range.from} to={range.to} now={now.min} />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        {wide ? (
+          <aside className="dp" aria-label={edit ? "일정 수정" : selOcc ? "고른 일정" : "할 일"}>
+            {panel}
+          </aside>
+        ) : (
+          edit && (
+            <aside className="dp float" aria-label="일정 수정">
+              {form}
+            </aside>
+          )
+        )}
+      </div>
+      {popStyle && (
+        <div className="pop" style={popStyle} role="dialog" aria-label={selOcc!.title}>
+          <button type="button" className="iconbtn x" aria-label="닫기" onClick={() => setSel(null)}>
+            <Icon name="x" />
+          </button>
+          {detail}
+        </div>
+      )}
+      {scopeAsk && (
+        <div className="pop scope-pop" style={{ left: Math.min(scopeAsk.x + 12, innerWidth - 220), top: Math.min(scopeAsk.y + 12, innerHeight - 64) }} role="dialog" aria-label="바꿀 범위">
+          <div className="scope">
+            <button type="button" onClick={() => dropScope("once")}>
+              이번만
+            </button>
+            <button type="button" onClick={() => dropScope("following")}>
+              이후 모두
+            </button>
+          </div>
+        </div>
+      )}
+      {ghost && (
+        <div className="drag-ghost" style={{ left: ghost.x, top: ghost.y }}>
+          {ghost.task.title}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 좌우로 밀면 하루씩 (세로 스크롤보다 가로가 확실히 클 때만) */
+function swipe(go: (n: number) => void) {
+  let sx = 0;
+  let sy = 0;
+  return {
+    onTouchStart: (e: ReactTouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      sx = t.clientX;
+      sy = t.clientY;
+    },
+    onTouchEnd: (e: ReactTouchEvent) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+    },
+  };
+}

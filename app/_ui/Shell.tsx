@@ -1,17 +1,28 @@
 "use client";
 
-// 작업면 = 사이드바 + 오른쪽(위쪽 경로 줄 + 탐색기 | 보고서 | 휴지통). 목업 .work
+// 작업면 = 사이드바 + 오른쪽(모듈 화면). 목업 .work. 모듈 공용 — 메뉴: 보고서 서랍 · 일정 · 플래너, 맨 아래 휴지통(서랍).
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { TRASH_PATH } from "../../lib/links";
-import { useDrawer } from "./DrawerContext";
-import { Icon } from "./Icon";
+import { useApp } from "./AppContext";
+import { Icon, type IconName } from "./Icon";
+
+const MENU: { path: string; icon: IconName; label: string }[] = [
+  { path: "/drawer", icon: "rep", label: "보고서 서랍" },
+  { path: "/schedule", icon: "cal", label: "일정" },
+  { path: "/planner", icon: "plan", label: "플래너" },
+];
+
+function under(pathname: string, path: string): boolean {
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { href } = useDrawer();
-  const inTrash = usePathname().startsWith(TRASH_PATH);
+  const { href } = useApp();
+  const pathname = usePathname();
+  const inTrash = under(pathname, TRASH_PATH);
   return (
     <div className="app">
       <section className="work view">
@@ -22,11 +33,18 @@ export function Shell({ children }: { children: ReactNode }) {
             <span>WORK</span>
           </Link>
           <nav className="nav" aria-label="메뉴">
-            <Link className={inTrash ? undefined : "on"} href={href("/drawer")} aria-current={inTrash ? undefined : "page"}>
-              <Icon name="rep" />
-              <span className="txt">보고서 서랍</span>
-            </Link>
-            <Link className={inTrash ? "on" : undefined} href={href(TRASH_PATH)} aria-current={inTrash ? "page" : undefined}>
+            {MENU.map((m) => {
+              const on = !inTrash && under(pathname, m.path);
+              return (
+                <Link key={m.path} className={on ? "on" : undefined} href={href(m.path)} aria-current={on ? "page" : undefined} title={m.label}>
+                  <Icon name={m.icon} />
+                  <span className="txt">{m.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <nav className="nav nav-end" aria-label="휴지통">
+            <Link className={inTrash ? "on" : undefined} href={href(TRASH_PATH)} aria-current={inTrash ? "page" : undefined} title="휴지통">
               <Icon name="trash" />
               <span className="txt">휴지통</span>
             </Link>
@@ -40,7 +58,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
 /** 폰 폭에서 사이드바 대신 보이는 홈 버튼 */
 export function HomeButton() {
-  const { href } = useDrawer();
+  const { href } = useApp();
   return (
     <Link className="iconbtn mhome" href={href("/")} aria-label="홈으로">
       <Icon name="grid" />

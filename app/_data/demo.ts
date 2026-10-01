@@ -3,6 +3,8 @@
 
 import { sampleBlocks } from "../../lib/fixtures";
 import { MemoryDrawer, type Seed } from "./memory";
+import { scheduleSeed } from "./scheduleDemo";
+import { MemorySchedule } from "./scheduleMemory";
 import type { Auth, Source } from "./types";
 
 /** 공유 페이지 확인용 고정 열쇠: /s/demo-shared-link-0001?demo=1 */
@@ -166,6 +168,13 @@ export function demoDrawer(): MemoryDrawer {
   return instance;
 }
 
+let scheduleInstance: MemorySchedule | null = null;
+
+export function demoSchedule(): MemorySchedule {
+  if (!scheduleInstance) scheduleInstance = new MemorySchedule(scheduleSeed(new Date()), { latency: 150 });
+  return scheduleInstance;
+}
+
 const demoAuth: Auth = {
   signedIn: async () => true,
   signIn: async () => {},
@@ -175,13 +184,17 @@ const demoAuth: Auth = {
 
 export function demoSource(): Source {
   const data = demoDrawer();
-  // 에이전트가 그 사이 고치거나 넣은 것을 흉내 — 브라우저 콘솔에서 ezDemo.touch('<보고서 id>'), ezDemo.insert()
+  const schedule = demoSchedule();
+  // 에이전트가 그 사이 고치거나 넣은 것을 흉내 — 브라우저 콘솔에서 ezDemo.touch('<보고서 id>'), ezDemo.insert(),
+  // ezDemo.bumpEvent('<일정 id>') (다른 곳에서 일정을 고친 것처럼 버전만 올림)
   if (typeof window !== "undefined") {
     (window as unknown as { ezDemo: unknown }).ezDemo = {
       data,
+      schedule,
       touch: (id: string) => data.agentTouch(id),
       insert: (parentId: string | null = null) => data.agentInsert(parentId, "에이전트가 넣은 보고서", sampleBlocks()),
+      bumpEvent: (id: string) => schedule.bump(id),
     };
   }
-  return { data, auth: demoAuth, demo: true };
+  return { data, schedule, planner: schedule, auth: demoAuth, demo: true };
 }

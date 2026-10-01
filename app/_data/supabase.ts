@@ -4,6 +4,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueName } from "../../lib/names";
 import { DbError } from "../../lib/errors";
+import { SupabaseSchedule } from "./scheduleSupabase";
 import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow } from "./types";
 
 const TABLE = "ez_items";
@@ -17,7 +18,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Res<T> = { data: T | null; error: { message: string; code?: string; details?: string | null } | null };
 
-async function run<T>(p: PromiseLike<Res<T>>): Promise<T> {
+export async function run<T>(p: PromiseLike<Res<T>>): Promise<T> {
   const res = await p;
   if (res.error) throw new DbError(res.error.message, res.error.code ?? "", res.error.details ?? undefined);
   return res.data as T;
@@ -32,7 +33,7 @@ function env(): { url: string; key: string } {
 }
 
 let client: SupabaseClient | null = null;
-function sb(): SupabaseClient {
+export function sb(): SupabaseClient {
   if (!client) {
     const { url, key } = env();
     client = createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
@@ -229,5 +230,6 @@ const auth: Auth = {
 };
 
 export function supabaseSource(): Source {
-  return { data: new SupabaseDrawer(), auth, demo: false };
+  const schedule = new SupabaseSchedule();
+  return { data: new SupabaseDrawer(), schedule, planner: schedule, auth, demo: false };
 }

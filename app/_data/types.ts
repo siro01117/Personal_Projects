@@ -1,7 +1,8 @@
-// 웹이 서랍 데이터를 읽고 쓰는 창구. 구현 2개: Supabase(진짜, 로그인한 사람 세션 + RLS) / 메모리(개발 확인용).
+// 웹이 서랍·일정·플래너 데이터를 읽고 쓰는 창구. 구현 2개: Supabase(진짜, 로그인한 사람 세션 + RLS) / 메모리(개발 확인용).
 // 실패는 DbError 모양({ code, message })으로 던지고, 화면은 lib/errors 의 toKorean 으로 한국어로 바꾼다.
 
 import type { ReportKind } from "../../lib/blocks";
+import type { DateStr, EventException, EventRow, ExceptionPatch, Place, PlaceColor, PlaceRole, PlaceSymbol, Repeat, Settings, TaskRow, Travel } from "../../lib/schedule";
 
 export type Kind = "folder" | "report";
 
@@ -110,4 +111,94 @@ export interface Auth {
   onSignedOut(cb: () => void): () => void;
 }
 
-export type Source = { data: DrawerData; auth: Auth; demo: boolean };
+// ---------------------------------------------------------------------------
+// 일정 (docs/일정.md 2장, db/migrations/0006). 행 모양은 lib/schedule/types.ts
+// ---------------------------------------------------------------------------
+
+/** 바깥 일정 출처 (ez_sources) */
+export type SourceInfo = { source: string; label: string | null; synced_at: string | null };
+
+/** 내가 넣고 고치는 일정 칸. source · external_id · origin 은 화면에서 쓰지 않는다 */
+export type EventInput = {
+  title: string;
+  date: DateStr;
+  start_min: number | null;
+  end_min: number | null;
+  place_id: string | null;
+  where_text: string | null;
+  travel_min: number | null;
+  note: string | null;
+  repeat: Repeat;
+  task_id: string | null;
+};
+
+/** '이후 모두' 고치기(ez_event_split)의 patch — 예외 칸 + repeat */
+export type SplitPatch = ExceptionPatch & { repeat?: Repeat };
+
+/** 한 주(또는 기간)를 그리는 데 필요한 일정 줄 + 예외 */
+export type EventRows = { events: EventRow[]; exceptions: EventException[] };
+
+export type PlaceInput = { name: string; role: PlaceRole | null; symbol?: PlaceSymbol; color?: PlaceColor; sort?: number };
+
+export interface ScheduleData {
+  /** 지운 지점도 온다(deleted) — 지운 지점이 붙은 일정도 이름은 보여야 한다 */
+  places(): Promise<Place[]>;
+  travel(): Promise<Travel[]>;
+  /** 줄이 없으면 기본값 */
+  settings(): Promise<Settings>;
+  sources(): Promise<SourceInfo[]>;
+  /**
+   * from~to 를 그리는 데 필요한 살아 있는 일정과 그 예외. 반복 일정은 전부, 반복 아닌 일정은 from 이틀 전부터
+   * (전날 자정 넘김 · 동선 이어받기). 펼치기는 lib/schedule 의 planRange 가 한다
+   */
+  events(from: DateStr, to: DateStr): Promise<EventRows>;
+
+  createEvent(input: EventInput): Promise<EventRow>;
+  /** 버전이 다르면 [EZ_VERSION], 바깥 일정이면 [EZ_EXTERNAL] */
+  updateEvent(id: string, baseVersion: number, patch: Partial<EventInput>): Promise<EventRow>;
+  /** 지우기 (deleted_at). 되돌리기는 restoreEvent */
+  deleteEvent(id: string, baseVersion: number): Promise<void>;
+  restoreEvent(id: string): Promise<EventRow>;
+  /** 반복의 '이번만' — 건너뛰기(patch null) 또는 그 회차만 바꾼 칸. 이미 있으면 갈아끼운다 */
+  setException(eventId: string, onDate: DateStr, patch: ExceptionPatch | null): Promise<void>;
+  clearException(eventId: string, onDate: DateStr): Promise<void>;
+  /** ez_event_split — on_date 회차부터 patch 를 얹어 새 일정으로. 첫 회차면 원래 일정을 고친다 */
+  split(id: string, baseVersion: number, onDate: DateStr, patch: SplitPatch): Promise<EventRow>;
+  /** ez_event_cut — on_date 회차부터 지우기. 첫 회차면 일정을 지운다 */
+  cut(id: string, baseVersion: number, onDate: DateStr): Promise<EventRow>;
+
+  createPlace(input: PlaceInput): Promise<Place>;
+  updatePlace(id: string, patch: Partial<PlaceInput>): Promise<Place>;
+  /** 지우기 (deleted_at). 그 지점이 낀 이동시간도 지워진다 */
+  deletePlace(id: string): Promise<void>;
+  /** 두 지점 사이 이동시간. null 이면 지운다(모름) */
+  setTravel(a: string, b: string, minutes: number | null): Promise<void>;
+  saveSettings(patch: Partial<Omit<Settings, "tz">>): Promise<Settings>;
+}
+
+// ---------------------------------------------------------------------------
+// 플래너 (docs/플래너.md 2장) — 시간이 안 정해진 할 일
+// ---------------------------------------------------------------------------
+
+export type TaskInput = { title: string; note?: string | null; due?: DateStr | null; est_min?: number | null };
+
+/** 할 일과 이어진 살아 있는 일정 (할 일 하나에 하나) */
+export type TaskLink = { task_id: string; event_id: string; date: DateStr; start_min: number | null; repeating: boolean };
+
+export interface PlannerData {
+  /** 지우지 않은 할 일 전부 (끝낸 것 포함). 순서는 sort 오름차순 */
+  tasks(): Promise<TaskRow[]>;
+  /** 할 일과 이어진 일정들 */
+  links(): Promise<TaskLink[]>;
+  /** 맨 위에 넣는다 */
+  createTask(input: TaskInput): Promise<TaskRow>;
+  updateTask(id: string, baseVersion: number, patch: Partial<TaskInput>): Promise<TaskRow>;
+  setDone(id: string, baseVersion: number, done: boolean): Promise<TaskRow>;
+  /** 지우기 (deleted_at). 이어진 일정은 남고 연결만 끊긴다 */
+  deleteTask(id: string, baseVersion: number): Promise<void>;
+  restoreTask(id: string): Promise<TaskRow>;
+  /** 손으로 정한 순서. 사이에 끼우려면 앞뒤 sort 의 가운데 값 */
+  reorder(id: string, sort: number): Promise<TaskRow>;
+}
+
+export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; auth: Auth; demo: boolean };
