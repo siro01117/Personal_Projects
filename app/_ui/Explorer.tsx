@@ -606,8 +606,11 @@ export function Explorer({ folderId }: { folderId: string | null }) {
     } else if (e.ctrlKey || e.metaKey) {
       setSel((s) => toggleId(s, entry.id));
       anchor.current = entry.id;
-    } else {
-      selectOnly(entry.id);
+    } else if (picking) {
+      setSel((s) => toggleId(s, entry.id));
+    } else if (!entry.id.startsWith("tmp:")) {
+      // 한 번 누르면 연다 (2026-10-02). 고르기는 Shift · Ctrl 누르기, 메뉴의 '선택'
+      return open(entry);
     }
     focusExplorer();
   };
@@ -870,12 +873,7 @@ export function Explorer({ folderId }: { folderId: string | null }) {
                 tabIndex={-1}
                 data-id={h.id}
                 onPointerDown={(e) => (pointerType.current = e.pointerType)}
-                onClick={() => {
-                  if (pointerType.current === "touch") return open(h);
-                  setFind((f) => f && { ...f, sel: h.id });
-                  focusExplorer();
-                }}
-                onDoubleClick={() => open(h)}
+                onClick={() => open(h)}
               >
                 <Icon name={h.kind === "folder" ? "folder" : "rep"} className="ico" />
                 <span className="nm">{h.name}</span>
@@ -964,7 +962,6 @@ export function Explorer({ folderId }: { folderId: string | null }) {
                   onPointerUp={clearLongPress}
                   onPointerCancel={clearLongPress}
                   onClick={(e) => onItemClick(e, entry)}
-                  onDoubleClick={(e) => !isRenaming && !e.shiftKey && !e.ctrlKey && !e.metaKey && open(entry)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     if (pointerType.current === "touch") return; // 터치는 길게 누르기 타이머가 연다

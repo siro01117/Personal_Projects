@@ -210,25 +210,25 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .doc-body[data-picking] .grip{cursor:grabbing}
 .drop-line{position:fixed;left:0;top:0;height:3px;margin-top:-1.5px;border-radius:2px;background:var(--point-ink);pointer-events:none;opacity:0;z-index:6}
 .drop-line[data-on]{opacity:1}
-/* 고치기 도구 줄 (설계서 3장): 화면 아래 가운데에 떠서 따라온다. 종이색 알약 하나 — 검은 바탕 금지. 단추는 44px
-   고치는 동안에는 종이 아래 여백을 늘려 마지막 블록이 가리지 않게, 알림은 도구 줄 위로 */
-.edit-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:4px;max-width:calc(100% - 16px);background:var(--paper);border:1px solid var(--border);border-radius:999px;box-shadow:0 4px 14px rgb(0 0 0 / .14);z-index:7;animation:bar-in var(--m-base) var(--ease-out)}
+/* 고치기 도구 줄 (설계서 3장): 종이 왼쪽 바깥에 세로로 서서 따라온다. 종이색 알약 하나 — 검은 바탕 금지. 단추는 44px.
+   종이와 같은 칸에 놓고 왼쪽으로 빼낸다. 왼쪽에 자리가 없으면(좁은 화면 · 폰) 오른쪽 아래에 띄운다 — 왼쪽 여백은 손잡이 자리라서 */
+.edit-bar{grid-column:2;grid-row:1;justify-self:start;align-self:start;position:sticky;top:calc(50vh - 104px);margin-left:-66px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;background:var(--paper);border:1px solid var(--border);border-radius:999px;box-shadow:0 4px 14px rgb(0 0 0 / .14);z-index:7;animation:bar-in var(--m-base) var(--ease-out)}
+.doc-body > .page{grid-row:1}
+.doc-body > .rail{grid-row:1}
 /* 어두울 때는 종이와 같은 색이면 묻힌다 — 한 단 밝은 면으로 띄운다 */
 :root[data-theme="dark"] .edit-bar{background:var(--surface-3)}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .edit-bar{background:var(--surface-3)} }
-.edit-bar[data-leaving]{pointer-events:none;animation:bar-out var(--m-fast) var(--ease-in) forwards}
-@keyframes bar-in{from{opacity:.001;transform:translate(-50%,8px)}}
-@keyframes bar-out{to{opacity:0;transform:translate(-50%,8px)}}
+@keyframes bar-in{from{opacity:.001}}
 .edit-bar button{width:44px;height:44px;flex:0 0 auto;display:grid;place-items:center;border-radius:50%;color:var(--text-2);transition:background var(--t),transform var(--t),opacity var(--t)}
 .edit-bar button .i{width:20px;height:20px}
 .edit-bar button:hover{background:var(--surface-2);color:var(--text-1)}
 .edit-bar button:active{transform:scale(.97)}
-.edit-bar button[aria-pressed="true"]{color:var(--point-ink)}
 .edit-bar button:disabled{opacity:.3;cursor:default;background:none;color:var(--text-2);transform:none}
-.edit-bar .done,.edit-bar .done:hover{background:var(--point);color:var(--on-point);margin-left:4px}
+.edit-bar .done,.edit-bar .done:hover{background:var(--point);color:var(--on-point);margin-top:4px}
 .edit-bar .done .i{stroke-width:2}
-.doc-body:has(.page.editing){padding-bottom:152px}
-body:has(.edit-bar:not([data-leaving])) .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+@container doc (max-width: 1099.98px){
+  .edit-bar{position:fixed;top:auto;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));margin-left:0}
+}
 
 /* 강조는 한 가지: 본문(--text-2)보다 진한 --text-1 + 굵기 600. 배경·밑줄·다른 색 없음. 글 안 ==강조== 와 판정 한 줄이 같다 */
 .page strong{font-weight:600;color:var(--text-1)}
@@ -376,7 +376,6 @@ sup.r a:hover{background:var(--point-soft)}
   .page{border:0;border-radius:0;padding:24px 16px 48px}
   /* 폰: 고치기 모드에서는 손잡이 자리만큼 왼쪽을 비운다 */
   .page.editing{padding-left:46px;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
-  .doc-body:has(.page.editing){padding-bottom:0}
   .grip{left:-40px;width:28px;height:36px}
   .page > * + *{margin-top:36px}
   .page > .row.has-img,.page > .row.has-img + *{margin-top:44px}
@@ -496,7 +495,7 @@ sup.r a:hover{background:var(--point-soft)}
 .dp-f .chk[aria-checked="true"]{color:var(--point-ink)}
 .dp-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .dp.float{position:absolute;top:0;right:0;bottom:0;width:min(360px,100%);z-index:6;box-shadow:-8px 0 24px rgb(0 0 0 / .08)}
-@container app (max-width: 1179.98px){
+@container app (max-width: 1099.98px){
   .stage > .wk{flex:1 1 auto}
   .wk-row{grid-template-columns:56px repeat(7,minmax(0,1fr))}
   .wk-grid{grid-template-columns:56px minmax(0,1fr)}

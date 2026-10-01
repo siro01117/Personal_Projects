@@ -5,7 +5,7 @@
 // 저장은 전부 한 줄(queue)로 선다: 글자(ez_edit_text)와 블록 순서(ez_blocks_arrange)가 화면에서 한 순서 그대로 서버에 간다.
 //  - 지우기는 알림이 떠 있는 동안 미뤄 둔다(held). 다른 저장이 오거나 고치기 모드를 끄거나 화면을 떠나면 그때 먼저 보낸다
 //  - 순서 저장이 실패하면 그 전 모습으로 되돌리고, 그 뒤에 줄 서 있던 저장은 버린다(번호가 어긋난 채 보내지 않는다 — epoch)
-// 고치는 동안에는 아래 도구 줄(EditBar)이 뜬다: 되돌리기 · 전부 고르기 · 위/아래 · 휴지통 · 완료.
+// 고치는 동안에는 종이 왼쪽에 도구 줄(EditBar)이 선다: 휴지통 · 위/아래 · 완료. 되돌리기(Ctrl+Z) · 전부 고르기(Ctrl+A)는 키로만.
 // 되돌리기 기록(undo)은 이 화면을 연 동안 쌓인다. 글자는 블록 열쇠로 기억했다가 원래 글자를 다시 저장하고, 옮기기는 거꾸로 옮긴다.
 //  - 지우기는 아직 미뤄 둔(held) 동안만 살린다. 지우기가 저장되면(flushHeld) 번호가 달라지므로 기록을 전부 비운다
 //  - 새로 불러오거나(load) 순서 저장이 실패해 되돌려질 때(epoch 가 바뀔 때)도 비운다. 되돌리기 자체는 기록을 남기지 않는다
@@ -39,7 +39,6 @@ import { Crumbs, type Crumb } from "./Crumbs";
 import { useDrawer } from "./DrawerContext";
 import { EditBar, type EditAct } from "./EditBar";
 import { Icon } from "./Icon";
-import { Presence } from "./motion/Presence";
 import { useFlip } from "./motion/useFlip";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
@@ -402,7 +401,7 @@ export function ReportView({ id }: { id: string }) {
 
   // 도구 줄. 칸에 커서가 있는 채로 누르면 그 칸을 먼저 저장(blur)하고, 그 저장이 화면에 반영된 뒤에 동작한다
   const acts = useRef<Record<EditAct, () => void>>(null!);
-  acts.current = { undo: undoLast, all: arr.toggleAll, up: () => arr.step(-1), down: () => arr.step(1), trash: arr.remove, done };
+  acts.current = { up: () => arr.step(-1), down: () => arr.step(1), trash: arr.remove, done };
   const act = useCallback((name: EditAct) => {
     const el = document.activeElement as HTMLElement | null;
     if (!el?.isContentEditable) return acts.current[name]();
@@ -579,14 +578,10 @@ export function ReportView({ id }: { id: string }) {
             <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} />
           </article>
           {editing && <div className="drop-line" ref={lineRef} aria-hidden="true" />}
+          {editing && <EditBar canUp={arr.canUp} canDown={arr.canDown} hasSelection={arr.selected.size > 0} onAct={act} />}
           {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} />}
         </div>
       ) : null}
-      <Presence>
-        {editing && ready && (
-          <EditBar canUndo={canUndo} allSelected={arr.allSelected} canUp={arr.canUp} canDown={arr.canDown} hasSelection={arr.selected.size > 0} onAct={act} />
-        )}
-      </Presence>
     </>
   );
 }
