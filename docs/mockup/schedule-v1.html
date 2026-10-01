@@ -149,6 +149,25 @@ body.is-desk .mockbar .theme-btn{display:none}
 @container band (max-width: 72px){ .band .m{display:none} }
 @container band (max-width: 40px){ .band:not(.warn) b{display:none} .band.warn{padding:0 3px} }
 
+/* 넓은 화면: 열은 132px 까지만 넓히고, 남는 폭은 오른쪽 상세 패널 */
+.stage{flex:1;min-height:0;display:flex}
+.stage > .wk{flex:0 1 calc(56px + 132px * 7 + 2 * clamp(8px,1.6cqw,32px) + 14px);min-width:0}
+.wk-row{grid-template-columns:56px repeat(7,minmax(0,132px))!important}
+.wk-grid{grid-template-columns:56px minmax(0,calc(132px * 7))!important}
+.dp{flex:1 1 320px;min-width:300px;border-left:1px solid var(--border);padding:24px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.dp > *{max-width:440px}
+.dp-h{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.dp-h .ps{width:20px;height:20px;margin-top:4px}
+.dp-h h2{margin:0;font-size:20px;line-height:1.35;font-weight:600;color:var(--text-1);word-break:keep-all}
+.dp-f{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;padding:9px 0;font-size:14px;color:var(--text-2);align-items:start}
+.dp-f > .i{width:18px;height:18px;margin-top:2px;color:var(--text-3)}
+.dp-f > div{display:flex;flex-direction:column;gap:2px;min-width:0;word-break:keep-all}
+.dp-f .late{color:var(--danger);font-weight:600;font-size:13px}
+.dp-acts{display:flex;gap:6px;margin-top:14px}
+.dp-acts .ghost{height:34px}
+.dp-acts .del{height:34px;padding:0 12px;border-radius:var(--r-m);font-size:12px;font-weight:600;color:var(--danger)}
+@container app (max-width: 1180px){ .dp{display:none} .stage > .wk{flex:1 1 auto} .wk-row{grid-template-columns:56px repeat(7,minmax(0,1fr))!important} .wk-grid{grid-template-columns:56px minmax(0,1fr)!important} }
+
 /* 상세 팝오버 */
 .pop{position:absolute;z-index:5;width:236px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-l);padding:14px 14px 12px;display:flex;flex-direction:column;gap:2px;box-shadow:0 8px 24px rgb(0 0 0 / .08)}
 .pop .t{margin:0 0 4px;font-size:16px;font-weight:600;color:var(--text-1);line-height:1.35}
@@ -197,7 +216,7 @@ body.is-desk .mockbar .theme-btn{display:none}
 .ph-grid{display:grid;grid-template-columns:52px minmax(0,1fr);height:calc(1440 * var(--pm));margin:8px 0 96px}
 .ph-col{position:relative;background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% 48px;border-left:1px solid var(--border);margin-right:12px}
 .ph-col .ev,.ph-col .band,.ph-col .meal{left:4px;right:4px}
-.ph-col .ev{font-size:13px;padding:8px 14px}
+.ph-col .ev{font-size:13px;padding:6px 14px}
 .ph-col .ps{width:14px;height:14px}
 .ph-col .band{padding:0 14px}
 .ph-col .meal{padding:8px 14px}
@@ -205,6 +224,36 @@ body.is-desk .mockbar .theme-btn{display:none}
 .ph-col .ev .src{font-size:11px}
 .fab{position:absolute;right:20px;bottom:28px;width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--point);color:var(--on-point);box-shadow:0 6px 18px rgb(0 0 0 / .14);z-index:4}
 .fab .i{width:24px;height:24px;stroke-width:2}
+
+/* 폰: 하루 / 주 전환 */
+.ph-top .vseg{margin-right:4px}
+.ph-top .vseg button{height:28px;padding:0 10px}
+.vseg button[aria-pressed="true"]{background:var(--surface);color:var(--text-1);box-shadow:0 0 0 1px var(--border)}
+.ph-top h2{overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* 주 미니어처: 글자 없이 블록만. 지점 색 · 회색 이동 · 지금 선. 7시–24시를 한 화면에 */
+.mini-head,.mini-all{display:grid;grid-template-columns:24px repeat(7,minmax(0,1fr));padding:0 10px 0 6px}
+.mini-head{padding-top:6px;padding-bottom:4px}
+.mini-head .d{width:28px;height:28px;font-size:14px}
+.mini-all{padding-bottom:6px;border-bottom:1px solid var(--border)}
+.mini-all i{height:6px;margin:0 2px;border-radius:3px}
+.mini-all i.on{background:var(--point-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--point-ink) 40%,transparent)}
+.mini{--mpm:.6px;--m0:420;position:relative;flex:1;min-height:0;display:grid;grid-template-columns:24px minmax(0,1fr);padding:6px 10px 0 6px;overflow:hidden}
+.mini-axis{position:relative}
+.mini-axis span{position:absolute;right:4px;top:calc((var(--h) * 60 - var(--m0)) * var(--mpm));transform:translateY(-50%);font-family:var(--font-num);font-size:10px;color:var(--text-3)}
+.mini-cols{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));height:calc((1440 - var(--m0)) * var(--mpm));background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% calc(120 * var(--mpm));background-position:0 calc((480 - var(--m0)) * var(--mpm))}
+.mini-cols .col{position:relative;border-left:1px solid var(--border);overflow:hidden;min-width:0}
+.mini-cols .col:last-child{border-right:1px solid var(--border)}
+.mini-cols :is(.ev,.band){left:2px;right:2px;top:calc((var(--s) - var(--m0)) * var(--mpm));height:calc((var(--e) - var(--s)) * var(--mpm));padding:0;border-radius:3px;box-shadow:none}
+.mini-cols .ev{display:grid;place-items:center}
+.mini-cols .ev > .h{display:none}
+.mini-cols .ev .r > :not(.ps){display:none}
+.mini-cols .ev .ps{display:block!important;width:12px;height:12px;margin:0!important}
+.mini-cols .band{font-size:0;height:calc((var(--e) - var(--s)) * var(--mpm) - .5px)}
+.mini-cols .band > *{display:none}
+.mini-cols .band.warn{background:color-mix(in srgb,var(--danger) 30%,var(--surface))}
+.mini-cols .meal{display:none}
+.mini-cols .ev.sel{box-shadow:none}
+.mini-cols .now{top:calc((var(--s) - var(--m0)) * var(--mpm))}
 
 /* 바텀 시트 */
 .scrim{position:absolute;inset:0;background:rgb(10 10 12 / .42);z-index:5}
@@ -251,6 +300,7 @@ body.is-desk .mockbar .theme-btn{display:none}
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
   <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></symbol>
   <symbol id="i-memo" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
 </svg>
 
@@ -285,6 +335,7 @@ body.is-desk .mockbar .theme-btn{display:none}
         <button type="button" class="iconbtn theme-btn" aria-label="밝기 전환" title="밝기 전환"><svg class="i"><use href="#i-moon"/></svg></button>
       </div>
 
+      <div class="stage">
       <div class="wk">
         <div class="wk-row wk-head">
           <span></span>
@@ -337,7 +388,7 @@ body.is-desk .mockbar .theme-btn{display:none}
                 <div class="band" style="--s:1050;--e:1080"><b>등교</b><span class="m">30</span></div>
                 <div class="ev at-school" style="--s:1080;--e:1130"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">스터디</span></div><span class="h"><span class="hs">18:00</span><span class="he">–18:50</span></span></div>
                 <div class="band warn" style="--s:1130;--e:1150;right:auto;width:calc(42% - 4px)"><b>10분</b><span class="m">늦음</span></div>
-                <div class="ev at-cafe" style="--s:1140;--e:1260;left:42%"><div class="r"><svg class="ps c-cafe" aria-hidden="true"><use href="#p-cafe"/></svg><span class="t">APPTIVE 회의</span></div><span class="h"><span class="hs">19:00</span><span class="he">–21:00</span></span></div>
+                <div class="ev at-cafe sel" style="--s:1140;--e:1260;left:42%"><div class="r"><svg class="ps c-cafe" aria-hidden="true"><use href="#p-cafe"/></svg><span class="t">APPTIVE 회의</span></div><span class="h"><span class="hs">19:00</span><span class="he">–21:00</span></span></div>
                 <div class="band" style="--s:1260;--e:1275"><b>귀가</b><span class="m">15</span></div>
               </div>
               <!-- 수 9/30 -->
@@ -359,7 +410,7 @@ body.is-desk .mockbar .theme-btn{display:none}
                 <div class="band" style="--s:750;--e:780"><b>등교</b><span class="m">30</span></div>
                 <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h"><span class="hs">13:00</span><span class="he">–14:30</span></span></div>
                 <div class="band" style="--s:870;--e:900"><b>귀가</b><span class="m">30</span></div>
-                <div class="ev sel" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h"><span class="hs">15:30</span><span class="he">–16:30</span></span></div>
+                <div class="ev" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h"><span class="hs">15:30</span><span class="he">–16:30</span></span></div>
                 <div class="meal" style="--s:1080;--e:1120">저녁</div>
                 <div class="now" style="--s:860"></div>
               </div>
@@ -383,20 +434,19 @@ body.is-desk .mockbar .theme-btn{display:none}
                 <div class="meal" style="--s:720;--e:760">점심</div>
                 <div class="meal" style="--s:1080;--e:1120">저녁</div>
               </div>
-
-              <!-- 선택한 일정: 목 팀플 정리 -->
-              <div class="pop" role="dialog" aria-label="팀플 정리" style="left:calc(400% / 7 + 8px);top:calc(930 * var(--pm) - 6px)">
-                <p class="t">팀플 정리</p>
-                <span class="m num">10월 1일 목 · 15:30–16:30</span>
-                <span class="m dim">지점 없음</span>
-                <div class="acts">
-                  <button type="button" class="ghost">수정</button>
-                  <button type="button" class="del">없애기</button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
+      </div>
+        <aside class="dp" aria-label="선택한 일정">
+          <div class="dp-h"><svg class="ps c-cafe" aria-hidden="true"><use href="#p-cafe"/></svg><h2>APPTIVE 회의</h2></div>
+          <div class="dp-f"><svg class="i"><use href="#i-clock"/></svg><div><span class="num">9월 29일 화 · 19:00–21:00</span></div></div>
+          <div class="dp-f"><svg class="i"><use href="#i-repeat"/></svg><div>매주 화</div></div>
+          <div class="dp-f"><svg class="i"><use href="#i-pin"/></svg><div>카페</div></div>
+          <div class="dp-f"><svg class="i"><use href="#i-route"/></svg><div><span class="num">18:50 학교에서 출발 · 20분</span><span class="late num">10분 늦음</span></div></div>
+          <div class="dp-f"><svg class="i"><use href="#i-memo"/></svg><div>9월 회고, 다음 스프린트 범위</div></div>
+          <div class="dp-acts"><button type="button" class="ghost">수정</button><button type="button" class="del">없애기</button></div>
+        </aside>
       </div>
     </div>
   </section>
@@ -411,6 +461,7 @@ body.is-desk .mockbar .theme-btn{display:none}
       <h2>10월 1일 목</h2>
       <button type="button" class="iconbtn" aria-label="다음날"><svg class="i"><use href="#i-right"/></svg></button>
       <span class="grow"></span>
+      <div class="seg vseg"><button type="button" aria-pressed="true">하루</button><button type="button" aria-pressed="false">주</button></div>
       <button type="button" class="ghost">오늘</button>
     </div>
     <div class="strip">
@@ -443,6 +494,33 @@ body.is-desk .mockbar .theme-btn{display:none}
     <button type="button" class="fab" aria-label="새 일정"><svg class="i"><use href="#i-plus"/></svg></button>
   </div>
 
+  <!-- 3. 주 미니어처 -->
+  <div class="ph">
+    <div class="ph-top">
+      <button type="button" class="iconbtn" aria-label="지난주"><svg class="i"><use href="#i-left"/></svg></button>
+      <h2>9월 28일 – 10월 4일</h2>
+      <button type="button" class="iconbtn" aria-label="다음 주"><svg class="i"><use href="#i-right"/></svg></button>
+      <span class="grow"></span>
+      <div class="seg vseg"><button type="button" aria-pressed="false">하루</button><button type="button" aria-pressed="true">주</button></div>
+    </div>
+    <div class="mini-head">
+      <span></span>
+      <div class="sd"><span class="w">월</span><span class="d num">28</span></div>
+      <div class="sd"><span class="w">화</span><span class="d num">29</span></div>
+      <div class="sd"><span class="w">수</span><span class="d num">30</span></div>
+      <div class="sd today"><span class="w">목</span><span class="d num">1</span></div>
+      <div class="sd"><span class="w">금</span><span class="d num">2</span></div>
+      <div class="sd"><span class="w">토</span><span class="d num">3</span></div>
+      <div class="sd"><span class="w">일</span><span class="d num">4</span></div>
+    </div>
+    <div class="mini-all"><span></span><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i></div>
+    <div class="mini">
+      <div class="mini-axis"><span style="--h:8">8</span><span style="--h:10">10</span><span style="--h:12">12</span><span style="--h:14">14</span><span style="--h:16">16</span><span style="--h:18">18</span><span style="--h:20">20</span><span style="--h:22">22</span></div>
+      <div class="mini-cols" id="miniCols"></div>
+    </div>
+    <button type="button" class="fab" aria-label="새 일정"><svg class="i"><use href="#i-plus"/></svg></button>
+  </div>
+
   <!-- 2. 일정 수정 바텀 시트 (반복 일정: 매주 화 APPTIVE 회의) -->
   <div class="ph">
     <div class="ph-top">
@@ -450,6 +528,7 @@ body.is-desk .mockbar .theme-btn{display:none}
       <h2>9월 29일 화</h2>
       <button type="button" class="iconbtn" aria-label="다음날"><svg class="i"><use href="#i-right"/></svg></button>
       <span class="grow"></span>
+      <div class="seg vseg"><button type="button" aria-pressed="true">하루</button><button type="button" aria-pressed="false">주</button></div>
       <button type="button" class="ghost">오늘</button>
     </div>
     <div class="strip">
@@ -543,16 +622,20 @@ body.is-desk .mockbar .theme-btn{display:none}
     ev.title=[t&&t.textContent, h&&h.textContent, src&&src.textContent].filter(Boolean).join(' · ');
     ro.observe(ev);
   });
+
+  // 주 미니어처는 데스크톱 주간 격자의 블록을 그대로 복사해 작게 그린다
+  var srcCols=document.querySelector('#wkBody .cols'), mc=document.getElementById('miniCols');
+  if(srcCols&&mc){ srcCols.querySelectorAll(':scope > .col').forEach(function(c){ var k=c.cloneNode(true); k.querySelectorAll('[title]').forEach(function(e){ e.removeAttribute('title'); }); mc.appendChild(k); }); }
   var desk=document.getElementById('desk'), phones=document.getElementById('phones');
   function show(v){
     var p=v==='phone';
     desk.hidden=p; phones.hidden=!p;
     document.body.classList.toggle('is-desk', !p);
-    document.querySelectorAll('.seg button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.view===v)); });
+    document.querySelectorAll('.mockbar .seg button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.view===v)); });
     // 보이는 시간대: 데스크톱 8:30부터, 폰 10:30부터
     if(p) document.getElementById('phBody').scrollTop=10.5*48; else document.getElementById('wkBody').scrollTop=8.5*48;
   }
-  document.querySelectorAll('.seg button').forEach(function(b){ b.addEventListener('click', function(){ show(b.dataset.view); }); });
+  document.querySelectorAll('.mockbar .seg button').forEach(function(b){ b.addEventListener('click', function(){ show(b.dataset.view); }); });
   var first=location.hash==='#phone'?'phone':'desk';
   show(first);
   addEventListener('load', function(){ show(first); });
