@@ -1,13 +1,14 @@
 "use client";
 
-// 할 일 수정 칸 (docs/플래너.md 3장 · 7장): 제목 · 마감(날짜 또는 '일정으로') · 걸릴 시간 · 지점 칩 ·
+// 할 일 수정 칸 (docs/플래너.md 3장 · 7장): 제목 · 마감(날짜 또는 '일정으로') · 걸릴 시간 · 지점 칩 · 역할 칩 ·
 // 반복(안 함 / 매일 / 매주 + 요일, 마감까지 며칠) · 체크 항목(한 줄에 하나) · 메모. 보기와 같은 자리에서 바뀐다.
+// 지점을 고르면 그 지점의 역할이 들어간다 — 역할 칩을 직접 누른 뒤에는 덮지 않는다(7-11).
 // 일정 수정 칸(.form)과 같은 생김새. 반복에서 온 할 일을 고치면 '이번만 / 앞으로도' 를 고른다.
 // 한글 조합 중 Enter 는 무시. Esc 는 취소(화면 쪽에서).
 
 import { useState, type KeyboardEvent } from "react";
-import { EST_MAX, EST_MIN, NOTE_MAX, TASK_TITLE_MAX, weekday, type DateStr, type Place } from "../../../lib/schedule";
-import { dateLabel, parseChecks, taskScopes, type DueOption, type RepeatKind, type TaskDraft, type TaskScope } from "../../_logic/planner";
+import { EST_MAX, EST_MIN, NOTE_MAX, TASK_TITLE_MAX, weekday, type DateStr, type Place, type Role } from "../../../lib/schedule";
+import { dateLabel, draftWithPlace, draftWithRole, parseChecks, taskScopes, type DueOption, type RepeatKind, type TaskDraft, type TaskScope } from "../../_logic/planner";
 import { WEEKDAYS } from "../../_logic/schedule";
 import { Icon } from "../Icon";
 import { PlaceSymbol } from "../schedule/PlaceSymbol";
@@ -19,6 +20,7 @@ export function TaskForm({
   base,
   today,
   places,
+  roles,
   loadDueOptions,
   onChange,
   onSave,
@@ -30,6 +32,7 @@ export function TaskForm({
   today: DateStr;
   /** 고를 수 있는 지점 (지운 지점은 이미 붙어 있을 때만) */
   places: Place[];
+  roles: Role[];
   /** 마감으로 고를 일정 회차 (오늘부터 60일) */
   loadDueOptions: () => Promise<DueOption[]>;
   onChange: (d: TaskDraft) => void;
@@ -141,16 +144,31 @@ export function TaskForm({
         <Icon name="pin" />
         <div className="chips" role="group" aria-label="지점">
           {shown.map((p) => (
-            <button type="button" key={p.id} className={`chip pc-${p.color}`} aria-pressed={draft.place_id === p.id} onClick={() => set({ place_id: p.id })}>
+            <button type="button" key={p.id} className={`chip pc-${p.color}`} aria-pressed={draft.place_id === p.id} onClick={() => onChange(draftWithPlace(draft, p, roles))}>
               <PlaceSymbol symbol={p.symbol} />
               {p.name}
             </button>
           ))}
-          <button type="button" className="chip" aria-pressed={draft.place_id === null} onClick={() => set({ place_id: null })}>
+          <button type="button" className="chip" aria-pressed={draft.place_id === null} onClick={() => onChange(draftWithPlace(draft, null, roles))}>
             없음
           </button>
         </div>
       </div>
+      {(roles.length > 0 || draft.role_id !== null) && (
+        <div className="f">
+          <Icon name="user" />
+          <div className="chips" role="group" aria-label="역할">
+            {roles.map((r) => (
+              <button type="button" key={r.id} className="chip" aria-pressed={draft.role_id === r.id} onClick={() => onChange(draftWithRole(draft, r.id))}>
+                {r.name}
+              </button>
+            ))}
+            <button type="button" className="chip" aria-pressed={draft.role_id === null} onClick={() => onChange(draftWithRole(draft, null))}>
+              없음
+            </button>
+          </div>
+        </div>
+      )}
       <div className="f">
         <Icon name="repeat" />
         <div className="v">

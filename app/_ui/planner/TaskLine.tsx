@@ -1,8 +1,8 @@
 "use client";
 
-// 목록 한 줄: 동그라미(끝냄 체크, 누르면 바로) · 지점 심볼 · 제목 · 반복 표시 · 체크 수 · 마감 · 걸릴 시간
+// 목록 한 줄: 동그라미(끝냄 체크, 누르면 바로) · 지점 심볼 · 제목 · 반복 표시 · 역할(회색 글자, 필터가 전체일 때만) · 체크 수 · 마감 · 걸릴 시간
 // (시간 정함이면 걸릴 시간 대신 일정 시각, 지남이면 무엇이 지났는지).
-// 좁아지면 말줄임 대신 걸릴 시간 → 체크 수 → 마감 → 반복 표시 순으로 뺀다(CSS 컨테이너 쿼리).
+// 좁아지면 말줄임 대신 걸릴 시간 → 역할 → 체크 수 → 마감 → 반복 표시 순으로 뺀다(CSS 컨테이너 쿼리).
 // 지남 글자와 지점 심볼은 남긴다. 제목은 띄어쓰기에서만 줄을 바꾼다.
 
 import type { PointerEvent as ReactPointerEvent } from "react";
@@ -18,6 +18,7 @@ export function TaskLine({
   link,
   late,
   place,
+  role,
   repeats,
   today,
   selected,
@@ -31,6 +32,8 @@ export function TaskLine({
   /** 지남 묶음의 줄 */
   late?: Late;
   place?: Place;
+  /** 줄에 보일 역할 이름 (필터가 전체일 때만 온다) */
+  role?: string | null;
   /** 살아 있는 반복 규칙에서 온 할 일 */
   repeats?: boolean;
   today: DateStr;
@@ -80,6 +83,7 @@ export function TaskLine({
               <Icon name="repeat" />
             </span>
           )}
+          {role && <span className="role">{role}</span>}
           <span className={checks?.all ? "cnt num all" : "cnt num"}>{checks?.text ?? ""}</span>
           <span className={byDue ? "due num late keep" : overdue(task.due, today) ? "due num late" : "due num"}>{task.due ? dueLabel(task.due) : ""}</span>
           {byEvent && late ? (

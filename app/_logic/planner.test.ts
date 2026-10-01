@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DbError } from "../../lib/errors";
-import { DEFAULT_SETTINGS, type EventRow, type Place, type TaskRow, type TaskRule } from "../../lib/schedule";
+import { DEFAULT_SETTINGS, type EventRow, type Place, type Role, type TaskRow, type TaskRule } from "../../lib/schedule";
 import type { TaskLink } from "../_data/types";
 import {
+  byRole,
   checkLabel,
+  draftWithPlace,
+  draftWithRole,
   dueLabel,
   dueOptions,
   eventEnded,
   firstFreeStart,
+  hasRoleless,
   lateLabel,
   lateOf,
   mergeChecklist,
@@ -18,11 +22,15 @@ import {
   parseDueAfter,
   parseMinutes,
   plannerKorean,
+  ROLE_ALL,
+  ROLE_NONE,
+  roleText,
   ruleLabel,
   sortBetween,
   splitTasks,
   taskDraft,
   taskScopes,
+  validFilter,
   whenLabel,
 } from "./planner";
 
@@ -41,6 +49,7 @@ const task = (id: string, over: Partial<TaskRow> = {}): TaskRow => ({
   checklist: [],
   rule_id: null,
   rule_date: null,
+  role_id: null,
   version: 1,
   created_at: "2026-09-01T00:00:00Z",
   updated_at: "2026-09-01T00:00:00Z",
@@ -68,6 +77,7 @@ const rule = (over: Partial<TaskRule> = {}): TaskRule => ({
   event_id: null,
   due_after: null,
   last_made: null,
+  role_id: null,
   version: 1,
   ...over,
 });
@@ -430,5 +440,103 @@ describe("시간 정하기 — 기본 시작 시각", () => {
     // 9:00 부터 준비 35 + 등교 30 = 9:55 출발 준비 → 9:00~9:55 만 비어 60분은 안 들어간다. 수업 뒤 귀가 30분 → 12:30
     expect(firstFreeStart("2026-10-02", 60, r, m, now)).toBe(750);
     expect(firstFreeStart("2026-10-02", 30, r, m, now)).toBe(540);
+  });
+});
+
+describe("역할 (7-11)", () => {
+  const roles: Role[] = [
+    { id: "univ", name: "대학", from_place: "school", sort: 1, version: 1 },
+    { id: "teach", name: "강사", from_place: "work", sort: 2, version: 1 },
+    { id: "me", name: "개인", from_place: "home", sort: 3, version: 1 },
+    { id: "club", name: "동아리", from_place: null, sort: 4, version: 1 },
+  ];
+  const now = new Date("2026-10-01T03:00:00Z");
+  const at = { date: "2026-10-01", min: 720 };
+  const tasks = [
+    task("과제", { role_id: "univ", sort: 1 }),
+    task("지난 서류", { role_id: "univ", due: "2026-09-29", sort: 2 }),
+    task("회고", { role_id: "club", sort: 3 }),
+    task("메일", { sort: 4 }),
+    task("발표", { role_id: "univ", sort: 5 }),
+    task("반납", { role_id: "me", done_at: "2026-09-30T03:00:00Z", sort: 6 }),
+  ];
+  const links = [link("발표", "2026-10-03", 600)];
+  const names = (l: ReturnType<typeof splitTasks>) => ({
+    late: l.late.map((x) => x.task.id),
+    open: l.open.map((t) => t.id),
+    timed: l.timed.map((x) => x.task.id),
+    done: l.done.map((t) => t.id),
+  });
+
+  it("역할로 거르면 네 묶음 모두 그 역할만. 결과가 없는 묶음은 빈다", () => {
+    expect(names(splitTasks(byRole(tasks, "univ"), links, now, at))).toEqual({ late: ["지난 서류"], open: ["과제"], timed: ["발표"], done: [] });
+    expect(names(splitTasks(byRole(tasks, "me"), links, now, at))).toEqual({ late: [], open: [], timed: [], done: ["반납"] });
+    expect(names(splitTasks(byRole(tasks, "teach"), links, now, at))).toEqual({ late: [], open: [], timed: [], done: [] });
+    expect(byRole(tasks, ROLE_ALL)).toHaveLength(tasks.length);
+  });
+
+  it("'없음' 은 역할 없는 할 일만. 보이는 목록에 역할 없는 것이 있을 때만 고를 수 있다", () => {
+    expect(byRole(tasks, ROLE_NONE).map((t) => t.id)).toEqual(["메일"]);
+    expect(hasRoleless(splitTasks(tasks, links, now, at))).toBe(true);
+    expect(hasRoleless(splitTasks(byRole(tasks, "univ"), links, now, at))).toBe(false);
+    // 오래전에 끝내 목록에 안 보이는 것은 치지 않는다
+    expect(hasRoleless(splitTasks([task("옛일", { done_at: "2026-08-01T00:00:00Z" })], [], now, at))).toBe(false);
+  });
+
+  it("기억해 둔 필터: 없는 역할 id 는 전체로, '없음' 은 역할 없는 할 일이 있을 때만", () => {
+    expect(validFilter(null, roles, true)).toBe(ROLE_ALL);
+    expect(validFilter("", roles, true)).toBe(ROLE_ALL);
+    expect(validFilter("club", roles, false)).toBe("club");
+    expect(validFilter("지운 역할", roles, true)).toBe(ROLE_ALL);
+    expect(validFilter(ROLE_NONE, roles, true)).toBe(ROLE_NONE);
+    expect(validFilter(ROLE_NONE, roles, false)).toBe(ROLE_ALL);
+  });
+
+  it("줄에 보일 글자: 필터가 전체일 때만 역할 이름. 역할이 없거나 지운 역할이면 없음", () => {
+    expect(roleText(tasks[0]!, roles, ROLE_ALL)).toBe("대학");
+    expect(roleText(tasks[2]!, roles, ROLE_ALL)).toBe("동아리");
+    expect(roleText(tasks[3]!, roles, ROLE_ALL)).toBeNull();
+    expect(roleText(tasks[0]!, roles, "univ")).toBeNull();
+    expect(roleText(tasks[3]!, roles, ROLE_NONE)).toBeNull();
+    expect(roleText(task("x", { role_id: "지운 역할" }), roles, ROLE_ALL)).toBeNull();
+  });
+
+  it("수정 칸: 지점을 고르면 그 지점의 역할이 들어가고, 역할 칩을 직접 누른 뒤에는 덮지 않는다", () => {
+    const school = { id: "p-school", role: "school" as const };
+    const work = { id: "p-work", role: "work" as const };
+    const cafe = { id: "p-cafe", role: null };
+    let d = taskDraft(task("x"), null);
+    expect(d).toMatchObject({ role_id: null, roleManual: false });
+    d = draftWithPlace(d, school, roles);
+    expect(d).toMatchObject({ place_id: "p-school", role_id: "univ", roleManual: false });
+    d = draftWithPlace(d, work, roles);
+    expect(d.role_id).toBe("teach");
+    // 역할이 딸리지 않은 지점 · 지점 없음은 역할을 그대로 둔다
+    expect(draftWithPlace(d, cafe, roles)).toMatchObject({ place_id: "p-cafe", role_id: "teach" });
+    expect(draftWithPlace(d, null, roles)).toMatchObject({ place_id: null, role_id: "teach" });
+    d = draftWithRole(d, "club");
+    expect(draftWithPlace(d, school, roles)).toMatchObject({ place_id: "p-school", role_id: "club", roleManual: true });
+    expect(draftWithPlace(draftWithRole(d, null), school, roles).role_id).toBeNull();
+  });
+
+  it("수정 칸을 열 때: 역할이 지점이 주는 것과 다르면 손으로 고른 것으로 본다", () => {
+    expect(taskDraft(task("x", { role_id: "univ" }), null, {}, "univ").roleManual).toBe(false);
+    expect(taskDraft(task("x", { role_id: "club" }), null, {}, "univ").roleManual).toBe(true);
+    expect(taskDraft(task("x", { role_id: "club" }), null).roleManual).toBe(true);
+    expect(taskDraft(task("x"), null, {}, "univ").roleManual).toBe(false);
+  });
+
+  it("반복에서 온 할 일의 역할을 바꾸면 이번만 / 앞으로도", () => {
+    const base = taskDraft(task("a", { rule_id: "r", rule_date: "2026-09-28", role_id: "me" }), rule(), {}, null);
+    expect(taskScopes(draftWithRole(base, "univ"), base)).toEqual(["once", "future"]);
+    expect(taskScopes(draftWithRole(base, "me"), base)).toEqual([]);
+  });
+
+  it("역할 오류 문구", () => {
+    expect(plannerKorean(new DbError('duplicate key value violates unique constraint "ez_roles_name_unique"', "23505")).message).toBe("같은 이름의 역할이 이미 있습니다");
+    expect(plannerKorean(new DbError('new row for relation "ez_roles" violates check constraint "ez_roles_name_check"', "23514")).message).toBe(
+      "역할 이름은 앞뒤 공백 없이 1~20자입니다",
+    );
+    expect(plannerKorean(new DbError("[EZ_LIMIT] 역할은 12개까지 둘 수 있습니다", "P0001"))).toEqual({ code: "EZ_LIMIT", message: "역할은 12개까지 둘 수 있습니다" });
   });
 });

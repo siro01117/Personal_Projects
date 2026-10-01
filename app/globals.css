@@ -664,7 +664,9 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-row.done .sym{opacity:.5}
 .pl-row .rpt{flex:0 0 auto;display:grid;place-items:center;height:22px;color:var(--text-3)}
 .pl-row .rpt .i{width:14px;height:14px}
-/* 좁아지면 걸릴 시간 → 체크 수 → 마감 → 반복 표시 순으로 뺀다. 지남 글자(.keep)와 지점 심볼은 남긴다.
+/* 역할 — 색 없이 작은 회색 글자 (색은 지점이 쓴다). 필터가 전체일 때만 그린다 */
+.pl-row .role{flex:0 0 auto;max-width:10em;font-size:12px;line-height:22px;color:var(--text-3);text-align:right;word-break:keep-all;overflow-wrap:anywhere}
+/* 좁아지면 걸릴 시간 → 역할 → 체크 수 → 마감 → 반복 표시 순으로 뺀다. 지남 글자(.keep)와 지점 심볼은 남긴다.
    일정 시각이 붙는 줄(.has-when)은 오른쪽이 더 길어서 한 단계씩 먼저 뺀다 */
 @container plist (max-width: 480px){
   .pl-row .est{display:none}
@@ -672,7 +674,9 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
   .pl-row .due:empty,.pl-row .cnt:empty{display:none}
   .pl-row.has-when .cnt{display:none}
 }
+@container plist (max-width: 400px){ .pl-row.has-when .role{display:none} }
 @container plist (max-width: 400px){ .pl-row.has-when .due:not(.keep){display:none} }
+@container plist (max-width: 330px){ .pl-row .role{display:none} }
 @container plist (max-width: 330px){ .pl-row .cnt{display:none} .pl-row.has-when .rpt{display:none} }
 @container plist (max-width: 290px){ .pl-row .due:not(.keep){display:none} }
 @container plist (max-width: 250px){ .pl-row .rpt{display:none} }
@@ -706,6 +710,34 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
   .pl-list{padding:8px 0 96px}
   .pl-cols,.pl-col{gap:8px}
   .pl-sec,.pl-list > .pl-sec:first-child{border-left:0;border-right:0;border-radius:0;padding:2px 6px 6px}
+}
+/* 역할 필터: 위쪽 줄 바로 아래 한 줄. 조용한 칩(색 없음, 고른 것만 바탕). 넘치면 가로로 민다 */
+.pl-top{border-bottom:0}
+.pl-filter{flex:0 0 auto;display:flex;align-items:center;gap:2px;height:44px;padding:0 clamp(16px,3cqw,56px) 8px;border-bottom:1px solid var(--border);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.pl-filter::-webkit-scrollbar{display:none}
+.pl-filter > *{flex:0 0 auto}
+.rf{height:30px;padding:0 12px;border-radius:999px;font-size:13px;color:var(--text-2);white-space:nowrap;transition:background var(--t)}
+.rf:hover{background:var(--surface-2)}
+.rf[aria-pressed="true"]{background:var(--surface-3);color:var(--text-1);font-weight:600}
+.rf-edit{width:30px;height:30px;margin-left:2px;color:var(--text-3)}
+.rf-edit .i{width:15px;height:15px}
+.rf-edit[aria-expanded="true"]{background:var(--surface-2);color:var(--text-1)}
+/* 역할 편집 */
+.roles{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.roles li{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:2px;min-height:48px}
+.roles .txt-in{height:36px;margin-right:8px;font-size:15px;border-bottom-color:transparent}
+.roles .txt-in:hover{border-bottom-color:var(--border)}
+.roles .txt-in:focus{border-bottom-color:var(--point-ink)}
+.roles .iconbtn{width:32px;height:32px}
+.roles .iconbtn .i{width:16px;height:16px}
+.roles .iconbtn:disabled{opacity:.3;cursor:default}
+.roles .del{height:32px;padding:0 8px}
+.role-add{display:flex;align-items:center;gap:8px;height:40px;margin-top:8px;padding:0 10px;border-radius:var(--r-m);background:var(--surface-2);color:var(--text-3);cursor:text}
+.role-add:focus-within{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.role-add .i{width:16px;height:16px;flex:0 0 auto}
+.role-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:14px;color:var(--text-1);outline:none}
+@container app (max-width: 760px){
+  .pl-filter{padding:0 8px 8px}
 }
 .pl-dp{flex:0 0 clamp(340px,28cqw,440px);min-width:0;position:relative}
 .pl-dp.float{width:min(380px,100%)}

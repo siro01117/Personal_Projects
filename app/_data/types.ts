@@ -13,6 +13,7 @@ import type {
   PlaceRole,
   PlaceSymbol,
   Repeat,
+  Role,
   Settings,
   TaskRow,
   TaskRule,
@@ -218,6 +219,8 @@ export type TaskInput = {
   checklist?: CheckItem[];
   rule_id?: string | null;
   rule_date?: DateStr | null;
+  /** 역할 (docs/플래너.md 7-11). 지운 역할이면 [EZ_ROLE] */
+  role_id?: string | null;
 };
 
 /** 할 일과 이어진 살아 있는 일정 (할 일 하나에 하나). end_min 은 지남 판정에 쓴다 */
@@ -225,6 +228,15 @@ export type TaskLink = { task_id: string; event_id: string; date: DateStr; start
 
 /** 반복 규칙에 넣는 칸 (ez_task_rules). cycle 은 repeat · start, event 는 event_id */
 export type RuleInput = Omit<TaskRule, "id" | "version">;
+
+/** 역할에 넣는 칸 (ez_roles). sort 를 안 주면 맨 뒤 */
+export type RoleInput = { name: string; from_place?: PlaceRole | null; sort?: number };
+
+/**
+ * 역할을 지울 때 역할이 비는 것 (0008: 그 역할의 할 일 · 규칙의 role_id 가 null 이 된다).
+ * 지우기 전에 읽어 두었다가 되돌릴 때(restoreRole) 다시 건다
+ */
+export type RoleDeps = { tasks: string[]; rules: string[] };
 
 export interface PlannerData {
   /** 지우지 않은 할 일 전부 (끝낸 것 포함). 순서는 sort 오름차순 */
@@ -254,6 +266,18 @@ export interface PlannerData {
   updateRule(id: string, patch: Partial<RuleInput>): Promise<TaskRule>;
   /** 멈추기 (deleted_at). 이미 생긴 할 일은 남는다 */
   stopRule(id: string): Promise<void>;
+
+  /** 살아 있는 역할. sort 순 */
+  roles(): Promise<Role[]>;
+  /** ez_roles_seed — 역할 행이 하나도 없을 때만(지운 것 포함) 기본 셋을 넣는다. 만든 개수. 화면을 열 때 roll 보다 먼저 부른다 */
+  seedRoles(): Promise<number>;
+  /** 12개를 넘으면 [EZ_LIMIT], 이름이 겹치면 23505 */
+  createRole(input: RoleInput): Promise<Role>;
+  updateRole(id: string, patch: Partial<RoleInput>): Promise<Role>;
+  /** 지우기 (deleted_at). 그 역할의 할 일 · 규칙은 역할 없음이 된다. 비게 된 것들을 돌려준다(되돌리기용) */
+  deleteRole(id: string): Promise<RoleDeps>;
+  /** 역할을 되살리고 deps 의 할 일 · 규칙에 다시 건다. 그 사이 다른 역할을 고른 것은 건너뛴다 */
+  restoreRole(id: string, deps?: RoleDeps): Promise<Role>;
 }
 
 export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; auth: Auth; demo: boolean };

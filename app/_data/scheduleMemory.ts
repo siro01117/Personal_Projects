@@ -2,7 +2,8 @@
 //
 // !! 진짜 규칙의 출처는 DB 다 (db/migrations/0006_ez_schedule.sql · 0007_ez_planner.sql).
 // 여기서는 화면이 의지하는 것만 흉내 낸다: 버전 확인 · 바깥 일정 거절 · 집 하나 · 할 일 하나에 일정 하나 ·
-// 지점 이름 겹침 · 지점 12개 · 반복 회차 검사 · split/cut · 일정에 딸린 마감(따라가기 · 끊기) · 반복 규칙 굴리기(roll).
+// 지점 이름 겹침 · 지점 12개 · 반복 회차 검사 · split/cut · 일정에 딸린 마감(따라가기 · 끊기) · 반복 규칙 굴리기(roll) ·
+// 역할(0008: 이름 겹침 · from_place 하나 · 12개 · 지우면 role_id null · seed 는 행이 하나도 없을 때만).
 // 칸 검사는 lib/schedule 의 validateEvent 를 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
 import { DbError } from "../../lib/errors";
@@ -11,11 +12,14 @@ import {
   CHECK_ITEM_MAX,
   CHECKLIST_MAX,
   daysBetween,
+  DEFAULT_ROLES,
   DEFAULT_SETTINGS,
   DUE_AFTER_MAX,
   occursOn,
   PLACE_COLORS,
   PLACES_MAX,
+  ROLE_NAME_MAX,
+  ROLES_MAX,
   validateEvent,
   validateTask,
   type DateStr,
@@ -24,6 +28,7 @@ import {
   type ExceptionPatch,
   type Place,
   type PlaceSymbol,
+  type Role,
   type Settings,
   type TaskRow,
   type TaskRule,
@@ -35,6 +40,8 @@ import type {
   EventRows,
   PlaceInput,
   PlannerData,
+  RoleDeps,
+  RoleInput,
   RuleInput,
   ScheduleData,
   SourceInfo,
@@ -51,6 +58,7 @@ type EvRow = EventRow & { deleted_at: string | null };
 type PlRow = Place & { deleted_at: string | null };
 type TkRow = TaskRow & { deleted_at: string | null };
 type RlRow = TaskRule & { deleted_at: string | null };
+type RoRow = Role & { deleted_at: string | null };
 
 export type ScheduleSeed = {
   places?: Place[];
@@ -61,10 +69,11 @@ export type ScheduleSeed = {
   exceptions?: EventException[];
   tasks?: (Partial<TaskRow> & Pick<TaskRow, "id" | "title">)[];
   rules?: (Partial<TaskRule> & Pick<TaskRule, "id" | "kind" | "title">)[];
+  roles?: (Partial<Role> & Pick<Role, "id" | "name">)[];
 };
 
-const RULE_KEYS = ["kind", "title", "note", "est_min", "place_id", "checklist", "repeat", "start", "event_id", "due_after", "last_made"] as const;
-const TASK_KEYS = ["title", "note", "due", "est_min", "place_id", "due_event_id", "checklist", "rule_id", "rule_date"] as const;
+const RULE_KEYS = ["kind", "title", "note", "est_min", "place_id", "checklist", "repeat", "start", "event_id", "due_after", "last_made", "role_id"] as const;
+const TASK_KEYS = ["title", "note", "due", "est_min", "place_id", "due_event_id", "checklist", "rule_id", "rule_date", "role_id"] as const;
 /** roll 이 돌아보는 날 수 */
 const ROLL_BACK = 60;
 
@@ -90,6 +99,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
   private readonly tk = new Map<string, TkRow>();
   /** 넣은 순서 = 만든 순서 (roll 이 이 순서로 돈다) */
   private readonly rl = new Map<string, RlRow>();
+  private readonly ro = new Map<string, RoRow>();
   private ex: EventException[] = [];
   private tr: Travel[] = [];
   private st: Settings;
@@ -138,6 +148,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         checklist: [],
         rule_id: null,
         rule_date: null,
+        role_id: null,
         version: 1,
         created_at: at,
         updated_at: at,
@@ -156,11 +167,13 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         event_id: null,
         due_after: null,
         last_made: null,
+        role_id: null,
         version: 1,
         deleted_at: null,
         ...clone(r),
       });
     }
+    for (const [i, r] of (seed.roles ?? []).entries()) this.ro.set(r.id, { from_place: null, sort: i + 1, version: 1, deleted_at: null, ...r });
   }
 
   private async wait(): Promise<void> {
@@ -640,6 +653,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     if (next.place_id !== null && !this.pl.has(next.place_id)) {
       throw new DbError('insert or update on table "ez_tasks" violates foreign key constraint "ez_tasks_place_fk"', "23503");
     }
+    this.checkRoleRef(next.role_id, old?.role_id ?? null, "ez_tasks");
     if ((next.rule_id === null) !== (next.rule_date === null)) {
       throw new DbError('new row for relation "ez_tasks" violates check constraint "ez_tasks_rule_check"', "23514");
     }
@@ -676,6 +690,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
       checklist: clone(input.checklist ?? []),
       rule_id: input.rule_id ?? null,
       rule_date: input.rule_date ?? null,
+      role_id: input.role_id ?? null,
       version: 1,
       created_at: at,
       updated_at: at,
@@ -760,6 +775,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     if (r.place_id !== null && !this.pl.has(r.place_id)) {
       throw new DbError('insert or update on table "ez_task_rules" violates foreign key constraint "ez_task_rules_place_fk"', "23503");
     }
+    this.checkRoleRef(r.role_id, old?.role_id ?? null, "ez_task_rules");
     if (r.kind === "cycle") {
       if (r.repeat === null || r.start === null || r.event_id !== null) throw bad("kind");
       if (r.repeat.until) throw ez("EZ_VALUE", "반복 할 일에는 끝나는 날(until)을 쓰지 않습니다. 그만하려면 규칙을 멈추세요");
@@ -877,6 +893,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
           checklist: r.checklist.map((c) => ({ t: c, done: false })),
           rule_id: r.id,
           rule_date: on,
+          role_id: r.role_id,
           version: 1,
           created_at: at,
           updated_at: at,
@@ -888,5 +905,137 @@ export class MemorySchedule implements ScheduleData, PlannerData {
       r.last_made = on;
     }
     return made;
+  }
+
+  // ------------------------------------------------------------ 역할 (0008 ez_roles · ez_roles_seed)
+
+  private outRole(r: RoRow): Role {
+    const { deleted_at: _, ...rest } = r;
+    return clone(rest);
+  }
+
+  private liveRoles(): RoRow[] {
+    return [...this.ro.values()].filter((r) => r.deleted_at === null);
+  }
+
+  /** 할 일 · 규칙에 역할을 걸 때: 없는 역할은 FK, 지운 역할은 [EZ_ROLE]. 걸거나 바꿀 때만 본다 */
+  private checkRoleRef(next: string | null, old: string | null, table: string): void {
+    if (next === null || next === old) return;
+    const r = this.ro.get(next);
+    if (!r) throw new DbError(`insert or update on table "${table}" violates foreign key constraint "${table}_role_fk"`, "23503");
+    if (r.deleted_at !== null) throw ez("EZ_ROLE", "지운 역할입니다. 다른 역할을 고르세요");
+  }
+
+  /** 이름 1~20자(앞뒤 공백 없음) · 살아 있는 것끼리 이름 겹침 · from_place 는 값마다 하나 */
+  private checkRole(r: RoRow): void {
+    const len = [...r.name].length;
+    if (r.name !== r.name.trim() || len < 1 || len > ROLE_NAME_MAX) {
+      throw new DbError('new row for relation "ez_roles" violates check constraint "ez_roles_name_check"', "23514");
+    }
+    if (!Number.isFinite(r.sort)) throw new DbError('new row for relation "ez_roles" violates check constraint "ez_roles_sort_check"', "23514");
+    for (const o of this.liveRoles()) {
+      if (o.id === r.id) continue;
+      if (o.name.toLowerCase() === r.name.toLowerCase()) throw unique("ez_roles_name_unique");
+      if (r.from_place !== null && o.from_place === r.from_place) throw unique("ez_roles_from_place_unique");
+    }
+  }
+
+  private roleLimit(): void {
+    if (this.liveRoles().length >= ROLES_MAX) throw ez("EZ_LIMIT", `역할은 ${ROLES_MAX}개까지 둘 수 있습니다. 안 쓰는 역할을 지우고 다시 하세요`);
+  }
+
+  async roles(): Promise<Role[]> {
+    await this.wait();
+    return this.liveRoles()
+      .sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name))
+      .map((r) => this.outRole(r));
+  }
+
+  async seedRoles(): Promise<number> {
+    await this.wait();
+    if (this.ro.size > 0) return 0;
+    for (const [i, d] of DEFAULT_ROLES.entries()) {
+      const id = globalThis.crypto.randomUUID();
+      this.ro.set(id, { id, name: d.name, from_place: d.from_place, sort: i + 1, version: 1, deleted_at: null });
+    }
+    return DEFAULT_ROLES.length;
+  }
+
+  async createRole(input: RoleInput): Promise<Role> {
+    await this.wait();
+    this.roleLimit();
+    const r: RoRow = {
+      id: globalThis.crypto.randomUUID(),
+      name: input.name,
+      from_place: input.from_place ?? null,
+      sort: input.sort ?? Math.max(0, ...this.liveRoles().map((x) => x.sort)) + 1,
+      version: 1,
+      deleted_at: null,
+    };
+    this.checkRole(r);
+    this.ro.set(r.id, r);
+    return this.outRole(r);
+  }
+
+  async updateRole(id: string, patch: Partial<RoleInput>): Promise<Role> {
+    await this.wait();
+    const r = this.ro.get(id);
+    if (!r || r.deleted_at !== null) throw ez("EZ_NOT_FOUND", "역할이 없습니다");
+    const next: RoRow = { ...r };
+    if (patch.name !== undefined) next.name = patch.name;
+    if (patch.from_place !== undefined) next.from_place = patch.from_place;
+    if (patch.sort !== undefined) next.sort = patch.sort;
+    this.checkRole(next);
+    Object.assign(r, next);
+    r.version += 1;
+    return this.outRole(r);
+  }
+
+  async deleteRole(id: string): Promise<RoleDeps> {
+    await this.wait();
+    const r = this.ro.get(id);
+    const deps: RoleDeps = { tasks: [], rules: [] };
+    if (!r || r.deleted_at !== null) return deps;
+    r.deleted_at = new Date().toISOString();
+    r.version += 1;
+    for (const t of this.tk.values()) {
+      if (t.role_id !== id) continue;
+      deps.tasks.push(t.id);
+      t.role_id = null;
+      this.bumpTask(t);
+    }
+    for (const x of this.rl.values()) {
+      if (x.role_id !== id) continue;
+      deps.rules.push(x.id);
+      x.role_id = null;
+      x.version += 1;
+    }
+    return deps;
+  }
+
+  async restoreRole(id: string, deps?: RoleDeps): Promise<Role> {
+    await this.wait();
+    const r = this.ro.get(id);
+    if (!r) throw ez("EZ_NOT_FOUND", "되돌릴 역할이 없습니다");
+    if (r.deleted_at !== null) {
+      this.roleLimit();
+      this.checkRole({ ...r, deleted_at: null });
+      r.deleted_at = null;
+      r.version += 1;
+    }
+    // 그 사이 다른 역할을 고른 것은 건너뛴다
+    for (const tid of deps?.tasks ?? []) {
+      const t = this.tk.get(tid);
+      if (!t || t.role_id !== null) continue;
+      t.role_id = id;
+      this.bumpTask(t);
+    }
+    for (const rid of deps?.rules ?? []) {
+      const x = this.rl.get(rid);
+      if (!x || x.role_id !== null) continue;
+      x.role_id = id;
+      x.version += 1;
+    }
+    return this.outRole(r);
   }
 }

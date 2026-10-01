@@ -1,6 +1,6 @@
 // 플래너 화면 계산 (docs/플래너.md 3장 · 7장). DOM 없이 시험할 수 있는 것만:
 // 목록 넷으로 나누기(지남 · 할 일 · 시간 정함 · 끝냄) · 지남 판정, 사이 sort 값, 시간 정하기의 기본 시작 시각,
-// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도'.
+// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 역할로 거르기(7-11).
 // 빈 시간 계산은 lib/schedule 의 planRange + freeSlots 가 한다.
 
 import type { KoreanError } from "../../lib/errors";
@@ -14,10 +14,13 @@ import {
   expand,
   freeSlots,
   planRange,
+  ROLE_NAME_MAX,
+  roleForPlace,
   weekday,
   type CheckItem,
   type DateStr,
   type Place,
+  type Role,
   type Settings,
   type TaskRow,
   type TaskRule,
@@ -132,6 +135,38 @@ export function moved<T extends { id: string }>(list: readonly T[], id: string, 
   return [...rest.slice(0, at), item, ...rest.slice(at)];
 }
 
+// ------------------------------------------------------------ 역할 (7-11)
+
+/** 필터: 전체 · 없음(역할 없는 할 일) · 역할 id */
+export type RoleFilter = string;
+export const ROLE_ALL = "all";
+export const ROLE_NONE = "none";
+
+/** 그 역할의 할 일만. 전체면 그대로, 없음이면 역할 없는 것만 */
+export function byRole<T extends { role_id: string | null }>(tasks: readonly T[], filter: RoleFilter): T[] {
+  if (filter === ROLE_ALL) return [...tasks];
+  const want = filter === ROLE_NONE ? null : filter;
+  return tasks.filter((t) => t.role_id === want);
+}
+
+/** 목록에 보이는 것 중 역할 없는 할 일이 있나 ('없음' 필터를 보일지) */
+export function hasRoleless(lists: Lists): boolean {
+  return [...lists.late.map((l) => l.task), ...lists.open, ...lists.timed.map((x) => x.task), ...lists.done].some((t) => t.role_id === null);
+}
+
+/** 기억해 둔 필터가 아직 쓸 수 있나: 없는 역할 id 나, 역할 없는 할 일이 없는데 '없음' 이면 전체로 */
+export function validFilter(saved: string | null | undefined, roles: readonly Role[], roleless: boolean): RoleFilter {
+  if (!saved || saved === ROLE_ALL) return ROLE_ALL;
+  if (saved === ROLE_NONE) return roleless ? ROLE_NONE : ROLE_ALL;
+  return roles.some((r) => r.id === saved) ? saved : ROLE_ALL;
+}
+
+/** 줄 오른쪽에 보일 역할 이름. 필터가 전체일 때만 — 역할을 골라 두면 다 같은 역할이라 안 보인다 */
+export function roleText(task: Pick<TaskRow, "role_id">, roles: readonly Role[], filter: RoleFilter): string | null {
+  if (filter !== ROLE_ALL || task.role_id === null) return null;
+  return roles.find((r) => r.id === task.role_id)?.name ?? null;
+}
+
 // ------------------------------------------------------------ 글자
 
 const md = (d: DateStr) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
@@ -221,10 +256,16 @@ export type TaskDraft = {
   days: number[];
   /** 마감까지 며칠 (빈칸 = 마감 없음) */
   dueAfter: string;
+  role_id: string | null;
+  /** 역할을 손으로 골랐다 — 지점을 바꿔도 역할을 덮지 않는다 */
+  roleManual: boolean;
 };
 
-/** 할 일 → 수정 칸. rule = 이 할 일이 나온 살아 있는 규칙 (없으면 null) */
-export function taskDraft(t: TaskRow, rule: TaskRule | null, titles: Readonly<Record<string, string>> = {}): TaskDraft {
+/**
+ * 할 일 → 수정 칸. rule = 이 할 일이 나온 살아 있는 규칙 (없으면 null).
+ * autoRole = 지금 지점이 주는 역할(roleForPlace). 역할이 그것과 다르면 손으로 고른 것으로 본다
+ */
+export function taskDraft(t: TaskRow, rule: TaskRule | null, titles: Readonly<Record<string, string>> = {}, autoRole: string | null = null): TaskDraft {
   const r = rule?.repeat ?? null;
   return {
     title: t.title,
@@ -237,7 +278,22 @@ export function taskDraft(t: TaskRow, rule: TaskRule | null, titles: Readonly<Re
     repeat: !rule ? "none" : rule.kind === "event" ? "event" : r?.freq === "weekly" ? "weekly" : "daily",
     days: r?.freq === "weekly" ? [...r.days].sort((a, b) => a - b) : [],
     dueAfter: rule?.due_after == null ? "" : String(rule.due_after),
+    role_id: t.role_id,
+    roleManual: t.role_id !== null && t.role_id !== autoRole,
   };
+}
+
+/** 지점을 고른다. 역할을 손으로 고른 적이 없으면 그 지점의 역할을 채운다(맞는 역할이 없으면 그대로) */
+export function draftWithPlace(d: TaskDraft, place: Pick<Place, "id" | "role"> | null, roles: Role[]): TaskDraft {
+  const next = { ...d, place_id: place?.id ?? null };
+  if (d.roleManual) return next;
+  const r = roleForPlace(place, roles);
+  return r ? { ...next, role_id: r.id } : next;
+}
+
+/** 역할 칩을 직접 눌렀다 */
+export function draftWithRole(d: TaskDraft, role_id: string | null): TaskDraft {
+  return { ...d, role_id, roleManual: true };
 }
 
 /** 마감까지 며칠 칸 → 숫자. 빈칸이면 null, 0~60 정수가 아니면 NaN */
@@ -256,13 +312,14 @@ export function repeatChanged(d: TaskDraft, base: TaskDraft): boolean {
   return d.repeat !== base.repeat || (d.repeat === "weekly" && d.days.join() !== base.days.join()) || d.dueAfter.trim() !== base.dueAfter.trim();
 }
 
-/** 규칙이 만들 할 일의 모양(제목 · 걸릴 시간 · 지점 · 메모 · 체크 항목 글자)을 바꿨나 */
+/** 규칙이 만들 할 일의 모양(제목 · 걸릴 시간 · 지점 · 역할 · 메모 · 체크 항목 글자)을 바꿨나 */
 export function templateChanged(d: TaskDraft, base: TaskDraft): boolean {
   return (
     d.title.trim() !== base.title.trim() ||
     d.est.trim() !== base.est.trim() ||
     d.note !== base.note ||
     d.place_id !== base.place_id ||
+    d.role_id !== base.role_id ||
     parseChecks(d.checks).texts.join("\n") !== parseChecks(base.checks).texts.join("\n")
   );
 }
@@ -296,6 +353,16 @@ export function dateLabel(d: DateStr): string {
 
 /** 할 일 쪽 DB 오류를 화면 문구로 */
 export function plannerKorean(err: unknown, authMessage?: string): KoreanError {
+  const o = typeof err === "object" && err !== null ? (err as { message?: unknown; details?: unknown; code?: unknown }) : null;
+  const text = o ? `${String(o.message ?? "")} ${String(o.details ?? "")}` : String(err);
+  if (text.includes("ez_roles")) {
+    if (o?.code === "23505") {
+      return text.includes("from_place")
+        ? { code: "ROLE_PLACE_TAKEN", message: "그 지점 역할에서 오는 역할이 이미 있습니다" }
+        : { code: "NAME_TAKEN", message: "같은 이름의 역할이 이미 있습니다" };
+    }
+    if (o?.code === "23514") return { code: "BAD_NAME", message: `역할 이름은 앞뒤 공백 없이 1~${ROLE_NAME_MAX}자입니다` };
+  }
   const k = scheduleKorean(err, authMessage);
   if (k.code === "EZ_VERSION") return { code: k.code, message: "방금 다른 곳에서 이 할 일을 고쳤습니다" };
   return k;

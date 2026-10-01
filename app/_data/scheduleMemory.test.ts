@@ -100,6 +100,7 @@ const cycle = (over: Partial<RuleInput> = {}): RuleInput => ({
   event_id: null,
   due_after: 6,
   last_made: null,
+  role_id: null,
   ...over,
 });
 const after = (event_id: string, over: Partial<RuleInput> = {}): RuleInput => ({
@@ -114,6 +115,7 @@ const after = (event_id: string, over: Partial<RuleInput> = {}): RuleInput => ({
   event_id,
   due_after: null,
   last_made: null,
+  role_id: null,
   ...over,
 });
 /** 매주 월·수 10:00–11:00 수업 (2026-09-07 월부터) */
@@ -388,5 +390,127 @@ describe("MemorySchedule — 할 일의 새 칸", () => {
     expect(made).toMatchObject({ title: "자료구조 내용 정리", rule_date: "2026-09-30", due: "2026-10-06" });
     expect((await m.tasks()).filter((t) => t.title === "주간 정리").map((t) => t.rule_date)).toEqual(["2026-09-28"]);
     expect(await m.roll("2026-10-01", 900)).toBe(0);
+  });
+});
+
+describe("MemorySchedule — 역할 (docs/플래너.md 7-11)", () => {
+  it("seed: 역할 행이 하나도 없을 때만 기본 셋(대학 ← school, 강사 ← work, 개인 ← home)", async () => {
+    const m = new MemorySchedule();
+    expect(await m.seedRoles()).toBe(3);
+    expect((await m.roles()).map((r) => [r.name, r.from_place])).toEqual([
+      ["대학", "school"],
+      ["강사", "work"],
+      ["개인", "home"],
+    ]);
+    expect(await m.seedRoles()).toBe(0);
+    // 다 지워도 다시 넣지 않는다 (지운 것도 행이다)
+    for (const r of await m.roles()) await m.deleteRole(r.id);
+    expect(await m.seedRoles()).toBe(0);
+    expect(await m.roles()).toEqual([]);
+  });
+
+  it("이름은 살아 있는 것끼리 겹치면 안 되고 1~20자, from_place 는 값마다 하나", async () => {
+    const m = new MemorySchedule();
+    await m.seedRoles();
+    await expect(m.createRole({ name: "대학" })).rejects.toThrow(/ez_roles_name_unique/);
+    await expect(m.createRole({ name: " 동아리" })).rejects.toThrow(/ez_roles_name_check/);
+    await expect(m.createRole({ name: "가".repeat(21) })).rejects.toThrow(/ez_roles_name_check/);
+    await expect(m.createRole({ name: "학교", from_place: "school" })).rejects.toThrow(/ez_roles_from_place_unique/);
+    const club = await m.createRole({ name: "동아리" });
+    expect(club).toMatchObject({ from_place: null, sort: 4, version: 1 });
+    await expect(m.updateRole(club.id, { name: "강사" })).rejects.toThrow(/ez_roles_name_unique/);
+    expect(await m.updateRole(club.id, { name: "APPTIVE", sort: 0.5 })).toMatchObject({ name: "APPTIVE", version: 2 });
+    expect((await m.roles()).map((r) => r.name)).toEqual(["APPTIVE", "대학", "강사", "개인"]);
+    // 지운 이름은 다시 쓸 수 있다
+    await m.deleteRole(club.id);
+    await m.createRole({ name: "APPTIVE" });
+  });
+
+  it("살아 있는 역할은 12개까지", async () => {
+    const m = new MemorySchedule();
+    for (let i = 0; i < 12; i++) await m.createRole({ name: `역할 ${i}` });
+    await expect(m.createRole({ name: "하나 더" })).rejects.toThrow(/EZ_LIMIT/);
+    const [first] = await m.roles();
+    await m.deleteRole(first!.id);
+    await m.createRole({ name: "하나 더" });
+    // 자리가 찼으면 지운 역할을 되살릴 수 없다
+    await expect(m.restoreRole(first!.id)).rejects.toThrow(/EZ_LIMIT/);
+  });
+
+  it("할 일 · 규칙에 역할을 읽고 쓴다. 없는 역할 · 지운 역할은 거절", async () => {
+    const m = new MemorySchedule();
+    const r = await m.createRole({ name: "대학" });
+    const gone = await m.createRole({ name: "옛 역할" });
+    await m.deleteRole(gone.id);
+    const t = await m.createTask({ title: "과제", role_id: r.id });
+    expect(t.role_id).toBe(r.id);
+    expect((await m.createTask({ title: "장보기" })).role_id).toBeNull();
+    expect((await m.updateTask(t.id, t.version, { role_id: null })).role_id).toBeNull();
+    await expect(m.createTask({ title: "x", role_id: gone.id })).rejects.toThrow(/EZ_ROLE/);
+    await expect(m.createTask({ title: "x", role_id: "nope" })).rejects.toThrow(/ez_tasks_role_fk/);
+    await expect(m.createRule(cycle({ role_id: gone.id }))).rejects.toThrow(/EZ_ROLE/);
+    const rule = await m.createRule(cycle({ role_id: r.id }));
+    expect((await m.updateRule(rule.id, { role_id: null })).role_id).toBeNull();
+  });
+
+  it("지우면 그 역할의 할 일 · 규칙은 역할 없음이 되고, 되돌리면 다시 걸린다 — 그 사이 다른 역할을 고른 것은 건너뛴다", async () => {
+    const m = new MemorySchedule();
+    const a = await m.createRole({ name: "대학" });
+    const b = await m.createRole({ name: "개인" });
+    const t1 = await m.createTask({ title: "과제", role_id: a.id });
+    const t2 = await m.createTask({ title: "복습", role_id: a.id });
+    const other = await m.createTask({ title: "장보기", role_id: b.id });
+    const rule = await m.createRule(cycle({ role_id: a.id }));
+
+    const deps = await m.deleteRole(a.id);
+    expect([...deps.tasks].sort()).toEqual([t1.id, t2.id].sort());
+    expect(deps.rules).toEqual([rule.id]);
+    expect((await m.roles()).map((r) => r.name)).toEqual(["개인"]);
+    const after = new Map((await m.tasks()).map((t) => [t.id, t]));
+    expect([after.get(t1.id)!.role_id, after.get(t2.id)!.role_id, after.get(other.id)!.role_id]).toEqual([null, null, b.id]);
+    expect(after.get(t1.id)!.version).toBe(t1.version + 1);
+    expect((await m.rules())[0]!.role_id).toBeNull();
+
+    // 그 사이 t2 는 다른 역할로
+    await m.updateTask(t2.id, after.get(t2.id)!.version, { role_id: b.id });
+    const back = await m.restoreRole(a.id, deps);
+    expect(back.name).toBe("대학");
+    const now = new Map((await m.tasks()).map((t) => [t.id, t.role_id]));
+    expect([now.get(t1.id), now.get(t2.id), now.get(other.id)]).toEqual([a.id, b.id, b.id]);
+    expect((await m.rules())[0]!.role_id).toBe(a.id);
+  });
+
+  it("같은 이름의 역할이 그 사이 생겼으면 되돌릴 수 없다", async () => {
+    const m = new MemorySchedule();
+    const a = await m.createRole({ name: "대학" });
+    await m.deleteRole(a.id);
+    await m.createRole({ name: "대학" });
+    await expect(m.restoreRole(a.id)).rejects.toThrow(/ez_roles_name_unique/);
+  });
+
+  it("roll 이 규칙의 역할을 새 할 일로 옮긴다", async () => {
+    const m = new MemorySchedule();
+    const r = await m.createRole({ name: "개인" });
+    await m.createRule(cycle({ role_id: r.id }));
+    await m.createRule(cycle({ title: "역할 없는 규칙", repeat: { freq: "daily" } }));
+    expect(await m.roll("2026-09-07", 600)).toBe(2);
+    const made = new Map((await m.tasks()).map((t) => [t.title, t.role_id]));
+    expect(made.get("주간 정리")).toBe(r.id);
+    expect(made.get("역할 없는 규칙")).toBeNull();
+  });
+
+  it("확인 모드 데이터: 역할 넷(동아리는 지점에서 오지 않는다), 역할 없는 할 일도 있다. seed 는 더 넣지 않는다", async () => {
+    const m = new MemorySchedule(scheduleSeed(new Date("2026-10-01T05:00:00Z")));
+    expect(await m.seedRoles()).toBe(0);
+    const roles = await m.roles();
+    expect(roles.map((r) => [r.name, r.from_place])).toEqual([
+      ["대학", "school"],
+      ["강사", "work"],
+      ["개인", "home"],
+      ["동아리", null],
+    ]);
+    const tasks = await m.tasks();
+    for (const r of roles) expect(tasks.some((t) => t.role_id === r.id)).toBe(true);
+    expect(tasks.some((t) => t.role_id === null)).toBe(true);
   });
 });

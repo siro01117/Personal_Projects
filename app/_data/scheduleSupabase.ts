@@ -1,5 +1,5 @@
 // 일정·플래너 진짜 데이터: 브라우저 supabase-js + 로그인한 사람의 세션. RLS(owner = auth.uid())가 남의 것을 막는다.
-// 규칙(칸 검사·바깥 일정 거절·집 하나·할 일 하나에 일정 하나·버전 +1·딸린 마감·반복 규칙 굴리기)은 DB(0006·0007)가 지킨다. 여기서는 버전 확인만
+// 규칙(칸 검사·바깥 일정 거절·집 하나·할 일 하나에 일정 하나·버전 +1·딸린 마감·반복 규칙 굴리기·역할)은 DB(0006·0007·0008)가 지킨다. 여기서는 버전 확인만
 // .eq('version', base) 로 하고, 0행이면 왜 0행인지 다시 읽어 [EZ_VERSION] / [EZ_NOT_FOUND] / [EZ_EXTERNAL] 로 바꾼다.
 
 import { DbError } from "../../lib/errors";
@@ -11,6 +11,7 @@ import {
   type EventRow,
   type ExceptionPatch,
   type Place,
+  type Role,
   type Settings,
   type TaskRow,
   type TaskRule,
@@ -23,6 +24,8 @@ import type {
   EventRows,
   PlaceInput,
   PlannerData,
+  RoleDeps,
+  RoleInput,
   RuleInput,
   ScheduleData,
   SourceInfo,
@@ -36,8 +39,9 @@ const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
 const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 const TASK_COLS =
-  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, version, created_at, updated_at";
-const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, version";
+  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, version, created_at, updated_at";
+const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
+const ROLE_COLS = "id, name, from_place, sort, version";
 const SETTINGS_COLS = "prep_first, prep_again, home_stay, meal_min, lunch, dinner, tz";
 /** in(...) 한 번에 넣을 id 수 (주소 길이) */
 const IN_CHUNK = 100;
@@ -320,6 +324,57 @@ export class SupabaseSchedule implements ScheduleData, PlannerData {
 
   async stopRule(id: string): Promise<void> {
     await run(this.t("ez_task_rules").update({ deleted_at: new Date().toISOString() }).eq("id", id).is("deleted_at", null));
+  }
+
+  // ------------------------------------------------------------ 역할 (0008)
+
+  async roles(): Promise<Role[]> {
+    return run<Role[]>(this.t("ez_roles").select(ROLE_COLS).is("deleted_at", null).order("sort").order("name"));
+  }
+
+  async seedRoles(): Promise<number> {
+    return run<number>(sb().rpc("ez_roles_seed"));
+  }
+
+  async createRole(input: RoleInput): Promise<Role> {
+    let sort = input.sort;
+    if (sort === undefined) {
+      const last = await run<{ sort: number }[]>(this.t("ez_roles").select("sort").is("deleted_at", null).order("sort", { ascending: false }).limit(1));
+      sort = Math.max(0, last[0]?.sort ?? 0) + 1;
+    }
+    return run<Role>(this.t("ez_roles").insert({ name: input.name, from_place: input.from_place ?? null, sort }).select(ROLE_COLS).single());
+  }
+
+  async updateRole(id: string, patch: Partial<RoleInput>): Promise<Role> {
+    const rows = await run<Role[]>(this.t("ez_roles").update(patch).eq("id", id).is("deleted_at", null).select(ROLE_COLS));
+    if (!rows[0]) throw ez("EZ_NOT_FOUND", "역할이 없습니다");
+    return rows[0];
+  }
+
+  async deleteRole(id: string): Promise<RoleDeps> {
+    // 지우면 DB 가 그 역할의 할 일 · 규칙을 역할 없음으로 만든다. 되돌릴 수 있게 먼저 읽어 둔다
+    const [tasks, rules] = await Promise.all([
+      all<{ id: string }>((a, b) => this.t("ez_tasks").select("id").eq("role_id", id).order("id").range(a, b)),
+      run<{ id: string }[]>(this.t("ez_task_rules").select("id").eq("role_id", id)),
+    ]);
+    await run(this.t("ez_roles").update({ deleted_at: new Date().toISOString() }).eq("id", id).is("deleted_at", null));
+    return { tasks: tasks.map((r) => r.id), rules: rules.map((r) => r.id) };
+  }
+
+  async restoreRole(id: string, deps?: RoleDeps): Promise<Role> {
+    const rows = await run<Role[]>(this.t("ez_roles").update({ deleted_at: null }).eq("id", id).select(ROLE_COLS));
+    if (!rows[0]) throw ez("EZ_NOT_FOUND", "되돌릴 역할이 없습니다");
+    // 역할은 이미 되돌아왔으니 여기서 실패해도 되돌리기는 된 것으로 둔다. 그 사이 다른 역할을 고른 것(role_id 가 null 이 아님)은 건너뛴다
+    try {
+      const tasks = deps?.tasks ?? [];
+      for (let i = 0; i < tasks.length; i += IN_CHUNK) {
+        await run(this.t("ez_tasks").update({ role_id: id }).in("id", tasks.slice(i, i + IN_CHUNK)).is("role_id", null));
+      }
+      if (deps && deps.rules.length > 0) await run(this.t("ez_task_rules").update({ role_id: id }).in("id", deps.rules).is("role_id", null));
+    } catch {
+      // 역할만 되돌린 채로 둔다
+    }
+    return rows[0];
   }
 }
 

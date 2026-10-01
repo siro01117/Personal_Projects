@@ -8,6 +8,9 @@ import type { ScheduleSeed } from "./scheduleMemory";
 const ID = (n: number) => `e0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 export const DEMO_PLACES = { home: ID(1), school: ID(2), work: ID(3), cafe: ID(4) } as const;
 const P = DEMO_PLACES;
+/** 역할 넷: 기본 셋 + 지점에서 오지 않는 동아리 */
+export const DEMO_ROLES = { univ: ID(401), teach: ID(402), me: ID(403), club: ID(404) } as const;
+const R = DEMO_ROLES;
 
 export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
   const today = nowIn(DEFAULT_SETTINGS.tz, now).date;
@@ -68,29 +71,38 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
       // 어제 잡아 둔 시간이 지나간 할 일 (지남 묶음)
       { id: ID(126), title: "교수님 메일 답장", date: addDays(today, -1), start_min: 930, end_min: 960, task_id: ID(209) },
     ],
+    roles: [
+      { id: R.univ, name: "대학", from_place: "school", sort: 1, version: 1 },
+      { id: R.teach, name: "강사", from_place: "work", sort: 2, version: 1 },
+      { id: R.me, name: "개인", from_place: "home", sort: 3, version: 1 },
+      { id: R.club, name: "동아리", from_place: null, sort: 4, version: 1 },
+    ],
     tasks: [
       {
         id: ID(201),
         title: "팀플 발표 자료",
         est_min: 60,
         sort: 1,
+        role_id: R.univ,
         checklist: [
           { t: "자료 조사", done: true },
           { t: "슬라이드 초안", done: false },
         ],
       },
-      { id: ID(202), title: "운영체제 과제 3", due: d(6), est_min: 120, sort: 2, place_id: P.school },
-      { id: ID(203), title: "자취방 계약서 확인", est_min: 30, sort: 3 },
-      { id: ID(204), title: "APPTIVE 회고 정리", sort: 4, place_id: P.cafe },
-      { id: ID(205), title: "도서관 책 반납", sort: 5, done_at: ago(60 * 20) },
-      { id: ID(206), title: "장학금 서류 제출", due: addDays(today, -1), est_min: 20, sort: 0.5 },
-      { id: ID(207), title: "엄마 생일 선물 고르기", due: addDays(today, 4), est_min: 45, note: "향수 말고 다른 것. 예산 5만 원 안쪽", sort: 6 },
-      { id: ID(208), title: "자료구조 퀴즈 복습", sort: 7, done_at: ago(60 * 24 * 3) },
+      { id: ID(202), title: "운영체제 과제 3", due: d(6), est_min: 120, sort: 2, place_id: P.school, role_id: R.univ },
+      { id: ID(203), title: "자취방 계약서 확인", est_min: 30, sort: 3, role_id: R.me },
+      { id: ID(204), title: "APPTIVE 회고 정리", sort: 4, place_id: P.cafe, role_id: R.club },
+      { id: ID(205), title: "도서관 책 반납", sort: 5, done_at: ago(60 * 20), role_id: R.univ },
+      { id: ID(206), title: "장학금 서류 제출", due: addDays(today, -1), est_min: 20, sort: 0.5, role_id: R.univ },
+      { id: ID(207), title: "엄마 생일 선물 고르기", due: addDays(today, 4), est_min: 45, note: "향수 말고 다른 것. 예산 5만 원 안쪽", sort: 6, role_id: R.me },
+      { id: ID(208), title: "자료구조 퀴즈 복습", sort: 7, done_at: ago(60 * 24 * 3), role_id: R.univ },
+      // 역할 없는 것 하나
       { id: ID(209), title: "교수님 메일 답장", est_min: 30, sort: 8 },
       // 일정에 딸린 마감
-      { id: ID(210), title: "축의금 봉투 준비", due: addDays(today, 10), due_event_id: ID(125), sort: 9 },
+      { id: ID(210), title: "축의금 봉투 준비", due: addDays(today, 10), due_event_id: ID(125), sort: 9, role_id: R.me },
+      { id: ID(212), title: "다음 주 수업 자료 인쇄", est_min: 20, sort: 9.5, place_id: P.work, role_id: R.teach },
       // 주간 반복 규칙의 이번 주 회차
-      { id: ID(211), title: "주간 정리", due: d(6), est_min: 40, sort: 10, rule_id: ID(301), rule_date: d(0), checklist: [{ t: "받은 편지함 비우기", done: false }, { t: "다음 주 일정 확인", done: false }] },
+      { id: ID(211), title: "주간 정리", due: d(6), est_min: 40, sort: 10, rule_id: ID(301), rule_date: d(0), role_id: R.me, checklist: [{ t: "받은 편지함 비우기", done: false }, { t: "다음 주 일정 확인", done: false }] },
     ],
     rules: [
       {
@@ -103,9 +115,10 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
         start: d(-14),
         due_after: 6,
         last_made: d(0),
+        role_id: R.me,
       },
       // 수업(반복 일정)에 딸린 규칙 — 열 때 roll 이 가장 최근에 끝난 수업의 할 일을 만든다
-      { id: ID(302), kind: "event", title: "자료구조 내용 정리", est_min: 30, place_id: P.school, event_id: ID(101), due_after: 6 },
+      { id: ID(302), kind: "event", title: "자료구조 내용 정리", est_min: 30, place_id: P.school, event_id: ID(101), due_after: 6, role_id: R.univ },
     ],
   };
 }

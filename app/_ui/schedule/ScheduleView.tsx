@@ -17,6 +17,7 @@ import {
   DEFAULT_SETTINGS,
   isDateStr,
   planRange,
+  roleForPlace,
   TITLE_MAX,
   validateEvent,
   type DateStr,
@@ -311,6 +312,10 @@ export function ScheduleView() {
       await D.runTask(async () => {
         if (!rule) {
           if (afterTitle === "") return;
+          // 역할은 그 일정의 지점에서 (docs/플래너.md 7-11). 역할이 아직 없으면 기본 셋부터
+          await D.T.seedRoles().catch(() => 0);
+          const roles = await D.T.roles().catch(() => []);
+          const role_id = roleForPlace(input.place_id ? places.get(input.place_id) : null, roles)?.id ?? null;
           // last_made = 오늘 — 지난 회차의 할 일이 바로 생기지 않게
           await D.T.createRule({
             kind: "event",
@@ -324,6 +329,7 @@ export function ScheduleView() {
             event_id: to,
             due_after: afterDue,
             last_made: today,
+            role_id,
           });
         } else if (afterTitle === "") await D.T.stopRule(rule.id);
         else await D.T.updateRule(rule.id, { title: afterTitle, due_after: afterDue });

@@ -1,6 +1,6 @@
 "use client";
 
-// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 목록 넷(지남 · 할 일 · 시간 정함 · 끝냄).
+// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 역할 필터 → 목록 넷(지남 · 할 일 · 시간 정함 · 끝냄).
 // 줄 누르기는 보기만(넓은 데스크톱 오른쪽 패널 · 좁은 데스크톱 떠 있는 패널 · 폰 보기 시트), 고치기는 '수정' 을 한 번 더.
 // 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
 // 지남은 자동으로 넘기지 않는다 — 다시 정하기 · 시간 없음으로 · 마감 바꾸기 · 마감 지우기를 사람이 고른다.
@@ -19,19 +19,24 @@ import {
 import {
   addDays,
   DEFAULT_SETTINGS,
+  ROLE_NAME_MAX,
+  roleForPlace,
   TASK_TITLE_MAX,
   TITLE_MAX,
   validateEvent,
   validateTask,
   type EventRow,
   type Repeat,
+  type Role,
   type TaskRow,
   type TaskRule,
 } from "../../../lib/schedule";
 import type { EventDeps, RuleInput, TaskInput, TaskLink } from "../../_data/types";
 import {
+  byRole,
   DEFAULT_LEN,
   dueOptions,
+  hasRoleless,
   lateOf,
   mergeChecklist,
   moved,
@@ -39,10 +44,15 @@ import {
   parseChecks,
   parseDueAfter,
   parseMinutes,
+  ROLE_ALL,
+  ROLE_NONE,
+  roleText,
   ruleLabel,
   splitTasks,
   taskDraft,
   toggleCheck,
+  validFilter,
+  type RoleFilter,
   type TaskDraft,
   type TaskScope,
 } from "../../_logic/planner";
@@ -56,6 +66,7 @@ import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
 import { DueForm } from "./DueForm";
 import { PlanForm, planDraftFor, type PlanDraft } from "./PlanForm";
+import { RoleEdit } from "./RoleEdit";
 import { TaskDetail } from "./TaskDetail";
 import { TaskForm } from "./TaskForm";
 import { TaskLine } from "./TaskLine";
@@ -64,6 +75,16 @@ import { usePlannerData, type PlannerState } from "./usePlannerData";
 const PHONE_MAX = 760;
 const PANEL_MIN = 1180;
 const CLOCK_MS = 60_000;
+/** 고른 역할 필터를 이 기기에 기억한다 */
+const FILTER_KEY = "ezwork.planner.role";
+
+function readFilter(): string {
+  try {
+    return localStorage.getItem(FILTER_KEY) ?? ROLE_ALL;
+  } catch {
+    return ROLE_ALL;
+  }
+}
 
 type Edit = { id: string; base: number; draft: TaskDraft; baseDraft: TaskDraft; stale: boolean };
 type Plan = { id: string; draft: PlanDraft };
@@ -128,6 +149,8 @@ export function PlannerView() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [savedFilter, setSavedFilter] = useState<string>(readFilter);
+  const [roleEdit, setRoleEdit] = useState(false);
   const [linkedEv, setLinkedEv] = useState<EventRow | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -136,13 +159,23 @@ export function PlannerView() {
   dragRef.current = drag;
   const justDragged = useRef(false);
 
-  const lists = useMemo(
+  const allLists = useMemo(
     () => splitTasks(state?.tasks ?? [], state?.links ?? [], new Date(clock), { date: today, min: nowMin }),
     [state, clock, today, nowMin],
+  );
+  // 역할 필터: 기억해 둔 것이 더는 없는 역할이면 전체. '없음' 은 역할 없는 할 일이 있을 때만
+  const roles = useMemo<Role[]>(() => state?.roles ?? [], [state]);
+  const roleless = hasRoleless(allLists);
+  const filter: RoleFilter = validFilter(savedFilter, roles, roleless);
+  const lists = useMemo(
+    () => (filter === ROLE_ALL ? allLists : splitTasks(byRole(state?.tasks ?? [], filter), state?.links ?? [], new Date(clock), { date: today, min: nowMin })),
+    [filter, allLists, state, clock, today, nowMin],
   );
   const openShown = drag ? moved(lists.open, drag.id, drag.to) : lists.open;
   const linkOf = useMemo(() => new Map((state?.links ?? []).map((l) => [l.task_id, l])), [state]);
   const placeOf = useMemo(() => new Map(D.places.map((p) => [p.id, p])), [D.places]);
+  /** 그 할 일의 지점이 주는 역할 — 역할이 이것과 다르면 손으로 고른 것 */
+  const autoRole = (t: TaskRow) => roleForPlace(t.place_id ? placeOf.get(t.place_id) : null, roles)?.id ?? null;
   const liveRules = useMemo(() => new Set((state?.rules ?? []).map((r) => r.id)), [state]);
   const selTask = sel ? (state?.tasks.find((t) => t.id === sel) ?? null) : null;
   const selLink: TaskLink | null = selTask ? (linkOf.get(selTask.id) ?? null) : null;
@@ -181,10 +214,10 @@ export function PlannerView() {
     if (!edit?.stale || !state) return;
     const t = state.tasks.find((x) => x.id === edit.id);
     if (t && t.version !== edit.base) {
-      const d = taskDraft(t, ruleOf(state, t), state.titles);
+      const d = taskDraft(t, ruleOf(state, t), state.titles, roleForPlace(D.places.find((p) => p.id === t.place_id), state.roles)?.id ?? null);
       setEdit({ id: t.id, base: t.version, draft: d, baseDraft: d, stale: false });
     }
-  }, [edit, state]);
+  }, [edit, state, D.places]);
 
   const closeForms = useCallback(() => {
     setEdit(null);
@@ -192,6 +225,7 @@ export function PlannerView() {
     setDueEdit(null);
     setSend(null);
     setMenu(null);
+    setRoleEdit(false);
   }, []);
 
   const closeAll = useCallback(() => {
@@ -212,6 +246,8 @@ export function PlannerView() {
     setText("");
     const at = new Date().toISOString();
     const sort = Math.min(0, ...state.tasks.map((t) => t.sort)) - 1;
+    // 역할을 골라 둔 채 넣으면 그 역할로
+    const role_id = filter === ROLE_ALL || filter === ROLE_NONE ? null : filter;
     const temp: TaskRow = {
       id: tempId(),
       title,
@@ -227,11 +263,12 @@ export function PlannerView() {
       checklist: [],
       rule_id: null,
       rule_date: null,
+      role_id,
       version: 1,
       created_at: at,
       updated_at: at,
     };
-    void D.run((s) => ({ ...s, tasks: [temp, ...s.tasks] }), () => D.T.createTask({ title }));
+    void D.run((s) => ({ ...s, tasks: [temp, ...s.tasks] }), () => D.T.createTask(role_id ? { title, role_id } : { title }));
   }
 
   async function toggle(t: TaskRow) {
@@ -317,7 +354,7 @@ export function PlannerView() {
   function startEdit() {
     if (!selTask || !state) return;
     closeForms();
-    const d = taskDraft(selTask, ruleOf(state, selTask), state.titles);
+    const d = taskDraft(selTask, ruleOf(state, selTask), state.titles, autoRole(selTask));
     setEdit({ id: selTask.id, base: selTask.version, draft: d, baseDraft: d, stale: false });
   }
 
@@ -359,6 +396,7 @@ export function PlannerView() {
     if (est !== t.est_min) patch.est_min = est;
     if (note !== t.note) patch.note = note;
     if (d.place_id !== t.place_id) patch.place_id = d.place_id;
+    if (d.role_id !== t.role_id) patch.role_id = d.role_id;
     const checklist = mergeChecklist(t.checklist, checks.texts);
     if (JSON.stringify(checklist) !== JSON.stringify(t.checklist)) patch.checklist = checklist;
     // 마감을 바꾸거나 지울 때는 일정 연결도 같이 보낸다 (건 채로 날짜만 바꾸면 DB 가 거절한다)
@@ -370,7 +408,7 @@ export function PlannerView() {
     // 반복: 새로 켜면 규칙을 만들고 이 할 일이 첫 회차, 끄면 규칙을 멈춘다, '앞으로도' 면 규칙도 고친다
     const rule = ruleOf(state, t);
     const repeat: Repeat = d.repeat === "daily" ? { freq: "daily" } : d.repeat === "weekly" ? { freq: "weekly", days: d.days } : null;
-    const shape = { title, note, est_min: est, place_id: d.place_id, checklist: checks.texts };
+    const shape = { title, note, est_min: est, place_id: d.place_id, role_id: d.role_id, checklist: checks.texts };
     let create: RuleInput | null = null;
     let stop: string | null = null;
     let update: { id: string; patch: Partial<RuleInput> } | null = null;
@@ -605,6 +643,84 @@ export function PlannerView() {
     if (ok) toast("할 일을 없앴습니다", { label: "되돌리기", run: () => void D.run(null, () => D.T.restoreTask(t.id)) });
   }
 
+  // ------------------------------------------------------------ 역할: 필터 · 편집
+
+  function pickFilter(f: RoleFilter) {
+    setSavedFilter(f);
+    try {
+      localStorage.setItem(FILTER_KEY, f);
+    } catch {
+      // 기억만 못 한다
+    }
+    // 보고 있던 할 일이 걸러져 안 보이게 되면 닫는다
+    if (selTask && byRole([selTask], f).length === 0) closeAll();
+  }
+
+  function openRoles() {
+    if (roleEdit) {
+      setRoleEdit(false);
+      return;
+    }
+    closeAll();
+    setRoleEdit(true);
+  }
+
+  const mapRole = (id: string, patch: Partial<Role>) => (s: PlannerState): PlannerState => ({ ...s, roles: s.roles.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
+
+  /** 잘못된 이름이면 알리고 false */
+  function renameRole(r: Role, value: string): boolean {
+    const name = value.trim();
+    if (name === r.name) return true;
+    if (name === "" || [...name].length > ROLE_NAME_MAX) {
+      toast(`역할 이름은 1~${ROLE_NAME_MAX}자입니다`);
+      return false;
+    }
+    void D.run(mapRole(r.id, { name }), () => D.T.updateRole(r.id, { name }));
+    return true;
+  }
+
+  async function addRole(value: string): Promise<boolean> {
+    const name = value.trim();
+    if (name === "") return false;
+    if ([...name].length > ROLE_NAME_MAX) {
+      toast(`역할 이름은 1~${ROLE_NAME_MAX}자입니다`);
+      return false;
+    }
+    const sort = Math.max(0, ...roles.map((r) => r.sort)) + 1;
+    return (await D.run(null, () => D.T.createRole({ name, sort }))) !== undefined;
+  }
+
+  function moveRole(i: number, j: number) {
+    const a = roles[i];
+    const b = roles[j];
+    if (!a || !b) return;
+    // 같은 sort 가 섞여 있으면 순서대로 다시 매긴다
+    const distinct = new Set(roles.map((r) => r.sort)).size === roles.length;
+    const sorts = roles.map((r, k) => (distinct ? r.sort : k + 1));
+    const sa = sorts[j]!;
+    const sb = sorts[i]!;
+    void D.run(
+      (s) => ({ ...s, roles: s.roles.map((r) => (r.id === a.id ? { ...r, sort: sa } : r.id === b.id ? { ...r, sort: sb } : r)).sort((x, y) => x.sort - y.sort) }),
+      async () => {
+        if (!distinct) for (const [k, r] of roles.entries()) if (r.id !== a.id && r.id !== b.id) await D.T.updateRole(r.id, { sort: sorts[k]! });
+        await D.T.updateRole(a.id, { sort: sa });
+        await D.T.updateRole(b.id, { sort: sb });
+        return true;
+      },
+    );
+  }
+
+  /** 지우면 그 역할의 할 일 · 규칙은 역할 없음이 된다. 되돌리면 다시 걸린다 */
+  async function removeRole(r: Role) {
+    if (savedFilter === r.id) pickFilter(ROLE_ALL);
+    const none = <T extends { role_id: string | null }>(x: T): T => (x.role_id === r.id ? { ...x, role_id: null } : x);
+    const deps = await D.run(
+      (s) => ({ ...s, roles: s.roles.filter((x) => x.id !== r.id), tasks: s.tasks.map(none), rules: s.rules.map(none) }),
+      () => D.T.deleteRole(r.id),
+    );
+    if (deps) toast("역할을 지웠습니다", { label: "되돌리기", run: () => void D.run(null, () => D.T.restoreRole(r.id, deps)) });
+  }
+
   // ------------------------------------------------------------ 키보드
 
   useEffect(() => {
@@ -612,6 +728,7 @@ export function PlannerView() {
       if (e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Escape") {
         if (menu) setMenu(null);
+        else if (roleEdit) setRoleEdit(false);
         else if (send) setSend(null);
         else if (dueEdit) setDueEdit(null);
         else if (plan) setPlan(null);
@@ -651,6 +768,7 @@ export function PlannerView() {
       link={opts.link}
       late={opts.late}
       place={t.place_id ? placeOf.get(t.place_id) : undefined}
+      role={roleText(t, roles, filter)}
       repeats={t.rule_id !== null && liveRules.has(t.rule_id)}
       today={today}
       selected={sel === t.id}
@@ -668,7 +786,10 @@ export function PlannerView() {
   const sendTask = taskById(send?.id);
   let panel: ReactNode = null;
   let panelLabel = "";
-  if (send && sendTask) {
+  if (roleEdit) {
+    panelLabel = "역할 편집";
+    panel = <RoleEdit roles={roles} onRename={renameRole} onAdd={addRole} onMove={moveRole} onDelete={(r) => void removeRole(r)} />;
+  } else if (send && sendTask) {
     panelLabel = "일정으로";
     panel = (
       <EventForm
@@ -716,6 +837,7 @@ export function PlannerView() {
         base={edit.baseDraft}
         today={today}
         places={D.places}
+        roles={roles}
         loadDueOptions={() => D.S.events(today, addDays(today, 60)).then((rows) => dueOptions(rows, today))}
         onChange={(d) => setEdit((x) => (x ? { ...x, draft: d } : x))}
         onSave={(scope) => void saveEdit(scope)}
@@ -733,6 +855,7 @@ export function PlannerView() {
         event={linkedEv}
         late={lateOf(selTask, selLink, now)}
         place={selTask.place_id ? (placeOf.get(selTask.place_id) ?? null) : null}
+        role={roles.find((r) => r.id === selTask.role_id)?.name ?? null}
         dueTitle={selTask.due_event_id ? (state.titles[selTask.due_event_id] ?? null) : null}
         repeat={rule ? ruleLabel(rule, rule.event_id ? state.titles[rule.event_id] : null) : null}
         today={today}
@@ -782,6 +905,24 @@ export function PlannerView() {
           />
         </label>
         <ThemeToggle />
+      </div>
+      <div className="pl-filter" role="group" aria-label="역할">
+        <button type="button" className="rf" aria-pressed={filter === ROLE_ALL} onClick={() => pickFilter(ROLE_ALL)}>
+          전체
+        </button>
+        {roles.map((r) => (
+          <button type="button" key={r.id} className="rf" aria-pressed={filter === r.id} onClick={() => pickFilter(r.id)}>
+            {r.name}
+          </button>
+        ))}
+        {roleless && (
+          <button type="button" className="rf" aria-pressed={filter === ROLE_NONE} onClick={() => pickFilter(ROLE_NONE)}>
+            없음
+          </button>
+        )}
+        <button type="button" className="iconbtn rf-edit" aria-label="역할 편집" title="역할 편집" aria-expanded={roleEdit} onClick={openRoles}>
+          <Icon name="pen" />
+        </button>
       </div>
       <div className="pl-stage">
         <div

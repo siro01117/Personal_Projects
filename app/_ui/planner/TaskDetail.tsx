@@ -18,6 +18,7 @@ export function TaskDetail({
   event,
   late,
   place,
+  role,
   dueTitle,
   repeat,
   today,
@@ -39,6 +40,8 @@ export function TaskDetail({
   /** 무엇이 지났나 (지남 묶음의 할 일) */
   late: "event" | "due" | null;
   place: Place | null;
+  /** 역할 이름 */
+  role: string | null;
   /** 마감을 딸려 둔 일정의 제목 */
   dueTitle: string | null;
   /** 반복 규칙에서 왔으면 "매주 월" 같은 한 줄 */
@@ -117,6 +120,12 @@ export function TaskDetail({
         <div className="dp-f">
           <Icon name="pin" />
           <div>{place.name}</div>
+        </div>
+      )}
+      {role && (
+        <div className="dp-f">
+          <Icon name="user" />
+          <div>{role}</div>
         </div>
       )}
       {repeat && (
