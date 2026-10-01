@@ -71,6 +71,9 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
       { id: ID(203), title: "자취방 계약서 확인", est_min: 30, sort: 3 },
       { id: ID(204), title: "APPTIVE 회고 정리", sort: 4 },
       { id: ID(205), title: "도서관 책 반납", sort: 5, done_at: ago(60 * 20) },
+      { id: ID(206), title: "장학금 서류 제출", due: addDays(today, -1), est_min: 20, sort: 0.5 },
+      { id: ID(207), title: "엄마 생일 선물 고르기", due: addDays(today, 4), est_min: 45, note: "향수 말고 다른 것. 예산 5만 원 안쪽", sort: 6 },
+      { id: ID(208), title: "자료구조 퀴즈 복습", sort: 7, done_at: ago(60 * 24 * 3) },
     ],
   };
 }

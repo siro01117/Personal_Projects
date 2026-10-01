@@ -625,3 +625,60 @@ input.pill[type="time"]::-webkit-calendar-picker-indicator{display:none}
   .wk-row{grid-template-columns:40px repeat(7,minmax(0,1fr))}
   .wk-grid{grid-template-columns:40px minmax(0,1fr)}
 }
+
+/* ====================================================================================
+   플래너 (docs/플래너.md 3장). 맨 위 한 줄 입력 → 목록 셋. 보기 패널 · 시트 · 수정 칸은 일정과 같은 것(.dp · .sheet · .form)
+   ==================================================================================== */
+.planner{height:100vh;height:100dvh;display:flex;flex-direction:column;min-height:0;position:relative}
+.pl-top{flex:0 0 auto;gap:8px}
+.pl-add{flex:1;min-width:0;height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:var(--r-m);background:var(--surface-2);color:var(--text-3);cursor:text}
+.pl-add:focus-within{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.pl-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:15px;color:var(--text-1);outline:none}
+.pl-stage{flex:1;min-height:0;display:flex;position:relative}
+.pl-list{flex:1;min-width:0;overflow-y:auto;container:plist/inline-size;padding:12px clamp(16px,3cqw,56px) 96px}
+.pl-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.pl-row{display:flex;align-items:flex-start;gap:12px;min-height:44px;padding:10px 12px 10px 9px;border-radius:var(--r-m);color:var(--text-1);cursor:pointer;user-select:none;-webkit-user-select:none;transition:background var(--t)}
+.pl-row:hover{background:var(--surface-2)}
+.pl-row.sel{background:var(--surface-2);box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.pl-row.dragging{background:var(--surface);box-shadow:0 6px 18px rgb(0 0 0 / .14);position:relative;z-index:1}
+body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
+.planner .chk{flex:0 0 24px;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;color:var(--text-3);transition:color var(--t)}
+.planner .chk .i{width:20px;height:20px}
+.planner .chk:hover,.planner .chk[aria-checked="true"]{color:var(--point-ink)}
+.pl-row .chk{margin-top:-1px}
+.pl-row .nm{display:block;flex:1;min-width:0;text-align:left;font-size:15px;line-height:22px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.pl-row.done .nm{color:var(--text-3)}
+.pl-row .nm:focus-visible{outline:none}
+.pl-row:has(.nm:focus-visible){box-shadow:inset 0 0 0 2px var(--point-ink)}
+.pl-row .due,.pl-row .est,.pl-row .when{flex:0 0 auto;font-size:12.5px;line-height:22px;color:var(--text-3);white-space:nowrap;text-align:right}
+.pl-row .due{min-width:60px}
+.pl-row .est{min-width:64px}
+.pl-row .when{min-width:96px;color:var(--text-2)}
+.pl-row .late{color:var(--danger)}
+/* 좁아지면 걸릴 시간 → 마감 순으로 뺀다 */
+@container plist (max-width: 480px){ .pl-row .est{display:none} .pl-row .when{min-width:0} }
+@container plist (max-width: 300px){ .pl-row .due{display:none} }
+/* 줄이 너무 길면 제목과 마감·시간이 멀어진다 — 목록과 입력 칸은 760px 까지 */
+.pl-list > *{max-width:760px}
+.pl-add{max-width:760px}
+.pl-top > :last-child{margin-left:auto}
+.pl-sec{margin-top:28px}
+.pl-list > .pl-sec:first-child{margin-top:4px}
+.pl-h{display:flex;align-items:center;gap:6px;height:32px;margin:0 0 2px;padding:0 9px;font-size:13px;font-weight:600;color:var(--text-3)}
+.pl-fold{border-radius:var(--r-s)}
+.pl-fold:hover{color:var(--text-1)}
+.pl-fold .i{width:16px;height:16px}
+/* 보기 패널: 넓은 데스크톱은 오른쪽, 좁은 데스크톱은 떠 있는 패널(.float) */
+.pl-dp{flex:0 0 clamp(340px,28cqw,440px);min-width:0;position:relative}
+.pl-dp.float{width:min(380px,100%)}
+.pl-dp > .pl-x{position:absolute;top:16px;right:16px;width:36px}
+.pl-dp .dp-h{padding-right:36px}
+.pl-dp .form .dp-h,.sheet .form .dp-h{padding-right:0;margin-bottom:4px}
+.planner .dp-h .chk{margin-top:3px}
+.planner .dp-h .chk .i{width:22px;height:22px}
+.planner .late-t{color:var(--danger);font-weight:600}
+.planner .go-ev{align-self:flex-start;color:var(--text-1);text-decoration:none;border-bottom:1px solid var(--border)}
+.planner .go-ev:hover{border-bottom-color:var(--text-1)}
+.planner .f > .line{min-height:32px}
+.iconbtn.clr{width:32px;height:32px}
+.iconbtn.clr .i{width:16px;height:16px}

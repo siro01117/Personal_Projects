@@ -5,13 +5,16 @@
 // 폰(760px 이하): 하루 타임라인 · 주 미니어처 + 보기 시트 · 수정 시트.
 // 누르면 보기만, 고치기는 '수정' 을 한 번 더. 빈 칸 한 번 누르기는 아무것도 안 함, 두 번 누르기(데스크톱)는 새 일정.
 // 고치는 중인 값은 줄에 얹어 미리 그린다(withDraft) — 동선·식사가 같이 따라 움직인다.
+// 주소 ?date=YYYY-MM-DD&event=ID (플래너의 이어진 일정) 면 그 주·그날을 열고 그 일정을 고른다.
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent } from "react";
 import {
   addDays,
   daysBetween,
   DEFAULT_SETTINGS,
+  isDateStr,
   planRange,
   validateEvent,
   type DateStr,
@@ -114,10 +117,19 @@ export function ScheduleView() {
     };
   }, []);
 
-  const [week, setWeek] = useState<DateStr>(() => mondayOf(nowIn(DEFAULT_SETTINGS.tz).date));
-  const [day, setDay] = useState<DateStr>(() => nowIn(DEFAULT_SETTINGS.tz).date);
+  const params = useSearchParams();
+  const [start] = useState(() => {
+    const d = params.get("date");
+    const id = params.get("event");
+    const date = isDateStr(d) ? d : nowIn(DEFAULT_SETTINGS.tz).date;
+    return { date, sel: id && isDateStr(d) ? { event_id: id, on_date: d } : null };
+  });
+  const [week, setWeek] = useState<DateStr>(() => mondayOf(start.date));
+  const [day, setDay] = useState<DateStr>(start.date);
   const [phoneMode, setPhoneMode] = useState<"day" | "week">("day");
-  const [sel, setSel] = useState<Sel | null>(null);
+  const [sel, setSel] = useState<Sel | null>(start.sel);
+  /** 주소로 고른 일정 — 처음 스크롤을 그 일정에 맞추고, 좁은 데스크톱이면 작은 창을 그 블록 옆에 */
+  const focus = useRef<Sel | null>(start.sel);
   const [edit, setEdit] = useState<Edit | null>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -171,11 +183,11 @@ export function ScheduleView() {
 
   // 고른 회차가 사라지면(지움 · 다른 주) 보기를 닫는다
   useEffect(() => {
-    if (sel && plan && !edit && !findOcc(plan.occurrences, view, sel)) {
+    if (sel && plan && D.loaded && !edit && !findOcc(plan.occurrences, view, sel)) {
       setSel(null);
       setAnchor(null);
     }
-  }, [sel, plan, view, edit]);
+  }, [sel, plan, view, edit, D.loaded]);
 
   // ------------------------------------------------------------ 옮겨 다니기
 
@@ -583,8 +595,21 @@ export function ScheduleView() {
     const shown = phone ? cols.filter((c) => c.date === day) : cols;
     const starts = shown.flatMap((c) => c.items.filter((l) => l.item.kind === "ev").map((l) => l.item.start));
     const nowShown = shown.some((c) => c.date === today) && now.min >= range.from && now.min <= range.to;
-    const target = nowShown ? now.min - 90 : starts.length ? Math.min(...starts) - 30 : range.from;
+    const focused = focus.current ? findOcc(occs, view, focus.current) : null;
+    const target = focused?.start_min != null ? focused.start_min - 30 : nowShown ? now.min - 90 : starts.length ? Math.min(...starts) - 30 : range.from;
     el.scrollTop = Math.max(0, (target - range.from) * PX_PER_MIN);
+  });
+
+  // 주소로 고른 일정: 좁은 데스크톱은 블록 옆 작은 창에 앵커가 필요하다
+  useEffect(() => {
+    if (!focus.current || !plan || !D.loaded) return;
+    if (!findOcc(plan.occurrences, view, focus.current)) return;
+    focus.current = null;
+    if (phone || wide || anchor) return;
+    const el = document.querySelector<HTMLElement>(".ev.sel");
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setAnchor({ left: r.left, right: r.right, top: r.top });
   });
 
   // ------------------------------------------------------------ 그리기

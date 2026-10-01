@@ -1,6 +1,6 @@
 "use client";
 
-// 홈 벤또 (목업 .home). 보고서 서랍 · 일정 타일이 동작한다. 나머지는 점선 '나중' 타일, 눌러도 아무 일 없음.
+// 홈 벤또 (목업 .home). 보고서 서랍 · 일정 · 플래너 타일이 동작한다. 나머지는 점선 '나중' 타일, 눌러도 아무 일 없음.
 
 import { ThemeToggle } from "./ThemeToggle";
 import Link from "next/link";
@@ -52,7 +52,10 @@ export function HomeView() {
             <Icon name="cal" className="ico" />
             <span className="lbl">일정</span>
           </Link>
-          <Later className="t-planner" icon="plan" label="플래너" />
+          <Link className="tile t-planner" href={withDemo("/planner", src.demo)}>
+            <Icon name="plan" className="ico" />
+            <span className="lbl">플래너</span>
+          </Link>
           <Link className="tile t-reports" href={withDemo("/drawer", src.demo)}>
             {unread > 0 && <span className="badge new">{unread}</span>}
             <Icon name="rep" className="ico" />
