@@ -8,6 +8,7 @@ import {
   type EventException,
   type EventRow,
   type Place,
+  type Role,
   type Settings,
   type TaskRow,
   type TaskRule,
@@ -29,6 +30,7 @@ import {
   toEvent,
   toException,
   toPlace,
+  toRole,
   toRule,
   toSettings,
   toTask,
@@ -40,9 +42,9 @@ type Row = Record<string, unknown>;
 const EV = `id, title, date::text as date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id,
   task_id, origin_kind, origin_id, version, updated_at`;
 const TASK = `id, title, note, due::text as due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist,
-  rule_id, rule_date::text as rule_date, version, created_at, updated_at`;
+  rule_id, rule_date::text as rule_date, role_id, version, created_at, updated_at`;
 const RULE = `id, kind, title, note, est_min, place_id, checklist, repeat, start::text as start, event_id, due_after,
-  last_made::text as last_made, version`;
+  last_made::text as last_made, role_id, version`;
 
 /** jsonb 칸: SQL null 과 JSON null 을 헷갈리지 않게 */
 const js = (v: unknown) => (v == null ? null : JSON.stringify(v));
@@ -223,8 +225,8 @@ export class PgliteScheduleStore implements ScheduleStore {
 
   async insertTask(t: NewTask): Promise<TaskRow> {
     const rows = await this.q(
-      `insert into ez_tasks (owner, title, note, due, est_min, sort, done_at, place_id, due_event_id, checklist, rule_id, rule_date)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12) returning ${TASK}`,
+      `insert into ez_tasks (owner, title, note, due, est_min, sort, done_at, place_id, due_event_id, checklist, rule_id, rule_date, role_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13) returning ${TASK}`,
       [
         this.owner,
         t.title,
@@ -238,6 +240,7 @@ export class PgliteScheduleStore implements ScheduleStore {
         JSON.stringify(t.checklist ?? []),
         t.rule_id ?? null,
         t.rule_date ?? null,
+        t.role_id ?? null,
       ],
     );
     return toTask(rows[0]!);
@@ -277,9 +280,9 @@ export class PgliteScheduleStore implements ScheduleStore {
 
   async insertRule(r: NewRule): Promise<TaskRule> {
     const rows = await this.q(
-      `insert into ez_task_rules (owner, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made)
-       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11, $12) returning ${RULE}`,
-      [this.owner, r.kind, r.title, r.note, r.est_min, r.place_id, JSON.stringify(r.checklist), js(r.repeat), r.start, r.event_id, r.due_after, r.last_made],
+      `insert into ez_task_rules (owner, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id)
+       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11, $12, $13) returning ${RULE}`,
+      [this.owner, r.kind, r.title, r.note, r.est_min, r.place_id, JSON.stringify(r.checklist), js(r.repeat), r.start, r.event_id, r.due_after, r.last_made, r.role_id],
     );
     return toRule(rows[0]!);
   }
@@ -316,6 +319,18 @@ export class PgliteScheduleStore implements ScheduleStore {
 
   async roll(today: DateStr, nowMin: number): Promise<number> {
     const rows = await this.q("select ez_tasks_roll($1::date, $2::int, $3::uuid) as n", [today, nowMin, this.owner]);
+    return Number(rows[0]!.n);
+  }
+
+  async roles(): Promise<Role[]> {
+    const rows = await this.q("select id, name, from_place, sort, version from ez_roles where owner = $1 and deleted_at is null order by sort, created_at, id", [
+      this.owner,
+    ]);
+    return rows.map(toRole);
+  }
+
+  async seedRoles(): Promise<number> {
+    const rows = await this.q("select ez_roles_seed($1::uuid) as n", [this.owner]);
     return Number(rows[0]!.n);
   }
 

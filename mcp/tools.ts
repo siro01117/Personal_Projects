@@ -255,10 +255,11 @@ function registerScheduleTools(
     {
       title: "할 일 목록",
       description:
-        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. 이어진 일정·지점·체크 항목·late(지난 것)·repeat(+rule_id)도 준다. 부를 때 반복 규칙의 새 회차가 생긴다.",
+        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. role 은 역할 이름으로 거르기. 이어진 일정·지점·역할·체크 항목·late(지난 것)·repeat(+rule_id)도 준다. 부를 때 반복 규칙의 새 회차가 생긴다.",
       inputSchema: {
         status: z.enum(["open", "done", "all", "rules"]).optional(),
         query: z.string().optional(),
+        role: z.string().nullable().optional().describe('역할 이름 (null·"없음"=역할 없는 것만)'),
       },
       // 부를 때 ez_tasks_roll 이 새 회차를 만들므로 읽기 전용이 아니다. 같은 때 다시 불러도 더 생기지는 않는다
       annotations: { idempotentHint: true },
@@ -282,6 +283,7 @@ function registerScheduleTools(
         done: z.boolean().optional(),
         delete: z.boolean().optional(),
         place: z.string().nullable().optional().describe("지점 이름"),
+        role: z.string().nullable().optional().describe("역할 이름 (null=없음). 안 주면 지점에서 채움"),
         checklist: z
           .array(z.union([z.string(), z.object({ t: z.string(), done: z.boolean().optional() })]))
           .nullable()

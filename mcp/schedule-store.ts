@@ -11,6 +11,7 @@ import type {
   Place,
   PlaceRole,
   Repeat,
+  Role,
   Settings,
   TaskRow,
   TaskRule,
@@ -44,13 +45,13 @@ export type SyncResult = { inserted: number; updated: number; deleted: number };
 
 /** 새 칸(지점 · 일정에 딸린 마감 · 체크 항목 · 규칙)은 안 주면 DB 기본값 */
 export type NewTask = Pick<TaskRow, "title" | "note" | "due" | "est_min" | "sort" | "done_at"> &
-  Partial<Pick<TaskRow, "place_id" | "due_event_id" | "checklist" | "rule_id" | "rule_date">>;
+  Partial<Pick<TaskRow, "place_id" | "due_event_id" | "checklist" | "rule_id" | "rule_date" | "role_id">>;
 export type TaskPatch = Partial<NewTask>;
 
 /** 새 반복 규칙 (docs/플래너.md 7-2). cycle 은 repeat · start, event 는 event_id */
 export type NewRule = Omit<TaskRule, "id" | "version">;
 export type RulePatch = Partial<
-  Pick<TaskRule, "title" | "note" | "est_min" | "place_id" | "checklist" | "repeat" | "event_id" | "due_after" | "last_made">
+  Pick<TaskRule, "title" | "note" | "est_min" | "place_id" | "checklist" | "repeat" | "event_id" | "due_after" | "last_made" | "role_id">
 >;
 
 export type NewPlace = { name: string; role?: PlaceRole | null };
@@ -107,6 +108,11 @@ export interface ScheduleStore {
   /** ez_tasks_roll — 규칙마다 가장 최근 회차 하나를 할 일로. 만든 개수 */
   roll(today: DateStr, nowMin: number): Promise<number>;
 
+  /** 살아 있는 역할, sort 순 (docs/플래너.md 7-11). 만들고 고치는 것은 화면 몫 */
+  roles(): Promise<Role[]>;
+  /** ez_roles_seed — 역할 행이 하나도 없을 때만 기본 셋. 넣은 개수 */
+  seedRoles(): Promise<number>;
+
   // 지점·이동시간은 화면 설정 몫. 시험·스모크 준비용으로만 쓴다
   insertPlace(p: NewPlace): Promise<Place>;
   /** 방향 없음 — a·b 순서는 알아서 맞춘다 */
@@ -116,8 +122,9 @@ export interface ScheduleStore {
 export const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
 export const TASK_COLS =
-  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, version, created_at, updated_at";
-export const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, version";
+  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, version, created_at, updated_at";
+export const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
+export const ROLE_COLS = "id, name, from_place, sort, version";
 export const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 
 type Row = Record<string, unknown>;
@@ -165,6 +172,7 @@ export function toTask(r: Row): TaskRow {
     checklist: (r.checklist as CheckItem[] | null) ?? [],
     rule_id: (r.rule_id as string | null) ?? null,
     rule_date: day(r.rule_date),
+    role_id: (r.role_id as string | null) ?? null,
     version: r.version as number,
     created_at: iso(r.created_at)!,
     updated_at: iso(r.updated_at)!,
@@ -185,6 +193,17 @@ export function toRule(r: Row): TaskRule {
     event_id: (r.event_id as string | null) ?? null,
     due_after: (r.due_after as number | null) ?? null,
     last_made: day(r.last_made),
+    role_id: (r.role_id as string | null) ?? null,
+    version: r.version as number,
+  };
+}
+
+export function toRole(r: Row): Role {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    from_place: (r.from_place as Role["from_place"]) ?? null,
+    sort: Number(r.sort),
     version: r.version as number,
   };
 }

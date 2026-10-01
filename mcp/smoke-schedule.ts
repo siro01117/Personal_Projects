@@ -1,6 +1,6 @@
 // 일정·플래너 원격 스모크: .mcp.json 의 명령 그대로 MCP 서버를 띄우고(stdio) 실제 Supabase 에
 // 지점 2개 + 이동시간 → 일정 넣기 → 반복 회차 고치기(once · following) → get → sync → 할 일 넣고 잇기
-// → 플래너 v2(체크 항목·지점, 반복 규칙 만들기·목록·멈추기) → 지우기 를 한 바퀴 돈다.
+// → 플래너 v2(체크 항목·지점, 반복 규칙 만들기·목록·멈추기) → 역할(붙이기·필터) → 지우기 를 한 바퀴 돈다.
 // 남의 데이터와 안 섞이게 이름에 '[smoke]' 를 붙이고, 날짜는 먼 미래(2099-03, 2099-03-02 가 월요일)만 쓴다.
 // 끝나면 이번에 만든 것을 영구 삭제한다(일정·예외·할 일·반복 규칙·지점·이동시간·출처 줄).
 // 단, 바깥 일정(source=smoke) 행은 DB 트리거가 sync 밖의 삭제를 막으므로 빈 sync 로 soft delete 까지만 한다.
@@ -175,6 +175,26 @@ try {
   check(stopped.data.rules?.length === 0, "멈춘 규칙은 목록에 없음");
   const kept = await call("todo_list", { query: `${TAG} 주간` });
   check(kept.data.items?.length === 1 && kept.data.items[0].repeat === undefined, "이미 생긴 할 일은 남고 반복 표시만 사라짐");
+
+  // ---- 역할: 역할 행은 만들지도 지우지도 않는다. 이미 있는 이름을 todo_list 의 roles 에서 골라 쓴다
+  // (역할이 한 번도 없던 주인이면 todo_list 가 기본 셋 대학 · 강사 · 개인을 넣는다 — 화면을 열 때와 같다)
+  const roleList = await call("todo_list", { query: TAG });
+  const roleName = roleList.data.roles?.[0] as string | undefined;
+  const roleCount = async () => (await admin.from("ez_roles").select("id", { count: "exact", head: true }).eq("owner", owner)).count ?? -1;
+  const rolesBefore = await roleCount();
+  if (!roleName) {
+    check(true, "역할이 하나도 없어(다 지운 주인) 역할 단계를 건너뜀");
+  } else {
+    const rt = await call("todo_save", { title: `${TAG} 역할 붙인 할 일`, role: ` ${roleName} ` });
+    check(rt.data.task?.role === roleName, `할 일의 역할: ${rt.data.task?.role}`);
+    const byRole = await call("todo_list", { role: roleName, query: TAG });
+    check(byRole.data.items?.length === 1 && byRole.data.items[0].id === rt.data.task?.id, `role 필터: ${roleName} 의 [smoke] 할 일 1개 (지금 ${byRole.data.items?.length})`);
+    const noRole = await call("todo_list", { role: null, query: `${TAG} 역할` });
+    check(noRole.data.items?.length === 0, "role: null 은 역할 없는 것만");
+    const miss = await call("todo_save", { title: `${TAG} x`, role: `${roleName} 없는 이름` }, false); // 이름 제안
+    check(miss.data.error?.code === "ROLE_NOT_FOUND" && miss.data.suggest === roleName, `없는 역할 이름 제안: ${miss.data.suggest}`);
+  }
+  check((await roleCount()) === rolesBefore, "스모크가 역할 행을 만들거나 지우지 않았다");
 
   // ---- 지우기: once · following · 이어진 일정 · 할 일
   await call("schedule_delete", { id: clsId, on_date: "2099-03-02", scope: "once" });

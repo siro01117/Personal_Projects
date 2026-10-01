@@ -12,6 +12,7 @@ import {
   isDateStr,
   occursOn,
   planRange,
+  roleForPlace,
   spillsOver,
   validateEvent,
   validateTask,
@@ -24,6 +25,7 @@ import {
   type Occurrence,
   type Place,
   type Repeat,
+  type Role,
   type Segment,
   type CheckItem,
   type TaskRow,
@@ -176,6 +178,7 @@ function dbFail(e: unknown, extra: Obj = {}): ToolResult {
   }
   if (err.code === "23503") {
     if (/due_event_fk|rules_event_fk/.test(all)) return fail("없는 일정입니다", "NOT_FOUND", extra);
+    if (all.includes("role_fk")) return fail("없는 역할입니다", "NOT_FOUND", extra);
     if (all.includes("place_fk")) return fail("없는 지점입니다", "NOT_FOUND", extra);
     if (all.includes("rule_fk")) return fail("없는 반복 규칙입니다", "NOT_FOUND", extra);
     if (all.includes("task")) return fail("없는 할 일입니다 (task_id)", "NOT_FOUND", extra);
@@ -249,6 +252,25 @@ function findPlace(name: unknown, places: Place[], emptyHint = "place 를 비우
   const near = closestName(s, names);
   const reason = `없는 지점입니다: "${s.trim()}" — 가장 가까운 이름은 "${near}" (지점: ${names.join(", ")})`;
   return { reason, error: fail(reason, "PLACE_NOT_FOUND", { suggest: near, places: names }) };
+}
+
+type RoleHit = { id: string | null } | { error: ToolResult };
+const NO_ROLE = "없음";
+
+/** 역할 이름 → id (대소문자 · 앞뒤 공백 무시). null · "" · "없음" 은 역할 없음 — 그 이름의 역할이 있으면 그 역할. 살아 있는 역할에서만 찾는다 */
+function findRole(name: unknown, roles: Role[]): RoleHit {
+  const s = name === null ? "" : String(name).trim();
+  const hit = roles.find((r) => sameName(r.name, s));
+  if (hit) return { id: hit.id };
+  if (s === "" || s === NO_ROLE) return { id: null };
+  const names = roles.map((r) => r.name);
+  if (names.length === 0) {
+    return { error: fail(`없는 역할입니다: "${s}" — 역할이 하나도 없습니다(역할은 웹 플래너에서 만듭니다). role 을 비우세요`, "ROLE_NOT_FOUND", { roles: [] }) };
+  }
+  const near = closestName(s, names);
+  return {
+    error: fail(`없는 역할입니다: "${s}" — 가장 가까운 이름은 "${near}" (역할: ${names.join(", ")})`, "ROLE_NOT_FOUND", { suggest: near, roles: names }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -388,13 +410,15 @@ function ruleSummary(r: TaskRule, events: Map<string, EventRow>): string {
   return "매일";
 }
 
-function ruleOut(r: TaskRule, names: Names, events: Map<string, EventRow>): Obj {
+function ruleOut(r: TaskRule, names: Names, events: Map<string, EventRow>, roleNames: Names = new Map()): Obj {
   const o: Obj = { id: r.id, title: r.title, repeat: ruleSummary(r, events) };
   if (r.event_id) o.event_id = r.event_id;
   if (r.note) o.note = r.note;
   if (r.est_min !== null) o.est_min = r.est_min;
   const place = placeName(names, r.place_id);
   if (place) o.place = place;
+  const role = placeName(roleNames, r.role_id);
+  if (role) o.role = role;
   if (r.checklist.length > 0) o.checklist = r.checklist;
   if (r.due_after !== null) o.due_after = r.due_after;
   if (r.last_made) o.last_made = r.last_made;
@@ -417,7 +441,7 @@ export function lateOf(t: TaskRow, ev: EventRow | undefined, today: DateStr, now
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
-type TaskCtx = { names: Names; rules: Map<string, TaskRule>; events: Map<string, EventRow>; today: DateStr; nowMin: number };
+type TaskCtx = { names: Names; roleNames: Names; rules: Map<string, TaskRule>; events: Map<string, EventRow>; today: DateStr; nowMin: number };
 
 function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   const o: Obj = { id: t.id, title: t.title };
@@ -426,6 +450,8 @@ function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   if (t.est_min !== null) o.est_min = t.est_min;
   const place = placeName(c.names, t.place_id);
   if (place) o.place = place;
+  const role = placeName(c.roleNames, t.role_id);
+  if (role) o.role = role;
   if (t.checklist.length > 0) o.checklist = t.checklist;
   if (t.done_at) o.done_at = t.done_at;
   o.version = t.version;
@@ -517,8 +543,8 @@ function todoRepeatIn(v: unknown, today: DateStr, issues: Issue[]): TodoRepeat |
 }
 
 /** 규칙이 만들 할 일의 모양 (할 일에서 옮겨 적는다) */
-function ruleShape(t: Pick<TaskRow, "title" | "note" | "est_min" | "place_id" | "checklist">) {
-  return { title: t.title, note: t.note, est_min: t.est_min, place_id: t.place_id, checklist: t.checklist.map((c) => c.t) };
+function ruleShape(t: Pick<TaskRow, "title" | "note" | "est_min" | "place_id" | "checklist" | "role_id">) {
+  return { title: t.title, note: t.note, est_min: t.est_min, place_id: t.place_id, role_id: t.role_id, checklist: t.checklist.map((c) => c.t) };
 }
 
 const same = (a: unknown, b: unknown) => a === b || (typeof a === "object" && a !== null && JSON.stringify(a) === JSON.stringify(b));
@@ -569,6 +595,7 @@ type TodoArgs = {
   done?: boolean;
   delete?: boolean;
   place?: string | null;
+  role?: string | null;
   checklist?: unknown;
   due_event?: unknown;
   repeat?: unknown;
@@ -596,6 +623,17 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
     const places = await store.places();
     return { places, names: new Map(places.map((p) => [p.id, p.name])) };
   }
+
+  /** 살아 있는 역할 (sort 순). 하나도 없으면 기본 셋을 넣어 본다(ez_roles_seed) — 다 지운 사람에게는 다시 안 생긴다 */
+  async function loadRoles(): Promise<Role[]> {
+    const roles = await store.roles();
+    if (roles.length > 0) return roles;
+    return (await store.seedRoles()) > 0 ? store.roles() : roles;
+  }
+  const roleNamesOf = (roles: Role[]): Names => new Map(roles.map((r) => [r.id, r.name]));
+  /** 그 지점에서 기본으로 들어갈 역할 id (docs/플래너.md 7-11). 없으면 null */
+  const roleFrom = (placeId: string | null | undefined, places: Place[], roles: Role[]): string | null =>
+    placeId ? (roleForPlace(places.find((p) => p.id === placeId), roles)?.id ?? null) : null;
 
   const conflict = (cur: EventRow, n: Names) =>
     fail(`그 사이 다른 곳에서 이 일정을 고쳤습니다 (지금 version ${cur.version}) — current 를 보고 다시 하세요`, "EZ_VERSION", {
@@ -664,9 +702,10 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
 
   // ------------------------------------------------------------------ 플래너 도우미
 
-  /** 할 일 결과에 붙일 것: 지점 이름 · 규칙 · 딸린 일정 · 지금 */
-  async function taskCtx(tasks: TaskRow[], known?: TaskRule[]): Promise<TaskCtx> {
+  /** 할 일 결과에 붙일 것: 지점 이름 · 역할 이름 · 규칙 · 딸린 일정 · 지금 */
+  async function taskCtx(tasks: TaskRow[], known?: TaskRule[], knownRoles?: Role[]): Promise<TaskCtx> {
     const { names: n } = await names();
+    const roleNames = roleNamesOf(knownRoles ?? (tasks.some((t) => t.role_id) ? await store.roles() : []));
     const rules = new Map<string, TaskRule>();
     if (tasks.some((t) => t.rule_id)) for (const r of known ?? (await store.rules())) rules.set(r.id, r);
     const ids = new Set<string>();
@@ -676,7 +715,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       if (r?.event_id) ids.add(r.event_id);
     }
     const events = new Map((await store.eventsByIds([...ids])).map((e) => [e.id, e]));
-    return { names: n, rules, events, ...seoul(now()) };
+    return { names: n, roleNames, rules, events, ...seoul(now()) };
   }
 
   const show = async (t: TaskRow, ev: EventRow | undefined) => taskOut(t, ev, await taskCtx([t]));
@@ -728,11 +767,13 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
     const rid = String(a.rule_id).trim();
     if (!UUID.test(rid)) return fail("rule_id 는 반복 규칙의 uuid 입니다 — todo_list(status: rules) 로 찾으세요", "BAD_INPUT");
     const extra = (["id", "due", "done", "delete", "due_event", "scope"] as const).filter((k) => a[k] !== undefined);
-    if (extra.length > 0) return fail(`rule_id 는 ${extra.join(" · ")} 와 같이 못 씁니다 — 규칙의 칸은 title · note · est_min · place · checklist · due_after · repeat 입니다`, "BAD_INPUT");
+    if (extra.length > 0) return fail(`rule_id 는 ${extra.join(" · ")} 와 같이 못 씁니다 — 규칙의 칸은 title · note · est_min · place · role · checklist · due_after · repeat 입니다`, "BAD_INPUT");
     const rule = await store.getRule(rid);
     if (!rule) return fail(`반복 규칙이 없습니다(이미 멈췄을 수 있습니다): ${rid}`, "NOT_FOUND");
     const { places, names: n } = await names();
     const events = new Map((await store.eventsByIds(rule.event_id ? [rule.event_id] : [])).map((e) => [e.id, e]));
+    const roles = await loadRoles();
+    const rn = roleNamesOf(roles);
 
     if (a.stop === true) {
       await store.stopRule(rid);
@@ -741,7 +782,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
     const conflict = (r: TaskRule) =>
       fail(`그 사이 이 규칙이 바뀌었습니다 (지금 version ${r.version}) — current 를 보고 다시 하세요`, "EZ_VERSION", {
         conflict: true,
-        current: ruleOut(r, n, events),
+        current: ruleOut(r, n, events, rn),
       });
     if (!Number.isInteger(a.base_version)) return fail("규칙을 고칠 땐 base_version(todo_list status: rules 의 version)이 필요합니다", "BAD_INPUT");
     if (rule.version !== a.base_version) return conflict(rule);
@@ -755,6 +796,15 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       const hit = findPlace(a.place, places, "place 를 비우세요");
       if ("error" in hit) return hit.error;
       patch.place_id = hit.id;
+    }
+    if (a.role !== undefined) {
+      const hit = findRole(a.role, roles);
+      if ("error" in hit) return hit.error;
+      patch.role_id = hit.id;
+    } else if (patch.place_id != null && patch.place_id !== rule.place_id && rule.role_id === null) {
+      // 지점을 바꾸는데 역할이 비어 있으면 지점에서 채운다
+      const from = roleFrom(patch.place_id, places, roles);
+      if (from) patch.role_id = from;
     }
     const checklist = checklistIn(a.checklist, issues);
     if (checklist !== undefined) patch.checklist = checklist.map((c) => c.t);
@@ -771,7 +821,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
     if ("ok" in rp) return rp;
     Object.assign(patch, rp);
     for (const k of Object.keys(patch) as (keyof RulePatch)[]) if (same(patch[k], rule[k])) delete patch[k];
-    if (Object.keys(patch).length === 0) return ok(`바뀐 것이 없습니다: ${rule.title}`, { changed: false, rule: ruleOut(rule, n, events) });
+    if (Object.keys(patch).length === 0) return ok(`바뀐 것이 없습니다: ${rule.title}`, { changed: false, rule: ruleOut(rule, n, events, rn) });
     const bad = validateTask({ ...rule, ...patch, checklist: undefined });
     if (bad.length > 0) return badInput(bad);
     const r = await store.updateRule(rid, patch, rule.version);
@@ -779,7 +829,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       const cur = await store.getRule(rid);
       return cur ? conflict(cur) : fail(`반복 규칙이 없습니다(이미 멈췄을 수 있습니다): ${rid}`, "NOT_FOUND");
     }
-    return ok(`규칙을 고쳤습니다: ${r.title} (${ruleSummary(r, events)}) — 앞으로 생길 할 일부터 적용`, { changed: true, rule: ruleOut(r, n, events) });
+    return ok(`규칙을 고쳤습니다: ${r.title} (${ruleSummary(r, events)}) — 앞으로 생길 할 일부터 적용`, { changed: true, rule: ruleOut(r, n, events, rn) });
   }
 
   // ------------------------------------------------------------------ save 갈래
@@ -1124,16 +1174,25 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       }),
 
     // ---------------------------------------------------------------- todo_list
-    todo_list: (a: { status?: string; query?: string } = {}) =>
+    todo_list: (a: { status?: string; query?: string; role?: string | null } = {}) =>
       guard(async () => {
         const status = a.status ?? "open";
         if (status !== "open" && status !== "done" && status !== "all" && status !== "rules") {
           return fail("status 는 open · done · all · rules 중 하나입니다", "BAD_INPUT");
         }
+        // 열 때 역할 기본 셋을 넣고(처음 한 번) 규칙을 굴린다 (docs/플래너.md 7-2 · 7-11)
+        const roles = await loadRoles();
+        const rn = roleNamesOf(roles);
+        let roleId: string | null | undefined;
+        if (a.role !== undefined) {
+          const h = findRole(a.role, roles);
+          if ("error" in h) return h.error;
+          roleId = h.id;
+        }
         const q = a.query?.trim().toLowerCase() ?? "";
-        const hit = (x: { title: string; note: string | null }) => !q || x.title.toLowerCase().includes(q) || (x.note ?? "").toLowerCase().includes(q);
-        const tail = q ? ` · "${a.query!.trim()}"` : "";
-        // 열 때 규칙을 굴린다 (docs/플래너.md 7-2)
+        const hit = (x: { title: string; note: string | null; role_id: string | null }) =>
+          (roleId === undefined || x.role_id === roleId) && (!q || x.title.toLowerCase().includes(q) || (x.note ?? "").toLowerCase().includes(q));
+        const tail = `${roleId === undefined ? "" : roleId === null ? " · 역할 없음" : ` · 역할 ${rn.get(roleId)}`}${q ? ` · "${a.query!.trim()}"` : ""}`;
         const clock = seoul(now());
         const made = await store.roll(clock.today, clock.nowMin);
         const rules = await store.rules();
@@ -1142,7 +1201,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           const picked = rules.filter(hit);
           const { names: n } = await names();
           const events = new Map((await store.eventsByIds(picked.flatMap((r) => (r.event_id ? [r.event_id] : [])))).map((e) => [e.id, e]));
-          return ok(`반복 규칙 ${picked.length}개${tail}`, { status, rules: picked.map((r) => ruleOut(r, n, events)) });
+          return ok(`반복 규칙 ${picked.length}개${tail}`, { status, rules: picked.map((r) => ruleOut(r, n, events, rn)) });
         }
 
         const all = await store.tasks();
@@ -1151,13 +1210,14 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         const done = picked.filter((t) => t.done_at !== null).sort((x, y) => y.done_at!.localeCompare(x.done_at!));
         const linked = new Map<string, EventRow>();
         for (const e of await store.eventsForTasks(picked.map((t) => t.id))) if (e.task_id) linked.set(e.task_id, e);
-        const ctx = await taskCtx(picked, rules);
+        const ctx = await taskCtx(picked, rules, roles);
         const items = [...open, ...done].map((t) => taskOut(t, linked.get(t.id), ctx));
         const late = items.filter((t) => t.late).length;
         const what = { open: "안 끝남", done: "끝냄", all: "전체" }[status];
         return ok(`할 일 ${items.length}개 (${what})${late > 0 ? ` · 지남 ${late}개` : ""}${tail}`, {
           status,
           items,
+          roles: roles.map((r) => r.name),
           ...(late > 0 ? { late } : {}),
           ...(made > 0 ? { made } : {}),
         });
@@ -1176,9 +1236,11 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
 
         // ---- 새 칸 읽기
         const issues: Issue[] = [];
+        let placeList: Place[] | null = null;
+        const getPlaces = async () => (placeList ??= (await names()).places);
         let placeId: string | null | undefined;
         if (a.place !== undefined) {
-          const hit = findPlace(a.place, (await names()).places, "place 를 비우세요");
+          const hit = findPlace(a.place, await getPlaces(), "place 를 비우세요");
           if ("error" in hit) return hit.error;
           placeId = hit.id;
         }
@@ -1197,6 +1259,15 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           if ("ok" in e) return e;
           ruleEvent = e;
         }
+        // 역할: 이름으로 주면 그 역할(null 이면 비움), 안 주면 지점에서 (docs/플래너.md 7-11)
+        const roles = a.role !== undefined || placeId != null || ruleEvent ? await loadRoles() : [];
+        let roleId: string | null | undefined;
+        if (a.role !== undefined) {
+          const hit = findRole(a.role, roles);
+          if ("error" in hit) return hit.error;
+          roleId = hit.id;
+        }
+        const fromPlace = async (pid: string | null | undefined) => (pid ? roleFrom(pid, await getPlaces(), roles) : null);
 
         // ---- 넣기
         if (isNew) {
@@ -1210,6 +1281,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
             due: link ? link.due : (a.due ?? null),
             est_min: a.est_min ?? null,
             place_id: placeId ?? null,
+            role_id: roleId !== undefined ? roleId : await fromPlace(placeId),
             due_event_id: link ? link.id : null,
             checklist: checklist ?? [],
           };
@@ -1222,12 +1294,14 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
             if (extra.length > 0) {
               return badInput(extra.map((k) => ({ path: k, reason: "일정이 끝날 때마다 생기는 규칙에는 못 씁니다 — 마감은 due_after(며칠 뒤)로" })));
             }
-            const rule = await store.insertRule({ ...ruleShape(row), kind: "event", repeat: null, start: null, event_id: rep.event_id, due_after: dueAfter ?? null, last_made: today });
+            // 역할을 안 줬고 규칙의 지점에서도 못 얻었으면 그 일정의 지점에서
+            const role_id = roleId === undefined && row.role_id === null ? await fromPlace(ruleEvent!.place_id) : row.role_id;
+            const rule = await store.insertRule({ ...ruleShape(row), role_id, kind: "event", repeat: null, start: null, event_id: rep.event_id, due_after: dueAfter ?? null, last_made: today });
             const events = new Map([[ruleEvent!.id, ruleEvent!]]);
             const { names: n } = await names();
             return ok(`반복 규칙을 만들었습니다: ${ruleSummary(rule, events)} "${rule.title}" — 다음 회차가 끝난 뒤부터 할 일이 생깁니다`, {
               created: true,
-              rule: ruleOut(rule, n, events),
+              rule: ruleOut(rule, n, events, roleNamesOf(roles)),
             });
           }
 
@@ -1270,7 +1344,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (cur.version !== a.base_version) return taskConflict(cur, linked);
 
         if (a.delete === true) {
-          const others = (["title", "note", "due", "est_min", "done", "place", "checklist", "due_event", "repeat", "due_after", "scope"] as const).filter(
+          const others = (["title", "note", "due", "est_min", "done", "place", "role", "checklist", "due_event", "repeat", "due_after", "scope"] as const).filter(
             (k) => a[k] !== undefined,
           );
           if (others.length > 0) return fail(`delete 는 ${others.join(" · ")} 와 같이 못 씁니다 — 따로 부르세요`, "BAD_INPUT");
@@ -1291,6 +1365,12 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (a.due !== undefined) patch.due = a.due;
         if (a.est_min !== undefined) patch.est_min = a.est_min;
         if (placeId !== undefined) patch.place_id = placeId;
+        // 역할은 명시했을 때만 바꾼다. 단 지점을 바꾸는데 지금 역할이 없으면 지점에서 채운다
+        if (roleId !== undefined) patch.role_id = roleId;
+        else if (placeId != null && placeId !== cur.place_id && cur.role_id === null) {
+          const from = await fromPlace(placeId);
+          if (from) patch.role_id = from;
+        }
         if (checklist !== undefined) patch.checklist = checklist;
         if (a.done === true && cur.done_at === null) patch.done_at = nowIso;
         if (a.done === false && cur.done_at !== null) patch.done_at = null;
@@ -1334,6 +1414,11 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           if (a.note !== undefined) rulePatch.note = next.note;
           if (a.est_min !== undefined) rulePatch.est_min = next.est_min;
           if (placeId !== undefined) rulePatch.place_id = placeId;
+          if (roleId !== undefined) rulePatch.role_id = roleId;
+          else if (placeId != null && placeId !== rule.place_id && rule.role_id === null) {
+            const from = await fromPlace(placeId);
+            if (from) rulePatch.role_id = from;
+          }
           if (checklist !== undefined) rulePatch.checklist = checklist.map((c) => c.t);
           if (dueAfter !== undefined) rulePatch.due_after = dueAfter;
           for (const k of Object.keys(rulePatch) as (keyof RulePatch)[]) if (same(rulePatch[k], rule[k])) delete rulePatch[k];
@@ -1343,6 +1428,8 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (!rule && rep) {
           made = await store.insertRule({
             ...ruleShape(next),
+            // '일정 끝나면' 규칙: 역할을 안 줬고 할 일에도 없으면 그 일정의 지점에서
+            role_id: rep.kind === "event" && roleId === undefined && next.role_id === null ? await fromPlace(ruleEvent!.place_id) : next.role_id,
             kind: rep.kind,
             repeat: rep.kind === "cycle" ? rep.repeat : null,
             start: rep.kind === "cycle" ? today : null,

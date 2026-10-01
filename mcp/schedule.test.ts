@@ -7,6 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
+import { DEFAULT_ROLES } from "../lib/schedule";
 import { createDrawer, type ToolResult } from "./drawer";
 import { closestName, createSchedule, hm, parseHM } from "./schedule";
 import { PgliteScheduleStore } from "./schedule-store-pglite";
@@ -831,6 +832,248 @@ describe("플래너 v2 — 반복 규칙", () => {
   });
 });
 
+describe("플래너 — 역할", () => {
+  /** 주인의 역할 전부 (지운 것도), sort 순 */
+  const roleRows = async (owner: string): Promise<Row[]> =>
+    (await db.query<Row>("select id, name, from_place, deleted_at from ez_roles where owner = $1 order by sort, created_at", [owner])).rows;
+  const roleId = async (owner: string, name: string) => (await roleRows(owner)).find((r) => r.name === name)!.id as string;
+  const NAMES = DEFAULT_ROLES.map((r) => r.name); // 대학 · 강사 · 개인
+
+  it("todo_list 를 처음 부르면 기본 셋이 생기고 roles 로 준다. 다시 불러도 그대로", async () => {
+    const { s, owner } = setup();
+    expect(await roleRows(owner)).toEqual([]);
+    expect(good(await s.todo_list({})).roles).toEqual(NAMES);
+    expect((await roleRows(owner)).map((r) => ({ name: r.name, from_place: r.from_place }))).toEqual(DEFAULT_ROLES);
+    expect(good(await s.todo_list({ status: "done" })).roles).toEqual(NAMES);
+    expect(await roleRows(owner)).toHaveLength(3);
+    // todo_list 를 부르기 전에 todo_save 로 역할을 써도 기본 셋이 생긴다
+    const B = setup();
+    expect(good(await B.s.todo_save({ title: "과제", role: "대학" })).task.role).toBe("대학");
+    expect(await roleRows(B.owner)).toHaveLength(3);
+  });
+
+  it("role 넣기 · 읽기 · 고치기 · null 로 비우기 (이름은 대소문자 · 앞뒤 공백 무시)", async () => {
+    const { s, owner } = setup();
+    const t = good(await s.todo_save({ title: "과제", role: " 대학 " })).task;
+    expect(t).toMatchObject({ role: "대학", version: 1 });
+    expect((await rawTask(t.id)).role_id).toBe(await roleId(owner, "대학"));
+    const plain = good(await s.todo_save({ title: "장보기" })).task;
+    expect(plain.role).toBeUndefined();
+    expect((await rawTask(plain.id)).role_id).toBeNull();
+    expect((good(await s.todo_list({})).items as Row[]).map((x) => [x.title, x.role])).toEqual([
+      ["장보기", undefined],
+      ["과제", "대학"],
+    ]);
+
+    expect(good(await s.todo_save({ id: t.id, base_version: 1, role: "대학" })).changed).toBe(false);
+    const u = good(await s.todo_save({ id: t.id, base_version: 1, role: "강사" })).task;
+    expect(u).toMatchObject({ role: "강사", version: 2 });
+    const v = good(await s.todo_save({ id: t.id, base_version: 2, role: null })).task;
+    expect(v.role).toBeUndefined();
+    expect((await rawTask(t.id)).role_id).toBeNull();
+    // 다른 칸만 고치면 역할은 그대로
+    good(await s.todo_save({ id: t.id, base_version: 3, role: "개인" }));
+    expect(good(await s.todo_save({ id: t.id, base_version: 4, title: "과제 2" })).task.role).toBe("개인");
+
+    await db.query("insert into ez_roles (owner, name, sort) values ($1, 'Tutor', 9)", [owner]);
+    expect(good(await s.todo_save({ title: "수업 준비", role: "tutor" })).task.role).toBe("Tutor");
+    bad(await s.todo_save({ id: t.id, base_version: 5, delete: true, role: "대학" }), "BAD_INPUT");
+  });
+
+  it("todo_list role 필터: 이름 · null · \"없음\"", async () => {
+    const { s } = setup();
+    good(await s.todo_save({ title: "과제", role: "대학" }));
+    good(await s.todo_save({ title: "채점", role: "강사", note: "과제 채점" }));
+    good(await s.todo_save({ title: "장보기" }));
+    const done = good(await s.todo_save({ title: "시험 공부", role: "대학" })).task;
+    good(await s.todo_save({ id: done.id, base_version: 1, done: true }));
+    const titles = async (a: Row) => (good(await s.todo_list(a)).items as Row[]).map((t) => t.title);
+
+    const r = await s.todo_list({ role: " 대학 " });
+    expect(r.summary).toBe("할 일 1개 (안 끝남) · 역할 대학");
+    expect((good(r).items as Row[]).map((t) => [t.title, t.role])).toEqual([["과제", "대학"]]);
+    expect(good(r).roles).toEqual(NAMES);
+    expect(await titles({ role: "대학", status: "all" })).toEqual(["과제", "시험 공부"]);
+    expect(await titles({ role: "강사", query: "과제" })).toEqual(["채점"]);
+    expect(await titles({ role: "개인" })).toEqual([]);
+    const none = await s.todo_list({ role: null });
+    expect(none.summary).toBe("할 일 1개 (안 끝남) · 역할 없음");
+    expect((good(none).items as Row[]).map((t) => t.title)).toEqual(["장보기"]);
+    expect(await titles({ role: "없음" })).toEqual(["장보기"]);
+    expect(await titles({})).toEqual(["장보기", "채점", "과제"]);
+  });
+
+  it("없는 역할 이름이면 ROLE_NOT_FOUND + 가까운 이름 + 역할 목록 (todo_list · todo_save)", async () => {
+    const { s, owner } = setup();
+    const a = bad(await s.todo_list({ role: "대핵" }), "ROLE_NOT_FOUND");
+    expect(a.suggest).toBe("대학");
+    expect(a.roles).toEqual(NAMES);
+    expect(a.error.message).toBe('없는 역할입니다: "대핵" — 가장 가까운 이름은 "대학" (역할: 대학, 강사, 개인)');
+    const b = bad(await s.todo_save({ title: "x", role: "강샤" }), "ROLE_NOT_FOUND");
+    expect([b.suggest, b.roles]).toEqual(["강사", NAMES]);
+    expect(good(await s.todo_list({})).items).toEqual([]); // 거절된 것은 안 들어간다
+    const t = good(await s.todo_save({ title: "x" })).task;
+    bad(await s.todo_save({ id: t.id, base_version: 1, role: "학생" }), "ROLE_NOT_FOUND");
+
+    // 지운 역할은 없는 이름이다. 그 역할의 할 일은 역할 없음이 된다
+    const u = good(await s.todo_save({ title: "채점", role: "강사" })).task;
+    await db.query("update ez_roles set deleted_at = now() where owner = $1 and name = '강사'", [owner]);
+    expect(bad(await s.todo_save({ title: "y", role: "강사" }), "ROLE_NOT_FOUND").roles).toEqual(["대학", "개인"]);
+    const now = (good(await s.todo_list({ query: "채점" })).items as Row[])[0]!;
+    expect([now.id, now.role, now.version]).toEqual([u.id, undefined, 2]);
+    expect(good(await s.todo_list({})).roles).toEqual(["대학", "개인"]);
+
+    // 다 지운 사람: 기본 셋이 다시 생기지 않는다
+    await db.query("update ez_roles set deleted_at = now() where owner = $1", [owner]);
+    const c = bad(await s.todo_save({ title: "z", role: "대학" }), "ROLE_NOT_FOUND");
+    expect(c.roles).toEqual([]);
+    expect(c.error.message).toContain("역할이 하나도 없습니다");
+    expect(good(await s.todo_list({})).roles).toEqual([]);
+    expect(good(await s.todo_list({ role: null })).items).toHaveLength(2);
+    expect((await roleRows(owner)).length).toBe(3);
+  });
+
+  it("새 할 일: place 를 주고 role 을 안 주면 지점에서 채운다. role 을 주면 그대로", async () => {
+    const { s, owner, store } = await withPlaces();
+    await store.insertPlace({ name: "카페" });
+    const role = async (a: Row) => good(await s.todo_save({ title: "x", ...a })).task.role;
+    expect(await role({ place: "학교" })).toBe("대학");
+    expect(await role({ place: "회사" })).toBe("강사");
+    expect(await role({ place: "집" })).toBe("개인");
+    expect(await role({ place: "카페" })).toBeUndefined(); // 지점 역할이 없는 지점
+    expect(await role({})).toBeUndefined();
+    expect(await role({ place: "학교", role: "개인" })).toBe("개인");
+    expect(await role({ place: "학교", role: null })).toBeUndefined();
+    expect(await role({ place: null })).toBeUndefined();
+    // 그 지점 역할에서 오는 역할이 없으면(지웠으면) 비운다
+    await db.query("update ez_roles set deleted_at = now() where owner = $1 and name = '대학'", [owner]);
+    expect(await role({ place: "학교" })).toBeUndefined();
+    // from_place 를 다른 역할로 옮기면 그 역할
+    await db.query("insert into ez_roles (owner, name, from_place, sort) values ($1, '대학원', 'school', 5)", [owner]);
+    expect(await role({ place: "학교" })).toBe("대학원");
+  });
+
+  it("고칠 때: role 을 명시했을 때만 바꾼다. 단 지점을 바꾸는데 역할이 없으면 채운다", async () => {
+    const { s } = await withPlaces();
+    const t = good(await s.todo_save({ title: "자료 찾기" })).task;
+    const a = good(await s.todo_save({ id: t.id, base_version: 1, place: "회사" })).task;
+    expect(a).toMatchObject({ place: "회사", role: "강사", version: 2 });
+    // 역할이 있으면 지점을 바꿔도 안 덮는다
+    const b = good(await s.todo_save({ id: t.id, base_version: 2, place: "학교" })).task;
+    expect(b).toMatchObject({ place: "학교", role: "강사" });
+    // 지점과 역할을 같이 주면 준 역할
+    const c = good(await s.todo_save({ id: t.id, base_version: 3, place: "집", role: "대학" })).task;
+    expect(c).toMatchObject({ place: "집", role: "대학" });
+    // 역할을 비운 뒤 다른 칸만 고치거나 같은 지점을 다시 주면 그대로 비어 있다
+    const d = good(await s.todo_save({ id: t.id, base_version: 4, role: null })).task;
+    expect(d.role).toBeUndefined();
+    expect(good(await s.todo_save({ id: t.id, base_version: 5, title: "자료 찾기 2", place: "집" })).task.role).toBeUndefined();
+    // 지점을 비울 때는 채우지 않는다
+    expect(good(await s.todo_save({ id: t.id, base_version: 6, place: null })).task.role).toBeUndefined();
+    // 다시 지점을 고르면 채운다
+    expect(good(await s.todo_save({ id: t.id, base_version: 7, place: "학교" })).task).toMatchObject({ place: "학교", role: "대학" });
+  });
+
+  it("반복 규칙도 역할을 가진다: 규칙 만들기 · roll 로 생긴 할 일 · once / rule · rule_id · rules 목록", async () => {
+    const { s, at, owner } = await withPlaces();
+    at("2026-10-01T12:00:00+09:00"); // 목
+    const first = good(await s.todo_save({ title: "주간 숙제", repeat: { freq: "weekly", days: ["월"] }, role: "대학" })).task;
+    expect(first).toMatchObject({ role: "대학", repeat: "매주 월" });
+    const rid = first.rule_id as string;
+    expect((await rules(owner))[0]).toMatchObject({ id: rid, role_id: await roleId(owner, "대학") });
+    expect(good(await s.todo_list({ status: "rules" })).rules[0]).toMatchObject({ id: rid, role: "대학" });
+
+    // once(기본): 이 할 일만. rule: 규칙도
+    expect(good(await s.todo_save({ id: first.id, base_version: 1, role: "개인" })).task.role).toBe("개인");
+    expect((await rules(owner))[0]!.role_id).toBe(await roleId(owner, "대학"));
+    const both = await s.todo_save({ id: first.id, base_version: 2, scope: "rule", role: "강사" });
+    expect(both.summary).toContain("앞으로 생길 할 일에도 적용");
+    expect(good(both).task.role).toBe("강사");
+    expect((await rules(owner))[0]!.role_id).toBe(await roleId(owner, "강사"));
+
+    at("2026-10-05T08:00:00+09:00"); // 월 — 새 회차는 규칙의 역할로 생긴다
+    const mon = good(await s.todo_list({}));
+    expect(mon.made).toBe(1);
+    expect(mon.items).toHaveLength(1);
+    expect(mon.items[0]).toMatchObject({ title: "주간 숙제", role: "강사", rule_id: rid });
+    expect((good(await s.todo_list({ role: "강사" })).items as Row[]).map((t) => t.id)).toEqual([mon.items[0].id]);
+
+    // rule_id 로 규칙만: 역할 비우기 → 지점을 주면 지점에서 채움 → 역할이 있으면 지점을 바꿔도 그대로
+    const ver = async () => good(await s.todo_list({ status: "rules" })).rules[0].version as number;
+    const cleared = good(await s.todo_save({ rule_id: rid, base_version: await ver(), role: null })).rule;
+    expect(cleared.role).toBeUndefined();
+    expect((await rules(owner))[0]!.role_id).toBeNull();
+    expect(good(await s.todo_save({ rule_id: rid, base_version: await ver(), place: "학교" })).rule).toMatchObject({ place: "학교", role: "대학" });
+    expect(good(await s.todo_save({ rule_id: rid, base_version: await ver(), place: "회사" })).rule).toMatchObject({ place: "회사", role: "대학" });
+    expect(good(await s.todo_save({ rule_id: rid, base_version: await ver(), role: "대학" })).changed).toBe(false);
+    bad(await s.todo_save({ rule_id: rid, base_version: await ver(), role: "학셍" }), "ROLE_NOT_FOUND");
+    // rules 목록도 역할로 거른다
+    expect(good(await s.todo_list({ status: "rules", role: "대학" })).rules).toHaveLength(1);
+    const noRules = await s.todo_list({ status: "rules", role: "개인" });
+    expect(noRules.summary).toBe("반복 규칙 0개 · 역할 개인");
+    expect(good(noRules).rules).toEqual([]);
+
+    at("2026-10-12T08:00:00+09:00"); // 다음 월 — 고친 규칙대로
+    expect(good(await s.todo_list({})).items[0]).toMatchObject({ title: "주간 숙제", place: "회사", role: "대학" });
+  });
+
+  it("scope: rule 로 지점을 바꾸는데 규칙에 역할이 없으면 규칙에도 채운다. 있던 할 일에 repeat 를 주면 그 역할이 규칙으로", async () => {
+    const { s, at, owner } = await withPlaces();
+    at("2026-10-01T12:00:00+09:00");
+    const t = good(await s.todo_save({ title: "주간 정리", repeat: { freq: "weekly", days: ["월"] } })).task;
+    expect(t.role).toBeUndefined();
+    expect((await rules(owner))[0]!.role_id).toBeNull();
+    const r = good(await s.todo_save({ id: t.id, base_version: 1, scope: "rule", place: "학교" })).task;
+    expect(r).toMatchObject({ place: "학교", role: "대학" });
+    expect((await rules(owner))[0]).toMatchObject({ role_id: await roleId(owner, "대학") });
+
+    // 지점을 주고 반복 할 일을 새로 만들면 규칙도 지점의 역할
+    const w = good(await s.todo_save({ title: "수업 준비", place: "회사", repeat: { freq: "daily" } })).task;
+    expect(w.role).toBe("강사");
+    expect((await rules(owner)).find((x) => x.title === "수업 준비")).toMatchObject({ role_id: await roleId(owner, "강사") });
+
+    const plain = good(await s.todo_save({ title: "빨래", role: "개인" })).task;
+    const made = good(await s.todo_save({ id: plain.id, base_version: 1, repeat: { freq: "daily" } })).task;
+    expect(made).toMatchObject({ role: "개인", repeat: "매일" });
+    expect((await rules(owner)).find((x) => x.title === "빨래")).toMatchObject({ id: made.rule_id, role_id: await roleId(owner, "개인") });
+    at("2026-10-02T09:00:00+09:00");
+    const next = (good(await s.todo_list({ query: "빨래" })).items as Row[])[0]!;
+    expect(next.id).not.toBe(plain.id);
+    expect(next.role).toBe("개인");
+  });
+
+  it("after_event 규칙: role 을 안 주면 그 일정의 지점에서 채운다 (규칙의 지점 · 명시한 role 이 먼저)", async () => {
+    const { s, at, owner } = await withPlaces();
+    at("2026-10-01T12:00:00+09:00");
+    const e = good(await s.schedule_save({ title: "상법", date: "2026-09-28", start: "09:00", end: "10:00", place: "학교", repeat: { freq: "weekly", days: ["월", "수"] } })).event;
+    const noPlace = good(await s.schedule_save({ title: "산책", date: "2026-09-28", start: "07:00", end: "07:30", repeat: { freq: "daily" } })).event;
+    const mk = async (title: string, extra: Row = {}, ev = e) => good(await s.todo_save({ title, repeat: { after_event: ev.id }, ...extra })).rule;
+
+    const a = await mk("상법 정리");
+    expect(a.role).toBe("대학");
+    expect(a.place).toBeUndefined(); // 역할만 채운다. 규칙의 지점은 그대로 없음
+    expect((await rules(owner))[0]).toMatchObject({ id: a.id, role_id: await roleId(owner, "대학"), place_id: null });
+    expect((await mk("복습", { role: "개인" })).role).toBe("개인");
+    expect((await mk("역할 없음", { role: null })).role).toBeUndefined();
+    expect(await mk("회사에서 정리", { place: "회사" })).toMatchObject({ place: "회사", role: "강사" });
+    expect((await mk("스트레칭", {}, noPlace)).role).toBeUndefined();
+    bad(await s.todo_save({ title: "x", repeat: { after_event: e.id }, role: "대핵" }), "ROLE_NOT_FOUND");
+    expect(await rules(owner)).toHaveLength(5);
+
+    // 있던 할 일을 '일정 끝나면' 규칙으로: 할 일에 역할이 없으면 규칙은 일정의 지점에서
+    const t = good(await s.todo_save({ title: "판례 읽기" })).task;
+    const made = good(await s.todo_save({ id: t.id, base_version: 1, repeat: { after_event: e.id } })).task;
+    expect(made.role).toBeUndefined();
+    expect((await rules(owner)).find((x) => x.title === "판례 읽기")).toMatchObject({ role_id: await roleId(owner, "대학") });
+
+    at("2026-10-05T10:00:00+09:00"); // 월 — 상법이 끝났다. 산책(07:30)도 끝났다
+    const items = good(await s.todo_list({})).items as Row[];
+    const byTitle = Object.fromEntries(items.map((x) => [x.title, x.role]));
+    expect(byTitle).toEqual({ "상법 정리": "대학", 복습: "개인", "역할 없음": undefined, "회사에서 정리": "강사", 스트레칭: undefined, "판례 읽기": "대학" });
+    expect((good(await s.todo_list({ role: "대학" })).items as Row[]).map((x) => x.title).sort()).toEqual(["상법 정리", "판례 읽기"]);
+  });
+});
+
 describe("다른 사람 것", () => {
   it("다른 owner 의 일정·할 일은 안 보이고 못 건드린다", async () => {
     const A = setup();
@@ -895,6 +1138,15 @@ describe("MCP 프로토콜", () => {
     expect(JSON.parse(todo.content[1].text).task).toMatchObject({ repeat: "매주 월", checklist: [{ t: "수학", done: false }, { t: "영어", done: true }] });
     const ruleList = (await client.callTool({ name: "todo_list", arguments: { status: "rules" } })) as any;
     expect(ruleList.content[0].text).toBe("반복 규칙 1개");
+    // 역할 칸(role: 이름 | null)이 입력 모양을 통과한다
+    const withRole = (await client.callTool({ name: "todo_save", arguments: { title: "과제", role: "대학" } })) as any;
+    expect(JSON.parse(withRole.content[1].text).task.role).toBe("대학");
+    const noRole = (await client.callTool({ name: "todo_list", arguments: { role: null } })) as any;
+    expect(noRole.content[0].text).toBe("할 일 1개 (안 끝남) · 역할 없음");
+    expect(JSON.parse(noRole.content[1].text).roles).toEqual(DEFAULT_ROLES.map((r) => r.name));
+    const missing = (await client.callTool({ name: "todo_list", arguments: { role: "대핵" } })) as any;
+    expect(missing.isError).toBe(true);
+    expect(JSON.parse(missing.content[1].text)).toMatchObject({ error: { code: "ROLE_NOT_FOUND" }, suggest: "대학" });
     const badRes = (await client.callTool({ name: "schedule_get", arguments: { from: "2026-01-01", to: "2026-12-31" } })) as any;
     expect(badRes.isError).toBe(true);
     expect(JSON.parse(badRes.content[1].text).error.code).toBe("RANGE");

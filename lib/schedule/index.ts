@@ -6,3 +6,4 @@ export * from "./expand";
 export * from "./plan";
 export * from "./free";
 export * from "./validate";
+export * from "./roles";

@@ -8,6 +8,7 @@ import {
   type EventException,
   type EventRow,
   type Place,
+  type Role,
   type Settings,
   type TaskRow,
   type TaskRule,
@@ -17,6 +18,7 @@ import { DbError } from "./errors";
 import {
   EVENT_COLS,
   PLACE_COLS,
+  ROLE_COLS,
   RULE_COLS,
   TASK_COLS,
   type EventPatch,
@@ -33,6 +35,7 @@ import {
   toEvent,
   toException,
   toPlace,
+  toRole,
   toRule,
   toSettings,
   toTask,
@@ -306,6 +309,17 @@ export class SupabaseScheduleStore implements ScheduleStore {
 
   async roll(today: DateStr, nowMin: number): Promise<number> {
     return Number(await run<number>(this.sb.rpc("ez_tasks_roll", { p_today: today, p_now_min: nowMin, p_as: this.owner })));
+  }
+
+  async roles(): Promise<Role[]> {
+    const rows = await run<Row[]>(
+      this.sb.from("ez_roles").select(ROLE_COLS).eq("owner", this.owner).is("deleted_at", null).order("sort").order("created_at").order("id"),
+    );
+    return rows.map(toRole);
+  }
+
+  async seedRoles(): Promise<number> {
+    return Number(await run<number>(this.sb.rpc("ez_roles_seed", { p_as: this.owner })));
   }
 
   async insertPlace(p: NewPlace): Promise<Place> {

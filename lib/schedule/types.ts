@@ -164,6 +164,8 @@ export type TaskRow = {
   /** 반복 규칙에서 생겼으면 그 규칙과 회차 날짜 (7-2) */
   rule_id: string | null;
   rule_date: DateStr | null;
+  /** 역할 — 누구로서 하는 일인가 (7-11) */
+  role_id: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -193,8 +195,28 @@ export type TaskRule = {
   /** 생긴 날부터 마감까지 며칠 (0~60). null 이면 마감 없음 */
   due_after: number | null;
   last_made: DateStr | null;
+  role_id: string | null;
   version: number;
 };
+
+/** ez_roles 한 줄 — 사회적 역할 (docs/플래너.md 7-11) */
+export type Role = {
+  id: string;
+  name: string;
+  /** 이 지점 역할의 지점을 고르면 이 역할이 기본으로 들어간다 */
+  from_place: PlaceRole | null;
+  sort: number;
+  version: number;
+};
+
+/** 처음 넣는 역할 (ez_roles_seed 와 같아야 한다) */
+export const DEFAULT_ROLES: { name: string; from_place: PlaceRole }[] = [
+  { name: "대학", from_place: "school" },
+  { name: "강사", from_place: "work" },
+  { name: "개인", from_place: "home" },
+];
+export const ROLES_MAX = 12;
+export const ROLE_NAME_MAX = 20;
 
 export const CHECKLIST_MAX = 20;
 export const CHECK_ITEM_MAX = 100;
