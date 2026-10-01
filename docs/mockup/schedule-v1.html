@@ -106,7 +106,7 @@ body.is-desk .mockbar .theme-btn{display:none}
 .nowpill{position:absolute;right:4px;top:calc(var(--s) * var(--pm));transform:translateY(-50%);height:18px;padding:0 6px;border-radius:999px;background:var(--point);color:var(--on-point);font-family:var(--font-num);font-size:11px;font-weight:600;line-height:18px;z-index:2}
 .cols{position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background-image:linear-gradient(var(--border) 1px,transparent 1px);background-size:100% 48px;border-bottom:1px solid var(--border)}
 .col{position:relative;border-left:1px solid var(--border);min-width:0;container:col/inline-size}
-@container col (max-width: 120px){ .ev .src{display:none} .ev{padding:5px 8px} .band{padding:0 7px} }
+@container col (max-width: 120px){ .ev{padding:5px 8px} .band{padding:0 7px} }
 .col:last-child{border-right:1px solid var(--border)}
 
 /* 블록 */
@@ -132,6 +132,22 @@ body.is-desk .mockbar .theme-btn{display:none}
 .meal{border:1px dashed var(--dash);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.3;color:var(--text-3)}
 .now{position:absolute;left:0;right:0;top:calc(var(--s) * var(--pm));height:1.5px;margin-top:-.75px;background:var(--point-ink);z-index:3}
 .now::before{content:"";position:absolute;left:-4px;top:-3.25px;width:8px;height:8px;border-radius:50%;background:var(--point-ink)}
+
+/* 좁아질 때: 출처 → 끝 시각 → 시작 시각 → 제목 순으로 덜어낸다. 제목은 띄어쓰기에서만 줄을 바꾸고 높이만큼 여러 줄 */
+.ev{container:ev/inline-size;display:flex;flex-direction:column}
+.ev .r{align-items:flex-start}
+.ev .r .ps{margin-top:1.5px}
+.ev .t{white-space:normal;word-break:keep-all;overflow-wrap:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:var(--lines,1);text-overflow:clip}
+.ev.no-h .h{display:none}
+.ev.short{padding-top:3px;padding-bottom:3px}
+@container ev (max-width: 130px){ .ev .src{display:none} }
+@container ev (max-width: 92px){ .ev .he{display:none} }
+@container ev (max-width: 64px){ .ev .r .ps{display:none} }
+@container ev (max-width: 44px){ .ev .h{display:none} .ev:has(.ps) .t{display:none} .ev .r .ps{display:block;width:16px;height:16px;margin:2px auto 0} .ev .r{justify-content:center} }
+.band{container:band/inline-size}
+.band b{font-weight:600}
+@container band (max-width: 72px){ .band .m{display:none} }
+@container band (max-width: 40px){ .band:not(.warn) b{display:none} .band.warn{padding:0 3px} }
 
 /* 상세 팝오버 */
 .pop{position:absolute;z-index:5;width:236px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-l);padding:14px 14px 12px;display:flex;flex-direction:column;gap:2px;box-shadow:0 8px 24px rgb(0 0 0 / .08)}
@@ -300,65 +316,65 @@ body.is-desk .mockbar .theme-btn{display:none}
             <div class="cols">
               <!-- 월 9/28 -->
               <div class="col">
-                <div class="band prep" style="--s:565;--e:600">준비 35</div>
-                <div class="band" style="--s:600;--e:630">등교 30</div>
-                <div class="ev at-school ext" style="--s:630;--e:720"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
-                <div class="band" style="--s:720;--e:750">귀가 30</div>
+                <div class="band prep" style="--s:565;--e:600"><b>준비</b><span class="m">35</span></div>
+                <div class="band" style="--s:600;--e:630"><b>등교</b><span class="m">30</span></div>
+                <div class="ev at-school ext" style="--s:630;--e:720"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">자료구조</span><span class="src">대학</span></div><span class="h"><span class="hs">10:30</span><span class="he">–12:00</span></span></div>
+                <div class="band" style="--s:720;--e:750"><b>귀가</b><span class="m">30</span></div>
                 <div class="meal" style="--s:750;--e:790">점심</div>
                 <div class="band prep" style="--s:990;--e:1000"></div>
-                <div class="band" style="--s:1000;--e:1020">출근 20</div>
-                <div class="ev at-work ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps c-work" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
-                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+                <div class="band" style="--s:1000;--e:1020"><b>출근</b><span class="m">20</span></div>
+                <div class="ev at-work ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps c-work" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h"><span class="hs">17:00</span><span class="he">–22:00</span></span></div>
+                <div class="band" style="--s:1320;--e:1340"><b>귀가</b><span class="m">20</span></div>
               </div>
               <!-- 화 9/29 -->
               <div class="col">
                 <div class="meal" style="--s:675;--e:715">점심</div>
-                <div class="band prep" style="--s:715;--e:750">준비 35</div>
-                <div class="band" style="--s:750;--e:780">등교 30</div>
-                <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
-                <div class="band" style="--s:870;--e:900">귀가 30</div>
+                <div class="band prep" style="--s:715;--e:750"><b>준비</b><span class="m">35</span></div>
+                <div class="band" style="--s:750;--e:780"><b>등교</b><span class="m">30</span></div>
+                <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h"><span class="hs">13:00</span><span class="he">–14:30</span></span></div>
+                <div class="band" style="--s:870;--e:900"><b>귀가</b><span class="m">30</span></div>
                 <div class="band prep" style="--s:1040;--e:1050"></div>
-                <div class="band" style="--s:1050;--e:1080">등교 30</div>
-                <div class="ev at-school" style="--s:1080;--e:1130"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">스터디</span></div><span class="h">18:00–18:50</span></div>
-                <div class="band warn" style="--s:1130;--e:1150;right:auto;width:calc(42% - 4px)">10분 늦음</div>
-                <div class="ev at-cafe" style="--s:1140;--e:1260;left:42%"><div class="r"><svg class="ps c-cafe" aria-hidden="true"><use href="#p-cafe"/></svg><span class="t">APPTIVE 회의</span></div><span class="h">19:00–21:00</span></div>
-                <div class="band" style="--s:1260;--e:1275">귀가 15</div>
+                <div class="band" style="--s:1050;--e:1080"><b>등교</b><span class="m">30</span></div>
+                <div class="ev at-school" style="--s:1080;--e:1130"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">스터디</span></div><span class="h"><span class="hs">18:00</span><span class="he">–18:50</span></span></div>
+                <div class="band warn" style="--s:1130;--e:1150;right:auto;width:calc(42% - 4px)"><b>10분</b><span class="m">늦음</span></div>
+                <div class="ev at-cafe" style="--s:1140;--e:1260;left:42%"><div class="r"><svg class="ps c-cafe" aria-hidden="true"><use href="#p-cafe"/></svg><span class="t">APPTIVE 회의</span></div><span class="h"><span class="hs">19:00</span><span class="he">–21:00</span></span></div>
+                <div class="band" style="--s:1260;--e:1275"><b>귀가</b><span class="m">15</span></div>
               </div>
               <!-- 수 9/30 -->
               <div class="col">
-                <div class="band prep" style="--s:565;--e:600">준비 35</div>
-                <div class="band" style="--s:600;--e:630">등교 30</div>
-                <div class="ev at-school ext" style="--s:630;--e:720"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">자료구조</span><span class="src">대학</span></div><span class="h">10:30–12:00</span></div>
-                <div class="band" style="--s:720;--e:750">귀가 30</div>
+                <div class="band prep" style="--s:565;--e:600"><b>준비</b><span class="m">35</span></div>
+                <div class="band" style="--s:600;--e:630"><b>등교</b><span class="m">30</span></div>
+                <div class="ev at-school ext" style="--s:630;--e:720"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">자료구조</span><span class="src">대학</span></div><span class="h"><span class="hs">10:30</span><span class="he">–12:00</span></span></div>
+                <div class="band" style="--s:720;--e:750"><b>귀가</b><span class="m">30</span></div>
                 <div class="meal" style="--s:750;--e:790">점심</div>
                 <div class="band prep" style="--s:990;--e:1000"></div>
-                <div class="band" style="--s:1000;--e:1020">출근 20</div>
-                <div class="ev at-work ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps c-work" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
-                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
+                <div class="band" style="--s:1000;--e:1020"><b>출근</b><span class="m">20</span></div>
+                <div class="ev at-work ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps c-work" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h"><span class="hs">17:00</span><span class="he">–22:00</span></span></div>
+                <div class="band" style="--s:1320;--e:1340"><b>귀가</b><span class="m">20</span></div>
               </div>
               <!-- 목 10/1 (오늘) -->
               <div class="col">
                 <div class="meal" style="--s:675;--e:715">점심</div>
-                <div class="band prep" style="--s:715;--e:750">준비 35</div>
-                <div class="band" style="--s:750;--e:780">등교 30</div>
-                <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
-                <div class="band" style="--s:870;--e:900">귀가 30</div>
-                <div class="ev sel" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h">15:30–16:30</span></div>
+                <div class="band prep" style="--s:715;--e:750"><b>준비</b><span class="m">35</span></div>
+                <div class="band" style="--s:750;--e:780"><b>등교</b><span class="m">30</span></div>
+                <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h"><span class="hs">13:00</span><span class="he">–14:30</span></span></div>
+                <div class="band" style="--s:870;--e:900"><b>귀가</b><span class="m">30</span></div>
+                <div class="ev sel" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h"><span class="hs">15:30</span><span class="he">–16:30</span></span></div>
                 <div class="meal" style="--s:1080;--e:1120">저녁</div>
                 <div class="now" style="--s:860"></div>
               </div>
               <!-- 금 10/2 -->
               <div class="col">
                 <div class="meal" style="--s:720;--e:760">점심</div>
-                <div class="band prep" style="--s:965;--e:1000">준비 35</div>
-                <div class="band" style="--s:1000;--e:1020">출근 20</div>
-                <div class="ev at-work ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps c-work" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h">17:00–22:00</span></div>
-                <div class="band" style="--s:1320;--e:1340">귀가 20</div>
-                <div class="ev cut-b" style="--s:1380;--e:1440"><div class="r"><span class="t">마감 작업</span></div><span class="h">23:00–01:00</span></div>
+                <div class="band prep" style="--s:965;--e:1000"><b>준비</b><span class="m">35</span></div>
+                <div class="band" style="--s:1000;--e:1020"><b>출근</b><span class="m">20</span></div>
+                <div class="ev at-work ext" style="--s:1020;--e:1320"><div class="r"><svg class="ps c-work" aria-hidden="true"><use href="#p-work"/></svg><span class="t">스큐 근무</span><span class="src">스터디큐브</span></div><span class="h"><span class="hs">17:00</span><span class="he">–22:00</span></span></div>
+                <div class="band" style="--s:1320;--e:1340"><b>귀가</b><span class="m">20</span></div>
+                <div class="ev cut-b" style="--s:1380;--e:1440"><div class="r"><span class="t">마감 작업</span></div><span class="h"><span class="hs">23:00</span><span class="he">–01:00</span></span></div>
               </div>
               <!-- 토 10/3 -->
               <div class="col">
-                <div class="ev cut-t" style="--s:0;--e:60"><div class="r"><span class="t">마감 작업</span></div><span class="h">23:00–01:00</span></div>
+                <div class="ev cut-t" style="--s:0;--e:60"><div class="r"><span class="t">마감 작업</span></div><span class="h"><span class="hs">23:00</span><span class="he">–01:00</span></span></div>
                 <div class="meal" style="--s:720;--e:760">점심</div>
                 <div class="meal" style="--s:1080;--e:1120">저녁</div>
               </div>
@@ -414,11 +430,11 @@ body.is-desk .mockbar .theme-btn{display:none}
         </div>
         <div class="ph-col">
           <div class="meal" style="--s:675;--e:715">점심</div>
-          <div class="band prep" style="--s:715;--e:750">준비 35</div>
-          <div class="band" style="--s:750;--e:780">등교 30</div>
-          <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h">13:00–14:30</span></div>
-          <div class="band" style="--s:870;--e:900">귀가 30</div>
-          <div class="ev" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h">15:30–16:30</span></div>
+          <div class="band prep" style="--s:715;--e:750"><b>준비</b><span class="m">35</span></div>
+          <div class="band" style="--s:750;--e:780"><b>등교</b><span class="m">30</span></div>
+          <div class="ev at-school ext" style="--s:780;--e:870"><div class="r"><svg class="ps c-school" aria-hidden="true"><use href="#p-school"/></svg><span class="t">운영체제</span><span class="src">대학</span></div><span class="h"><span class="hs">13:00</span><span class="he">–14:30</span></span></div>
+          <div class="band" style="--s:870;--e:900"><b>귀가</b><span class="m">30</span></div>
+          <div class="ev" style="--s:930;--e:990"><div class="r"><span class="t">팀플 정리</span></div><span class="h"><span class="hs">15:30</span><span class="he">–16:30</span></span></div>
           <div class="meal" style="--s:1080;--e:1120">저녁</div>
           <div class="now" style="--s:860"></div>
         </div>
@@ -508,6 +524,25 @@ body.is-desk .mockbar .theme-btn{display:none}
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paint);
   paint();
 
+
+  // 블록 높이만큼 제목 줄 수를 정한다. 두 줄이 안 되면 시간을 빼고 제목에 준다
+  function fit(ev){
+    var cs=getComputedStyle(ev), padY=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+    var lh=parseFloat(getComputedStyle(ev.querySelector('.t')||ev).lineHeight)||15.6;
+    var h=ev.clientHeight; ev.classList.toggle('short', h<34);
+    var usable=ev.clientHeight-(h<34?6:padY);
+    var lines=Math.max(1,Math.floor(usable/lh));
+    ev.classList.remove('no-h');
+    var hEl=ev.querySelector('.h'), hShown=hEl&&getComputedStyle(hEl).display!=='none';
+    if(hShown && lines<2){ ev.classList.add('no-h'); hShown=false; }
+    ev.style.setProperty('--lines', String(hShown?lines-1:lines));
+  }
+  var ro=new ResizeObserver(function(es){ es.forEach(function(e){ fit(e.target); }); });
+  document.querySelectorAll('.ev').forEach(function(ev){
+    var t=ev.querySelector('.t'), h=ev.querySelector('.h'), src=ev.querySelector('.src');
+    ev.title=[t&&t.textContent, h&&h.textContent, src&&src.textContent].filter(Boolean).join(' · ');
+    ro.observe(ev);
+  });
   var desk=document.getElementById('desk'), phones=document.getElementById('phones');
   function show(v){
     var p=v==='phone';
