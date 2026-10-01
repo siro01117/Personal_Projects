@@ -202,6 +202,9 @@ const PATHS = {
   x: <path d="M18 6 6 18M6 6l12 12" />,
   up: <path d="m18 15-6-6-6 6" />,
   down: <path d="m6 9 6 6 6-6" />,
+  /** 정렬 방향: 오름(위로) · 내림(아래로) */
+  asc: <path d="M12 19V5M6 11l6-6 6 6" />,
+  desc: <path d="M12 5v14M6 13l6 6 6-6" />,
   flag: <path d="M5 21V4M5 4h12l-2.5 4.5L17 13H5" />,
   ring: <circle cx="12" cy="12" r="8" />,
   "ring-check": (

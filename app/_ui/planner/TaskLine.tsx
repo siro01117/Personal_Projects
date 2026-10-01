@@ -1,6 +1,6 @@
 "use client";
 
-// 목록 한 줄: 동그라미(끝냄 체크, 누르면 바로) · 지점 심볼 · 제목 · 반복 표시 · 역할(회색 글자, 필터가 전체일 때만) · 체크 수 · 마감 · 걸릴 시간
+// 목록 한 줄: 동그라미(끝냄 체크, 누르면 바로) · 지점 심볼 · 제목 · 반복 표시 · 역할(회색 글자, 역할 정렬일 때는 구분 라벨에 적고 줄에서는 뺀다) · 체크 수 · 마감 · 걸릴 시간
 // (시간 정함이면 걸릴 시간 대신 일정 시각, 지남이면 무엇이 지났는지).
 // 좁아지면 말줄임 대신 걸릴 시간 → 역할 → 체크 수 → 마감 → 반복 표시 순으로 뺀다(CSS 컨테이너 쿼리).
 // 지남 글자와 지점 심볼은 남긴다. 제목은 띄어쓰기에서만 줄을 바꾼다.
@@ -32,7 +32,7 @@ export function TaskLine({
   /** 지남 묶음의 줄 */
   late?: Late;
   place?: Place;
-  /** 줄에 보일 역할 이름 (필터가 전체일 때만 온다) */
+  /** 줄에 보일 역할 이름 (역할 정렬일 때는 안 온다) */
   role?: string | null;
   /** 살아 있는 반복 규칙에서 온 할 일 */
   repeats?: boolean;
@@ -41,7 +41,7 @@ export function TaskLine({
   dragging?: boolean;
   onToggle: (t: TaskRow) => void;
   onPick: (t: TaskRow) => void;
-  /** 끌어 순서 바꾸기 (할 일 목록 · 데스크톱 마우스만) */
+  /** 끌어 순서 바꾸기 (할 일 목록 · '직접' 정렬 · 데스크톱 마우스만) */
   onGrab?: (e: ReactPointerEvent<HTMLLIElement>, t: TaskRow) => void;
 }) {
   const done = task.done_at !== null;

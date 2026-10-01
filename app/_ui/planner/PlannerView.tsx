@@ -1,11 +1,12 @@
 "use client";
 
-// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 역할 필터 → 목록 넷(지남 · 할 일 · 시간 정함 · 끝냄).
+// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 정렬 줄(7-12) → 목록 넷(지남 · 할 일 · 시간 정함 · 끝냄).
 // 줄 누르기는 보기만(넓은 데스크톱 오른쪽 패널 · 좁은 데스크톱 떠 있는 패널 · 폰 보기 시트), 고치기는 '수정' 을 한 번 더.
-// 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
+// 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 '직접' 정렬일 때 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
 // 지남은 자동으로 넘기지 않는다 — 다시 정하기 · 시간 없음으로 · 마감 바꾸기 · 마감 지우기를 사람이 고른다.
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -33,10 +34,8 @@ import {
 } from "../../../lib/schedule";
 import type { EventDeps, RuleInput, TaskInput, TaskLink } from "../../_data/types";
 import {
-  byRole,
   DEFAULT_LEN,
   dueOptions,
-  hasRoleless,
   lateOf,
   mergeChecklist,
   moved,
@@ -44,15 +43,18 @@ import {
   parseChecks,
   parseDueAfter,
   parseMinutes,
-  ROLE_ALL,
-  ROLE_NONE,
+  parseSort,
   roleText,
   ruleLabel,
+  SORT_KEYS,
+  SORT_LABEL,
+  sortGroups,
   splitTasks,
   taskDraft,
   toggleCheck,
-  validFilter,
-  type RoleFilter,
+  type Late,
+  type Sort,
+  type SortGroup,
   type TaskDraft,
   type TaskScope,
 } from "../../_logic/planner";
@@ -61,6 +63,7 @@ import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { Menu } from "../Menu";
 import { EventForm } from "../schedule/EventForm";
+import { PlaceDot } from "../schedule/PlaceSymbol";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
@@ -75,16 +78,19 @@ import { usePlannerData, type PlannerState } from "./usePlannerData";
 const PHONE_MAX = 760;
 const PANEL_MIN = 1180;
 const CLOCK_MS = 60_000;
-/** 고른 역할 필터를 이 기기에 기억한다 */
-const FILTER_KEY = "ezwork.planner.role";
+/** 고른 정렬과 방향을 이 기기에 기억한다 ({key, dir}) */
+const SORT_KEY = "ezwork.planner.sort";
 
-function readFilter(): string {
+function readSort(): Sort {
   try {
-    return localStorage.getItem(FILTER_KEY) ?? ROLE_ALL;
+    return parseSort(localStorage.getItem(SORT_KEY));
   } catch {
-    return ROLE_ALL;
+    return parseSort(null);
   }
 }
+
+/** 목록의 한 줄: 할 일 + 이어진 일정 + (지남 묶음이면) 무엇이 지났나 */
+type Row = { task: TaskRow; link?: TaskLink | null; late?: Late };
 
 type Edit = { id: string; base: number; draft: TaskDraft; baseDraft: TaskDraft; stale: boolean };
 type Plan = { id: string; draft: PlanDraft };
@@ -149,7 +155,7 @@ export function PlannerView() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [showDone, setShowDone] = useState(false);
-  const [savedFilter, setSavedFilter] = useState<string>(readFilter);
+  const [sort, setSort] = useState<Sort>(readSort);
   const [roleEdit, setRoleEdit] = useState(false);
   const [linkedEv, setLinkedEv] = useState<EventRow | null>(null);
 
@@ -159,18 +165,13 @@ export function PlannerView() {
   dragRef.current = drag;
   const justDragged = useRef(false);
 
-  const allLists = useMemo(
+  const lists = useMemo(
     () => splitTasks(state?.tasks ?? [], state?.links ?? [], new Date(clock), { date: today, min: nowMin }),
     [state, clock, today, nowMin],
   );
-  // 역할 필터: 기억해 둔 것이 더는 없는 역할이면 전체. '없음' 은 역할 없는 할 일이 있을 때만
   const roles = useMemo<Role[]>(() => state?.roles ?? [], [state]);
-  const roleless = hasRoleless(allLists);
-  const filter: RoleFilter = validFilter(savedFilter, roles, roleless);
-  const lists = useMemo(
-    () => (filter === ROLE_ALL ? allLists : splitTasks(byRole(state?.tasks ?? [], filter), state?.links ?? [], new Date(clock), { date: today, min: nowMin })),
-    [filter, allLists, state, clock, today, nowMin],
-  );
+  // 끌어서 순서 바꾸기는 '직접' 정렬에서만
+  const manual = sort.key === "manual";
   const openShown = drag ? moved(lists.open, drag.id, drag.to) : lists.open;
   const linkOf = useMemo(() => new Map((state?.links ?? []).map((l) => [l.task_id, l])), [state]);
   const placeOf = useMemo(() => new Map(D.places.map((p) => [p.id, p])), [D.places]);
@@ -246,8 +247,6 @@ export function PlannerView() {
     setText("");
     const at = new Date().toISOString();
     const sort = Math.min(0, ...state.tasks.map((t) => t.sort)) - 1;
-    // 역할을 골라 둔 채 넣으면 그 역할로
-    const role_id = filter === ROLE_ALL || filter === ROLE_NONE ? null : filter;
     const temp: TaskRow = {
       id: tempId(),
       title,
@@ -263,12 +262,12 @@ export function PlannerView() {
       checklist: [],
       rule_id: null,
       rule_date: null,
-      role_id,
+      role_id: null,
       version: 1,
       created_at: at,
       updated_at: at,
     };
-    void D.run((s) => ({ ...s, tasks: [temp, ...s.tasks] }), () => D.T.createTask(role_id ? { title, role_id } : { title }));
+    void D.run((s) => ({ ...s, tasks: [temp, ...s.tasks] }), () => D.T.createTask({ title }));
   }
 
   async function toggle(t: TaskRow) {
@@ -643,17 +642,15 @@ export function PlannerView() {
     if (ok) toast("할 일을 없앴습니다", { label: "되돌리기", run: () => void D.run(null, () => D.T.restoreTask(t.id)) });
   }
 
-  // ------------------------------------------------------------ 역할: 필터 · 편집
+  // ------------------------------------------------------------ 정렬 · 역할 편집
 
-  function pickFilter(f: RoleFilter) {
-    setSavedFilter(f);
+  function pickSort(next: Sort) {
+    setSort(next);
     try {
-      localStorage.setItem(FILTER_KEY, f);
+      localStorage.setItem(SORT_KEY, JSON.stringify(next));
     } catch {
       // 기억만 못 한다
     }
-    // 보고 있던 할 일이 걸러져 안 보이게 되면 닫는다
-    if (selTask && byRole([selTask], f).length === 0) closeAll();
   }
 
   function openRoles() {
@@ -712,7 +709,6 @@ export function PlannerView() {
 
   /** 지우면 그 역할의 할 일 · 규칙은 역할 없음이 된다. 되돌리면 다시 걸린다 */
   async function removeRole(r: Role) {
-    if (savedFilter === r.id) pickFilter(ROLE_ALL);
     const none = <T extends { role_id: string | null }>(x: T): T => (x.role_id === r.id ? { ...x, role_id: null } : x);
     const deps = await D.run(
       (s) => ({ ...s, roles: s.roles.filter((x) => x.id !== r.id), tasks: s.tasks.map(none), rules: s.rules.map(none) }),
@@ -761,22 +757,46 @@ export function PlannerView() {
     add();
   };
 
-  const line = (t: TaskRow, opts: { link?: TaskLink; late?: (typeof lists.late)[number]; movable?: boolean } = {}) => (
+  const line = ({ task: t, link, late }: Row, movable = false) => (
     <TaskLine
       key={t.id}
       task={t}
-      link={opts.link}
-      late={opts.late}
+      link={link ?? undefined}
+      late={late}
       place={t.place_id ? placeOf.get(t.place_id) : undefined}
-      role={roleText(t, roles, filter)}
+      role={sort.key === "role" ? null : roleText(t, roles)}
       repeats={t.rule_id !== null && liveRules.has(t.rule_id)}
       today={today}
       selected={sel === t.id}
       dragging={drag?.id === t.id}
       onToggle={(x) => void toggle(x)}
       onPick={pick}
-      onGrab={opts.movable && !phone ? grab : undefined}
+      onGrab={movable && manual && !phone ? grab : undefined}
     />
+  );
+
+  /** 한 카드의 줄들: 정렬에 따라 구분 묶음으로. 역할 · 장소 정렬이면 묶음마다 라벨 줄(소제목 + 가는 선) */
+  const groupsOf = (list: readonly Row[]): SortGroup<Row>[] => sortGroups(list, sort, { roles, places: D.places });
+  const rows = (list: readonly Row[], movable = false) => (
+    <div className="pl-groups">
+      {groupsOf(list).map((g) => (
+        <Fragment key={g.key}>
+          {g.kind !== "all" && (
+            <h3 className="pl-g">
+              {g.kind === "place" && (
+                <span className={`sym pc-${placeOf.get(g.key)?.color}`}>
+                  <PlaceDot />
+                </span>
+              )}
+              <span className="t">{g.label}</span>
+            </h3>
+          )}
+          <ul className="pl-rows" ref={movable && manual ? openRef : undefined}>
+            {g.items.map((r) => line(r, movable))}
+          </ul>
+        </Fragment>
+      ))}
+    </div>
   );
 
   const taskById = (id: string | undefined) => (id ? (state.tasks.find((t) => t.id === id) ?? null) : null);
@@ -906,18 +926,21 @@ export function PlannerView() {
         </label>
         <ThemeToggle />
       </div>
-      <div className="pl-filter" role="group" aria-label="역할">
-        <button type="button" className="rf" aria-pressed={filter === ROLE_ALL} onClick={() => pickFilter(ROLE_ALL)}>
-          전체
-        </button>
-        {roles.map((r) => (
-          <button type="button" key={r.id} className="rf" aria-pressed={filter === r.id} onClick={() => pickFilter(r.id)}>
-            {r.name}
+      <div className="pl-sort" role="group" aria-label="정렬">
+        {SORT_KEYS.map((k) => (
+          <button type="button" key={k} className="rf" aria-pressed={sort.key === k} onClick={() => pickSort({ ...sort, key: k })}>
+            {SORT_LABEL[k]}
           </button>
         ))}
-        {roleless && (
-          <button type="button" className="rf" aria-pressed={filter === ROLE_NONE} onClick={() => pickFilter(ROLE_NONE)}>
-            없음
+        {!manual && (
+          <button
+            type="button"
+            className="iconbtn rf-dir"
+            aria-label={sort.dir === "asc" ? "오름차순" : "내림차순"}
+            title={sort.dir === "asc" ? "오름차순" : "내림차순"}
+            onClick={() => pickSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
+          >
+            <Icon name={sort.dir === "asc" ? "asc" : "desc"} />
           </button>
         )}
         <button type="button" className="iconbtn rf-edit" aria-label="역할 편집" title="역할 편집" aria-expanded={roleEdit} onClick={openRoles}>
@@ -940,7 +963,7 @@ export function PlannerView() {
                   <h2 className="pl-h">
                     지남<span className="num">{lists.late.length}</span>
                   </h2>
-                  <ul className="pl-rows">{lists.late.map((l) => line(l.task, { link: l.link ?? undefined, late: l }))}</ul>
+                  {rows(lists.late.map((l) => ({ task: l.task, link: l.link, late: l })))}
                 </section>
               )}
               {openShown.length > 0 && (
@@ -948,9 +971,10 @@ export function PlannerView() {
                   <h2 className="pl-h">
                     할 일<span className="num">{openShown.length}</span>
                   </h2>
-                  <ul className="pl-rows" ref={openRef}>
-                    {openShown.map((t) => line(t, { movable: true }))}
-                  </ul>
+                  {rows(
+                    openShown.map((task) => ({ task })),
+                    true,
+                  )}
                 </section>
               )}
             </div>
@@ -961,7 +985,7 @@ export function PlannerView() {
                     <h2 className="pl-h">
                       시간 정함<span className="num">{lists.timed.length}</span>
                     </h2>
-                    <ul className="pl-rows">{lists.timed.map(({ task, link }) => line(task, { link }))}</ul>
+                    {rows(lists.timed)}
                   </section>
                 )}
                 {lists.done.length > 0 && (
@@ -971,7 +995,7 @@ export function PlannerView() {
                       <span className="num">{lists.done.length}</span>
                       <Icon name={showDone ? "up" : "down"} />
                     </button>
-                    {showDone && <ul className="pl-rows">{lists.done.map((t) => line(t))}</ul>}
+                    {showDone && rows(lists.done.map((task) => ({ task })))}
                   </section>
                 )}
               </div>

@@ -3,7 +3,6 @@ import { DbError } from "../../lib/errors";
 import { DEFAULT_SETTINGS, type EventRow, type Place, type Role, type TaskRow, type TaskRule } from "../../lib/schedule";
 import type { TaskLink } from "../_data/types";
 import {
-  byRole,
   checkLabel,
   draftWithPlace,
   draftWithRole,
@@ -11,7 +10,6 @@ import {
   dueOptions,
   eventEnded,
   firstFreeStart,
-  hasRoleless,
   lateLabel,
   lateOf,
   mergeChecklist,
@@ -21,17 +19,18 @@ import {
   parseChecks,
   parseDueAfter,
   parseMinutes,
+  parseSort,
   plannerKorean,
-  ROLE_ALL,
-  ROLE_NONE,
   roleText,
   ruleLabel,
   sortBetween,
+  sortGroups,
   splitTasks,
   taskDraft,
   taskScopes,
-  validFilter,
   whenLabel,
+  whenOf,
+  type Sort,
 } from "./planner";
 
 const task = (id: string, over: Partial<TaskRow> = {}): TaskRow => ({
@@ -450,55 +449,11 @@ describe("역할 (7-11)", () => {
     { id: "me", name: "개인", from_place: "home", sort: 3, version: 1 },
     { id: "club", name: "동아리", from_place: null, sort: 4, version: 1 },
   ];
-  const now = new Date("2026-10-01T03:00:00Z");
-  const at = { date: "2026-10-01", min: 720 };
-  const tasks = [
-    task("과제", { role_id: "univ", sort: 1 }),
-    task("지난 서류", { role_id: "univ", due: "2026-09-29", sort: 2 }),
-    task("회고", { role_id: "club", sort: 3 }),
-    task("메일", { sort: 4 }),
-    task("발표", { role_id: "univ", sort: 5 }),
-    task("반납", { role_id: "me", done_at: "2026-09-30T03:00:00Z", sort: 6 }),
-  ];
-  const links = [link("발표", "2026-10-03", 600)];
-  const names = (l: ReturnType<typeof splitTasks>) => ({
-    late: l.late.map((x) => x.task.id),
-    open: l.open.map((t) => t.id),
-    timed: l.timed.map((x) => x.task.id),
-    done: l.done.map((t) => t.id),
-  });
-
-  it("역할로 거르면 네 묶음 모두 그 역할만. 결과가 없는 묶음은 빈다", () => {
-    expect(names(splitTasks(byRole(tasks, "univ"), links, now, at))).toEqual({ late: ["지난 서류"], open: ["과제"], timed: ["발표"], done: [] });
-    expect(names(splitTasks(byRole(tasks, "me"), links, now, at))).toEqual({ late: [], open: [], timed: [], done: ["반납"] });
-    expect(names(splitTasks(byRole(tasks, "teach"), links, now, at))).toEqual({ late: [], open: [], timed: [], done: [] });
-    expect(byRole(tasks, ROLE_ALL)).toHaveLength(tasks.length);
-  });
-
-  it("'없음' 은 역할 없는 할 일만. 보이는 목록에 역할 없는 것이 있을 때만 고를 수 있다", () => {
-    expect(byRole(tasks, ROLE_NONE).map((t) => t.id)).toEqual(["메일"]);
-    expect(hasRoleless(splitTasks(tasks, links, now, at))).toBe(true);
-    expect(hasRoleless(splitTasks(byRole(tasks, "univ"), links, now, at))).toBe(false);
-    // 오래전에 끝내 목록에 안 보이는 것은 치지 않는다
-    expect(hasRoleless(splitTasks([task("옛일", { done_at: "2026-08-01T00:00:00Z" })], [], now, at))).toBe(false);
-  });
-
-  it("기억해 둔 필터: 없는 역할 id 는 전체로, '없음' 은 역할 없는 할 일이 있을 때만", () => {
-    expect(validFilter(null, roles, true)).toBe(ROLE_ALL);
-    expect(validFilter("", roles, true)).toBe(ROLE_ALL);
-    expect(validFilter("club", roles, false)).toBe("club");
-    expect(validFilter("지운 역할", roles, true)).toBe(ROLE_ALL);
-    expect(validFilter(ROLE_NONE, roles, true)).toBe(ROLE_NONE);
-    expect(validFilter(ROLE_NONE, roles, false)).toBe(ROLE_ALL);
-  });
-
-  it("줄에 보일 글자: 필터가 전체일 때만 역할 이름. 역할이 없거나 지운 역할이면 없음", () => {
-    expect(roleText(tasks[0]!, roles, ROLE_ALL)).toBe("대학");
-    expect(roleText(tasks[2]!, roles, ROLE_ALL)).toBe("동아리");
-    expect(roleText(tasks[3]!, roles, ROLE_ALL)).toBeNull();
-    expect(roleText(tasks[0]!, roles, "univ")).toBeNull();
-    expect(roleText(tasks[3]!, roles, ROLE_NONE)).toBeNull();
-    expect(roleText(task("x", { role_id: "지운 역할" }), roles, ROLE_ALL)).toBeNull();
+  it("줄에 보일 글자: 역할 이름. 역할이 없거나 지운 역할이면 없음", () => {
+    expect(roleText(task("과제", { role_id: "univ" }), roles)).toBe("대학");
+    expect(roleText(task("회고", { role_id: "club" }), roles)).toBe("동아리");
+    expect(roleText(task("메일"), roles)).toBeNull();
+    expect(roleText(task("x", { role_id: "지운 역할" }), roles)).toBeNull();
   });
 
   it("수정 칸: 지점을 고르면 그 지점의 역할이 들어가고, 역할 칩을 직접 누른 뒤에는 덮지 않는다", () => {
@@ -538,5 +493,142 @@ describe("역할 (7-11)", () => {
       "역할 이름은 앞뒤 공백 없이 1~20자입니다",
     );
     expect(plannerKorean(new DbError("[EZ_LIMIT] 역할은 12개까지 둘 수 있습니다", "P0001"))).toEqual({ code: "EZ_LIMIT", message: "역할은 12개까지 둘 수 있습니다" });
+  });
+});
+
+describe("정렬 (7-12)", () => {
+  // 목록은 일부러 sort 순서가 아니게 준다
+  const roles = [
+    { id: "me", name: "개인", sort: 3 },
+    { id: "univ", name: "대학", sort: 1 },
+    { id: "teach", name: "강사", sort: 2 },
+  ];
+  const places = [
+    { id: "p-work", name: "학원", sort: 2, deleted: false },
+    { id: "p-school", name: "학교", sort: 1, deleted: false },
+    { id: "p-old", name: "옛 자취방", sort: 0, deleted: true },
+  ];
+  const by = { roles, places };
+  // 직접 순서 그대로 (a → f)
+  const rows = [
+    { task: task("a", { role_id: "me", place_id: "p-work", due: "2026-10-05" }) },
+    { task: task("b", { role_id: "univ", place_id: "p-school" }) },
+    { task: task("c", { due: "2026-10-03" }) },
+    { task: task("d", { role_id: "univ", place_id: "p-old", due: "2026-10-03" }), link: link("d", "2026-10-04", 600) },
+    { task: task("e", { role_id: "지운 역할", place_id: "p-work" }) },
+    { task: task("f", { role_id: "me", place_id: "p-school", due: "2026-10-09" }), link: link("f", "2026-10-03", null) },
+  ];
+  type Row = { task: TaskRow; link?: TaskLink | null };
+  const shape = (sort: Sort, list: readonly Row[] = rows) => sortGroups(list, sort, by).map((g) => [g.kind, g.label, g.items.map((r) => r.task.id).join("")]);
+  const ids = (sort: Sort, list: readonly Row[] = rows) =>
+    sortGroups(list, sort, by)
+      .flatMap((g) => g.items.map((r) => r.task.id))
+      .join(" ");
+
+  it("직접: 묶음 하나, 받은 순서 그대로. 방향은 보지 않는다", () => {
+    expect(shape({ key: "manual", dir: "asc" })).toEqual([["all", "", "abcdef"]]);
+    expect(shape({ key: "manual", dir: "desc" })).toEqual([["all", "", "abcdef"]]);
+    expect(sortGroups(rows, { key: "manual", dir: "asc" }, by)[0]!.key).toBe("all");
+  });
+
+  it("역할: 역할 목록(sort) 순서대로 묶고 묶음 안은 직접 순서. 없는 것과 지운 역할은 없음으로 맨 뒤", () => {
+    expect(shape({ key: "role", dir: "asc" })).toEqual([
+      ["role", "대학", "bd"],
+      ["role", "개인", "af"],
+      ["none", "없음", "ce"],
+    ]);
+    expect(sortGroups(rows, { key: "role", dir: "asc" }, by).map((g) => g.key)).toEqual(["univ", "me", "none"]);
+  });
+
+  it("역할 내림: 역할 순서만 뒤집는다. 없음은 그래도 맨 뒤, 묶음 안은 직접 순서", () => {
+    expect(shape({ key: "role", dir: "desc" })).toEqual([
+      ["role", "개인", "af"],
+      ["role", "대학", "bd"],
+      ["none", "없음", "ce"],
+    ]);
+  });
+
+  it("장소: 지점 순서대로 묶는다. 지점 없는 것과 지운 지점은 없음으로 맨 뒤. 내림이면 지점 순서만 뒤집는다", () => {
+    expect(shape({ key: "place", dir: "asc" })).toEqual([
+      ["place", "학교", "bf"],
+      ["place", "학원", "ae"],
+      ["none", "없음", "cd"],
+    ]);
+    expect(shape({ key: "place", dir: "desc" })).toEqual([
+      ["place", "학원", "ae"],
+      ["place", "학교", "bf"],
+      ["none", "없음", "cd"],
+    ]);
+    expect(sortGroups(rows, { key: "place", dir: "asc" }, by).map((g) => g.key)).toEqual(["p-school", "p-work", "none"]);
+  });
+
+  it("묶음이 하나뿐이어도 라벨이 있는 묶음 하나. 다 없음이면 없음 하나. 줄이 없으면 빈 배열", () => {
+    expect(shape({ key: "role", dir: "asc" }, [rows[1]!, rows[3]!])).toEqual([["role", "대학", "bd"]]);
+    expect(shape({ key: "role", dir: "desc" }, [rows[2]!])).toEqual([["none", "없음", "c"]]);
+    expect(shape({ key: "place", dir: "asc" }, [rows[2]!, rows[3]!])).toEqual([["none", "없음", "cd"]]);
+    for (const key of ["manual", "role", "place", "time"] as const) expect(sortGroups([], { key, dir: "asc" }, by)).toEqual([]);
+  });
+
+  it("때: 일정이 마감보다 먼저, 종일은 그날 0시, 마감은 그날 끝, 끝낸 것은 끝낸 시각, 없으면 null", () => {
+    const day = (d: string) => Date.parse(`${d}T00:00:00Z`);
+    expect(whenOf(rows[3]!)).toBe(day("2026-10-04") + 600 * 60_000);
+    expect(whenOf(rows[5]!)).toBe(day("2026-10-03"));
+    expect(whenOf(rows[2]!)).toBe(day("2026-10-03") + 1439 * 60_000);
+    expect(whenOf(rows[1]!)).toBeNull();
+    expect(whenOf({ task: task("x", { done_at: "2026-09-30T03:00:00Z", due: "2026-10-09" }), link: link("x", "2026-10-02", 600) })).toBe(
+      Date.parse("2026-09-30T03:00:00Z"),
+    );
+  });
+
+  it("시간: 묶음 하나(구분 없음). 오름은 이른 것부터, 때 없는 것은 맨 뒤에 직접 순서로", () => {
+    // f 10/3 종일(0시) < c 10/3 마감(23:59) < d 10/4 10:00(마감 10/3 보다 일정이 먼저) < a 10/5 마감 · 때 없음 b, e
+    expect(shape({ key: "time", dir: "asc" })).toEqual([["all", "", "fcdabe"]]);
+  });
+
+  it("시간 내림: 늦은 것부터. 때 없는 것은 그래도 맨 뒤(직접 순서)", () => {
+    expect(shape({ key: "time", dir: "desc" })).toEqual([["all", "", "adcfbe"]]);
+  });
+
+  it("시간: 같은 때면 오름이든 내림이든 직접 순서", () => {
+    const same = [{ task: task("x", { due: "2026-10-03" }) }, { task: task("y", { due: "2026-10-01" }) }, { task: task("z", { due: "2026-10-03" }) }];
+    expect(ids({ key: "time", dir: "asc" }, same)).toBe("y x z");
+    expect(ids({ key: "time", dir: "desc" }, same)).toBe("x z y");
+  });
+
+  it("시간: 끝냄 묶음은 끝낸 시각 순 (직접 순서는 최근순)", () => {
+    const done = [
+      { task: task("최근", { done_at: "2026-09-30T03:00:00Z", due: "2026-09-01" }) },
+      { task: task("중간", { done_at: "2026-09-28T03:00:00Z" }) },
+      { task: task("옛것", { done_at: "2026-09-25T03:00:00Z", due: "2026-10-30" }) },
+    ];
+    expect(ids({ key: "manual", dir: "asc" }, done)).toBe("최근 중간 옛것");
+    expect(ids({ key: "time", dir: "asc" }, done)).toBe("옛것 중간 최근");
+    expect(ids({ key: "time", dir: "desc" }, done)).toBe("최근 중간 옛것");
+  });
+
+  it("목록 넷에 그대로 쓴다: 지남 · 시간 정함 줄은 이어진 일정을 가진 채 묶인다", () => {
+    const now = new Date("2026-10-01T03:00:00Z");
+    const tasks = [
+      task("서류", { role_id: "univ", due: "2026-09-29", sort: 1 }),
+      task("회의", { role_id: "me", sort: 2 }),
+      task("발표", { role_id: "univ", sort: 3 }),
+      task("상담", { sort: 4 }),
+    ];
+    const links = [link("회의", "2026-09-30", 600), link("발표", "2026-10-03", 600), link("상담", "2026-10-02", 600)];
+    const l = splitTasks(tasks, links, now, { date: "2026-10-01", min: 720 });
+    expect(ids({ key: "manual", dir: "asc" }, l.late)).toBe("서류 회의");
+    expect(ids({ key: "time", dir: "desc" }, l.late)).toBe("회의 서류");
+    expect(shape({ key: "role", dir: "asc" }, l.timed)).toEqual([
+      ["role", "대학", "발표"],
+      ["none", "없음", "상담"],
+    ]);
+  });
+
+  it("기억해 둔 정렬: {key, dir} 만 읽는다. 값이 이상하면 직접 · 오름", () => {
+    expect(parseSort('{"key":"role","dir":"desc"}')).toEqual({ key: "role", dir: "desc" });
+    expect(parseSort('{"key":"time","dir":"asc","x":1}')).toEqual({ key: "time", dir: "asc" });
+    for (const bad of [null, undefined, "", "role", "{", "null", "[]", '{"key":"name","dir":"asc"}', '{"key":"role","dir":"up"}', '{"key":"role"}']) {
+      expect(parseSort(bad)).toEqual({ key: "manual", dir: "asc" });
+    }
   });
 });

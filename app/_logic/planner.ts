@@ -1,6 +1,6 @@
 // 플래너 화면 계산 (docs/플래너.md 3장 · 7장). DOM 없이 시험할 수 있는 것만:
 // 목록 넷으로 나누기(지남 · 할 일 · 시간 정함 · 끝냄) · 지남 판정, 사이 sort 값, 시간 정하기의 기본 시작 시각,
-// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 역할로 거르기(7-11).
+// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 정렬과 구분 묶음(7-12).
 // 빈 시간 계산은 lib/schedule 의 planRange + freeSlots 가 한다.
 
 import type { KoreanError } from "../../lib/errors";
@@ -137,34 +137,91 @@ export function moved<T extends { id: string }>(list: readonly T[], id: string, 
 
 // ------------------------------------------------------------ 역할 (7-11)
 
-/** 필터: 전체 · 없음(역할 없는 할 일) · 역할 id */
-export type RoleFilter = string;
-export const ROLE_ALL = "all";
-export const ROLE_NONE = "none";
-
-/** 그 역할의 할 일만. 전체면 그대로, 없음이면 역할 없는 것만 */
-export function byRole<T extends { role_id: string | null }>(tasks: readonly T[], filter: RoleFilter): T[] {
-  if (filter === ROLE_ALL) return [...tasks];
-  const want = filter === ROLE_NONE ? null : filter;
-  return tasks.filter((t) => t.role_id === want);
-}
-
-/** 목록에 보이는 것 중 역할 없는 할 일이 있나 ('없음' 필터를 보일지) */
-export function hasRoleless(lists: Lists): boolean {
-  return [...lists.late.map((l) => l.task), ...lists.open, ...lists.timed.map((x) => x.task), ...lists.done].some((t) => t.role_id === null);
-}
-
-/** 기억해 둔 필터가 아직 쓸 수 있나: 없는 역할 id 나, 역할 없는 할 일이 없는데 '없음' 이면 전체로 */
-export function validFilter(saved: string | null | undefined, roles: readonly Role[], roleless: boolean): RoleFilter {
-  if (!saved || saved === ROLE_ALL) return ROLE_ALL;
-  if (saved === ROLE_NONE) return roleless ? ROLE_NONE : ROLE_ALL;
-  return roles.some((r) => r.id === saved) ? saved : ROLE_ALL;
-}
-
-/** 줄 오른쪽에 보일 역할 이름. 필터가 전체일 때만 — 역할을 골라 두면 다 같은 역할이라 안 보인다 */
-export function roleText(task: Pick<TaskRow, "role_id">, roles: readonly Role[], filter: RoleFilter): string | null {
-  if (filter !== ROLE_ALL || task.role_id === null) return null;
+/** 줄 오른쪽에 보일 역할 이름. 역할이 없거나 지운 역할이면 null (역할 정렬일 때는 화면이 구분 라벨에 적고 줄에서는 뺀다) */
+export function roleText(task: Pick<TaskRow, "role_id">, roles: readonly Role[]): string | null {
+  if (task.role_id === null) return null;
   return roles.find((r) => r.id === task.role_id)?.name ?? null;
+}
+
+// ------------------------------------------------------------ 정렬 (7-12)
+
+export const SORT_KEYS = ["manual", "role", "place", "time"] as const;
+export type SortKey = (typeof SORT_KEYS)[number];
+export type SortDir = "asc" | "desc";
+export type Sort = { key: SortKey; dir: SortDir };
+export const DEFAULT_SORT: Sort = { key: "manual", dir: "asc" };
+export const SORT_LABEL: Record<SortKey, string> = { manual: "직접", role: "역할", place: "장소", time: "시간" };
+/** 역할 · 지점 없는 묶음의 라벨 */
+export const NONE_LABEL = "없음";
+
+/** 기억해 둔 정렬 글자(JSON `{key, dir}`) → 정렬. 못 읽거나 값이 이상하면 직접 · 오름 */
+export function parseSort(raw: string | null | undefined): Sort {
+  if (!raw) return DEFAULT_SORT;
+  try {
+    const o: unknown = JSON.parse(raw);
+    if (typeof o !== "object" || o === null) return DEFAULT_SORT;
+    const { key, dir } = o as { key?: unknown; dir?: unknown };
+    if (!SORT_KEYS.includes(key as SortKey) || (dir !== "asc" && dir !== "desc")) return DEFAULT_SORT;
+    return { key: key as SortKey, dir };
+  } catch {
+    return DEFAULT_SORT;
+  }
+}
+
+/** 정렬할 한 줄: 할 일과 (있으면) 이어진 일정 */
+export type SortRow = { task: TaskRow; link?: TaskLink | null };
+/** 구분 묶음. kind: all = 구분 없는 한 묶음(직접 · 시간), role / place = 그 값의 묶음(key 는 그 id), none = 없음 */
+export type SortGroup<T> = { key: string; label: string; kind: "all" | "role" | "place" | "none"; items: T[] };
+
+/**
+ * 그 할 일의 '때'(ms): 끝낸 것은 끝낸 시각, 이어진 일정이 있으면 그 날짜·시작 시각(종일이면 그날 0시),
+ * 없으면 마감 날짜의 그날 끝(23:59). 때가 없으면 null
+ */
+export function whenOf(row: SortRow): number | null {
+  const { task, link } = row;
+  if (task.done_at !== null) return Date.parse(task.done_at);
+  const at = (d: DateStr, min: number) => Date.parse(`${d}T00:00:00Z`) + min * 60_000;
+  if (link) return at(link.date, link.start_min ?? 0);
+  return task.due ? at(task.due, 1439) : null;
+}
+
+/**
+ * 한 묶음(지남 · 할 일 · 시간 정함 · 끝냄 가운데 하나)의 줄을 정렬해 구분 묶음으로 나눈다. rows 는 직접 순서로 받는다.
+ * 직접: 한 묶음, 그대로. 역할 · 장소: 목록(sort) 순서대로 묶고 없는 것(지운 역할 · 지운 지점 포함)은 늘 맨 뒤,
+ * 묶음 안은 직접 순서, 내림이면 묶음 순서만 뒤집는다. 시간: 한 묶음, 때 순(오름 = 이른 것부터),
+ * 때가 없으면 늘 맨 뒤, 같은 때면 직접 순서. 줄이 없으면 빈 배열
+ */
+export function sortGroups<T extends SortRow>(
+  rows: readonly T[],
+  sort: Sort,
+  by: { roles: readonly Pick<Role, "id" | "name" | "sort">[]; places: readonly Pick<Place, "id" | "name" | "sort" | "deleted">[] },
+): SortGroup<T>[] {
+  if (rows.length === 0) return [];
+  if (sort.key === "manual") return [{ key: "all", label: "", kind: "all", items: [...rows] }];
+  if (sort.key === "time") {
+    const timed: { row: T; at: number }[] = [];
+    const rest: T[] = [];
+    for (const row of rows) {
+      const at = whenOf(row);
+      if (at === null) rest.push(row);
+      else timed.push({ row, at });
+    }
+    const sign = sort.dir === "asc" ? 1 : -1;
+    timed.sort((a, b) => sign * (a.at - b.at));
+    return [{ key: "all", label: "", kind: "all", items: [...timed.map((x) => x.row), ...rest] }];
+  }
+  const kind = sort.key;
+  const heads = (kind === "role" ? [...by.roles] : by.places.filter((p) => !p.deleted)).sort((a, b) => a.sort - b.sort);
+  if (sort.dir === "desc") heads.reverse();
+  const idOf = (row: T) => (kind === "role" ? row.task.role_id : row.task.place_id);
+  const known = new Set(heads.map((h) => h.id));
+  const groups: SortGroup<T>[] = heads.map((h) => ({ key: h.id, label: h.name, kind, items: rows.filter((r) => idOf(r) === h.id) }));
+  const none = rows.filter((r) => {
+    const id = idOf(r);
+    return id === null || !known.has(id);
+  });
+  groups.push({ key: "none", label: NONE_LABEL, kind: "none", items: none });
+  return groups.filter((g) => g.items.length > 0);
 }
 
 // ------------------------------------------------------------ 글자
