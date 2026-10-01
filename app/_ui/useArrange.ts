@@ -2,7 +2,8 @@
 
 // 보고서 블록 고르기 · 지우기 · 옮기기의 조작 (설계서 3장 "사람이 블록을 고르고 · 지우고 · 옮기기"). 글자 고치기 모드에서만 돈다.
 //  - 고르기: 블록을 넘는 끌기(마우스) = 시작 블록 ~ 지금 블록, 손잡이 누르기 / Shift(범위) / Ctrl·⌘(하나씩), 터치는 손잡이를 누를 때마다 더하고 빼기,
-//            Ctrl·⌘+A(칸 밖에서), Esc · 다른 곳 누르기 = 풀림
+//            Ctrl·⌘+A(칸 밖에서), Esc · 다른 곳 누르기 = 풀림 (아래 도구 줄 .edit-bar 를 누르는 것은 풀림이 아니다)
+//  - Esc 는 두 단계: 고른 게 있으면 풀고, 없고 칸에 커서도 없으면 고치기 모드를 끈다(onDone). Ctrl·⌘+Z(칸 밖에서) = 되돌리기(onUndo)
 //  - 지우기: Delete / Backspace(칸 밖에서) — 실제로 지우고 저장하는 것은 ReportView (onDelete)
 //  - 옮기기: 손잡이 끌기(터치는 길게 눌러 끌기), 고른 것은 한 덩어리. 놓일 자리는 선 하나(.drop-line). Alt+↑/↓ 한 칸. 화면 끝 가까이 끌면 스크롤
 // 순서 계산 · 놓일 자리 판정은 app/_logic/drawer (순수 함수 + 시험). 여기는 포인터와 키만 다룬다.
@@ -35,6 +36,10 @@ export type ArrangeOptions = {
   onDelete: (picked: number[]) => void;
   /** 새 순서(옛 번호들)로 바꾼다 */
   onMove: (order: number[]) => void;
+  /** Ctrl·⌘+Z (칸 밖에서) */
+  onUndo?: () => void;
+  /** 고른 것 없이 Esc (칸 밖에서) — 고치기 모드 끄기 */
+  onDone?: () => void;
 };
 
 export type Arrange = {
@@ -42,6 +47,13 @@ export type Arrange = {
   selected: ReadonlySet<string>;
   /** 고른 것 지우기 (도구 줄의 휴지통) */
   remove: () => void;
+  /** 전부 고르기. 전부 골라져 있으면 풀기 */
+  toggleAll: () => void;
+  allSelected: boolean;
+  /** 고른 덩어리를 한 칸 위(-1) · 아래(1)로 */
+  step: (dir: -1 | 1) => void;
+  canUp: boolean;
+  canDown: boolean;
   /** .doc-body 의 onPointerDown · onClick */
   onBodyDown: (e: PointerEvent<HTMLElement>) => void;
   onBodyClick: (e: MouseEvent<HTMLElement>) => void;
@@ -87,6 +99,35 @@ export function useArrange(options: ArrangeOptions): Arrange {
     opts.current.onDelete(picked);
   }, []);
 
+  const selectAll = useCallback(() => {
+    getSelection()?.removeAllRanges();
+    setSel([...opts.current.keys]);
+    anchor.current = opts.current.keys[0] ?? null;
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    const all = opts.current.keys;
+    if (all.length > 0 && selectedRef.current.size === all.length) {
+      setSel([]);
+      anchor.current = null;
+    } else selectAll();
+  }, [selectAll]);
+
+  const step = useCallback((dir: -1 | 1) => {
+    const all = opts.current.keys;
+    const picked = pickedIndexes();
+    if (picked.length === 0) return;
+    const order = orderStepped(all.length, picked, dir);
+    if (isSameOrder(all.length, order)) return;
+    const lead = all[dir < 0 ? picked[0]! : picked[picked.length - 1]!]!;
+    opts.current.onMove(order);
+    // 옮긴 블록이 화면 밖으로 나가면 따라간다
+    requestAnimationFrame(() => {
+      const el = [...(opts.current.body.current?.querySelectorAll<HTMLElement>("[data-bk]") ?? [])].find((n) => n.dataset.bk === lead);
+      el?.scrollIntoView({ block: "nearest" });
+    });
+  }, []);
+
   // 고치기 모드를 끄면 고르기가 풀리고, 하던 끌기도 그만둔다
   useEffect(() => {
     if (editing) return;
@@ -122,7 +163,7 @@ export function useArrange(options: ArrangeOptions): Arrange {
   const onBodyDown = useCallback((e: PointerEvent<HTMLElement>) => {
     if (!opts.current.editing || e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest(".grip")) return;
+    if (target.closest(".grip,.edit-bar")) return;
     bodyPointer.current = e.pointerType;
     // 터치는 누르는 순간이 스크롤의 시작일 수 있다 — 풀림은 톡 눌렀을 때(onBodyClick)
     if (e.pointerType !== "mouse") return;
@@ -187,7 +228,7 @@ export function useArrange(options: ArrangeOptions): Arrange {
   }, []);
 
   const onBodyClick = useCallback((e: MouseEvent<HTMLElement>) => {
-    if (bodyPointer.current === "mouse" || (e.target as HTMLElement).closest(".grip")) return;
+    if (bodyPointer.current === "mouse" || (e.target as HTMLElement).closest(".grip,.edit-bar")) return;
     if (selRef.current.length > 0) setSel([]);
     anchor.current = null;
   }, []);
@@ -323,9 +364,14 @@ export function useArrange(options: ArrangeOptions): Arrange {
           cancel.current();
           return;
         }
-        if (!field && selRef.current.length > 0) {
+        // 칸 안의 Esc 는 그 칸이 한다(글자 되돌리고 나감). 다른 것이 이미 쓴 Esc 도 건드리지 않는다
+        if (field || e.defaultPrevented) return;
+        if (selectedRef.current.size > 0) {
           setSel([]);
           anchor.current = null;
+        } else {
+          if (selRef.current.length > 0) setSel([]);
+          opts.current.onDone?.();
         }
         return;
       }
@@ -334,9 +380,12 @@ export function useArrange(options: ArrangeOptions): Arrange {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && !e.altKey && !e.shiftKey && (e.code === "KeyA" || e.key === "a" || e.key === "A")) {
         e.preventDefault();
-        getSelection()?.removeAllRanges();
-        setSel([...opts.current.keys]);
-        anchor.current = opts.current.keys[0] ?? null;
+        selectAll();
+        return;
+      }
+      if (mod && !e.altKey && !e.shiftKey && (e.code === "KeyZ" || e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        opts.current.onUndo?.();
         return;
       }
       if (selectedRef.current.size === 0) return;
@@ -347,23 +396,27 @@ export function useArrange(options: ArrangeOptions): Arrange {
       }
       if (e.altKey && !mod && !e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
         e.preventDefault();
-        const all = opts.current.keys;
-        const picked = pickedIndexes();
-        const order = orderStepped(all.length, picked, e.key === "ArrowUp" ? -1 : 1);
-        if (isSameOrder(all.length, order)) return;
-        const lead = all[e.key === "ArrowUp" ? picked[0]! : picked[picked.length - 1]!]!;
-        opts.current.onMove(order);
-        // 옮긴 블록이 화면 밖으로 나가면 따라간다
-        requestAnimationFrame(() => {
-          const el = [...(opts.current.body.current?.querySelectorAll<HTMLElement>("[data-bk]") ?? [])].find((n) => n.dataset.bk === lead);
-          el?.scrollIntoView({ block: "nearest" });
-        });
+        step(e.key === "ArrowUp" ? -1 : 1);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [editing, remove]);
+  }, [editing, remove, selectAll, step]);
 
   const ctx = useMemo<ArrangeCtx>(() => ({ selected, moving, onGripDown, onGripClick }), [selected, moving, onGripDown, onGripClick]);
-  return { ctx, selected, remove, onBodyDown, onBodyClick };
+  const count = keys.length;
+  const picked = keys.flatMap((k, i) => (selected.has(k) ? [i] : []));
+  const canStep = (dir: -1 | 1) => picked.length > 0 && !isSameOrder(count, orderStepped(count, picked, dir));
+  return {
+    ctx,
+    selected,
+    remove,
+    toggleAll,
+    allSelected: count > 0 && selected.size === count,
+    step,
+    canUp: canStep(-1),
+    canDown: canStep(1),
+    onBodyDown,
+    onBodyClick,
+  };
 }

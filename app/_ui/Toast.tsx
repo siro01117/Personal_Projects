@@ -6,9 +6,10 @@ import { Presence } from "./motion/Presence";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type ToastAction = { label: string; run: () => void };
-export type ToastFn = (message: string, action?: ToastAction, ms?: number) => void;
+/** 돌려주는 함수는 그 알림을 닫는다 (이미 다른 알림으로 바뀌었으면 아무 일 없음) */
+export type ToastFn = (message: string, action?: ToastAction, ms?: number) => () => void;
 
-const Ctx = createContext<ToastFn>(() => {});
+const Ctx = createContext<ToastFn>(() => () => {});
 
 export function useToast(): ToastFn {
   return useContext(Ctx);
@@ -20,8 +21,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback<ToastFn>((message, action, ms) => {
     clearTimeout(timer.current);
-    setState({ message, action, key: Date.now() });
-    timer.current = setTimeout(() => setState(null), ms ?? (action ? 5000 : 1800));
+    const mine = { message, action, key: Date.now() };
+    setState(mine);
+    const t = setTimeout(() => setState(null), ms ?? (action ? 5000 : 1800));
+    timer.current = t;
+    return () => {
+      if (timer.current === t) clearTimeout(t);
+      setState((s) => (s === mine ? null : s));
+    };
   }, []);
 
   useEffect(() => () => clearTimeout(timer.current), []);

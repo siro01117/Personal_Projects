@@ -379,3 +379,53 @@ export function dropLine(boxes: readonly Box[], slot: number, gap = 14): { x: nu
   if (!prev) return null;
   return { x: prev.left, y: prev.bottom + gap, w: prev.right - prev.left };
 }
+
+// ---------------------------------------------------------------- 되돌리기 기록 (설계서 3장 "고치기 도구 줄")
+// 기록은 블록을 번호가 아니라 열쇠로 기억한다 — 그 뒤 순서가 바뀌어도 되돌릴 때 지금 번호로 다시 찾는다.
+
+type Seg = string | number;
+
+/** H = 미뤄 둔 지우기(화면 쪽이 쥐고 있는 것). 저장 전일 때만 살릴 수 있다 */
+export type UndoEntry<H = unknown> =
+  | { kind: "text"; key: string | null; rest: Seg[]; value: string }
+  | { kind: "move"; keys: string[] }
+  | { kind: "delete"; held: H };
+
+/** 한 화면에서 기억하는 되돌리기 수 */
+export const UNDO_MAX = 100;
+
+/** 글자 고치기의 기록: 블록 안이면 블록 열쇠 + 나머지 경로, 제목 · 작성자면 경로 그대로. value = 고치기 전 글자 */
+export function undoForText(keys: readonly string[], path: readonly Seg[], value: string): UndoEntry<never> | null {
+  const head = path[0];
+  if (typeof head !== "number") return path.length === 0 ? null : { kind: "text", key: null, rest: [...path], value };
+  const key = keys[head];
+  return key === undefined ? null : { kind: "text", key, rest: path.slice(1), value };
+}
+
+/** 글자 기록이 가리키는 지금 경로. 그 블록이 없어졌으면 null */
+export function undoTextPath(keys: readonly string[], e: { key: string | null; rest: readonly Seg[] }): Seg[] | null {
+  if (e.key === null) return [...e.rest];
+  const i = keys.indexOf(e.key);
+  return i < 0 ? null : [i, ...e.rest];
+}
+
+/** 옮기기 전 순서(before)로 돌아가는 order — 지금 번호들을 옛 순서로 늘어놓은 것. 블록 구성이 달라졌으면 null */
+export function orderBack(now: readonly string[], before: readonly string[]): number[] | null {
+  if (now.length !== before.length) return null;
+  const at = new Map(now.map((k, i) => [k, i]));
+  if (at.size !== now.length) return null;
+  const order: number[] = [];
+  for (const k of before) {
+    const i = at.get(k);
+    if (i === undefined) return null;
+    at.delete(k);
+    order.push(i);
+  }
+  return order;
+}
+
+/** 기록 하나를 쌓는다. 넘치면 오래된 것부터 버린다 */
+export function pushUndo<T>(stack: readonly T[], entry: T, max = UNDO_MAX): T[] {
+  const next = [...stack, entry];
+  return next.length > max ? next.slice(next.length - max) : next;
+}

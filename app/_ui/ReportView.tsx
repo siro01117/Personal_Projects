@@ -5,21 +5,41 @@
 // 저장은 전부 한 줄(queue)로 선다: 글자(ez_edit_text)와 블록 순서(ez_blocks_arrange)가 화면에서 한 순서 그대로 서버에 간다.
 //  - 지우기는 알림이 떠 있는 동안 미뤄 둔다(held). 다른 저장이 오거나 고치기 모드를 끄거나 화면을 떠나면 그때 먼저 보낸다
 //  - 순서 저장이 실패하면 그 전 모습으로 되돌리고, 그 뒤에 줄 서 있던 저장은 버린다(번호가 어긋난 채 보내지 않는다 — epoch)
+// 고치는 동안에는 아래 도구 줄(EditBar)이 뜬다: 되돌리기 · 전부 고르기 · 위/아래 · 휴지통 · 완료.
+// 되돌리기 기록(undo)은 이 화면을 연 동안 쌓인다. 글자는 블록 열쇠로 기억했다가 원래 글자를 다시 저장하고, 옮기기는 거꾸로 옮긴다.
+//  - 지우기는 아직 미뤄 둔(held) 동안만 살린다. 지우기가 저장되면(flushHeld) 번호가 달라지므로 기록을 전부 비운다
+//  - 새로 불러오거나(load) 순서 저장이 실패해 되돌려질 때(epoch 가 바뀔 때)도 비운다. 되돌리기 자체는 기록을 남기지 않는다
 
 import { ThemeToggle } from "./ThemeToggle";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { arrangeBlocks, editRule, tidyText } from "../../lib/blocks";
+import { arrangeBlocks, editRule, isSameOrder, tidyText } from "../../lib/blocks";
 import { toKorean } from "../../lib/errors";
 import { blocksToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
 import { withDemo } from "../_data/source";
 import type { ReportDoc } from "../_data/types";
-import { folderTrail, formatDay, freshAt, isUnread, orderWithout, relativeDay, textAt, withTextAt } from "../_logic/drawer";
+import {
+  folderTrail,
+  formatDay,
+  freshAt,
+  isUnread,
+  orderBack,
+  orderWithout,
+  pushUndo,
+  relativeDay,
+  textAt,
+  undoForText,
+  undoTextPath,
+  withTextAt,
+  type UndoEntry,
+} from "../_logic/drawer";
 import { Blocks, Field, tocOf, type EditCtx, type ImageUrls, type Path } from "./Blocks";
 import { Crumbs, type Crumb } from "./Crumbs";
 import { useDrawer } from "./DrawerContext";
+import { EditBar, type EditAct } from "./EditBar";
 import { Icon } from "./Icon";
+import { Presence } from "./motion/Presence";
 import { useFlip } from "./motion/useFlip";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
@@ -38,7 +58,8 @@ type Snap = { blocks: unknown[]; keys: string[] };
 /** 보고서 하나의 저장 상태. 다른 보고서로 넘어가면 새것으로 갈린다 — 떠난 보고서의 저장이 새 보고서를 건드리지 않게 */
 type Scope = { id: string; version: number; conflict: boolean; epoch: number };
 /** 미뤄 둔 지우기 */
-type Held = { scope: Scope; order: number[]; snap: Snap; timer: ReturnType<typeof setTimeout> };
+type Held = { scope: Scope; order: number[]; snap: Snap; timer: ReturnType<typeof setTimeout>; closeToast: () => void };
+type Undo = UndoEntry<Held>;
 
 const NO_KEYS: readonly string[] = [];
 const NO_ROOT = { current: null };
@@ -51,6 +72,7 @@ export function ReportView({ id }: { id: string }) {
 
   const [doc, setDoc] = useState<Doc | null | "missing">(null);
   const [editing, setEditing] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
   const [shareOpen, setShareOpen] = useState(sp.get("share") === "1");
   const [shareBusy, setShareBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -63,6 +85,7 @@ export function ReportView({ id }: { id: string }) {
   const queue = useRef<Promise<void>>(Promise.resolve());
   const pending = useRef(0);
   const held = useRef<Held | null>(null);
+  const undo = useRef<Undo[]>([]);
   const flipArmed = useRef(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLElement>(null);
@@ -70,6 +93,16 @@ export function ReportView({ id }: { id: string }) {
   const shareRef = useRef<HTMLDivElement>(null);
   const shareBtn = useRef<HTMLButtonElement>(null);
   const loadSeq = useRef(0);
+
+  const record = useCallback((e: Undo) => {
+    undo.current = pushUndo(undo.current, e);
+    setCanUndo(true);
+  }, []);
+  /** 기록 하나를 뺀다. 안 주면 전부 비운다 */
+  const forget = useCallback((e?: Undo) => {
+    undo.current = e ? undo.current.filter((x) => x !== e) : [];
+    setCanUndo(undo.current.length > 0);
+  }, []);
 
   const load = useCallback(async () => {
     const seq = ++loadSeq.current;
@@ -84,6 +117,7 @@ export function ReportView({ id }: { id: string }) {
         held.current = null;
       }
       sc.epoch++;
+      forget();
       sc.version = r.version;
       sc.conflict = false;
       setDoc({ ...r, keys: r.blocks.map((_, i) => `k${i}`) });
@@ -92,12 +126,13 @@ export function ReportView({ id }: { id: string }) {
     } catch (e) {
       if (seq === loadSeq.current) fail(e);
     }
-  }, [data, id, fail]);
+  }, [data, id, fail, forget]);
 
   useEffect(() => {
     setDoc(null);
     setEditing(false);
-  }, [id]);
+    forget();
+  }, [id, forget]);
 
   useEffect(() => {
     void load();
@@ -155,6 +190,7 @@ export function ReportView({ id }: { id: string }) {
       const back = () => {
         sc.epoch++;
         if (scope.current !== sc) return;
+        forget();
         flipArmed.current = true;
         setDoc((d) => (d && d !== "missing" ? { ...d, blocks: snap.blocks, keys: snap.keys } : d));
       };
@@ -177,7 +213,7 @@ export function ReportView({ id }: { id: string }) {
       queue.current = job;
       return job;
     },
-    [data, saveFailed],
+    [data, saveFailed, forget],
   );
 
   /** 미뤄 둔 지우기를 지금 저장 줄에 세운다 (알림이 사라질 때 · 다른 저장 앞 · 고치기 모드를 끌 때 · 화면을 떠날 때) */
@@ -186,8 +222,10 @@ export function ReportView({ id }: { id: string }) {
     if (!h) return;
     clearTimeout(h.timer);
     held.current = null;
+    // 저장된 지우기는 되돌릴 수 없고, 번호가 달라지니 그 앞의 기록도 쓸 수 없다
+    forget();
     void sendArrange(h.scope, h.order, h.snap);
-  }, [sendArrange]);
+  }, [sendArrange, forget]);
   const flushRef = useRef(flushHeld);
   flushRef.current = flushHeld;
 
@@ -198,7 +236,8 @@ export function ReportView({ id }: { id: string }) {
   }, [editing]);
 
   const commit = useCallback(
-    async (path: Path, raw: string) => {
+    /** quiet = 되돌리기가 부른 저장 (기록을 남기지 않는다) */
+    async (path: Path, raw: string, quiet = false) => {
       if (doc === null || doc === "missing") return;
       const isTitle = path.length === 1 && path[0] === "title";
       const isAgent = path.length === 1 && path[0] === "agent";
@@ -228,6 +267,8 @@ export function ReportView({ id }: { id: string }) {
         });
       // 미뤄 둔 지우기가 있으면 먼저 저장 줄에 세운다. 화면의 블록은 이미 지운 뒤라 path 는 지운 뒤의 번호다
       flushHeld();
+      const entry = quiet ? null : undoForText(doc.keys, path, orig);
+      if (entry) record(entry);
       apply(value);
       pending.current++;
       const ep = sc.epoch;
@@ -237,6 +278,7 @@ export function ReportView({ id }: { id: string }) {
           if (ep !== sc.epoch) return;
           if (sc.conflict) {
             apply(orig);
+            if (entry && scope.current === sc) forget(entry);
             return;
           }
           const v = await data.editText(sc.id, sc.version, path, value);
@@ -245,6 +287,7 @@ export function ReportView({ id }: { id: string }) {
         } catch (e) {
           if (ep !== sc.epoch) return;
           apply(orig);
+          if (entry && scope.current === sc) forget(entry);
           saveFailed(e, sc);
         } finally {
           pending.current--;
@@ -253,7 +296,7 @@ export function ReportView({ id }: { id: string }) {
       queue.current = job;
       return job;
     },
-    [doc, data, toast, flushHeld, saveFailed],
+    [doc, data, toast, flushHeld, saveFailed, record, forget],
   );
 
   // ------------------------------------------------------------ 블록 지우기 · 옮기기
@@ -265,14 +308,26 @@ export function ReportView({ id }: { id: string }) {
     return { blocks: d.blocks, keys: d.keys };
   }, []);
 
-  const moveBlocks = useCallback(
-    (order: number[]) => {
+  const move = useCallback(
+    /** quiet = 되돌리기가 부른 옮기기 (기록을 남기지 않는다) */
+    (order: number[], quiet = false) => {
       if (doc === null || doc === "missing") return;
       flushHeld();
+      if (!quiet) record({ kind: "move", keys: doc.keys });
       void sendArrange(scope.current, order, arrangeNow(doc, order));
     },
-    [doc, flushHeld, sendArrange, arrangeNow],
+    [doc, flushHeld, sendArrange, arrangeNow, record],
   );
+  const moveBlocks = useCallback((order: number[]) => move(order), [move]);
+
+  /** 미뤄 둔 지우기를 없던 일로 (알림의 되돌리기 · 도구 줄의 되돌리기) */
+  const revive = useCallback((h: Held) => {
+    clearTimeout(h.timer);
+    held.current = null;
+    if (scope.current !== h.scope) return;
+    flipArmed.current = true;
+    setDoc((d) => (d && d !== "missing" ? { ...d, blocks: h.snap.blocks, keys: h.snap.keys } : d));
+  }, []);
 
   const deleteBlocks = useCallback(
     (picked: number[]) => {
@@ -282,31 +337,78 @@ export function ReportView({ id }: { id: string }) {
       if (order.length === 0) return void toast("블록이 하나는 남아야 합니다");
       flushHeld();
       const snap = arrangeNow(doc, order);
-      const h: Held = { scope: scope.current, order, snap, timer: setTimeout(() => flushRef.current(), DELETE_HOLD_MS) };
+      const h: Held = { scope: scope.current, order, snap, timer: setTimeout(() => flushRef.current(), DELETE_HOLD_MS), closeToast: () => {} };
       held.current = h;
+      const entry: Undo = { kind: "delete", held: h };
+      record(entry);
       const n = doc.blocks.length - order.length;
-      toast(
+      h.closeToast = toast(
         n > 1 ? `블록 ${n}개 삭제` : "블록 삭제",
         {
           label: "되돌리기",
           run: () => {
             // 그 사이 다른 저장이 지우기를 먼저 내보냈으면 되돌릴 수 없다
             if (held.current !== h) return void toast("이미 저장되어 되돌릴 수 없습니다");
-            clearTimeout(h.timer);
-            held.current = null;
-            if (scope.current !== h.scope) return;
-            flipArmed.current = true;
-            setDoc((d) => (d && d !== "missing" ? { ...d, blocks: snap.blocks, keys: snap.keys } : d));
+            forget(entry);
+            revive(h);
           },
         },
         DELETE_HOLD_MS,
       );
     },
-    [doc, toast, flushHeld, arrangeNow],
+    [doc, toast, flushHeld, arrangeNow, record, forget, revive],
   );
 
+  /** 방금 한 고치기 하나를 되돌린다. 더는 가리킬 곳이 없는 기록은 건너뛴다 */
+  const undoLast = useCallback(() => {
+    if (doc === null || doc === "missing") return;
+    for (let e = undo.current.at(-1); e; e = undo.current.at(-1)) {
+      forget(e);
+      if (e.kind === "delete") {
+        if (held.current !== e.held) continue;
+        e.held.closeToast();
+        revive(e.held);
+        return;
+      }
+      if (e.kind === "move") {
+        const order = orderBack(doc.keys, e.keys);
+        if (!order || isSameOrder(order.length, order)) continue;
+        move(order, true);
+        return;
+      }
+      const path = undoTextPath(doc.keys, e);
+      if (!path) continue;
+      void commit(path, e.value, true);
+      return;
+    }
+  }, [doc, forget, revive, move, commit]);
+
+  const done = useCallback(() => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    setEditing(false);
+  }, []);
+
   const ready = doc !== null && doc !== "missing";
-  const arr = useArrange({ editing: editing && ready, keys: ready ? doc.keys : NO_KEYS, body: bodyRef, line: lineRef, onDelete: deleteBlocks, onMove: moveBlocks });
+  const arr = useArrange({
+    editing: editing && ready,
+    keys: ready ? doc.keys : NO_KEYS,
+    body: bodyRef,
+    line: lineRef,
+    onDelete: deleteBlocks,
+    onMove: moveBlocks,
+    onUndo: undoLast,
+    onDone: done,
+  });
+
+  // 도구 줄. 칸에 커서가 있는 채로 누르면 그 칸을 먼저 저장(blur)하고, 그 저장이 화면에 반영된 뒤에 동작한다
+  const acts = useRef<Record<EditAct, () => void>>(null!);
+  acts.current = { undo: undoLast, all: arr.toggleAll, up: () => arr.step(-1), down: () => arr.step(1), trash: arr.remove, done };
+  const act = useCallback((name: EditAct) => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el?.isContentEditable) return acts.current[name]();
+    el.blur();
+    setTimeout(() => acts.current[name](), 0);
+  }, []);
 
   // 순서가 바뀐 커밋에서만 나머지 블록이 자리를 비켜 준다 (docs/모션.md 목록 재배치). 글자를 고쳐 높이가 바뀐 것은 움직이지 않는다
   useFlip(editing ? pageRef : NO_ROOT, ".blk[data-flip]", { when: () => flipArmed.current });
@@ -397,12 +499,6 @@ export function ReportView({ id }: { id: string }) {
         <span className="grow" />
         {ready && (
           <div className="tools">
-            {/* 고른 블록이 있을 때만 (터치에서 지우는 길) */}
-            {editing && arr.selected.size > 0 && (
-              <button type="button" className="iconbtn sel-trash" aria-label="고른 블록 지우기" title="고른 블록 지우기" onClick={arr.remove}>
-                <Icon name="trash" />
-              </button>
-            )}
             <button
               type="button"
               className="iconbtn"
@@ -486,6 +582,11 @@ export function ReportView({ id }: { id: string }) {
           {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} />}
         </div>
       ) : null}
+      <Presence>
+        {editing && ready && (
+          <EditBar canUndo={canUndo} allSelected={arr.allSelected} canUp={arr.canUp} canDown={arr.canDown} hasSelection={arr.selected.size > 0} onAct={act} />
+        )}
+      </Presence>
     </>
   );
 }

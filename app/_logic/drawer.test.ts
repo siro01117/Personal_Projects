@@ -6,7 +6,11 @@ import {
   domainOf,
   dropLine,
   dropSlot,
+  orderBack,
   orderMoved,
+  pushUndo,
+  undoForText,
+  undoTextPath,
   orderStepped,
   orderWithout,
   type Box,
@@ -399,5 +403,48 @@ describe("블록 고르기 · 지우기 · 옮기기", () => {
     expect(dropLine(boxes, 4, 14)).toEqual({ x: 520, y: 366, w: 380 });
     expect(dropLine(boxes, 5, 14)).toEqual({ x: 520, y: 514, w: 380 });
     expect(dropLine([], 0)).toBeNull();
+  });
+});
+
+describe("되돌리기 기록", () => {
+  const keys = ["k0", "k1", "k2", "k3"];
+
+  it("글자: 블록은 열쇠로 기억하고, 되돌릴 때 지금 번호로 경로를 다시 만든다", () => {
+    const e = undoForText(keys, [2, "items", 1], "원래");
+    expect(e).toEqual({ kind: "text", key: "k2", rest: ["items", 1], value: "원래" });
+    // 그 사이 순서가 바뀌었다
+    expect(undoTextPath(["k2", "k0", "k1", "k3"], e as { key: string | null; rest: (string | number)[] })).toEqual([0, "items", 1]);
+    // 그 블록이 없어졌으면 되돌릴 수 없다
+    expect(undoTextPath(["k0", "k1"], e as { key: string | null; rest: (string | number)[] })).toBeNull();
+  });
+
+  it("글자: 제목 · 작성자는 경로 그대로", () => {
+    expect(undoForText(keys, ["title"], "옛 제목")).toEqual({ kind: "text", key: null, rest: ["title"], value: "옛 제목" });
+    expect(undoTextPath([], { key: null, rest: ["agent"] })).toEqual(["agent"]);
+    expect(undoForText(keys, [9, "h"], "x")).toBeNull();
+    expect(undoForText(keys, [], "x")).toBeNull();
+  });
+
+  it("옮기기: 거꾸로 된 order 는 옮긴 것을 원래 순서로 돌린다", () => {
+    for (const order of [orderMoved(4, [0], 3), orderStepped(4, [1, 2], 1), orderMoved(4, [3, 1], 0)]) {
+      const now = order.map((i) => keys[i]!);
+      const back = orderBack(now, keys)!;
+      expect(back.map((i) => now[i])).toEqual(keys);
+    }
+    expect(orderBack(["k1", "k0"], ["k0", "k1"])).toEqual([1, 0]);
+    expect(orderBack(keys, keys)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("옮기기: 블록 구성이 달라졌으면 null", () => {
+    expect(orderBack(["k0", "k1"], keys)).toBeNull();
+    expect(orderBack(["k0", "k1", "k2", "x"], keys)).toBeNull();
+    expect(orderBack(["k0", "k0"], ["k0", "k0"])).toBeNull();
+  });
+
+  it("쌓기: 넘치면 오래된 것부터 버린다, 원본은 그대로", () => {
+    const a = [1, 2];
+    expect(pushUndo(a, 3)).toEqual([1, 2, 3]);
+    expect(a).toEqual([1, 2]);
+    expect(pushUndo([1, 2, 3], 4, 3)).toEqual([2, 3, 4]);
   });
 });
