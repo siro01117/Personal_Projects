@@ -1,4 +1,5 @@
-// MCP 도구 등록: 이름·설명·입력 모양 (설계서 4장). 로직은 drawer.ts.
+// MCP 도구 등록: 이름·설명·입력 모양. 로직은 drawer.ts(보고서 6개, docs/보고서-서랍.md 4장)와
+// schedule.ts(일정 4개 · 플래너 2개, docs/일정.md 5장 · docs/플래너.md 4장).
 // 도구 설명은 매번 에이전트 컨텍스트에 실리므로 짧게 쓴다.
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -6,8 +7,11 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { reportKindSchema } from "../lib/blocks";
 import type { Drawer, ToolResult } from "./drawer";
+import type { Schedule } from "./schedule";
 
-export const TOOL_NAMES = ["drawer_list", "drawer_mkdir", "drawer_update", "report_create", "report_get", "report_edit"] as const;
+export const DRAWER_TOOLS = ["drawer_list", "drawer_mkdir", "drawer_update", "report_create", "report_get", "report_edit"] as const;
+export const SCHEDULE_TOOLS = ["schedule_get", "schedule_save", "schedule_delete", "schedule_sync", "todo_list", "todo_save"] as const;
+export const TOOL_NAMES = [...DRAWER_TOOLS, ...SCHEDULE_TOOLS] as const;
 
 export function toCallResult(r: ToolResult): CallToolResult {
   return {
@@ -33,7 +37,7 @@ const BLOCKS_HELP = `블록 어휘 v1 — 정해진 칸만 쓴다. 글자는 앞
 h(소제목) ≤200자. 블록 1~200개, 전체 약 580KB 까지(넘으면 두 보고서로 나눈다). 틀리면 "blocks[2].rows[3]: 이유" 목록이 돌아온다.
 예: [{"type":"verdict","v":"A 를 쓴다","w":"무료이고 문서가 좋다"},{"type":"claims","h":"근거","items":[{"tag":"fact","text":"A 는 무료다","refs":[1]},{"tag":"guess","text":"B 보다 빠를 것이다","refs":[]}]},{"type":"sources","h":"출처","items":[{"title":"A 문서","url":"https://a.dev/docs"}]}]`;
 
-export function registerTools(server: McpServer, drawer: Drawer): void {
+export function registerTools(server: McpServer, drawer: Drawer, schedule: Schedule): void {
   const call = async (p: Promise<ToolResult>) => toCallResult(await p);
 
   server.registerTool(
@@ -131,5 +135,152 @@ op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"
       },
     },
     (a) => call(drawer.report_edit(a)),
+  );
+
+  registerScheduleTools(server, schedule, call);
+}
+
+// ---------------------------------------------------------------------------
+// 일정 · 플래너
+
+const DATE = "YYYY-MM-DD";
+const HM = "HH:MM";
+const repeatSchema = z
+  .object({
+    freq: z.enum(["daily", "weekly"]),
+    days: z.array(z.union([z.string(), z.number().int()])).optional().describe('요일 ["월","수"]'),
+    until: z.string().nullable().optional().describe(`끝나는 날 ${DATE} (그날 포함)`),
+  })
+  .nullable();
+
+function registerScheduleTools(
+  server: McpServer,
+  schedule: Schedule,
+  call: (p: Promise<ToolResult>) => Promise<CallToolResult>,
+): void {
+  server.registerTool(
+    "schedule_get",
+    {
+      title: "일정 보기",
+      description:
+        "from~to(62일까지) 날짜별 일정 회차 + 계산된 준비·이동 띠(늦음)·식사. free_min 을 주면 그 길이 이상 빈 시간(07~24시, 동선 뺌). 시각 HH:MM, 다음 날은 +1. 지점 목록도 준다.",
+      inputSchema: {
+        from: z.string().describe(DATE),
+        to: z.string().describe(`${DATE} (포함)`),
+        free_min: z.number().int().optional().describe("빈 시간 최소 길이(분)"),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (a) => call(schedule.schedule_get(a)),
+  );
+
+  server.registerTool(
+    "schedule_save",
+    {
+      title: "일정 넣기·고치기",
+      description:
+        "id 없으면 새 일정(title·date + start/end 또는 all_day). 고칠 땐 id+base_version, 준 칸만 바뀜. end≤start 면 다음 날. place 는 지점 이름(null=없음). 반복 회차는 on_date+scope(once 이번만·following 이후 모두·all 전체). task_id 로 할 일과 잇는다(길이 기본=est_min). 바깥 일정은 못 고침.",
+      inputSchema: {
+        id: z.string().optional().describe("고칠 일정 id"),
+        base_version: z.number().int().optional().describe("고칠 때 schedule_get 의 version"),
+        on_date: z.string().optional().describe(`반복 회차 날짜 ${DATE}`),
+        scope: z.enum(["once", "following", "all"]).optional(),
+        title: z.string().optional(),
+        date: z.string().optional().describe(DATE),
+        start: z.string().optional().describe(HM),
+        end: z.string().optional().describe(HM),
+        all_day: z.boolean().optional(),
+        place: z.string().nullable().optional().describe("지점 이름"),
+        where: z.string().nullable().optional().describe("상세 장소 글"),
+        travel_min: z.number().int().nullable().optional().describe("이 일정만의 이동시간(분)"),
+        note: z.string().nullable().optional(),
+        repeat: repeatSchema.optional(),
+        task_id: z.string().nullable().optional().describe("이을 할 일 id (null=끊기)"),
+      },
+    },
+    (a) => call(schedule.schedule_save(a)),
+  );
+
+  server.registerTool(
+    "schedule_delete",
+    {
+      title: "일정 지우기",
+      description: "일정 지우기. 반복이면 on_date+scope(once·following·all). 바깥 일정은 못 지움.",
+      inputSchema: {
+        id: z.string(),
+        on_date: z.string().optional().describe(`반복 회차 날짜 ${DATE}`),
+        scope: z.enum(["once", "following", "all"]).optional(),
+      },
+      annotations: { destructiveHint: true },
+    },
+    (a) => call(schedule.schedule_delete(a)),
+  );
+
+  server.registerTool(
+    "schedule_sync",
+    {
+      title: "바깥 일정 맞추기",
+      description:
+        "바깥 일정 source(예: studycube)의 from~to 를 events 로 갈아끼운다. external_id 가 같으면 고치고, 빠진 것은 지우고, 새 것은 넣는다. 하나라도 틀리면 아무것도 안 바꾸고 자리·이유 목록. 200일·500개까지.",
+      inputSchema: {
+        source: z.string().describe("영문 소문자·숫자·_·-"),
+        from: z.string().describe(DATE),
+        to: z.string().describe(`${DATE} (포함)`),
+        events: z
+          .array(
+            z.object({
+              external_id: z.string().optional(),
+              title: z.string().optional(),
+              date: z.string().optional(),
+              start: z.string().optional(),
+              end: z.string().optional(),
+              all_day: z.boolean().optional(),
+              place: z.string().nullable().optional(),
+              where: z.string().nullable().optional(),
+              travel_min: z.number().int().nullable().optional(),
+              note: z.string().nullable().optional(),
+              repeat: repeatSchema.optional(),
+            }),
+          )
+          .describe("{external_id, title, date, start, end | all_day, place?, where?, note?, repeat?}"),
+        label: z.string().optional().describe("출처 표시 이름 (예: 스터디큐브)"),
+      },
+      annotations: { idempotentHint: true },
+    },
+    (a) => call(schedule.schedule_sync(a)),
+  );
+
+  server.registerTool(
+    "todo_list",
+    {
+      title: "할 일 목록",
+      description: "플래너 할 일. status: open(기본)·done·all. query 는 제목·메모에서 찾기. 이어진 일정(날짜·시각)도 준다.",
+      inputSchema: {
+        status: z.enum(["open", "done", "all"]).optional(),
+        query: z.string().optional(),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (a) => call(schedule.todo_list(a)),
+  );
+
+  server.registerTool(
+    "todo_save",
+    {
+      title: "할 일 넣기·고치기",
+      description:
+        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id).",
+      inputSchema: {
+        id: z.string().optional(),
+        base_version: z.number().int().optional().describe("고칠 때 todo_list 의 version"),
+        title: z.string().optional(),
+        note: z.string().nullable().optional(),
+        due: z.string().nullable().optional().describe(`마감 ${DATE}`),
+        est_min: z.number().int().nullable().optional().describe("걸릴 시간(분) 5~600"),
+        done: z.boolean().optional(),
+        delete: z.boolean().optional(),
+      },
+    },
+    (a) => call(schedule.todo_save(a)),
   );
 }

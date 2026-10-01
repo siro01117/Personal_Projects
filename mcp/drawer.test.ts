@@ -9,7 +9,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { sampleBlocks } from "../lib/fixtures";
 import { createDrawer, type Drawer, type ToolResult } from "./drawer";
 import { PgliteStore, createTestDb } from "./store-pglite";
-import { TOOL_NAMES, registerTools } from "./tools";
+import { createSchedule } from "./schedule";
+import { PgliteScheduleStore } from "./schedule-store-pglite";
+import { DRAWER_TOOLS, TOOL_NAMES, registerTools } from "./tools";
 
 let db: PGlite;
 beforeAll(async () => {
@@ -681,16 +683,16 @@ describe("다른 사람 것", () => {
 
 describe("MCP 프로토콜", () => {
   async function connect() {
-    const { drawer } = setup();
+    const { drawer, owner } = setup();
     const server = new McpServer({ name: "ez-drawer", version: "test" });
-    registerTools(server, drawer);
+    registerTools(server, drawer, createSchedule({ store: new PgliteScheduleStore(db, owner) }));
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: "test", version: "0" });
     await Promise.all([server.connect(st), client.connect(ct)]);
     return client;
   }
 
-  it("도구 6개, 설계서 이름 그대로. report_create 설명에 블록 어휘와 예시", async () => {
+  it("도구 12개(서랍 6 + 일정·플래너 6), 설계서 이름 그대로. report_create 설명에 블록 어휘와 예시", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
@@ -699,8 +701,9 @@ describe("MCP 프로토콜", () => {
       expect(create.description).toContain(w);
     }
     expect(create.inputSchema.required).toEqual(expect.arrayContaining(["title", "kind", "folder", "blocks"]));
-    // 설명 전체 길이를 절제한다
-    const total = tools.reduce((n, t) => n + (t.description?.length ?? 0), 0);
+    // 서랍 도구 설명 길이를 절제한다 (일정·플래너 쪽은 schedule.test.ts)
+    const drawerTools = tools.filter((t) => (DRAWER_TOOLS as readonly string[]).includes(t.name));
+    const total = drawerTools.reduce((n, t) => n + (t.description?.length ?? 0), 0);
     expect(total).toBeLessThan(3000);
   });
 

@@ -1,4 +1,4 @@
-// 보고서 서랍 로컬 MCP 서버 (stdio). Claude Code 가 .mcp.json 으로 실행한다: npx tsx mcp/server.ts
+// EZ.WORK 로컬 MCP 서버 (stdio) — 보고서 서랍 6개 + 일정·플래너 6개. Claude Code 가 .mcp.json 으로 실행한다: npx tsx mcp/server.ts
 // stdout 은 MCP 통신 전용 — 로그는 stderr 로만. 키 값은 어디에도 쓰지 않는다.
 // 시작한 뒤 주인 없는 사진(14일 넘은 것)을 Storage API 로 치운다. 실패해도 서버는 그대로 돈다.
 
@@ -8,6 +8,8 @@ import { createDrawer } from "./drawer";
 import { loadEnv } from "./env";
 import { toKorean } from "./errors";
 import { purgeImages } from "./images";
+import { createSchedule } from "./schedule";
+import { SupabaseScheduleStore } from "./schedule-store-supabase";
 import { SupabaseStore } from "./store-supabase";
 import { registerTools } from "./tools";
 
@@ -20,7 +22,8 @@ const { env } = loaded;
 
 const store = new SupabaseStore(env.EZ_SUPABASE_URL, env.EZ_SUPABASE_SERVICE_ROLE_KEY, env.EZ_OWNER_ID);
 const server = new McpServer({ name: "ez-drawer", version: "0.1.0" });
-registerTools(server, createDrawer({ store, agent: env.EZ_AGENT_NAME, webUrl: env.EZ_WEB_URL }));
+const scheduleStore = new SupabaseScheduleStore(env.EZ_SUPABASE_URL, env.EZ_SUPABASE_SERVICE_ROLE_KEY, env.EZ_OWNER_ID);
+registerTools(server, createDrawer({ store, agent: env.EZ_AGENT_NAME, webUrl: env.EZ_WEB_URL }), createSchedule({ store: scheduleStore }));
 
 try {
   await server.connect(new StdioServerTransport());

@@ -11,6 +11,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "mcp": "tsx mcp/server.ts",
     "smoke": "tsx mcp/smoke.ts",
+    "smoke:schedule": "tsx mcp/smoke-schedule.ts",
     "purge-images": "tsx mcp/purge-images.ts"
   },
   "dependencies": {
