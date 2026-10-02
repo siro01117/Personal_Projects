@@ -60,7 +60,10 @@ async function wipe(): Promise<void> {
     ["ez_events", "title"],
     ["ez_tasks", "title"],
   ] as const) {
-    const { error, count } = await admin.from(table).delete({ count: "exact" }).eq("owner", owner).like(col, `${TAG}%`);
+    // 일정 · 할 일은 모임에서 온 것만 — 다른 스모크가 남긴 바깥 일정(source = smoke)은 건드리지 않는다
+    let q = admin.from(table).delete({ count: "exact" }).eq("owner", owner).like(col, `${TAG}%`);
+    if (table === "ez_events" || table === "ez_tasks") q = q.eq("origin_kind", "meet");
+    const { error, count } = await q;
     check(!error, `${table} ${count ?? 0}행 영구 삭제${error ? ` — ${error.message}` : ""}`);
   }
 }
