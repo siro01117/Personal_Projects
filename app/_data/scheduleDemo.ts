@@ -1,5 +1,6 @@
 // 확인 모드 일정·플래너 데이터 — 목업(docs/mockup/schedule-v1.html)과 같은 지점 4곳 · 이동시간 · 일정.
 // 날짜는 오늘이 속한 주(월요일) 기준 상대 날짜라 언제 열어도 이번 주에 보인다. 개발 모드에서만 불린다.
+// 모임(meetDemo.ts)에 딸린 일정 · 모임에서 나온 할 일도 여기 들어 있다 (origin_kind = 'meet').
 
 import { addDays, DEFAULT_SETTINGS, type DateStr } from "../../lib/schedule";
 import { mondayOf, nowIn } from "../_logic/schedule";
@@ -11,12 +12,32 @@ const P = DEMO_PLACES;
 /** 역할 넷: 기본 셋 + 지점에서 오지 않는 동아리 */
 export const DEMO_ROLES = { univ: ID(401), teach: ID(402), me: ID(403), club: ID(404) } as const;
 const R = DEMO_ROLES;
+export const DEMO_CIRCLES = { apptive: ID(501), study: ID(502) } as const;
+/** 모임과 딸린 일정의 id (meetDemo 의 모임이 가리킨다) */
+export const DEMO_MEETS = { kickoff: ID(601), week3: ID(602), regular: ID(603), dinner: ID(604), plan: ID(605), after: ID(606) } as const;
+export const DEMO_MEET_EVENTS = { kickoff: ID(131), week3: ID(132), regular: ID(133), dinner: ID(134) } as const;
+
+/** 확인 모드 모임의 날짜 (모임 씨앗과 일정 씨앗이 같은 값을 쓴다) */
+export function demoMeetDays(now: Date = new Date()): { kickoff: DateStr; week3: DateStr; regular: DateStr; dinner: DateStr; poll: DateStr[] } {
+  const today = nowIn(DEFAULT_SETTINGS.tz, now).date;
+  return {
+    kickoff: addDays(today, -7),
+    week3: addDays(today, -3),
+    regular: addDays(today, 2),
+    dinner: addDays(today, 5),
+    poll: [8, 9, 10, 12].map((k) => addDays(today, k)),
+  };
+}
 
 export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
   const today = nowIn(DEFAULT_SETTINGS.tz, now).date;
   const W = mondayOf(today);
   const d = (k: number): DateStr => addDays(W, k);
   const ago = (min: number) => new Date(now.getTime() - min * 60_000).toISOString();
+  const md = demoMeetDays(now);
+  const M = DEMO_MEETS;
+  const ME = DEMO_MEET_EVENTS;
+  const meetOrigin = (id: string) => ({ origin_kind: "meet" as const, origin_id: id });
 
   return {
     places: [
@@ -68,6 +89,11 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
       { id: ID(123), title: "마감 작업", date: d(4), start_min: 1380, end_min: 1500 },
       { id: ID(124), title: "본가", date: d(5), start_min: null, end_min: null },
       { id: ID(125), title: "송현이 누나 결혼식", date: addDays(today, 10), start_min: 720, end_min: 840 },
+      // 모임에서 온 약속 (모임에 시간을 적으면 생긴다)
+      { id: ME.kickoff, title: "APPTIVE 킥오프", date: md.kickoff, start_min: 1140, end_min: 1260, place_id: P.cafe, ...meetOrigin(M.kickoff) },
+      { id: ME.week3, title: "알고리즘 스터디 3주차", date: md.week3, start_min: 960, end_min: 1080, place_id: P.school, where_text: "도서관 4층 스터디룸", ...meetOrigin(M.week3) },
+      { id: ME.regular, title: "APPTIVE 정기 회의", date: md.regular, start_min: 1140, end_min: 1260, place_id: P.cafe, ...meetOrigin(M.regular) },
+      { id: ME.dinner, title: "고등학교 동창 저녁", date: md.dinner, start_min: 1110, end_min: 1230, where_text: "서면 삼겹살집", ...meetOrigin(M.dinner) },
       // 어제 잡아 둔 시간이 지나간 할 일 (지남 묶음)
       { id: ID(126), title: "교수님 메일 답장", date: addDays(today, -1), start_min: 930, end_min: 960, task_id: ID(209) },
     ],
@@ -102,6 +128,10 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
       { id: ID(210), title: "축의금 봉투 준비", due: addDays(today, 10), due_event_id: ID(125), sort: 9, role_id: R.me },
       { id: ID(212), title: "다음 주 수업 자료 인쇄", est_min: 20, sort: 9.5, place_id: P.work, role_id: R.teach },
       // 주간 반복 규칙의 이번 주 회차
+      // 모임에서 나온 할 일 (묶음의 역할 · 모임의 지점을 물려받는다)
+      { id: ID(221), title: "킥오프 회의록 공유", sort: 11, done_at: ago(60 * 24 * 6), role_id: R.club, place_id: P.cafe, ...meetOrigin(M.kickoff) },
+      { id: ID(222), title: "화면 흐름 초안 그리기", est_min: 90, sort: 12, role_id: R.club, place_id: P.cafe, ...meetOrigin(M.kickoff) },
+      { id: ID(223), title: "회의 안건 미리 올리기", due: md.regular, sort: 13, role_id: R.club, place_id: P.cafe, ...meetOrigin(M.regular) },
       { id: ID(211), title: "주간 정리", due: d(6), est_min: 40, sort: 10, rule_id: ID(301), rule_date: d(0), role_id: R.me, checklist: [{ t: "받은 편지함 비우기", done: false }, { t: "다음 주 일정 확인", done: false }] },
     ],
     rules: [

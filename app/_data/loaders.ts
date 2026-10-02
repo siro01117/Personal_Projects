@@ -2,7 +2,8 @@
 // 서로 기다릴 이유가 없는 것은 전부 한 차례에 같이 보낸다. 차례 수는 requests.test.ts 가 고정한다.
 
 import { addDays, type DateStr, type Place, type Role, type Settings, type TaskRow, type TaskRule, type Travel } from "../../lib/schedule";
-import type { EventRows, PlannerData, ScheduleData, SourceInfo, TaskLink } from "./types";
+import type { Circle, Meet } from "../../lib/meet";
+import type { EventRows, MeetData, PlannerData, ScheduleData, SourceInfo, TaskLink } from "./types";
 
 export type PlannerLists = { tasks: TaskRow[]; links: TaskLink[]; rules: TaskRule[]; roles: Role[] };
 export type TaskLists = { tasks: TaskRow[]; links: TaskLink[]; rules: TaskRule[] };
@@ -22,6 +23,14 @@ export async function readTaskLists(T: PlannerData): Promise<TaskLists> {
 export async function readMeta(S: ScheduleData): Promise<MetaLists> {
   const [places, travel, settings, sources] = await Promise.all([S.places(), S.travel(), S.settings(), S.sources()]);
   return { places, travel, settings, sources };
+}
+
+export type MeetLists = { meets: Meet[]; circles: Circle[]; roles: Role[]; places: Place[]; settings: Settings };
+
+/** 모임 열기: 모임(사람들까지) · 묶음 · 역할 · 지점 · 설정(내 이름)을 한 차례에 */
+export async function readMeetLists(M: MeetData, T: PlannerData, S: ScheduleData): Promise<MeetLists> {
+  const [meets, circles, roles, places, settings] = await Promise.all([M.meets(), M.circles(), T.roles(), S.places(), S.settings()]);
+  return { meets, circles, roles, places, settings };
 }
 
 /** 월요일 w 로 시작하는 한 주 */

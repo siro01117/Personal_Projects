@@ -820,6 +820,164 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .iconbtn.clr .i{width:16px;height:16px}
 
 /* ====================================================================================
+   모임 (docs/모임.md 5장). 목록과 모임 화면은 플래너의 틀(.planner · .pl-*)을 같이 쓴다 — 회색 바탕 위 종이 카드, 넓으면 두 열.
+   지점은 색 점만, 역할 · 묶음에는 색이 없다. 포인트는 키위 하나
+   ==================================================================================== */
+.mt-new{height:36px;padding:0 14px;font-size:13px}
+/* 목록 줄: 제목 · 시각(또는 후보 날짜) · 묶음 이름 · 사람 수. 칸 폭을 맞춰 줄끼리 가지런하다 */
+.mt-row{align-items:flex-start}
+.mt-row .nm{text-decoration:none}
+.mt-row .sym{width:8px}
+.mt-row .when{min-width:104px;text-align:left}
+.mt-row .grp{flex:0 0 auto;width:8.5em;font-size:12.5px;line-height:22px;color:var(--text-3);word-break:keep-all;overflow-wrap:anywhere}
+.mt-row .cnt{min-width:22px}
+/* 좁아지면 말줄임 대신 묶음 이름 → 사람 수 순으로 뺀다. 시각은 남긴다 */
+@container plist (max-width: 520px){ .mt-row .grp{display:none} }
+@container plist (max-width: 480px){ .mt-row .when{min-width:96px} .mt-row .cnt:empty{display:none} }
+@container plist (max-width: 300px){ .mt-row .cnt{display:none} }
+/* 모임 화면: 폭을 다 쓰지 않는 두 열 */
+.mt-page .mt-cols{max-width:1040px}
+.pl-sec.mt-card{padding:18px 20px 20px}
+.mt-card .dp-h{margin-bottom:8px}
+.mt-card .dp-f .pdot.at{width:10px;height:10px;margin:6px 4px 0}
+.mt-card .ttl{height:44px}
+.mt-note{margin:0;padding:2px 12px 10px;font-size:14px;color:var(--text-2);white-space:pre-line;word-break:keep-all;overflow-wrap:anywhere}
+/* 사람들: 이름 줄 + (정해진 뒤) 온다 / 못 온다 — 끝냄 체크처럼 바로 눌린다 */
+.mt-people{list-style:none;margin:0;padding:0 0 4px;display:flex;flex-direction:column}
+.mt-people li{display:flex;align-items:center;gap:8px;min-height:42px;padding:4px 6px 4px 12px}
+.mt-people .nm{flex:1;min-width:0;font-size:15px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.mt-people .iconbtn{width:32px;height:32px}
+.mt-people .iconbtn .i{width:16px;height:16px}
+.att{flex:0 0 auto;display:flex;gap:4px}
+.att button{height:30px;padding:0 11px;border-radius:999px;font-size:12.5px;color:var(--text-3);background:var(--surface-2);white-space:nowrap;transition:background var(--t),color var(--t),transform var(--t),box-shadow var(--t)}
+.att button:hover{color:var(--text-1)}
+.att button:active{transform:scale(.97)}
+.att button[aria-pressed="true"]{background:var(--point-soft);color:var(--text-1);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.att button.no[aria-pressed="true"]{background:var(--surface-3);box-shadow:none}
+/* 할 일 줄 (플래너와 같은 데이터) · 한 줄 더하기 */
+.mt-task{cursor:default}
+.mt-task:hover{background:none}
+.meet .pl-sec > .role-add{margin:4px 4px 2px}
+/* 이름 칩 (새 모임의 사람들 · 묶음의 사람들): 이름 + 빼기 */
+.chip.who{padding-right:4px;cursor:default}
+.chip.who button{width:24px;height:24px;display:grid;place-items:center;border-radius:50%;color:var(--text-3)}
+.chip.who button:hover{background:var(--surface-3);color:var(--text-1)}
+.chip.who button .i{width:13px;height:13px}
+/* 묶음 시트 */
+.circles{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.circles > li{border-bottom:1px solid var(--border);padding:4px 0}
+.crow{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:2px;min-height:44px}
+.crow .txt-in{height:36px;margin-right:8px;font-size:15px;font-weight:600;border-bottom-color:transparent}
+.crow .txt-in:hover{border-bottom-color:var(--border)}
+.crow .txt-in:focus{border-bottom-color:var(--point-ink)}
+.crow .cnt{min-width:20px;margin-right:4px;font-size:12.5px;color:var(--text-3);text-align:right}
+.crow .iconbtn{width:32px;height:32px}
+.crow .iconbtn .i{width:16px;height:16px}
+.crow .del{height:32px;padding:0 8px}
+.copts{display:flex;flex-direction:column;gap:10px;padding:2px 0 12px}
+.sset .txt-in.me{max-width:280px;height:36px;font-size:15px}
+@container app (max-width: 760px){
+  .pl-sec.mt-card{padding:14px 16px 16px}
+}
+
+/* ---------- 시간 맞추기 (docs/모임.md 3 · 5장) ----------
+   격자: 열 = 후보 날짜, 행 = 30분. 겹침은 키위 4단 진하기. 시간 열은 왼쪽에 붙고, 날짜가 많으면 가로로 넘긴다.
+   내 칸: 주최자 화면은 안쪽 점, 공개 페이지는 덩어리 맨 바깥에만 얇은 테두리(겹침은 옅게). 보고 있는 시간은 글자색 테두리 */
+.mt-gridsec{padding:12px 12px 14px 6px}
+.mt-gridtop{display:flex;justify-content:flex-end;gap:6px;padding:0 0 8px 6px}
+.mt-gridtop .ghost,.mt-gridtop .btn{height:30px;padding:0 10px;font-size:12px}
+.mg{--ch:22px;--tw:32px;overflow-x:auto;overscroll-behavior-x:contain;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.mg-in{display:flex;flex-direction:column;min-width:calc(var(--tw) + var(--cols) * 44px)}
+.mg-row{display:grid;grid-template-columns:var(--tw) repeat(var(--cols),minmax(44px,1fr))}
+.mg-t{position:sticky;left:0;z-index:1;background:var(--paper);padding-right:6px;font-size:11px;line-height:var(--ch);height:var(--ch);color:var(--text-3);text-align:right}
+.mg-head .mg-t{height:auto}
+.mg-d{display:flex;flex-direction:column;align-items:center;padding:2px 0 6px;font-size:12.5px;line-height:1.3;font-weight:600;color:var(--text-1);white-space:nowrap}
+.mg-d i{font-style:normal;font-family:var(--font-sans);font-size:11px;font-weight:500;color:var(--text-3)}
+.mg .c{position:relative;height:var(--ch);border-left:1px solid var(--border);border-top:1px solid color-mix(in srgb,var(--border) 50%,transparent)}
+.mg-row.hour .c,.mg-row:nth-child(2) .c{border-top-color:var(--border)}
+.mg-row .c:last-child{border-right:1px solid var(--border)}
+.mg-row:last-child .c{border-bottom:1px solid var(--border)}
+.mg .c[data-l="1"]{background:color-mix(in srgb,var(--point) 24%,transparent)}
+.mg .c[data-l="2"]{background:color-mix(in srgb,var(--point) 48%,transparent)}
+.mg .c[data-l="3"]{background:color-mix(in srgb,var(--point) 74%,transparent)}
+.mg .c[data-l="4"]{background:var(--point)}
+.mg.guest .c[data-l="1"]{background:color-mix(in srgb,var(--point) 18%,transparent)}
+.mg.guest .c[data-l="2"]{background:color-mix(in srgb,var(--point) 34%,transparent)}
+.mg.guest .c[data-l="3"]{background:color-mix(in srgb,var(--point) 50%,transparent)}
+.mg.guest .c[data-l="4"]{background:color-mix(in srgb,var(--point) 66%,transparent)}
+.mg.host .c[data-me]::after{content:"";position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--point-ink)}
+.mg.host .c[data-me][data-l="3"]::after,.mg.host .c[data-me][data-l="4"]::after{background:var(--on-point)}
+.mg.host.focus .c[data-me]::after{display:none}
+.mg.guest .c[data-me]{--et:0px;--er:0px;--eb:0px;--el:0px;box-shadow:inset 0 var(--et) 0 var(--point-ink),inset calc(-1 * var(--er)) 0 0 var(--point-ink),inset 0 calc(-1 * var(--eb)) 0 var(--point-ink),inset var(--el) 0 0 var(--point-ink)}
+.mg.guest .c[data-me*="t"]{--et:1px}
+.mg.guest .c[data-me*="r"]{--er:1px}
+.mg.guest .c[data-me*="b"]{--eb:1px}
+.mg.guest .c[data-me*="l"]{--el:1px}
+.mg.guest.focus .c[data-me]{box-shadow:none}
+.mg.host:not(.edit) .c{cursor:pointer}
+.mg.edit .c{touch-action:none;cursor:cell}
+.mg .c[data-pick]{box-shadow:inset 2px 0 0 var(--text-1),inset -2px 0 0 var(--text-1)}
+.mg .c[data-pick="a"]{box-shadow:inset 2px 0 0 var(--text-1),inset -2px 0 0 var(--text-1),inset 0 2px 0 var(--text-1)}
+.mg .c[data-pick="z"]{box-shadow:inset 2px 0 0 var(--text-1),inset -2px 0 0 var(--text-1),inset 0 -2px 0 var(--text-1)}
+.mg .c[data-pick="az"]{box-shadow:inset 0 0 0 2px var(--text-1)}
+/* 사람 이름을 누르면 그 사람 것만 격자에 */
+.mt-people button.nm{flex:0 1 auto;margin:0 auto 0 -8px;padding:4px 8px;border-radius:var(--r-s);text-align:left;transition:background var(--t),box-shadow var(--t)}
+.mt-people button.nm:hover{background:var(--surface-2)}
+.mt-people button.nm[aria-pressed="true"]{background:var(--point-soft);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.mt-people .pinx{height:30px;padding:0 10px;font-size:12px}
+/* 추천 시간: 누르면 격자에 보이고, '이 시간으로' 를 한 번 더 */
+.mt-sugs{list-style:none;margin:0;padding:0 0 4px;display:flex;flex-direction:column}
+.mt-sugs li{display:flex;align-items:center;gap:8px;min-height:44px;padding:2px 6px 2px 4px}
+.mt-sugs .sg{flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px;padding:0 8px;border-radius:var(--r-m);font-size:14px;color:var(--text-1);text-align:left;transition:background var(--t),box-shadow var(--t)}
+.mt-sugs .sg:hover{background:var(--surface-2)}
+.mt-sugs .sg[aria-pressed="true"]{background:var(--point-soft);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.mt-sugs .cnt{flex:0 0 auto;font-size:12.5px;font-weight:500;color:var(--text-3)}
+.mt-sugs .btn{flex:0 0 auto;animation:in var(--m-base) var(--ease-out)}
+/* 후보 날짜 달력 · 하루 범위 · 길이 */
+.dpick{max-width:308px}
+.dpick-h{display:flex;align-items:center;justify-content:space-between;height:36px;font-size:13px;font-weight:600;color:var(--text-1)}
+.dpick-h .iconbtn{width:32px;height:32px}
+.dpick-h .iconbtn .i{width:16px;height:16px}
+.dpick-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.dpick-g .w{height:24px;display:grid;place-items:center;font-size:11px;color:var(--text-3)}
+.dpick-g .d{height:36px;border-radius:var(--r-m);font-size:13px;color:var(--text-1);transition:background var(--t),color var(--t),transform var(--t)}
+.dpick-g .d:hover{background:var(--surface-2)}
+.dpick-g .d:active{transform:scale(.97)}
+.dpick-g .d.today{font-weight:600;color:var(--point-ink)}
+.dpick-g .d:disabled{color:var(--text-3);opacity:.4;cursor:default;background:none;transform:none}
+.dpick-g .d[aria-pressed="true"]{background:var(--point);color:var(--on-point);font-weight:600}
+select.pill{font-size:13px;padding:0 6px;cursor:pointer}
+
+/* ---------- 모임의 공개 페이지 /m/[열쇠] — 로그인 없이. 회색 바탕 위 종이 카드, 포인트는 키위 하나 ---------- */
+.pm{min-height:100vh;min-height:100dvh;background:var(--canvas)}
+.pm-in{max-width:720px;margin:0 auto;padding:calc(60px + env(safe-area-inset-top,0px)) 16px 96px;display:flex;flex-direction:column;gap:12px;animation:in var(--m-base) var(--ease-out)}
+.pm-head{padding:0 4px 4px}
+.pm-head h1{margin:0;font-size:24px;line-height:1.3;font-weight:600;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.pm-place{margin:6px 0 0;display:flex;align-items:flex-start;gap:6px;font-size:14px;color:var(--text-2);word-break:keep-all;overflow-wrap:anywhere}
+.pm-place .i{width:16px;height:16px;margin-top:3px;color:var(--text-3)}
+.pm-card{background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:16px}
+.pm-when .day{margin:0;font-size:15px;color:var(--text-2)}
+.pm-when .time{margin:0;font-size:34px;line-height:1.25;font-weight:600;color:var(--text-1);white-space:nowrap}
+.att.big{margin-top:14px;gap:8px}
+.att.big button{height:40px;padding:0 18px;font-size:14px}
+.pm-enter{display:flex;flex-direction:column;gap:12px}
+.pm-enter .txt-in{height:40px;font-size:16px}
+.pm-enter .pin{-webkit-text-security:disc}
+.pm-enter .err{margin:0;font-size:13px;color:var(--danger);word-break:keep-all}
+.pm-enter .btn{height:42px;font-size:14px}
+.pm-me{display:flex;padding:0 2px}
+.pm-me .chip.who{background:var(--paper);box-shadow:inset 0 0 0 1px var(--border);color:var(--text-1);font-weight:600}
+.pm-grid{padding:12px 12px 14px 6px}
+.pm-people{padding:12px}
+.pm-people .chip i{font-style:normal;font-size:12px;color:var(--point-ink)}
+.pm-people .chip i.no{color:var(--text-3)}
+@media (max-width: 760px){
+  .pm-in{padding-left:12px;padding-right:12px}
+  .pm-when .time{font-size:30px}
+  .mg{--tw:28px}
+}
+
+/* ====================================================================================
    모션 (docs/모션.md). transform · opacity 만, 140~240ms, 감속 곡선 하나. 조작을 막지 않는다.
    움직임 줄이기면 위의 전역 규칙이 전부 끈다(JS 쪽은 reducedMotion()).
    ==================================================================================== */

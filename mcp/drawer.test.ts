@@ -11,6 +11,8 @@ import { createDrawer, type Drawer, type ToolResult } from "./drawer";
 import { PgliteStore, createTestDb } from "./store-pglite";
 import { createSchedule } from "./schedule";
 import { PgliteScheduleStore } from "./schedule-store-pglite";
+import { createMeet } from "./meet";
+import { PgliteMeetStore } from "./meet-store-pglite";
 import { DRAWER_TOOLS, TOOL_NAMES, registerTools } from "./tools";
 
 let db: PGlite;
@@ -761,7 +763,8 @@ describe("MCP 프로토콜", () => {
   async function connect() {
     const { drawer, owner } = setup();
     const server = new McpServer({ name: "ez-drawer", version: "test" });
-    registerTools(server, drawer, createSchedule({ store: new PgliteScheduleStore(db, owner) }));
+    const scheduleStore = new PgliteScheduleStore(db, owner);
+    registerTools(server, drawer, createSchedule({ store: scheduleStore }), createMeet({ store: new PgliteMeetStore(db, owner), schedule: scheduleStore }));
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: "test", version: "0" });
     await Promise.all([server.connect(st), client.connect(ct)]);

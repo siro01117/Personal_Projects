@@ -4,6 +4,8 @@
 import { sampleBlocks } from "../../lib/fixtures";
 import { cachedDrawer, DataCache } from "./cache";
 import { MemoryDrawer, type Seed } from "./memory";
+import { meetSeed } from "./meetDemo";
+import { MemoryMeet } from "./meetMemory";
 import { scheduleSeed } from "./scheduleDemo";
 import { MemorySchedule } from "./scheduleMemory";
 import type { Auth, Source } from "./types";
@@ -176,6 +178,14 @@ export function demoSchedule(): MemorySchedule {
   return scheduleInstance;
 }
 
+let meetInstance: MemoryMeet | null = null;
+
+/** 모임은 같은 확인 모드의 일정 저장소에 약속을 넣는다 */
+export function demoMeet(): MemoryMeet {
+  if (!meetInstance) meetInstance = new MemoryMeet(demoSchedule(), meetSeed(new Date()), { latency: 150 });
+  return meetInstance;
+}
+
 /** 확인 모드 캐시: 메모리만 (저장소에 안 남긴다 — 새로 고치면 데이터도 처음으로 돌아가니까). 진짜 캐시와 따로 */
 const demoCache = new DataCache(null, "demo");
 
@@ -189,16 +199,18 @@ const demoAuth: Auth = {
 export function demoSource(): Source {
   const data = demoDrawer();
   const schedule = demoSchedule();
+  const meet = demoMeet();
   // 에이전트가 그 사이 고치거나 넣은 것을 흉내 — 브라우저 콘솔에서 ezDemo.touch('<보고서 id>'), ezDemo.insert(),
   // ezDemo.bumpEvent('<일정 id>') (다른 곳에서 일정을 고친 것처럼 버전만 올림)
   if (typeof window !== "undefined") {
     (window as unknown as { ezDemo: unknown }).ezDemo = {
       data,
       schedule,
+      meet,
       touch: (id: string) => data.agentTouch(id),
       insert: (parentId: string | null = null) => data.agentInsert(parentId, "에이전트가 넣은 보고서", sampleBlocks()),
       bumpEvent: (id: string) => schedule.bump(id),
     };
   }
-  return { data: cachedDrawer(data, demoCache), schedule, planner: schedule, auth: demoAuth, demo: true, cache: demoCache };
+  return { data: cachedDrawer(data, demoCache), schedule, planner: schedule, meet, meetPublic: meet, auth: demoAuth, demo: true, cache: demoCache };
 }

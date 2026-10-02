@@ -3,7 +3,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, it } from "vitest";
-import { openPlanner, readMeta, readPlannerLists, readTaskLists, readWeek, rollWith, titleIds, keepTitles, needsPrefetch, neighbors, PREFETCH_MAX_AGE_MS } from "./loaders";
+import { SupabaseMeet } from "./meetSupabase";
+import { openPlanner, readMeetLists, readMeta, readPlannerLists, readTaskLists, readWeek, rollWith, titleIds, keepTitles, needsPrefetch, neighbors, PREFETCH_MAX_AGE_MS } from "./loaders";
 import { SupabaseSchedule } from "./scheduleSupabase";
 import { setClient } from "./supabase";
 
@@ -135,6 +136,22 @@ describe("일정 열기", () => {
     expect(rows.events.map((e) => e.id)).toEqual(["a", "b", "c"]);
     expect(rows.events.every((e) => !("exceptions" in e))).toBe(true);
     expect(rows.exceptions).toEqual([ex("a")]);
+  });
+});
+
+describe("모임 열기", () => {
+  it("첫 그림까지 한 차례 — 모임(사람들까지) · 묶음 · 역할 · 지점 · 설정을 같이 보낸다", async () => {
+    const person = { id: "p1", meet_id: "m1", name: "나", is_owner: true, cells: null, auto: false, attend: null, created_at: "1" };
+    const late = { ...person, id: "p2", name: "민서", is_owner: false, created_at: "0" };
+    const f = fake({ ez_meets: [{ id: "m1", title: "회의", people: [late, person] }], ez_roles: ROLE });
+    const S = new SupabaseSchedule();
+    const p = readMeetLists(new SupabaseMeet(), S, S);
+    expect(await f.rounds()).toBe(1);
+    expect([...f.log].sort()).toEqual(["ez_circles", "ez_meets", "ez_places", "ez_roles", "ez_schedule_settings"]);
+    const lists = await p;
+    // 내 줄이 맨 앞
+    expect(lists.meets[0]!.people.map((x) => x.name)).toEqual(["나", "민서"]);
+    expect(lists.settings.my_name).toBeNull();
   });
 });
 

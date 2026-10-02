@@ -17,6 +17,7 @@ import {
 import { DbError } from "./errors";
 import {
   type EventPatch,
+  type MeetRef,
   type NewEvent,
   type NewPlace,
   type NewRule,
@@ -225,8 +226,9 @@ export class PgliteScheduleStore implements ScheduleStore {
 
   async insertTask(t: NewTask): Promise<TaskRow> {
     const rows = await this.q(
-      `insert into ez_tasks (owner, title, note, due, est_min, sort, done_at, place_id, due_event_id, checklist, rule_id, rule_date, role_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13) returning ${TASK}`,
+      `insert into ez_tasks (owner, title, note, due, est_min, sort, done_at, place_id, due_event_id, checklist, rule_id, rule_date, role_id,
+                             origin_kind, origin_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15) returning ${TASK}`,
       [
         this.owner,
         t.title,
@@ -241,6 +243,8 @@ export class PgliteScheduleStore implements ScheduleStore {
         t.rule_id ?? null,
         t.rule_date ?? null,
         t.role_id ?? null,
+        t.origin_kind ?? null,
+        t.origin_id ?? null,
       ],
     );
     return toTask(rows[0]!);
@@ -266,6 +270,19 @@ export class PgliteScheduleStore implements ScheduleStore {
       [this.owner, id, baseVersion],
     );
     return rows.length > 0;
+  }
+
+  async meetRef(id: string): Promise<MeetRef | null> {
+    const rows = await this.q(
+      `select m.id, m.title, m.place_id, r.id as role_id
+         from ez_meets m
+         left join ez_circles c on c.id = m.circle_id and c.owner = m.owner and c.deleted_at is null
+         left join ez_roles r on r.id = c.role_id and r.owner = m.owner and r.deleted_at is null
+        where m.owner = $1 and m.id = $2 and m.deleted_at is null`,
+      [this.owner, id],
+    );
+    const r = rows[0];
+    return r ? { id: r.id as string, title: r.title as string, place_id: (r.place_id as string | null) ?? null, role_id: (r.role_id as string | null) ?? null } : null;
   }
 
   async rules(): Promise<TaskRule[]> {

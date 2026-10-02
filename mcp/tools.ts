@@ -1,5 +1,5 @@
-// MCP 도구 등록: 이름·설명·입력 모양. 로직은 drawer.ts(보고서 6개, docs/보고서-서랍.md 4장)와
-// schedule.ts(일정 4개 · 플래너 2개, docs/일정.md 5장 · docs/플래너.md 4장).
+// MCP 도구 등록: 이름·설명·입력 모양. 로직은 drawer.ts(보고서 6개, docs/보고서-서랍.md 4장),
+// schedule.ts(일정 4개 · 플래너 2개, docs/일정.md 5장 · docs/플래너.md 4장), meet.ts(모임 2개, docs/모임.md 6장).
 // 도구 설명은 매번 에이전트 컨텍스트에 실리므로 짧게 쓴다.
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -7,11 +7,13 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { reportKindSchema } from "../lib/blocks";
 import type { Drawer, ToolResult } from "./drawer";
+import type { MeetTools } from "./meet";
 import type { Schedule } from "./schedule";
 
 export const DRAWER_TOOLS = ["drawer_list", "drawer_mkdir", "drawer_update", "report_create", "report_get", "report_edit"] as const;
 export const SCHEDULE_TOOLS = ["schedule_get", "schedule_save", "schedule_delete", "schedule_sync", "todo_list", "todo_save"] as const;
-export const TOOL_NAMES = [...DRAWER_TOOLS, ...SCHEDULE_TOOLS] as const;
+export const MEET_TOOLS = ["meet_get", "meet_save"] as const;
+export const TOOL_NAMES = [...DRAWER_TOOLS, ...SCHEDULE_TOOLS, ...MEET_TOOLS] as const;
 
 export function toCallResult(r: ToolResult): CallToolResult {
   return {
@@ -37,7 +39,7 @@ const BLOCKS_HELP = `블록 어휘 v1 — 정해진 칸만 쓴다. 글자는 앞
 h(소제목) ≤200자. 블록 1~200개, 전체 약 580KB 까지(넘으면 두 보고서로 나눈다). 틀리면 "blocks[2].rows[3]: 이유" 목록이 돌아온다.
 예: [{"type":"verdict","v":"A 를 쓴다","w":"무료이고 문서가 좋다"},{"type":"claims","h":"근거","items":[{"tag":"fact","text":"A 는 무료다","refs":[1]},{"tag":"guess","text":"B 보다 빠를 것이다","refs":[]}]},{"type":"sources","h":"출처","items":[{"title":"A 문서","url":"https://a.dev/docs"}]}]`;
 
-export function registerTools(server: McpServer, drawer: Drawer, schedule: Schedule): void {
+export function registerTools(server: McpServer, drawer: Drawer, schedule: Schedule, meet: MeetTools): void {
   const call = async (p: Promise<ToolResult>) => toCallResult(await p);
 
   server.registerTool(
@@ -138,6 +140,7 @@ op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"
   );
 
   registerScheduleTools(server, schedule, call);
+  registerMeetTools(server, meet, call);
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +275,7 @@ function registerScheduleTools(
     {
       title: "할 일 넣기·고치기",
       description:
-        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id). repeat 를 주면 반복 규칙이 생긴다(after_event 는 규칙만). 규칙에서 온 할 일은 scope(once 이것만·rule 규칙도). 규칙만: rule_id+칸(base_version) 또는 stop.",
+        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id). repeat 를 주면 반복 규칙이 생긴다(after_event 는 규칙만). 규칙에서 온 할 일은 scope(once 이것만·rule 규칙도). 규칙만: rule_id+칸(base_version) 또는 stop. meet 를 주면 그 모임에서 나온 할 일(지점·역할을 물려받음).",
       inputSchema: {
         id: z.string().optional(),
         base_version: z.number().int().optional().describe("고칠 때 todo_list 의 version"),
@@ -305,8 +308,78 @@ function registerScheduleTools(
         scope: z.enum(["once", "rule"]).optional(),
         rule_id: z.string().optional().describe("반복 규칙 id (todo_list status: rules)"),
         stop: z.boolean().optional().describe("rule_id 와 같이: 반복 멈춤"),
+        meet: z.string().optional().describe("모임 id (새 할 일만)"),
       },
     },
     (a) => call(schedule.todo_save(a)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 모임
+
+function registerMeetTools(server: McpServer, meet: MeetTools, call: (p: Promise<ToolResult>) => Promise<CallToolResult>): void {
+  server.registerTool(
+    "meet_get",
+    {
+      title: "모임 보기",
+      description:
+        "id 없으면 모임 목록(상태: 맞추는 중·미정·다가옴·지남) + 묶음들(사람·역할). circle 은 묶음 이름으로 좁히기. id 면 그 모임 + 사람(참석·칠했는지) + 맞추는 중이면 추천 시간(suggest: 되는 사람이 많은 순) + 공개 링크(link) + 딸린 할 일.",
+      inputSchema: {
+        id: z.string().optional().describe("모임 id"),
+        circle: z.string().optional().describe("묶음 이름"),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (a) => call(meet.meet_get(a)),
+  );
+
+  server.registerTool(
+    "meet_save",
+    {
+      title: "모임 넣기·고치기",
+      description:
+        "id 없으면 새 모임(title). circle(묶음 이름)을 주면 그 사람들이 채워진다. date+start(+end, 기본 1시간)로 시간을 정하면 일정에도 들어가고, 바꾸면 일정이 따라간다. 시간을 맞춰야 하면 poll(후보 날짜) — 내 되는 시간은 일정에서 자동으로 채워지고, link true 로 공개 링크를 켜 남에게 보낸다(남은 링크에서 직접 칠한다). 정할 땐 meet_get 의 suggest 를 보고 date+start+end. reopen 은 시간 비우기(일정도 지움). 고칠 땐 id+base_version, 준 칸만. 사람은 people(넣기)·remove_people(빼기), attend {이름: yes|no|null}. delete 로 지우기. 묶음은 group 만 따로: 없는 이름이면 만들고 있으면 고친다. 할 일은 todo_save(meet).",
+      inputSchema: {
+        id: z.string().optional().describe("고칠 모임 id"),
+        base_version: z.number().int().optional().describe("고칠 때 meet_get 의 version"),
+        title: z.string().optional(),
+        note: z.string().nullable().optional(),
+        circle: z.string().nullable().optional().describe("묶음 이름 (null=없음)"),
+        place: z.string().nullable().optional().describe("지점 이름"),
+        where: z.string().nullable().optional().describe("장소 글"),
+        date: z.string().optional().describe(DATE),
+        start: z.string().optional().describe(HM),
+        end: z.string().optional().describe(`${HM} (자정을 넘기지 않음)`),
+        reopen: z.boolean().optional().describe("true 면 시간을 비운다"),
+        poll: z
+          .object({
+            dates: z.array(z.string()).optional().describe("후보 날짜 1~31개 (YYYY-MM-DD)"),
+            from: z.string().optional().describe("하루 범위 시작 HH:MM (기본 09:00, 30분 단위)"),
+            to: z.string().optional().describe("하루 범위 끝 HH:MM (기본 22:00, 24:00 까지)"),
+            minutes: z.number().int().optional().describe("모임 길이 분 (기본 60, 30분 단위 30~480)"),
+          })
+          .nullable()
+          .optional()
+          .describe("시간 맞추기 설정 (null=끄기). 고칠 땐 준 칸만"),
+        link: z.boolean().optional().describe("공개 링크 켜기(true)·끄기(false). 껐다 켜면 새 링크"),
+        people: z.array(z.string()).optional().describe("넣을 사람 이름"),
+        remove_people: z.array(z.string()).optional().describe("뺄 사람 이름"),
+        attend: z.record(z.string(), z.enum(["yes", "no"]).nullable()).optional().describe("{이름: yes|no|null}"),
+        delete: z.boolean().optional(),
+        group: z
+          .object({
+            name: z.string().describe("묶음 이름"),
+            rename: z.string().optional(),
+            members: z.array(z.string()).optional().describe("늘 오는 사람들 (나 빼고). 통째로 갈아끼움"),
+            role: z.string().nullable().optional().describe("역할 이름 (null=없음)"),
+            delete: z.boolean().optional(),
+          })
+          .optional()
+          .describe("묶음 만들기·고치기 (다른 칸과 같이 못 씀)"),
+      },
+      annotations: { destructiveHint: true },
+    },
+    (a) => call(meet.meet_save(a)),
   );
 }

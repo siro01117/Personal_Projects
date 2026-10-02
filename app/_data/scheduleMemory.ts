@@ -3,7 +3,8 @@
 // !! 진짜 규칙의 출처는 DB 다 (db/migrations/0006_ez_schedule.sql · 0007_ez_planner.sql).
 // 여기서는 화면이 의지하는 것만 흉내 낸다: 버전 확인 · 바깥 일정 거절 · 집 하나 · 할 일 하나에 일정 하나 ·
 // 지점 이름 겹침 · 지점 12개 · 반복 회차 검사 · split/cut · 일정에 딸린 마감(따라가기 · 끊기) · 반복 규칙 굴리기(roll) ·
-// 역할(0008: 이름 겹침 · from_place 하나 · 12개 · 지우면 role_id null · seed 는 행이 하나도 없을 때만).
+// 역할(0008: 이름 겹침 · from_place 하나 · 12개 · 지우면 role_id null · seed 는 행이 하나도 없을 때만) ·
+// 모임에서 온 일정(0011: 지우면 모임에 알리고 되돌리면 다시 알린다 — meetHooks. 모임 쪽 흉내는 meetMemory.ts).
 // 칸 검사는 lib/schedule 의 validateEvent 를 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
 import { DbError } from "../../lib/errors";
@@ -26,6 +27,7 @@ import {
   type EventException,
   type EventRow,
   type ExceptionPatch,
+  type OriginKind,
   type Place,
   type PlaceSymbol,
   type Role,
@@ -105,6 +107,8 @@ export class MemorySchedule implements ScheduleData, PlannerData {
   private st: Settings;
   private src: SourceInfo[];
   private readonly latency: number;
+  /** 모임에서 온 일정이 지워지거나 되돌아올 때 (0011 ez_events_after). meetMemory 가 건다 */
+  meetHooks: { gone?: (eventId: string) => void; back?: (ev: EventRow) => void } = {};
 
   constructor(seed: ScheduleSeed = {}, opts: { latency?: number } = {}) {
     this.latency = opts.latency ?? 0;
@@ -265,15 +269,29 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     this.ex = this.ex.filter((x) => x.event_id !== r.id || (r.repeat !== null && occursOn(r, x.on_date)));
   }
 
-  async createEvent(input: EventInput): Promise<EventRow> {
+  /** 지금 설정의 내 이름 (모임의 내 줄) */
+  myName(): string | null {
+    return this.st.my_name;
+  }
+
+  /** 살아 있는 일정 줄 (모임이 딸린 일정을 옮기거나 지울 때) */
+  liveEvent(id: string): EventRow | null {
+    const r = this.ev.get(id);
+    if (!r || r.deleted_at !== null) return null;
+    const { deleted_at: _, ...out } = r;
+    return clone(out);
+  }
+
+  /** origin = 어디서 넘어온 일정인가 (모임이 만든 일정) */
+  async createEvent(input: EventInput, origin: { kind: OriginKind; id: string } | null = null): Promise<EventRow> {
     await this.wait();
     const r: EvRow = {
       id: globalThis.crypto.randomUUID(),
       ...input,
       source: null,
       external_id: null,
-      origin_kind: null,
-      origin_id: null,
+      origin_kind: origin?.kind ?? null,
+      origin_id: origin?.id ?? null,
       version: 1,
       updated_at: new Date().toISOString(),
       deleted_at: null,
@@ -324,6 +342,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         }
       }
       stopRules();
+      this.meetHooks.gone?.(r.id);
       return;
     }
     if (r.repeat === null && old.repeat !== null) stopRules();
@@ -365,6 +384,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     this.check(next);
     r.deleted_at = null;
     this.touch(r);
+    if (r.origin_kind === "meet") this.meetHooks.back?.(r);
     // 끊긴 마감 연결 · 멈춘 규칙을 다시 잇는다. 그 사이 달라진 것(다른 일정에 걺 · 지움 · 회차가 아님)은 건너뛴다
     for (const tid of deps?.tasks ?? []) {
       const t = this.tk.get(tid);
@@ -571,6 +591,10 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     if (bad || !Number.isInteger(next.home_stay) || next.home_stay < 0 || next.home_stay > 600) {
       throw new DbError(`new row for relation "ez_schedule_settings" violates check constraint "ez_schedule_settings_${bad ?? "home_stay"}_check"`, "23514");
     }
+    const me = next.my_name;
+    if (me !== null && (me !== me.trim() || [...me].length < 1 || [...me].length > 20)) {
+      throw new DbError('new row for relation "ez_schedule_settings" violates check constraint "ez_schedule_settings_my_name_check"', "23514");
+    }
     this.st = next;
     return clone(this.st);
   }
@@ -683,8 +707,8 @@ export class MemorySchedule implements ScheduleData, PlannerData {
       est_min: input.est_min ?? null,
       sort: Math.min(0, ...live.map((x) => x.sort)) - 1,
       done_at: null,
-      origin_kind: null,
-      origin_id: null,
+      origin_kind: input.origin_kind ?? null,
+      origin_id: input.origin_id ?? null,
       place_id: input.place_id ?? null,
       due_event_id: input.due_event_id ?? null,
       checklist: clone(input.checklist ?? []),

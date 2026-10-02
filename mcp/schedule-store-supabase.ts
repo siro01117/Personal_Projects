@@ -22,6 +22,7 @@ import {
   RULE_COLS,
   TASK_COLS,
   type EventPatch,
+  type MeetRef,
   type NewEvent,
   type NewPlace,
   type NewRule,
@@ -263,6 +264,26 @@ export class SupabaseScheduleStore implements ScheduleStore {
         .select("id"),
     );
     return rows.length > 0;
+  }
+
+  async meetRef(id: string): Promise<MeetRef | null> {
+    const m = await run<Row | null>(
+      this.sb.from("ez_meets").select("id, title, place_id, circle_id").eq("owner", this.owner).eq("id", id).is("deleted_at", null).maybeSingle(),
+    );
+    if (!m) return null;
+    let role_id: string | null = null;
+    if (m.circle_id) {
+      const c = await run<Row | null>(
+        this.sb.from("ez_circles").select("role_id").eq("owner", this.owner).eq("id", m.circle_id as string).is("deleted_at", null).maybeSingle(),
+      );
+      if (c?.role_id) {
+        const r = await run<Row | null>(
+          this.sb.from("ez_roles").select("id").eq("owner", this.owner).eq("id", c.role_id as string).is("deleted_at", null).maybeSingle(),
+        );
+        role_id = r ? (r.id as string) : null;
+      }
+    }
+    return { id: m.id as string, title: m.title as string, place_id: (m.place_id as string | null) ?? null, role_id };
   }
 
   async rules(): Promise<TaskRule[]> {

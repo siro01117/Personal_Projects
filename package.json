@@ -12,6 +12,7 @@
     "mcp": "tsx mcp/server.ts",
     "smoke": "tsx mcp/smoke.ts",
     "smoke:schedule": "tsx mcp/smoke-schedule.ts",
+    "smoke:meet": "tsx mcp/smoke-meet.ts",
     "purge-images": "tsx mcp/purge-images.ts"
   },
   "dependencies": {

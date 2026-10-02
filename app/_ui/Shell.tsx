@@ -1,6 +1,6 @@
 "use client";
 
-// 작업면 = 사이드바 + 오른쪽(모듈 화면). 목업 .work. 모듈 공용 — 메뉴: 보고서 서랍 · 일정 · 플래너, 맨 아래 휴지통(서랍).
+// 작업면 = 사이드바 + 오른쪽(모듈 화면). 목업 .work. 모듈 공용 — 메뉴: 보고서 서랍 · 일정 · 플래너 · 모임, 맨 아래 휴지통(서랍).
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,6 +13,7 @@ const MENU: { path: string; icon: IconName; label: string }[] = [
   { path: "/drawer", icon: "rep", label: "보고서 서랍" },
   { path: "/schedule", icon: "cal", label: "일정" },
   { path: "/planner", icon: "plan", label: "플래너" },
+  { path: "/meet", icon: "meet", label: "모임" },
 ];
 
 function under(pathname: string, path: string): boolean {

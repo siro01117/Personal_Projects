@@ -1,13 +1,15 @@
-// 웹이 서랍·일정·플래너 데이터를 읽고 쓰는 창구. 구현 2개: Supabase(진짜, 로그인한 사람 세션 + RLS) / 메모리(개발 확인용).
+// 웹이 서랍·일정·플래너·모임 데이터를 읽고 쓰는 창구. 구현 2개: Supabase(진짜, 로그인한 사람 세션 + RLS) / 메모리(개발 확인용).
 // 실패는 DbError 모양({ code, message })으로 던지고, 화면은 lib/errors 의 toKorean 으로 한국어로 바꾼다.
 
 import type { ReportKind } from "../../lib/blocks";
+import type { Attend, Cells, Circle, Meet, MeetPerson, Poll, PublicMeet } from "../../lib/meet";
 import type {
   CheckItem,
   DateStr,
   EventException,
   EventRow,
   ExceptionPatch,
+  OriginKind,
   Place,
   PlaceColor,
   PlaceRole,
@@ -230,6 +232,9 @@ export type TaskInput = {
   rule_date?: DateStr | null;
   /** 역할 (docs/플래너.md 7-11). 지운 역할이면 [EZ_ROLE] */
   role_id?: string | null;
+  /** 어디서 넘어왔나 (넣을 때만). 모임에서 나온 할 일은 'meet' + 모임 id (docs/모임.md 2장) */
+  origin_kind?: OriginKind | null;
+  origin_id?: string | null;
 };
 
 /** 할 일과 이어진 살아 있는 일정 (할 일 하나에 하나). end_min 은 지남 판정에 쓴다 */
@@ -289,5 +294,86 @@ export interface PlannerData {
   restoreRole(id: string, deps?: RoleDeps): Promise<Role>;
 }
 
+// ---------------------------------------------------------------------------
+// 모임 (docs/모임.md 2 · 4장, db/migrations/0011). 행 모양은 lib/meet/types.ts
+// ---------------------------------------------------------------------------
+
+/** 모임에 넣고 고치는 칸. 시간(meet_date · start_min · end_min)은 셋을 같이 — 적으면 일정이 생기거나 따라가고, 비우면 일정이 지워진다(DB 가 한다) */
+export type MeetInput = {
+  title: string;
+  note?: string | null;
+  circle_id?: string | null;
+  place_id?: string | null;
+  place_text?: string | null;
+  meet_date?: DateStr | null;
+  start_min?: number | null;
+  end_min?: number | null;
+  /** 시간 맞추기 설정. 켜면(없다가 생기면) 아직 안 칠한 내 줄이 자동 채움 상태가 된다 (DB 가 한다) */
+  poll?: Poll | null;
+};
+
+/** 사람 줄에서 고치는 칸. cells · auto 는 내 칸 저장 — 손으로 칠하면 auto 를 끄고, '일정에 맞추기' 는 켠다 (auto 는 내 줄만) */
+export type PersonPatch = { name?: string; attend?: Attend | null; cells?: Cells | null; auto?: boolean };
+
+/** 사람 줄에 넣는 칸. id 를 주면 그 id 로 (뺀 사람 되돌리기) */
+export type PersonInput = { id?: string; name: string; attend?: Attend | null; cells?: Cells | null };
+
+/** 묶음에 넣는 칸 */
+export type CircleInput = { name: string; role_id?: string | null; members?: string[] };
+
+export interface MeetData {
+  /** 살아 있는 묶음, 이름순 */
+  circles(): Promise<Circle[]>;
+  /** 살아 있는 모임 전부 + 사람들 (내 줄이 맨 앞) */
+  meets(): Promise<Meet[]>;
+
+  /** 내 줄은 DB 가 같이 만든다(설정의 내 이름). people 은 같이 넣을 다른 사람 이름들 */
+  createMeet(input: MeetInput, people?: readonly string[]): Promise<Meet>;
+  /** 버전이 다르면 [EZ_VERSION] */
+  updateMeet(id: string, baseVersion: number, patch: Partial<MeetInput>): Promise<Meet>;
+  /** 지우기 (deleted_at). 딸린 일정 · 할 일은 남는다. 되돌리기는 restoreMeet */
+  deleteMeet(id: string, baseVersion: number): Promise<void>;
+  restoreMeet(id: string): Promise<Meet>;
+  /** ez_meet_decide — 시간 정하기 + 일정. 일정만 비어 있는 모임에 같은 시간으로 부르면 '일정에 넣기' */
+  decide(id: string, baseVersion: number, date: DateStr, start: number, end: number): Promise<Meet>;
+  /** ez_meet_reopen — 시간을 비우고 딸린 일정을 지운다 */
+  reopen(id: string, baseVersion: number): Promise<Meet>;
+
+  /** 50명을 넘으면 [EZ_LIMIT], 이름이 겹치면 23505 */
+  addPerson(meetId: string, input: PersonInput): Promise<MeetPerson>;
+  updatePerson(id: string, patch: PersonPatch): Promise<MeetPerson>;
+  /** 그 줄(칠한 것 · 참석)이 지워진다. 되돌리기는 같은 값으로 addPerson */
+  removePerson(id: string): Promise<void>;
+  /** ez_meet_pin_clear — 그 사람의 핀을 지운다 (잊었을 때). 칠한 것 · 참석은 그대로 */
+  clearPin(personId: string): Promise<void>;
+  /** ez_meet_link — 공개 링크 켜기(열쇠) · 끄기(null). 이미 켜져 있으면 그 열쇠 그대로, 껐다 켜면 새 열쇠 */
+  link(id: string, on: boolean): Promise<string | null>;
+
+  /** 30개를 넘으면 [EZ_LIMIT], 이름이 겹치면 23505 */
+  createCircle(input: CircleInput): Promise<Circle>;
+  updateCircle(id: string, patch: Partial<CircleInput>): Promise<Circle>;
+  /** 지우기 (deleted_at). 모임은 남고 묶음만 없는 것으로 읽힌다 */
+  deleteCircle(id: string): Promise<void>;
+  restoreCircle(id: string): Promise<Circle>;
+}
+
+/** 공개 페이지에 들어온 결과: 내 이름(적혀 있는 그대로) + 모임 */
+export type Entered = { me: string; meet: PublicMeet };
+
+/**
+ * 공개 페이지(/m/열쇠)가 쓰는 것 — 로그인 없이(anon), 0012 의 함수 넷만 부른다.
+ * 틀린 핀은 [EZ_PIN], 잠김은 [EZ_LOCKED], 없는 링크는 [EZ_NOT_FOUND] 로 던진다
+ */
+export interface MeetPublicData {
+  /** ez_meet_public — 없거나 꺼졌거나 지웠으면 null */
+  open(token: string): Promise<PublicMeet | null>;
+  /** ez_meet_enter — 처음이면 핀을 정하고, 다시 오면 확인한다 */
+  enter(token: string, name: string, pin: string): Promise<Entered>;
+  /** ez_meet_answer — 되는 칸 저장 (지금 설정 안의 칸을 통째로) */
+  answer(token: string, name: string, pin: string, cells: Cells): Promise<Entered>;
+  /** ez_meet_rsvp — 정해진 모임에 온다 / 못 온다 / 비움 */
+  rsvp(token: string, name: string, pin: string, attend: Attend | null): Promise<Entered>;
+}
+
 /** cache = 마지막으로 읽은 것 (먼저 그리기용). data 는 이미 캐시를 낀 서랍 */
-export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; auth: Auth; demo: boolean; cache: DataCache };
+export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; meet: MeetData; meetPublic: MeetPublicData; auth: Auth; demo: boolean; cache: DataCache };

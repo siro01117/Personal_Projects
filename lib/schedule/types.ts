@@ -78,6 +78,8 @@ export type Settings = {
   lunch: MealWindow;
   dinner: MealWindow;
   tz: string;
+  /** 내 이름 — 모임의 내 줄에 적힌다 (docs/모임.md 7장). 1~20자, 없으면 null */
+  my_name: string | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -88,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lunch: { from: 660, to: 840, prefer: 720 },
   dinner: { from: 1020, to: 1230, prefer: 1080 },
   tz: "Asia/Seoul",
+  my_name: null,
 };
 
 /** 펼친 회차 하나. 반복이 아니면 on_date = 일정의 date */

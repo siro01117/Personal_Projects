@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueName } from "../../lib/names";
 import { DbError } from "../../lib/errors";
 import { browserStore, cachedDrawer, DataCache } from "./cache";
+import { SupabaseMeet, SupabaseMeetPublic } from "./meetSupabase";
 import { SupabaseSchedule } from "./scheduleSupabase";
 import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow } from "./types";
 
@@ -61,7 +62,7 @@ export function setClient(c: SupabaseClient | null): void {
 
 /** 공유 페이지용 — 세션 없이 anon 으로만 */
 let anonClient: SupabaseClient | null = null;
-function anon(): SupabaseClient {
+export function anon(): SupabaseClient {
   if (!anonClient) {
     const { url, key } = env();
     anonClient = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
@@ -269,7 +270,7 @@ let source: Source | null = null;
 export function supabaseSource(): Source {
   if (!source) {
     const schedule = new SupabaseSchedule();
-    source = { data: cachedDrawer(new SupabaseDrawer(), cache), schedule, planner: schedule, auth, demo: false, cache };
+    source = { data: cachedDrawer(new SupabaseDrawer(), cache), schedule, planner: schedule, meet: new SupabaseMeet(), meetPublic: new SupabaseMeetPublic(), auth, demo: false, cache };
   }
   return source;
 }

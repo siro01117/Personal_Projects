@@ -42,7 +42,7 @@ const TASK_COLS =
   "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, version, created_at, updated_at";
 const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
 const ROLE_COLS = "id, name, from_place, sort, version";
-const SETTINGS_COLS = "prep_first, prep_again, home_stay, meal_min, lunch, dinner, tz";
+const SETTINGS_COLS = "prep_first, prep_again, home_stay, meal_min, lunch, dinner, tz, my_name";
 /** in(...) 한 번에 넣을 id 수 (주소 길이) */
 const IN_CHUNK = 100;
 

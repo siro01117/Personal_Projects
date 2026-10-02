@@ -43,10 +43,13 @@ export type SyncEvent = {
 };
 export type SyncResult = { inserted: number; updated: number; deleted: number };
 
-/** 새 칸(지점 · 일정에 딸린 마감 · 체크 항목 · 규칙)은 안 주면 DB 기본값 */
+/** 새 칸(지점 · 일정에 딸린 마감 · 체크 항목 · 규칙 · 어디서 넘어왔나)은 안 주면 DB 기본값 */
 export type NewTask = Pick<TaskRow, "title" | "note" | "due" | "est_min" | "sort" | "done_at"> &
-  Partial<Pick<TaskRow, "place_id" | "due_event_id" | "checklist" | "rule_id" | "rule_date" | "role_id">>;
-export type TaskPatch = Partial<NewTask>;
+  Partial<Pick<TaskRow, "place_id" | "due_event_id" | "checklist" | "rule_id" | "rule_date" | "role_id" | "origin_kind" | "origin_id">>;
+export type TaskPatch = Partial<Omit<NewTask, "origin_kind" | "origin_id">>;
+
+/** 할 일이 나온 모임 (todo_save 의 meet). role_id 는 묶음의 살아 있는 역할 */
+export type MeetRef = { id: string; title: string; place_id: string | null; role_id: string | null };
 
 /** 새 반복 규칙 (docs/플래너.md 7-2). cycle 은 repeat · start, event 는 event_id */
 export type NewRule = Omit<TaskRule, "id" | "version">;
@@ -94,6 +97,8 @@ export interface ScheduleStore {
   insertTask(t: NewTask): Promise<TaskRow>;
   updateTask(id: string, patch: TaskPatch, baseVersion: number): Promise<TaskRow | null>;
   deleteTask(id: string, baseVersion: number): Promise<boolean>;
+  /** 살아 있는 내 모임 (할 일이 물려받을 지점 · 역할). 없으면 null */
+  meetRef(id: string): Promise<MeetRef | null>;
 
   /** 살아 있는(안 멈춘) 반복 규칙 전부, 만든 순 */
   rules(): Promise<TaskRule[]>;
@@ -240,5 +245,6 @@ export function toSettings(r: Row | null | undefined, fallback: Settings): Setti
     lunch: r.lunch as Settings["lunch"],
     dinner: r.dinner as Settings["dinner"],
     tz: r.tz as string,
+    my_name: (r.my_name as string | null) ?? null,
   };
 }

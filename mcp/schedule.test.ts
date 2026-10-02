@@ -12,6 +12,8 @@ import { createDrawer, type ToolResult } from "./drawer";
 import { closestName, createSchedule, hm, parseHM } from "./schedule";
 import { PgliteScheduleStore } from "./schedule-store-pglite";
 import { PgliteStore, createTestDb } from "./store-pglite";
+import { createMeet } from "./meet";
+import { PgliteMeetStore } from "./meet-store-pglite";
 import { SCHEDULE_TOOLS, TOOL_NAMES, registerTools } from "./tools";
 
 let db: PGlite;
@@ -1102,7 +1104,13 @@ describe("MCP 프로토콜", () => {
   async function connect() {
     const owner = randomUUID();
     const server = new McpServer({ name: "ez-drawer", version: "test" });
-    registerTools(server, createDrawer({ store: new PgliteStore(db, owner), agent: "test" }), createSchedule({ store: new PgliteScheduleStore(db, owner) }));
+    const scheduleStore = new PgliteScheduleStore(db, owner);
+    registerTools(
+      server,
+      createDrawer({ store: new PgliteStore(db, owner), agent: "test" }),
+      createSchedule({ store: scheduleStore }),
+      createMeet({ store: new PgliteMeetStore(db, owner), schedule: scheduleStore }),
+    );
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: "test", version: "0" });
     await Promise.all([server.connect(st), client.connect(ct)]);
@@ -1112,7 +1120,7 @@ describe("MCP 프로토콜", () => {
   it("도구 12개, 일정·플래너 설명은 짧게", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
-    expect(TOOL_NAMES).toHaveLength(12);
+    expect(TOOL_NAMES).toHaveLength(14);
     expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
     const mine = tools.filter((t) => (SCHEDULE_TOOLS as readonly string[]).includes(t.name));
     const total = mine.reduce((n, t) => n + (t.description?.length ?? 0), 0);

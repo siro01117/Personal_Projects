@@ -1,7 +1,8 @@
 "use client";
 
 // 일정 설정 (docs/일정.md 6장 '설정'): 지점(이름 · 역할 · 심볼 · 색 · 순서 · 지우기, 12개까지) · 이동시간 표(빈칸 = 모름)
-// · 외출 준비 처음/다시 · 집 들르기 · 식사 길이. 바꾸면 바로 저장하고, 실패하면 알린 뒤 다시 읽는다.
+// · 외출 준비 처음/다시 · 집 들르기 · 식사 길이 · 내 이름(모임의 내 줄에 적힌다 — docs/모임.md 7장).
+// 바꾸면 바로 저장하고, 실패하면 알린 뒤 다시 읽는다.
 
 import Link from "next/link";
 import { useState, type KeyboardEvent } from "react";
@@ -14,6 +15,7 @@ import {
   type PlaceRole,
   type Settings,
 } from "../../../lib/schedule";
+import { PERSON_NAME_MAX } from "../../../lib/meet";
 import { mondayOf, nowIn } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
@@ -160,6 +162,20 @@ export function ScheduleSettings() {
     }
     if (n === meta.settings[key]) return true;
     void D.runMeta((m) => ({ ...m, settings: { ...m.settings, [key]: n } }), () => D.S.saveSettings({ [key]: n }));
+    return true;
+  }
+
+  /** 내 이름: 비우면 없음. 이미 만든 모임의 내 줄은 안 바뀐다 */
+  function setMyName(value: string): boolean {
+    if (!meta) return true;
+    const name = value.trim();
+    const my_name = name === "" ? null : name;
+    if (my_name === meta.settings.my_name) return true;
+    if (name !== "" && [...name].length > PERSON_NAME_MAX) {
+      toast(`내 이름은 ${PERSON_NAME_MAX}자까지입니다`);
+      return false;
+    }
+    void D.runMeta((m) => ({ ...m, settings: { ...m.settings, my_name } }), () => D.S.saveSettings({ my_name }));
     return true;
   }
 
@@ -340,6 +356,21 @@ export function ScheduleSettings() {
                 </label>
               ))}
             </div>
+          </section>
+
+          <section aria-labelledby="h-me">
+            <h2 id="h-me">내 이름</h2>
+            <input
+              className="txt-in me"
+              defaultValue={meta.settings.my_name ?? ""}
+              key={`me:${meta.settings.my_name ?? ""}`}
+              aria-labelledby="h-me"
+              maxLength={PERSON_NAME_MAX}
+              onBlur={(e) => {
+                if (!setMyName(e.target.value)) e.target.value = meta.settings.my_name ?? "";
+              }}
+              onKeyDown={(e) => enter(e) && e.currentTarget.blur()}
+            />
           </section>
         </div>
       )}

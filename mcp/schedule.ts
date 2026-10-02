@@ -238,7 +238,7 @@ export function closestName(input: string, names: string[]): string | null {
 type PlaceHit = { id: string | null } | { error: ToolResult; reason: string };
 
 /** 지점 이름 → id. null·"" 은 지점 없음. 살아 있는 지점에서만 찾는다 */
-function findPlace(name: unknown, places: Place[], emptyHint = "place 를 비우고 where 에 장소 글을 쓰세요"): PlaceHit {
+export function findPlace(name: unknown, places: Place[], emptyHint = "place 를 비우고 where 에 장소 글을 쓰세요"): PlaceHit {
   if (name === null || (typeof name === "string" && name.trim() === "")) return { id: null };
   const live = places.filter((p) => !p.deleted);
   const s = String(name);
@@ -258,7 +258,7 @@ type RoleHit = { id: string | null } | { error: ToolResult };
 const NO_ROLE = "없음";
 
 /** 역할 이름 → id (대소문자 · 앞뒤 공백 무시). null · "" · "없음" 은 역할 없음 — 그 이름의 역할이 있으면 그 역할. 살아 있는 역할에서만 찾는다 */
-function findRole(name: unknown, roles: Role[]): RoleHit {
+export function findRole(name: unknown, roles: Role[]): RoleHit {
   const s = name === null ? "" : String(name).trim();
   const hit = roles.find((r) => sameName(r.name, s));
   if (hit) return { id: hit.id };
@@ -454,6 +454,8 @@ function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   if (role) o.role = role;
   if (t.checklist.length > 0) o.checklist = t.checklist;
   if (t.done_at) o.done_at = t.done_at;
+  // 모임에서 나온 할 일 (docs/모임.md 4장)
+  if (t.origin_kind === "meet" && t.origin_id) o.meet = t.origin_id;
   o.version = t.version;
   if (ev) o.event = { id: ev.id, date: ev.date, time: ev.start_min === null ? null : hm(ev.start_min) };
   const dueEv = t.due_event_id ? c.events.get(t.due_event_id) : undefined;
@@ -603,6 +605,7 @@ type TodoArgs = {
   scope?: string;
   rule_id?: string;
   stop?: boolean;
+  meet?: string;
 };
 
 const blank = (v: string | null | undefined) => (v == null || v.trim() === "" ? null : v);
@@ -1260,7 +1263,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           ruleEvent = e;
         }
         // 역할: 이름으로 주면 그 역할(null 이면 비움), 안 주면 지점에서 (docs/플래너.md 7-11)
-        const roles = a.role !== undefined || placeId != null || ruleEvent ? await loadRoles() : [];
+        const roles = a.role !== undefined || placeId != null || ruleEvent || (a.meet !== undefined && a.meet !== null && a.meet !== "") ? await loadRoles() : [];
         let roleId: string | null | undefined;
         if (a.role !== undefined) {
           const hit = findRole(a.role, roles);
@@ -1268,6 +1271,20 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           roleId = hit.id;
         }
         const fromPlace = async (pid: string | null | undefined) => (pid ? roleFrom(pid, await getPlaces(), roles) : null);
+
+        // 모임에서 나온 할 일 (docs/모임.md 4장): 넣을 때만. 지점 · 역할을 안 주면 모임의 지점 · 묶음의 역할을 물려받는다
+        const meetGiven = a.meet !== undefined && a.meet !== null && a.meet !== "";
+        if (meetGiven && !isNew) return fail("meet 는 새 할 일을 넣을 때만 씁니다 (이미 있는 할 일은 못 옮깁니다)", "BAD_INPUT");
+        let meetRef: Awaited<ReturnType<ScheduleStore["meetRef"]>> = null;
+        if (meetGiven) {
+          const mid = String(a.meet).trim();
+          if (!UUID.test(mid)) return fail("meet 는 모임의 uuid 입니다 — meet_get 으로 찾으세요", "BAD_INPUT");
+          if (rep?.kind === "event") return fail("meet 는 일정이 끝날 때마다 생기는 규칙에는 못 씁니다", "BAD_INPUT");
+          meetRef = await store.meetRef(mid);
+          if (!meetRef) return fail(`모임이 없습니다: ${mid}`, "NOT_FOUND");
+          if (placeId === undefined) placeId = meetRef.place_id;
+          if (roleId === undefined && meetRef.role_id !== null) roleId = meetRef.role_id;
+        }
 
         // ---- 넣기
         if (isNew) {
@@ -1308,16 +1325,17 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           const sorts = (await store.tasks()).map((t) => t.sort);
           const sort = sorts.length > 0 ? Math.min(...sorts) - 1 : 0;
           const done_at = a.done ? nowIso : null;
+          const origin = meetRef ? { origin_kind: "meet" as const, origin_id: meetRef.id } : {};
           if (!rep) {
-            const t = await store.insertTask({ ...row, sort, done_at });
-            return ok(`넣었습니다: ${t.title}`, { created: true, task: await show(t, undefined) });
+            const t = await store.insertTask({ ...row, ...origin, sort, done_at });
+            return ok(`넣었습니다: ${t.title}${meetRef ? ` (모임 ${meetRef.title})` : ""}`, { created: true, task: await show(t, undefined) });
           }
           // 주기 반복: 규칙을 만들고 이 할 일이 첫 회차
           if (!link && row.due === null && dueAfter != null) row.due = addDays(today, dueAfter);
           const rule = await store.insertRule({ ...ruleShape(row), kind: "cycle", repeat: rep.repeat, start: today, event_id: null, due_after: dueAfter ?? null, last_made: today });
           let t: TaskRow;
           try {
-            t = await store.insertTask({ ...row, sort, done_at, rule_id: rule.id, rule_date: today });
+            t = await store.insertTask({ ...row, ...origin, sort, done_at, rule_id: rule.id, rule_date: today });
           } catch (e) {
             await store.stopRule(rule.id);
             throw e;
