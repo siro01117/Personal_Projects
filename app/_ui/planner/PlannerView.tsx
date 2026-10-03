@@ -1,14 +1,13 @@
 "use client";
 
-// 플래너 화면 (docs/플래너.md 3장 · 7장). 위쪽 줄(홈 · 밝기) → 정렬 줄(7-12) + 역할 필터(7-14) → 카드 넷(지남 · 할 일 · 시간 정함 · 끝냄, 자리 고정).
-// 할 일 추가 칸은 할 일 카드의 첫 줄, 카드 머리 오른쪽에 "작업대 n" 링크(7-15). 작업대는 따로 페이지(/planner/bench).
+// 플래너 화면 (docs/플래너.md 3장 · 7장). 위쪽 줄(홈 · 밝기) → 정렬 줄(7-12) + 역할 필터(7-14) → 카드 다섯(지남 · 할 일 · 시간 정함 · 끝냄 · 반복, 자리 고정).
+// 할 일 추가 칸은 할 일 카드의 첫 줄(7-15). 작업대는 따로 페이지(/planner/bench) — 여기서는 할 일 보기의 "작업대" 단추로 올리기만 한다(7-16).
+// 반복 규칙은 반복 카드에 따로 산다: 줄을 누르면 규칙 보기(수정 · 멈춤 · 지우기 · 작업대에 올리기). 할 일 보기에는 "반복으로 만들기" 하나.
 // 줄 누르기는 보기만(넓은 데스크톱 오른쪽 패널 · 좁은 데스크톱 떠 있는 패널 · 폰 보기 시트), 고치기는 '수정' 을 한 번 더.
 // 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 '직접' 정렬일 때 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
 // 전환(docs/모션.md): 줄이 생기고 · 빠지고 · 자리를 바꾸면 FLIP 으로 미끄러진다(useFlip). 데이터는 먼저 바뀐다.
 // 지남은 자동으로 넘기지 않는다 — 다시 정하기 · 시간 없음으로 · 마감 바꾸기 · 마감 지우기를 사람이 고른다.
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Fragment,
   useCallback,
@@ -24,47 +23,51 @@ import {
 import {
   addDays,
   DEFAULT_SETTINGS,
+  expand,
+  mergeSteps,
+  parseStepLines,
   ROLE_NAME_MAX,
   roleForPlace,
+  sameSteps,
   TASK_TITLE_MAX,
   TITLE_MAX,
   validateEvent,
   validateTask,
   type EventRow,
-  type Repeat,
+  type Occurrence,
   type Role,
   type TaskRow,
   type TaskRule,
 } from "../../../lib/schedule";
 import type { EventDeps, RuleInput, TaskInput, TaskLink } from "../../_data/types";
 import {
-  benchList,
   DEFAULT_LEN,
   dueOptions,
   filterByRole,
   lateOf,
-  mergeChecklist,
   moved,
   moveSort,
-  parseChecks,
-  parseDueAfter,
   parseMinutes,
-  parseSort,
   roleText,
+  ruleDraft,
+  ruleDraftFromTask,
+  ruleDraftPatch,
   ruleLabel,
+  ruleNext,
   SORT_KEYS,
   SORT_LABEL,
   sortGroups,
+  sortRules,
   splitTasks,
   taskDraft,
   toggleRoleOff,
   type Late,
+  type RuleDraft,
   type Sort,
   type SortGroup,
   type TaskDraft,
-  type TaskScope,
 } from "../../_logic/planner";
-import { taskMenu } from "../../_logic/menus";
+import { ruleMenu, taskMenu } from "../../_logic/menus";
 import { draftInput, newDraft, nowIn, type Draft } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
@@ -80,31 +83,25 @@ import { PlanForm, planDraftFor, type PlanDraft } from "./PlanForm";
 import { PlannerBar, PlannerCards, type CardKey } from "./PlannerCards";
 import { RoleEdit } from "./RoleEdit";
 import { RoleFilter } from "./RoleFilter";
+import { RuleDetail, RuleForm, RuleLine } from "./RulePanel";
 import { TaskDetail } from "./TaskDetail";
 import { TaskForm } from "./TaskForm";
 import { TaskLine } from "./TaskLine";
 import { usePlannerData, type PlannerState } from "./usePlannerData";
 import { isTemp, mapTask, tempId, useTaskOps } from "./useTaskOps";
 import { ROLE_OFF_KEY, readRoleOff } from "./roleOff";
+import { readSort, SORT_KEY } from "./sortPref";
 
 const PHONE_MAX = 760;
 const PANEL_MIN = 1180;
 const CLOCK_MS = 60_000;
-/** 고른 정렬과 방향을 이 기기에 기억한다 ({key, dir}) */
-const SORT_KEY = "ezwork.planner.sort";
-
-function readSort(): Sort {
-  try {
-    return parseSort(localStorage.getItem(SORT_KEY));
-  } catch {
-    return parseSort(null);
-  }
-}
 
 /** 목록의 한 줄: 할 일 + 이어진 일정 + (지남 묶음이면) 무엇이 지났나 */
 type Row = { task: TaskRow; link?: TaskLink | null; late?: Late };
 
-type Edit = { id: string; base: number; draft: TaskDraft; baseDraft: TaskDraft; stale: boolean };
+type Edit = { id: string; base: number; draft: TaskDraft; stale: boolean };
+/** 규칙 칸: id 가 있으면 그 규칙 고치기, task 가 있으면 그 할 일을 첫 회차로 새 규칙("반복으로 만들기") */
+type RuleEdit = { id: string | null; task: string | null; draft: RuleDraft };
 type Plan = { id: string; draft: PlanDraft };
 type DueEdit = { id: string; due: string };
 /** 일정으로 보내기 — 일정 입력 칸 */
@@ -133,7 +130,6 @@ const ruleOf = (s: PlannerState | null, t: TaskRow | null): TaskRule | null => (
 
 export function PlannerView() {
   const { href } = useApp();
-  const router = useRouter();
   const toast = useToast();
   const width = useViewportWidth();
   const phone = (width ?? 1440) <= PHONE_MAX;
@@ -164,6 +160,11 @@ export function PlannerView() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [ruleSel, setRuleSel] = useState<string | null>(null);
+  const [ruleEdit, setRuleEdit] = useState<RuleEdit | null>(null);
+  /** 일정에 딸린 규칙의 다음 회차를 알려고 펼친 회차 (오늘부터 60일) */
+  const [occ, setOcc] = useState<Occurrence[]>([]);
   const [sort, setSort] = useState<Sort>(readSort);
   const [roleEdit, setRoleEdit] = useState(false);
   const [roleOff, setRoleOff] = useState<string[]>(readRoleOff);
@@ -196,7 +197,6 @@ export function PlannerView() {
       done: keep(all.done, (t) => t),
     };
   }, [state, clock, today, nowMin, roleOff, roles]);
-  const benchCount = useMemo(() => benchList(state?.tasks ?? []).length, [state]);
   // 끌어서 순서 바꾸기는 '직접' 정렬에서만
   const manual = sort.key === "manual";
   const openShown = drag ? moved(lists.open, drag.id, drag.to) : lists.open;
@@ -220,6 +220,14 @@ export function PlannerView() {
     }
   }, [sel, state]);
 
+  // 고른 규칙이 사라지면(지움) 닫는다
+  useEffect(() => {
+    if (ruleSel && state && !state.rules.some((r) => r.id === ruleSel)) setRuleSel(null);
+  }, [ruleSel, state]);
+
+  // 일정에 딸린 규칙이 있으면 그 일정들의 다음 회차를 읽어 둔다 (반복 카드의 "다음 회차")
+  const eventRuleIds = useMemo(() => [...new Set((state?.rules ?? []).flatMap((r) => (r.kind === "event" && r.event_id ? [r.event_id] : [])))].sort().join(","), [state]);
+
   // 주소에 ?task=id 가 있으면(집중 화면의 제목) 그 할 일의 보기를 연다 — 처음 한 번
   const openedFromUrl = useRef(false);
   useEffect(() => {
@@ -233,6 +241,20 @@ export function PlannerView() {
   const evId = selLink?.event_id ?? null;
   const evDate = selLink?.date ?? null;
   const S = D.S;
+  useEffect(() => {
+    if (eventRuleIds === "") {
+      setOcc([]);
+      return;
+    }
+    let alive = true;
+    S.events(today, addDays(today, 60)).then(
+      (rows) => alive && setOcc(expand(rows.events, rows.exceptions, today, addDays(today, 60))),
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [eventRuleIds, today, S]);
   useEffect(() => {
     setLinkedEv(null);
     if (!evId || !evDate || isTemp(evId)) return;
@@ -251,8 +273,8 @@ export function PlannerView() {
     if (!edit?.stale || !state) return;
     const t = state.tasks.find((x) => x.id === edit.id);
     if (t && t.version !== edit.base) {
-      const d = taskDraft(t, ruleOf(state, t), state.titles, roleForPlace(D.places.find((p) => p.id === t.place_id), state.roles)?.id ?? null);
-      setEdit({ id: t.id, base: t.version, draft: d, baseDraft: d, stale: false });
+      const d = taskDraft(t, state.titles, roleForPlace(D.places.find((p) => p.id === t.place_id), state.roles)?.id ?? null);
+      setEdit({ id: t.id, base: t.version, draft: d, stale: false });
     }
   }, [edit, state, D.places]);
 
@@ -263,10 +285,12 @@ export function PlannerView() {
     setSend(null);
     setMenu(null);
     setRoleEdit(false);
+    setRuleEdit(null);
   }, []);
 
   const closeAll = useCallback(() => {
     setSel(null);
+    setRuleSel(null);
     closeForms();
   }, [closeForms]);
 
@@ -280,11 +304,10 @@ export function PlannerView() {
     if (addTask(text)) setText("");
   }
 
-  /** '작업대에' — 집중 화면으로 간다. 거기서 앉으면(ez_task_sit) 올라간다 */
-  function toBench(t: TaskRow) {
+  /** "작업대" — 올리기만 한다(이동 · 알림 없음, 줄 앞 키위 막대로 안다). 올라가 있으면 내리기 (7-16) */
+  function toBench(t: TaskRow, on: boolean) {
     if (isTemp(t.id) || t.done_at !== null) return;
-    closeAll();
-    router.push(href(`/planner/bench/${t.id}`));
+    void ops.bench(t, on);
   }
 
   function grab(e: ReactPointerEvent<HTMLLIElement>, t: TaskRow) {
@@ -335,17 +358,18 @@ export function PlannerView() {
   function pick(t: TaskRow) {
     if (justDragged.current || isTemp(t.id)) return;
     closeForms();
+    setRuleSel(null);
     setSel((s) => (s === t.id && !phone ? null : t.id));
   }
 
   function startEdit(t: TaskRow | null = selTask) {
     if (!t || !state) return;
     closeForms();
-    const d = taskDraft(t, ruleOf(state, t), state.titles, autoRole(t));
-    setEdit({ id: t.id, base: t.version, draft: d, baseDraft: d, stale: false });
+    const d = taskDraft(t, state.titles, autoRole(t));
+    setEdit({ id: t.id, base: t.version, draft: d, stale: false });
   }
 
-  async function saveEdit(scope: TaskScope | null) {
+  async function saveEdit() {
     if (!edit || !state) return;
     const t = state.tasks.find((x) => x.id === edit.id);
     if (!t) {
@@ -363,18 +387,9 @@ export function PlannerView() {
       toast(issue.path === "title" && title === "" ? "제목을 써 주세요" : issue.reason);
       return;
     }
-    const checks = parseChecks(d.checks);
+    const checks = parseStepLines(d.checks);
     if (checks.issue) {
       toast(checks.issue);
-      return;
-    }
-    const dueAfter = d.repeat === "none" ? null : parseDueAfter(d.dueAfter);
-    if (Number.isNaN(dueAfter)) {
-      toast("마감까지는 0~60일입니다");
-      return;
-    }
-    if (d.repeat === "weekly" && d.days.length === 0) {
-      toast("요일을 하나 이상 고르세요");
       return;
     }
 
@@ -384,53 +399,21 @@ export function PlannerView() {
     if (note !== t.note) patch.note = note;
     if (d.place_id !== t.place_id) patch.place_id = d.place_id;
     if (d.role_id !== t.role_id) patch.role_id = d.role_id;
-    const checklist = mergeChecklist(t.checklist, checks.texts);
-    if (JSON.stringify(checklist) !== JSON.stringify(t.checklist)) patch.checklist = checklist;
+    const checklist = mergeSteps(t.checklist, checks.lines);
+    if (!sameSteps(checklist, t.checklist)) patch.checklist = checklist;
     // 마감을 바꾸거나 지울 때는 일정 연결도 같이 보낸다 (건 채로 날짜만 바꾸면 DB 가 거절한다)
     if (due !== t.due || dueEvent !== t.due_event_id) {
       patch.due = due;
       patch.due_event_id = dueEvent;
     }
 
-    // 반복: 새로 켜면 규칙을 만들고 이 할 일이 첫 회차, 끄면 규칙을 멈춘다, '앞으로도' 면 규칙도 고친다
-    const rule = ruleOf(state, t);
-    const repeat: Repeat = d.repeat === "daily" ? { freq: "daily" } : d.repeat === "weekly" ? { freq: "weekly", days: d.days } : null;
-    const shape = { title, note, est_min: est, place_id: d.place_id, role_id: d.role_id, checklist: checks.texts };
-    let create: RuleInput | null = null;
-    let stop: string | null = null;
-    let update: { id: string; patch: Partial<RuleInput> } | null = null;
-    if (!rule && repeat) {
-      create = { kind: "cycle", ...shape, repeat, start: today, event_id: null, due_after: dueAfter, last_made: today };
-      if (due === null && dueAfter !== null) {
-        patch.due = addDays(today, dueAfter);
-        patch.due_event_id = null;
-      }
-    } else if (rule && d.repeat === "none") stop = rule.id;
-    else if (rule && scope === "future") {
-      update = { id: rule.id, patch: { ...shape, due_after: dueAfter, ...(rule.kind === "cycle" && repeat ? { repeat } : {}) } };
-    }
-
     const current = edit;
     setEdit(null);
-    if (Object.keys(patch).length === 0 && !create && !stop && !update) return;
+    if (Object.keys(patch).length === 0) return;
     const ok = await D.run(
       (s) => mapTask(s, t.id, (x) => ({ ...x, ...patch })),
       async () => {
-        let p = patch;
-        let made: string | null = null;
-        if (create) {
-          made = (await D.T.createRule(create)).id;
-          p = { ...p, rule_id: made, rule_date: today };
-        } else if (stop) await D.T.stopRule(stop);
-        else if (update) await D.T.updateRule(update.id, update.patch);
-        if (Object.keys(p).length === 0) return true;
-        try {
-          await D.T.updateTask(t.id, current.base, p);
-        } catch (e) {
-          // 할 일을 못 고쳤으면 방금 만든 규칙을 남기지 않는다
-          if (made) await D.T.stopRule(made).catch(() => {});
-          throw e;
-        }
+        await D.T.updateTask(t.id, current.base, patch);
         return true;
       },
     );
@@ -438,6 +421,100 @@ export function PlannerView() {
       setSel(current.id);
       setEdit({ ...current, stale: true });
     }
+  }
+
+  // ------------------------------------------------------------ 반복 규칙 (반복 카드, 7-16)
+
+  const mapRule = (id: string, p: Partial<TaskRule>) => (s: PlannerState): PlannerState => ({ ...s, rules: s.rules.map((r) => (r.id === id ? { ...r, ...p } : r)) });
+
+  function pickRule(r: TaskRule) {
+    closeForms();
+    setSel(null);
+    setRuleSel((s) => (s === r.id && !phone ? null : r.id));
+  }
+
+  function startRuleEdit(r: TaskRule) {
+    closeForms();
+    setSel(null);
+    setRuleSel(r.id);
+    const auto = roleForPlace(r.place_id ? placeOf.get(r.place_id) : null, roles)?.id ?? null;
+    setRuleEdit({ id: r.id, task: null, draft: ruleDraft(r, auto) });
+  }
+
+  /** "반복으로 만들기": 규칙 칸을 그 할 일의 모양으로 연다. 저장하면 규칙이 생기고 이 할 일이 첫 회차 */
+  function startRepeat(t: TaskRow | null = selTask) {
+    if (!t || isTemp(t.id) || t.done_at !== null) return;
+    closeForms();
+    setRuleSel(null);
+    setSel(t.id);
+    setRuleEdit({ id: null, task: t.id, draft: ruleDraftFromTask(t, today, autoRole(t)) });
+  }
+
+  async function saveRule() {
+    if (!ruleEdit || !state) return;
+    const cur = ruleEdit;
+    const rule = cur.id ? (state.rules.find((r) => r.id === cur.id) ?? null) : null;
+    const task = cur.task ? (state.tasks.find((t) => t.id === cur.task) ?? null) : null;
+    if (!rule && !task) {
+      setRuleEdit(null);
+      return;
+    }
+    const r = ruleDraftPatch(cur.draft, rule?.checklist ?? []);
+    if ("issue" in r) {
+      toast(r.issue);
+      return;
+    }
+    setRuleEdit(null);
+    if (rule) {
+      const p: Partial<RuleInput> = { ...r.patch, ...(rule.kind === "cycle" && r.repeat ? { repeat: r.repeat } : {}) };
+      const ok = await D.run(mapRule(rule.id, p), () => D.T.updateRule(rule.id, p));
+      if (!ok) setRuleEdit(cur);
+      return;
+    }
+    if (!task || !r.repeat) return;
+    // 새 규칙: 오늘부터, 이 할 일이 첫 회차. 마감이 없고 "마감까지 며칠" 을 적었으면 이 회차의 마감도 채운다
+    const input: RuleInput = { kind: "cycle", ...r.patch, repeat: r.repeat, start: today, event_id: null, last_made: today };
+    const p: Partial<TaskInput> = { rule_date: today };
+    if (task.due === null && r.patch.due_after !== null) {
+      p.due = addDays(today, r.patch.due_after);
+      p.due_event_id = null;
+    }
+    const made = await D.run(null, async (srv) => {
+      const row = await D.T.createRule(input);
+      try {
+        await D.T.updateTask(task.id, D.versionOf(srv, task.id, task.version), { ...p, rule_id: row.id });
+      } catch (e) {
+        // 할 일에 못 걸었으면 방금 만든 규칙을 남기지 않는다
+        await D.T.stopRule(row.id).catch(() => {});
+        throw e;
+      }
+      return row;
+    });
+    if (!made) {
+      setSel(task.id);
+      setRuleEdit(cur);
+      return;
+    }
+    setShowRules(true);
+  }
+
+  /** 멈춤 · 다시 시작 · 작업대에 올리기 — 바로 */
+  function patchRule(r: TaskRule, p: Partial<Pick<TaskRule, "paused" | "bench">>) {
+    void D.run(mapRule(r.id, p), () => D.T.updateRule(r.id, p));
+  }
+
+  /** 규칙 지우기. 이미 생긴 할 일은 남는다. 되돌리기는 규칙을 되살린다 */
+  async function removeRule(r: TaskRule) {
+    closeForms();
+    setRuleSel(null);
+    const ok = await D.run(
+      (s) => ({ ...s, rules: s.rules.filter((x) => x.id !== r.id) }),
+      async () => {
+        await D.T.stopRule(r.id);
+        return true;
+      },
+    );
+    if (ok) toast("반복을 지웠습니다", { label: "되돌리기", run: () => void D.run(null, () => D.T.restoreRule(r.id)) });
   }
 
   // ------------------------------------------------------------ 시간 정하기 · 다시 정하기 · 시간 없음으로
@@ -560,7 +637,7 @@ export function PlannerView() {
     });
   }
 
-  // ------------------------------------------------------------ 일정으로 보내기 · 없애기
+  // ------------------------------------------------------------ 일정으로 보내기 · 지우기
 
   function startSend(t: TaskRow | null = selTask) {
     if (!t) return;
@@ -625,7 +702,7 @@ export function PlannerView() {
         return true;
       },
     );
-    if (ok) toast("할 일을 없앴습니다", { label: "되돌리기", run: () => void D.run(null, () => D.T.restoreTask(t.id)) });
+    if (ok) toast("할 일을 지웠습니다", { label: "되돌리기", run: () => void D.run(null, () => D.T.restoreTask(t.id)) });
   }
 
   // ------------------------------------------------------------ 정렬 · 역할 편집
@@ -725,13 +802,15 @@ export function PlannerView() {
         else if (dueEdit) setDueEdit(null);
         else if (plan) setPlan(null);
         else if (edit) setEdit(null);
+        else if (ruleEdit) setRuleEdit(null);
+        else if (ruleSel) setRuleSel(null);
         else if (sel) setSel(null);
         else if (document.activeElement === inputRef.current) inputRef.current?.blur();
         else return;
         e.preventDefault();
         return;
       }
-      if (isTyping(e.target) || edit || plan || dueEdit || send) return;
+      if (isTyping(e.target) || edit || plan || dueEdit || send || ruleEdit) return;
       if (e.key === "n" || e.key === "N") {
         if (phone) setSel(null);
         inputRef.current?.focus();
@@ -758,18 +837,27 @@ export function PlannerView() {
     const link = linkOf.get(t.id) ?? null;
     const show = () => {
       closeForms();
+      setRuleSel(null);
       setSel(t.id);
     };
     return toEntries(
-      taskMenu({ temp: isTemp(t.id), done: t.done_at !== null, benched: t.bench_order !== null, link, late: lateOf(t, link, now) }),
+      taskMenu({
+        temp: isTemp(t.id),
+        done: t.done_at !== null,
+        benched: t.bench_order !== null,
+        link,
+        late: lateOf(t, link, now),
+        repeats: t.rule_id !== null && liveRules.has(t.rule_id),
+      }),
       (act) => {
         if (act === "view") show();
         else if (act === "done" || act === "undone") void toggle(t);
-        else if (act === "bench") toBench(t);
-        else if (act === "unbench") void ops.bench(t, false);
+        else if (act === "bench" || act === "unbench") toBench(t, act === "bench");
         else if (act === "unplan") void unplan(t);
         else if (act === "delete") void remove(t);
+        else if (act === "repeat") startRepeat(t);
         else {
+          setRuleSel(null);
           setSel(t.id);
           if (act === "edit") startEdit(t);
           else if (act === "plan" || act === "replan") startPlan(t);
@@ -778,6 +866,40 @@ export function PlannerView() {
       },
     );
   };
+
+  /** 반복 카드의 줄들: 규칙마다 주기 글자와 다음 회차 */
+  const ruleRows = sortRules(
+    state.rules.map((rule) => ({
+      rule,
+      label: ruleLabel(rule, rule.event_id ? state.titles[rule.event_id] : null),
+      next: ruleNext(rule, today, occ),
+    })),
+  );
+  const ruleList = () => (
+    <ul className="pl-rows">
+      {ruleRows.map(({ rule, label, next }) => (
+        <RuleLine
+          key={rule.id}
+          rule={rule}
+          label={label}
+          next={next}
+          selected={ruleSel === rule.id}
+          onPick={pickRule}
+          menu={cm.bind(`rule:${rule.id}`, () =>
+            toEntries(ruleMenu({ paused: rule.paused }), (act) => {
+              if (act === "view") {
+                closeForms();
+                setSel(null);
+                setRuleSel(rule.id);
+              } else if (act === "edit") startRuleEdit(rule);
+              else if (act === "delete") void removeRule(rule);
+              else patchRule(rule, { paused: act === "pause" });
+            }),
+          )}
+        />
+      ))}
+    </ul>
+  );
 
   const line = ({ task: t, link, late }: Row, movable = false) => (
     <TaskLine
@@ -836,10 +958,27 @@ export function PlannerView() {
   const planTask = taskById(plan?.id);
   const dueTask = taskById(dueEdit?.id);
   const sendTask = taskById(send?.id);
+  const selRule = ruleSel ? (state.rules.find((r) => r.id === ruleSel) ?? null) : null;
+  const selRuleRow = selRule ? (ruleRows.find((x) => x.rule.id === selRule.id) ?? null) : null;
+  const editRule = ruleEdit?.id ? (state.rules.find((r) => r.id === ruleEdit.id) ?? null) : null;
   let panel: ReactNode = null;
   let panelLabel = "";
   /** 패널 내용이 바뀌면(다른 할 일 · 보기 → 수정) 새로 나타난다 */
-  const panelKey = roleEdit ? "roles" : send ? `send:${send.id}` : dueEdit ? `due:${dueEdit.id}` : plan ? `plan:${plan.id}` : edit ? `edit:${edit.id}` : `view:${sel}`;
+  const panelKey = roleEdit
+    ? "roles"
+    : send
+      ? `send:${send.id}`
+      : dueEdit
+        ? `due:${dueEdit.id}`
+        : plan
+          ? `plan:${plan.id}`
+          : edit
+            ? `edit:${edit.id}`
+            : ruleEdit
+              ? `rule-edit:${ruleEdit.id ?? ruleEdit.task}`
+              : selRule
+                ? `rule:${selRule.id}`
+                : `view:${sel}`;
   if (roleEdit) {
     panelLabel = "역할 편집";
     panel = <RoleEdit roles={roles} onRename={renameRole} onAdd={addRole} onMove={moveRole} onDelete={(r) => void removeRole(r)} />;
@@ -888,19 +1027,48 @@ export function PlannerView() {
       <TaskForm
         key={`${edit.id}:${edit.base}`}
         draft={edit.draft}
-        base={edit.baseDraft}
-        today={today}
         places={D.places}
         roles={roles}
         loadDueOptions={() => D.S.events(today, addDays(today, 60)).then((rows) => dueOptions(rows, today))}
         onChange={(d) => setEdit((x) => (x ? { ...x, draft: d } : x))}
-        onSave={(scope) => void saveEdit(scope)}
+        onSave={() => void saveEdit()}
         onCancel={() => setEdit(null)}
+      />
+    );
+  } else if (ruleEdit && (editRule || ruleEdit.task)) {
+    panelLabel = ruleEdit.id ? "반복 수정" : "반복으로 만들기";
+    panel = (
+      <RuleForm
+        key={`rule:${ruleEdit.id ?? ruleEdit.task}`}
+        draft={ruleEdit.draft}
+        eventLabel={editRule?.kind === "event" ? ruleLabel(editRule, editRule.event_id ? state.titles[editRule.event_id] : null) : null}
+        places={D.places}
+        roles={roles}
+        isNew={ruleEdit.id === null}
+        onChange={(d) => setRuleEdit((x) => (x ? { ...x, draft: d } : x))}
+        onSave={() => void saveRule()}
+        onCancel={() => setRuleEdit(null)}
+      />
+    );
+  } else if (selRule) {
+    panelLabel = selRule.title;
+    panel = (
+      <RuleDetail
+        rule={selRule}
+        label={selRuleRow?.label ?? ""}
+        next={selRuleRow?.next ?? null}
+        place={selRule.place_id ? (placeOf.get(selRule.place_id) ?? null) : null}
+        role={roles.find((r) => r.id === selRule.role_id)?.name ?? null}
+        onBench={(on) => patchRule(selRule, { bench: on })}
+        onEdit={() => startRuleEdit(selRule)}
+        onPause={(paused) => patchRule(selRule, { paused })}
+        onDelete={() => void removeRule(selRule)}
       />
     );
   } else if (selTask) {
     const rule = ruleOf(state, selTask);
     const canSend = !selLink && selTask.done_at === null;
+    const canRepeat = !rule && selTask.done_at === null;
     panelLabel = selTask.title;
     panel = (
       <TaskDetail
@@ -921,21 +1089,22 @@ export function PlannerView() {
         onDue={startDue}
         onClearDue={() => void clearDue()}
         onEdit={() => startEdit()}
-        onBench={selTask.done_at === null && selTask.bench_order === null ? () => toBench(selTask) : null}
+        onBench={selTask.done_at === null ? (on) => toBench(selTask, on) : null}
         onDelete={() => void remove()}
         onMore={
-          canSend
+          canSend || canRepeat
             ? (e: ReactMouseEvent<HTMLButtonElement>) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 // 아래에 자리가 없으면(폰 시트 맨 아래) 버튼 위로 연다 — 버튼을 가리지 않게
-                setMenu({ x: r.left, y: r.bottom + 56 > innerHeight ? r.top - 52 : r.bottom + 4 });
+                const h = canSend && canRepeat ? 92 : 52;
+                setMenu({ x: r.left, y: r.bottom + h + 4 > innerHeight ? r.top - h : r.bottom + 4 });
               }
             : null
         }
       />
     );
   }
-  const viewing = panel !== null && !edit && !plan && !dueEdit && !send;
+  const viewing = panel !== null && !edit && !plan && !dueEdit && !send && !ruleEdit;
 
   const close = (
     <button type="button" className="iconbtn pl-x" aria-label="닫기" title="닫기" onClick={closeAll}>
@@ -995,13 +1164,7 @@ export function PlannerView() {
                 />
               </label>
             }
-            benchLink={
-              benchCount > 0 && (
-                <Link className="pl-bnlink" href={href("/planner/bench")}>
-                  작업대 <span className="num">{benchCount}</span>
-                </Link>
-              )
-            }
+            rules={{ count: ruleRows.length, body: ruleList, open: showRules, onFold: () => setShowRules((v) => !v) }}
           />
         </div>
         {!phone && wide && panel && (
@@ -1044,8 +1207,18 @@ export function PlannerView() {
           </div>
         )}
       </Presence>
-      {menu && viewing && (
-        <Menu x={menu.x} y={menu.y} entries={[{ kind: "item", icon: "cal", label: "일정으로", run: () => startSend() }]} onClose={() => setMenu(null)} />
+      {menu && viewing && selTask && (
+        <Menu
+          x={menu.x}
+          y={menu.y}
+          entries={[
+            ...(!selLink && selTask.done_at === null ? [{ kind: "item" as const, icon: "cal" as const, label: "일정으로", run: () => startSend() }] : []),
+            ...(!ruleOf(state, selTask) && selTask.done_at === null
+              ? [{ kind: "item" as const, icon: "repeat" as const, label: "반복으로 만들기", run: () => startRepeat() }]
+              : []),
+          ]}
+          onClose={() => setMenu(null)}
+        />
       )}
       {cm.node}
     </div>

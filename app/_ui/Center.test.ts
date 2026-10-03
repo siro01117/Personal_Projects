@@ -30,9 +30,11 @@ describe("내용 기둥은 가운데 (공통 1장)", () => {
     expect(decls(".pl-cols:not(.two)")).toMatch(/max-width:760px/);
   });
 
-  it("작업대: 목록 760 · 집중 960 (이미 가운데)", () => {
+  it("작업대: 목록 760(가져올 것이 옆에 있으면 1,104) · 집중 960 · 기록 960", () => {
     column(".bl-col", 760);
+    expect(decls(".bl-col.two")).toMatch(/max-width:1104px/);
     column(".bf-col", 960);
+    column(".lg-col", 960);
   });
 
   it("모임 목록 · 모임 하나 1,040", () => {

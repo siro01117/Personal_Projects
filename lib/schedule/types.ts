@@ -162,7 +162,7 @@ export type TaskRow = {
   place_id: string | null;
   /** 마감을 딸려 둔 일정. due 는 그 회차 날짜의 사본 (7-3) */
   due_event_id: string | null;
-  /** 체크 항목 한 단 (7-6) */
+  /** 체크 항목(단계). 한 단 더 들어갈 수 있다 (7-6 · 7-16) */
   checklist: CheckItem[];
   /** 반복 규칙에서 생겼으면 그 규칙과 회차 날짜 (7-2) */
   rule_id: string | null;
@@ -171,14 +171,43 @@ export type TaskRow = {
   role_id: string | null;
   /** 작업대에 올린 순서 (작은 것이 앞). null 이면 안 올라감. 여럿 (7-15) */
   bench_order: number | null;
-  /** 지금 앉은 때 — 집중 화면을 연 것. 사람당 하나, 올라간 것에만 (7-15) */
+  /** 0017 의 "앉은 때". 7-16 부터 쓰지 않는다 (열은 남아 있다) — 시간은 work 가 센다 */
   bench_at: string | null;
   version: number;
   created_at: string;
   updated_at: string;
+  /** 시간 기록의 합 (7-16). 목록을 읽을 때 같이 채운다 — 기록이 한 번도 없으면 없다 */
+  work?: TaskWork;
 };
 
-export type CheckItem = { t: string; done: boolean };
+/** 아랫단 단계. 더 못 들어간다 */
+export type SubCheck = { t: string; done: boolean; est?: number };
+/** 체크 항목(단계) 하나. est = 걸릴 시간(분, 1~600), sub = 아랫단 (docs/플래너.md 7-16). 옛 모양 {t, done} 도 그대로 */
+export type CheckItem = { t: string; done: boolean; est?: number; sub?: SubCheck[] };
+
+/** 규칙의 단계 틀 — 글자(옛 모양) 또는 {t, est?, sub?}. 회차가 생길 때 전부 안 끝난 단계가 된다 */
+export type RuleSub = string | { t: string; est?: number };
+export type RuleCheck = string | { t: string; est?: number; sub?: RuleSub[] };
+
+/**
+ * 할 일 하나의 시간 기록 합 (ez_work_sum). 초. 돌고 있는 구간은 읽은 때(at)까지 센 값이라
+ * 화면은 at 뒤로 흐른 만큼을 더해 그린다 (lib/schedule/work.ts 의 liveWork)
+ */
+export type TaskWork = {
+  today_sec: number;
+  total_sec: number;
+  running: boolean;
+  /** 돌고 있는 구간의 시작 */
+  started_at: string | null;
+  /** 이 값을 읽은 때 */
+  at: string;
+};
+
+/** 한 주 표의 한 칸: 그 할 일을 그날 몇 초 (ez_work_week) */
+export type WorkDay = { task_id: string; day: DateStr; seconds: number };
+
+/** 시간 기록 한 구간 (ez_work_list). ended_at 은 계산한 끝 — 열려 있으면 읽은 때 */
+export type WorkSpan = { id: string; task_id: string; started_at: string; ended_at: string; running: boolean };
 
 export const TASK_RULE_KINDS = ["cycle", "event"] as const;
 export type TaskRuleKind = (typeof TASK_RULE_KINDS)[number];
@@ -191,8 +220,8 @@ export type TaskRule = {
   note: string | null;
   est_min: number | null;
   place_id: string | null;
-  /** 만들 할 일의 체크 항목 글자 */
-  checklist: string[];
+  /** 만들 할 일의 단계 틀 */
+  checklist: RuleCheck[];
   /** cycle 만: 매일 / 매주 요일. until 은 쓰지 않는다 */
   repeat: Exclude<Repeat, null> | null;
   /** cycle 만: 이 날부터 */
@@ -203,6 +232,10 @@ export type TaskRule = {
   due_after: number | null;
   last_made: DateStr | null;
   role_id: string | null;
+  /** 회차가 생기면 작업대에 올린다 (7-16) */
+  bench: boolean;
+  /** 잠깐 멈춤 — 목록에는 남고 회차를 만들지 않는다 (7-16) */
+  paused: boolean;
   version: number;
 };
 
@@ -228,6 +261,11 @@ export const ROLE_NAME_MAX = 20;
 /** 체크 항목(단계) 상한 — 0016 에서 20 → 50 (docs/플래너.md 7-13) */
 export const CHECKLIST_MAX = 50;
 export const CHECK_ITEM_MAX = 100;
+/** 단계 하나의 걸릴 시간(분) */
+export const STEP_EST_MIN = 1;
+export const STEP_EST_MAX = 600;
+/** 열린 채 잊은 구간은 이만큼에서 자른다 (0018 ez_work_end) */
+export const WORK_SPAN_MAX_SEC = 86_400;
 export const DUE_AFTER_MAX = 60;
 
 export const TITLE_MAX = 100;

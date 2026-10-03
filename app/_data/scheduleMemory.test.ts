@@ -546,3 +546,144 @@ describe("MemorySchedule — 역할 (docs/플래너.md 7-11)", () => {
     expect(tasks.some((t) => t.role_id === null)).toBe(true);
   });
 });
+
+describe("MemorySchedule — 시간 기록 · 단계 두 단 · 규칙의 멈춤 (docs/플래너.md 7-16, 0018 과 같게)", () => {
+  const sums = async (m: MemorySchedule) => m.workSums();
+
+  it("시작하면 그 할 일에서 돌고, 다른 할 일에서 시작하면 앞의 것이 멈춘다. 중지하면 닫힌다", async () => {
+    const m = new MemorySchedule();
+    const a = await m.createTask({ title: "상법" });
+    const b = await m.createTask({ title: "과제" });
+    expect(await sums(m)).toEqual({});
+    await m.workStart(a.id);
+    expect((await sums(m))[a.id]).toMatchObject({ running: true });
+    await m.workStart(a.id); // 이미 돌고 있으면 그대로
+    await m.workStart(b.id);
+    const s = await sums(m);
+    expect(s[a.id]).toMatchObject({ running: false, started_at: null });
+    expect(s[b.id]).toMatchObject({ running: true });
+    await m.workStop();
+    expect((await sums(m))[b.id]).toMatchObject({ running: false });
+    await m.workStop(); // 없어도 아무 일 없다
+  });
+
+  it("끝내거나 지우면 그 할 일의 시간이 멈춘다. 끝낸 것은 못 시작한다. 지운 할 일의 기록은 합에서 빠진다", async () => {
+    const m = new MemorySchedule();
+    const a = await m.createTask({ title: "상법" });
+    const b = await m.createTask({ title: "과제" });
+    await m.workStart(a.id);
+    const done = await m.setDone(a.id, 1, true);
+    expect((await sums(m))[a.id]).toMatchObject({ running: false });
+    await expect(m.workStart(a.id)).rejects.toThrow(/EZ_VALUE/);
+    await expect(m.workStart("없는 것")).rejects.toThrow(/EZ_NOT_FOUND/);
+    await m.workStart(b.id);
+    await m.deleteTask(b.id, 1);
+    expect(Object.keys(await sums(m))).toEqual([a.id]);
+    void done;
+  });
+
+  it("씨앗의 구간으로 한 주 표를 낸다 (자정 · 주 경계에서 나눈다)", async () => {
+    const m = new MemorySchedule({
+      tasks: [{ id: "a", title: "상법" }],
+      work: [
+        { task_id: "a", started_at: "2026-10-05T00:00:00Z", ended_at: "2026-10-05T00:45:00Z" },
+        { task_id: "a", started_at: "2026-10-06T14:30:00Z", ended_at: "2026-10-06T15:30:00Z" },
+      ],
+    });
+    expect(await m.workWeek("2026-10-05")).toEqual([
+      { task_id: "a", day: "2026-10-05", seconds: 2700 },
+      { task_id: "a", day: "2026-10-06", seconds: 1800 },
+      { task_id: "a", day: "2026-10-07", seconds: 1800 },
+    ]);
+    expect((await sums(m)).a).toMatchObject({ total_sec: 6300, running: false });
+  });
+
+  it("체크 항목: 아랫단 · 걸릴 시간을 받는다. 둘째 단 밑 · 틀린 est · 합쳐 50개 넘는 것은 거절", async () => {
+    const m = new MemorySchedule();
+    const list = [{ t: "정리", done: false, sub: [{ t: "1장", done: true, est: 10 }] }, { t: "문제", done: false, est: 30 }];
+    const t = await m.createTask({ title: "상법", checklist: list });
+    expect(t.checklist).toEqual(list);
+    const bad = [
+      [{ t: "x", done: false, est: 0 }],
+      [{ t: "x", done: false, sub: [{ t: "y", done: false, sub: [] }] }],
+      [{ t: "윗단", done: false, sub: Array.from({ length: 50 }, (_, i) => ({ t: `${i}`, done: false })) }],
+    ];
+    for (const checklist of bad) await expect(m.updateTask(t.id, 1, { checklist: checklist as never })).rejects.toThrow(/ez_tasks_checklist_check/);
+  });
+
+  it("roll: 단계 틀(아랫단 · 걸릴 시간)을 옮기고, bench 규칙의 회차는 작업대 맨 뒤에 올라간 채 생긴다", async () => {
+    const m = new MemorySchedule();
+    const first = await m.createTask({ title: "먼저 올라간 것" });
+    await m.bench(first.id, true);
+    await m.createRule(cycle({ checklist: ["편지함", { t: "일정", est: 20, sub: ["이번 주", { t: "다음 주", est: 5 }] }], bench: true }));
+    expect(await m.roll("2026-09-07", 600)).toBe(1);
+    const made = (await m.tasks()).find((t) => t.rule_id !== null)!;
+    expect(made.checklist).toEqual([
+      { t: "편지함", done: false },
+      { t: "일정", done: false, sub: [{ t: "이번 주", done: false }, { t: "다음 주", done: false, est: 5 }] },
+    ]);
+    expect(made.bench_order).toBe(2);
+    await expect(m.createRule(cycle({ checklist: [{ t: "x", done: false }] as never }))).rejects.toThrow(/ez_task_rules_checklist_check/);
+  });
+
+  it("roll: 밀린 지난 회차는 지우되 작업대에 올라가 있거나 시간 기록이 있으면 남긴다", async () => {
+    const live = async (m: MemorySchedule) => (await m.tasks()).filter((t) => t.rule_id !== null).map((t) => t.rule_date).sort();
+    const plain = new MemorySchedule();
+    await plain.createRule(cycle());
+    await plain.roll("2026-09-07", 600);
+    await plain.roll("2026-09-14", 600);
+    expect(await live(plain)).toEqual(["2026-09-14"]);
+
+    const benched = new MemorySchedule();
+    await benched.createRule(cycle());
+    await benched.roll("2026-09-07", 600);
+    await benched.bench((await benched.tasks())[0]!.id, true);
+    expect(await benched.roll("2026-09-14", 600)).toBe(1);
+    expect(await live(benched)).toEqual(["2026-09-07", "2026-09-14"]);
+
+    const logged = new MemorySchedule();
+    await logged.createRule(cycle());
+    await logged.roll("2026-09-07", 600);
+    await logged.workStart((await logged.tasks())[0]!.id);
+    await logged.workStop();
+    expect(await logged.roll("2026-09-14", 600)).toBe(1);
+    expect(await live(logged)).toEqual(["2026-09-07", "2026-09-14"]);
+  });
+
+  it("멈춘(paused) 규칙은 목록에 남고 회차를 안 만든다. 다시 켜면 가장 최근 회차 하나. 지운 규칙은 되살릴 수 있다", async () => {
+    const m = new MemorySchedule();
+    const r = await m.createRule(cycle());
+    expect(r).toMatchObject({ bench: false, paused: false });
+    await m.updateRule(r.id, { paused: true });
+    expect(await m.roll("2026-09-21", 600)).toBe(0);
+    expect((await m.rules()).map((x) => [x.id, x.paused])).toEqual([[r.id, true]]);
+    await m.updateRule(r.id, { paused: false });
+    expect(await m.roll("2026-09-21", 600)).toBe(1);
+    expect((await m.tasks()).map((t) => t.rule_date)).toEqual(["2026-09-21"]);
+    await m.stopRule(r.id);
+    expect(await m.rules()).toEqual([]);
+    expect(await m.restoreRule(r.id)).toMatchObject({ id: r.id, paused: false });
+    expect(await m.rules()).toHaveLength(1);
+    await expect(m.restoreRule("없는 것")).rejects.toThrow(/EZ_NOT_FOUND/);
+  });
+
+  it("확인 모드 데이터: 기록 몇 구간 · 아랫단이 있는 단계 · 규칙 둘(하나는 작업대에 올리기)", async () => {
+    const m = new MemorySchedule(scheduleSeed(new Date("2026-10-01T05:00:00Z")));
+    const tasks = await m.tasks();
+    expect(tasks.some((t) => t.checklist.some((c) => (c.sub ?? []).length > 0))).toBe(true);
+    const s = await m.workSums();
+    expect(Object.keys(s).length).toBeGreaterThanOrEqual(3);
+    expect(Object.values(s).every((w) => !w.running)).toBe(true); // 시작은 사람이 누른다
+    const rules = await m.rules();
+    expect(rules).toHaveLength(2);
+    expect(rules.filter((r) => r.bench).map((r) => r.kind)).toEqual(["event"]);
+    // 열면 수업에 딸린 회차가 단계 틀을 든 채 작업대에 올라온다
+    await m.roll("2026-10-01", 14 * 60);
+    const made = (await m.tasks()).find((t) => t.title === "자료구조 내용 정리")!;
+    expect(made.bench_order).not.toBeNull();
+    expect(made.checklist).toEqual([
+      { t: "필기 옮기기", done: false },
+      { t: "예제 풀기", done: false, sub: [{ t: "기본", done: false }, { t: "응용", done: false }] },
+    ]);
+  });
+});

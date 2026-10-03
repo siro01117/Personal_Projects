@@ -955,6 +955,24 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .ck-list .ck .i{width:18px;height:18px;margin-top:1px;color:var(--text-3)}
 .ck-list .ck:hover .i,.ck-list .ck.on .i{color:var(--point-ink)}
 .ck-list .ck.on span{color:var(--text-3)}
+/* 두 단 · 단계별 걸릴 시간 (7-16): 아랫단은 16px 들이고, 걸릴 시간은 줄 오른쪽에 작게. 규칙의 단계 틀(.tpl)은 보기만 */
+.ck-list li{display:flex;align-items:flex-start;gap:8px}
+.ck-list li.sub{padding-left:16px}
+.ck-list .ck{flex:1;min-width:0;width:auto}
+.ck-est{flex:0 0 auto;padding-top:7px;font-size:13px;line-height:20px;color:var(--text-3);white-space:nowrap}
+.ck-list.tpl .ck{cursor:default}
+.ck-list.tpl .ck:hover .i{color:var(--text-3)}
+/* 반복 카드의 줄(7-16): ↻ · 제목 · 주기 · 다음 회차. 멈춘 규칙은 흐리게 */
+.pl-row.rule .rpt{margin-right:-2px}
+.pl-row.rule.paused .nm,.pl-row.rule.paused .rpt{color:var(--text-3)}
+.pl-row.rule .when{min-width:0}
+/* 주기 글자("매주 월" · "… 끝날 때마다"): 역할 글자와 같은 결. 아주 좁을 때만 뺀다(다음 회차는 남긴다) */
+.pl-row .per{flex:0 1 auto;min-width:0;max-width:12em;font-size:12px;line-height:22px;color:var(--text-3);text-align:right;word-break:keep-all;overflow-wrap:anywhere}
+.planner:not(.meet) .pl-row .per{font-size:15px;line-height:26px}
+@container plist (max-width: 250px){ .pl-row .per{display:none} }
+/* 규칙 보기 · 수정 칸의 "회차가 생기면 작업대에 올리기" */
+.rule-bench{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;font-size:15px;color:var(--text-1);cursor:pointer}
+.rule-bench input{flex:0 0 auto;width:18px;height:18px;margin:0;accent-color:var(--point-ink)}
 /* 수정 칸: 마감을 일정으로 · 체크 항목 */
 .due-ev{gap:8px;max-width:100%;height:auto;min-height:32px;padding:5px 10px;font-weight:600}
 .due-ev .t{min-width:0;font-weight:500;color:var(--text-2);word-break:keep-all;overflow-wrap:anywhere}
@@ -1002,15 +1020,9 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-new:hover input{border-bottom-color:var(--border)}
 .pl-new input:focus{border-bottom-color:var(--point-ink)}
 .pl-new:focus-within .i{color:var(--point-ink)}
-/* 할 일 카드 머리 오른쪽 "작업대 n" (7-15) */
-.pl-hrow{display:flex;align-items:center;gap:8px}
-.pl-hrow .pl-h{flex:1;min-width:0;width:auto}
-.pl-bnlink{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:32px;margin-right:4px;padding:0 10px;border-radius:var(--r-s);font-size:14px;color:var(--text-2);text-decoration:none;transition:background var(--t),color var(--t)}
-.pl-bnlink:hover{background:var(--surface-2);color:var(--text-1)}
-.pl-bnlink .num{color:var(--point-ink);font-weight:600}
 
 /* ====================================================================================
-   작업대 (docs/플래너.md 7-15). 목록 /planner/bench · 집중 화면 /planner/bench/[id]. 플래너의 틀(.planner · .pl-*)을 같이 쓴다
+   작업대 (docs/플래너.md 7-15 · 7-16). 목록 /planner/bench · 집중 화면 /planner/bench/[id] · 기록 /planner/log. 플래너의 틀(.planner · .pl-*)을 같이 쓴다
    ==================================================================================== */
 .bl-crumb{display:flex;align-items:center;gap:2px;min-width:0;font-size:15px;color:var(--text-3)}
 .bl-crumb a{padding:5px 8px;border-radius:var(--r-s);color:var(--text-2);text-decoration:none;transition:background var(--t),color var(--t)}
@@ -1018,23 +1030,41 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .bl-crumb .i{width:14px;height:14px}
 .bl-crumb [aria-current]{padding:0 8px;color:var(--text-1);font-weight:600}
 .bl-col{max-width:760px;margin:0 auto}
-.bl-acts{display:flex;gap:8px;margin:4px 0 12px}
-.bl-acts .btn .i{width:17px;height:17px}
+/* 두 열(7-16): 왼쪽 카드들(760 까지) + 오른쪽 "가져올 만한 것" 320. 작업면이 1,000 이상일 때만 옆에, 좁으면 카드들 아래 */
+.bl-col.two{max-width:1104px}
+.bl-acts{display:flex;justify-content:flex-end;min-height:32px;margin:0 0 6px}
+.bl-log{display:inline-flex;align-items:center;height:32px;padding:0 10px;border-radius:var(--r-s);font-size:14px;color:var(--text-3);text-decoration:none;transition:background var(--t),color var(--t)}
+.bl-log:hover{background:var(--surface-2);color:var(--text-1)}
+.bl-cols{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.bl-left{min-width:0}
+/* 가져올 만한 것: 종이색 라운드 사각형, 옅은 그림자 — 떠 있는 느낌. 제목 글자 없이 첫 줄부터 할 일 */
+.bl-side{min-width:0;padding:6px;background:var(--paper);border-radius:var(--r-l);box-shadow:0 0 0 1px var(--border),0 8px 28px rgb(0 0 0 / .08)}
+@container pstage (min-width: 1000px){
+  .bl-col.two .bl-cols{grid-template-columns:minmax(0,1fr) 320px;gap:24px}
+  .bl-side{position:sticky;top:4px;max-height:calc(100dvh - 150px);overflow-y:auto;overscroll-behavior:contain}
+}
 .planner:not(.meet) .pl-none.bl-none{background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:16px 20px}
 .bl-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .bl-card{position:relative;display:flex;align-items:flex-start;gap:6px;padding:6px 10px 6px 6px;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);user-select:none;-webkit-user-select:none}
 .bl-card.dragging{z-index:1;box-shadow:0 8px 24px rgb(0 0 0 / .14)}
+/* 시간이 가고 있는 카드: 왼쪽 키위 막대 */
+.bl-card.running::before{content:"";position:absolute;left:-1px;top:16px;bottom:16px;width:3px;border-radius:2px;background:var(--point-ink)}
+/* 얇은 진행 막대 (목록 카드 · 집중 화면 머리). 숫자 없이 막대 하나 — 채움은 transform 으로만 움직인다 */
+.bl-bar,.bn-bar{display:block;height:3px;border-radius:2px;background:var(--surface-3);overflow:hidden}
+.bl-bar i,.bn-bar i{display:block;height:100%;border-radius:2px;background:var(--point-ink);transform-origin:left center;transition:transform var(--m-base) var(--ease-out)}
+.bl-bar{width:min(240px,100%);margin:5px 0 3px}
 .bl-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:var(--r-m);color:var(--text-1);text-decoration:none;transition:background var(--t)}
 .bl-main:hover{background:var(--surface-2)}
 .bl-main:focus-visible{outline:2px solid var(--point-ink);outline-offset:-2px}
 .bl-t{font-size:20px;line-height:28px;font-weight:600;word-break:keep-all;overflow-wrap:anywhere}
 .bl-meta{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:15px;line-height:22px;color:var(--text-3)}
 .bl-meta:empty{display:none}
-.bl-meta .all,.bl-meta .sat{color:var(--point-ink);font-weight:600}
+.bl-meta .today{color:var(--point-ink);font-weight:600}
 .bl-note{font-size:15px;line-height:22px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bl-off{flex:0 0 auto;margin-top:10px}
-.bl-picks{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
-.bl-pick{width:100%;display:flex;align-items:center;gap:12px;min-height:48px;padding:10px;border-radius:var(--r-m);text-align:left;font-size:17px;line-height:24px;color:var(--text-1);transition:background var(--t)}
+.bl-picks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.bl-picks li{border-radius:var(--r-m)}
+.bl-pick{width:100%;display:flex;align-items:center;gap:10px;min-height:46px;padding:9px 10px;border-radius:var(--r-m);text-align:left;font-size:16px;line-height:23px;color:var(--text-1);transition:background var(--t)}
 .bl-pick:hover{background:var(--surface-2)}
 .bl-pick .i{flex:0 0 auto;width:18px;height:18px;color:var(--text-3)}
 .bl-pick:hover .i{color:var(--point-ink)}
@@ -1073,17 +1103,31 @@ span.bf-go{visibility:hidden}
 .bn-t{min-width:0;max-width:720px;text-align:center;font-size:28px;line-height:38px;font-weight:600;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere;border-radius:var(--r-s)}
 .bn-t:hover{color:var(--text-2)}
 .bn-t:focus-visible{outline:2px solid var(--point-ink);outline-offset:2px}
-.bn-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 16px;min-height:6px;margin:8px 0 0;font-size:15px;line-height:22px;color:var(--text-3)}
+.bn-bar{width:min(320px,70%);margin:16px auto 0}
+.bn-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 0;min-height:6px;margin:10px 0 0;font-size:15px;line-height:22px;color:var(--text-3)}
+.bn-meta span:not(:last-child)::after{content:"·";margin:0 8px;color:var(--text-3);font-weight:400}
+/* 단계 합이 걸릴 시간을 넘으면 걸릴 시간 글자만 키위 */
+.bn-meta .over{color:var(--point-ink);font-weight:600}
+/* 시작 ↔ 중지 + 흐르는 시계 */
+.bn-run{display:flex;align-items:center;justify-content:center;gap:12px;min-height:40px;margin:16px 0 0}
+.bn-run :is(.btn,.ghost){height:38px;padding:0 24px;font-size:15px}
+.bn-clock{min-width:3.2em;font-size:20px;line-height:38px;font-weight:600;color:var(--text-1)}
 .bn-body{display:grid;grid-template-columns:minmax(0,1fr);row-gap:16px;max-width:840px;margin:28px auto 0}
 @container bnp (min-width: 720px){
   .bn-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:36px;align-items:start}
   .bn-note{align-self:stretch;min-height:180px}
 }
 .bn-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;min-width:0}
-.bn-steps li{display:flex;align-items:flex-start;border-radius:var(--r-m);user-select:none;-webkit-user-select:none;transition:background var(--t)}
+.bn-steps li{position:relative;display:flex;align-items:flex-start;border-radius:var(--r-m);user-select:none;-webkit-user-select:none;transition:background var(--t)}
+/* 아랫단은 16px 들인다 */
+.bn-steps li.sub{margin-left:16px}
 .bn-steps li:hover{background:var(--surface-2)}
 .bn-steps li.dragging{background:var(--surface);box-shadow:0 6px 18px rgb(0 0 0 / .14);position:relative;z-index:1}
-.bn-steps .ck{flex:1;min-width:0;display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:start;padding:10px 7px;text-align:left;font-size:18px;line-height:26px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.bn-steps .ck{flex:1;min-width:0;display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:start;padding:10px 7px 10px 11px;border-radius:var(--r-m);text-align:left;font-size:18px;line-height:26px;color:var(--text-2);word-break:keep-all;overflow-wrap:anywhere}
+.bn-steps .ck:focus-visible{outline:2px solid var(--point-ink);outline-offset:-2px}
+/* 지금 단계(첫 번째 안 끝난 줄): 왼쪽 키위 막대 + 진한 글자 */
+.bn-steps li.cur::before{content:"";position:absolute;left:0;top:11px;bottom:11px;width:3px;border-radius:2px;background:var(--point-ink)}
+.bn-steps li.cur .ck{color:var(--text-1);font-weight:600}
 .bn-steps .ck .i{width:20px;height:20px;margin-top:3px;color:var(--text-3);transition:color var(--t)}
 .bn-steps .ck:hover .i,.bn-steps .ck.on .i{color:var(--point-ink)}
 .bn-steps .ck.on span{color:var(--text-3)}
@@ -1092,13 +1136,30 @@ span.bf-go{visibility:hidden}
 .bn-cut:hover{color:var(--text-1)}
 .bn-steps li:hover .bn-cut,.bn-cut:focus-visible{opacity:1}
 @media (hover: none){ .bn-cut{opacity:1} }
-.bn-steps li.bn-new{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:center;padding:4px 7px;background:none}
+/* 단계별 걸릴 시간(분): 비어 있으면 안 보이고, 줄에 마우스를 올리면 흐리게 자리가 보인다. 아랫단이 있는 윗단은 아랫단 합(글자) */
+.bn-est{flex:0 0 auto;display:flex;align-items:center;gap:1px;height:46px;padding:0 2px 0 6px;font-size:14px;color:var(--text-3);white-space:nowrap;opacity:0;transition:opacity var(--t)}
+.bn-est input{width:2.4em;height:28px;padding:0;border:0;border-bottom:1px solid var(--border);border-radius:0;background:none;font-size:15px;color:var(--text-2);text-align:right;outline:none}
+.bn-est input:focus{border-bottom-color:var(--point-ink)}
+.bn-est.has input:not(:focus){border-bottom-color:transparent}
+.bn-steps li:hover .bn-est{opacity:.6}
+.bn-est.has,.bn-est.sum,.bn-est:focus-within,.bn-steps li:hover .bn-est.has,.bn-steps li:hover .bn-est.sum{opacity:1}
+.bn-est.sum{font-size:15px;color:var(--text-2);padding-right:4px}
+@media (hover: none){ .bn-est{opacity:.6} }
+/* 끝낸 줄이 8개를 넘으면 접는다 — "끝낸 n" 한 줄 */
+.bn-steps li.bn-fold{background:none}
+.bn-fold button{display:flex;align-items:center;gap:6px;height:36px;padding:0 11px;border-radius:var(--r-s);font-size:15px;color:var(--text-3);transition:background var(--t),color var(--t)}
+.bn-fold button:hover{background:var(--surface-2);color:var(--text-1)}
+.bn-fold .i{width:16px;height:16px}
+.bn-steps li.bn-new{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:center;padding:4px 7px 4px 11px;background:none}
 .bn-new .i{width:20px;height:20px;color:var(--text-3);opacity:.45}
 .bn-new input{width:100%;height:38px;border:0;border-bottom:1px solid transparent;background:none;font:inherit;font-size:18px;color:var(--text-1);outline:none;transition:border-color var(--t)}
 .bn-new input:hover{border-bottom-color:var(--border)}
 .bn-new input:focus{border-bottom-color:var(--point-ink)}
 .bn-note{display:block;width:100%;min-height:96px;margin:0;padding:12px 14px;border:0;border-radius:var(--r-m);background:var(--surface-2);font:inherit;font-size:17px;line-height:1.6;color:var(--text-1);resize:none;outline:none;field-sizing:content}
 .bn-note:focus{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+/* 읽기 상태(메모 안에 주소가 있을 때): 주소가 눌린다. 다른 곳을 누르면 고치기 */
+.bn-note.read{white-space:pre-wrap;overflow-wrap:anywhere;cursor:text}
+.bn-note.read a{color:var(--point-ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .bn-add{display:flex;align-items:center;gap:12px;height:52px;max-width:840px;margin:24px auto 0;padding:0 7px;border-top:1px solid var(--border);color:var(--text-3);cursor:text}
 .bn-add .i{flex:0 0 auto;width:20px;height:20px}
 .bn-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:17px;color:var(--text-1);outline:none}
@@ -1106,7 +1167,41 @@ span.bf-go{visibility:hidden}
 .bn-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding-top:20px}
 /* 글자가 큰 화면이라 단추도 같이 키운다 (목록 · 집중 화면) */
 .bn-acts :is(.btn,.ghost){height:42px;padding:0 20px;font-size:15px}
-.bl-acts .btn,.bl-off{height:38px;padding:0 14px;font-size:14px}
+.bl-off{height:38px;padding:0 14px;font-size:14px}
+
+/* 기록 /planner/log (7-16): 주 단위 표 하나 — 숫자만. 가운데 기둥 960 */
+.lg-col{max-width:960px;margin:0 auto}
+.lg-nav{display:flex;align-items:center;gap:2px;margin:0 0 12px}
+.lg-nav h1{min-width:9.6em;margin:0 4px;text-align:center;font-size:18px;line-height:26px;font-weight:600;color:var(--text-1)}
+.lg-nav .iconbtn{width:38px;height:38px;color:var(--text-2)}
+.lg-nav .iconbtn .i{width:18px;height:18px}
+.lg-paper{background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:4px 12px 8px;overflow-x:auto}
+.lg-table{width:100%;min-width:600px;border-collapse:collapse;font-size:16px;line-height:24px}
+.lg-table th,.lg-table td{padding:12px 8px;border-bottom:1px solid var(--border);background:none;text-align:right;vertical-align:baseline;font-size:inherit;font-weight:400;color:var(--text-2);white-space:nowrap}
+.lg-table tbody tr:last-child td{border-bottom:1px solid var(--border)}
+.lg-table thead th{font-size:14px;font-weight:500;color:var(--text-3)}
+.lg-table th.t{width:44%;min-width:180px;text-align:left;white-space:normal;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.lg-table th.t a{color:inherit;text-decoration:none}
+.lg-table th.t a:hover{text-decoration:underline;text-underline-offset:3px}
+.lg-table .who{margin-left:10px;font-size:14px;color:var(--text-3)}
+.lg-table .sum{padding-left:16px;font-weight:600;color:var(--text-1)}
+.lg-table tr.sub th,.lg-table tr.sub td{background:var(--surface-2);font-size:14.5px;color:var(--text-2)}
+.lg-table tr.sub th.t{color:var(--text-2)}
+.lg-table tfoot th,.lg-table tfoot td{border-bottom:0;font-weight:600;color:var(--text-1)}
+.lg-table tbody tr[data-menu-on] :is(th,td){background:var(--point-soft)}
+/* 폰: 옆으로 밀지 않고 한 화면에 — 칸을 고르게 나누고 머리의 요일 · 날짜는 두 줄로, 역할 · 지점은 제목 아래로 */
+@container app (max-width: 760px){
+  .lg-col{padding:0 8px}
+  .lg-paper{padding:2px 8px 6px}
+  .lg-table{min-width:0;table-layout:fixed;font-size:14px;line-height:20px}
+  .lg-table th,.lg-table td{padding:10px 2px}
+  .lg-table thead th{font-size:12px;line-height:16px;white-space:normal}
+  .lg-table thead th span{display:block}
+  .lg-table th.t{width:32%;min-width:0;padding-left:4px}
+  .lg-table .who{display:block;margin-left:0;font-size:12px}
+  .lg-table .sum{padding-left:2px;padding-right:4px}
+  .lg-table tr.sub th,.lg-table tr.sub td{font-size:13px}
+}
 @container app (max-width: 760px){
   .bf-col{padding:4px 0 96px}
   .bf-top{padding:0 8px;margin-bottom:6px}
@@ -1513,4 +1608,5 @@ select.pill{font-size:13px;padding:0 6px;cursor:pointer}
 [data-menu-on]{background:var(--point-soft)}
 .ev[data-menu-on],.allday[data-menu-on]{background:var(--pc,var(--point-soft));box-shadow:inset 0 0 0 1.5px var(--point-ink)}
 .ad-members tbody tr[data-menu-on] td{background:var(--point-soft)}
-.pl-row,.pl-row a,.bl-card,.bl-card a,.bn-steps li,.mt-people li,.ev,.allday,.ad-members tr{-webkit-touch-callout:none}
+.lg-table tr[data-menu-on]{background:none}
+.pl-row,.pl-row a,.bl-card,.bl-card a,.bl-picks li,.lg-table tr,.bn-steps li,.mt-people li,.ev,.allday,.ad-members tr{-webkit-touch-callout:none}

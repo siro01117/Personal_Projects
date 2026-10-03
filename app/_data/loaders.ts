@@ -1,7 +1,7 @@
 // 화면을 열 때 무엇을 어떤 순서로 읽는지. 한 요청이 0.3초쯤이라(DB 가 멀다) "첫 그림까지 차례로 몇 번"이 체감 속도를 정한다 —
 // 서로 기다릴 이유가 없는 것은 전부 한 차례에 같이 보낸다. 차례 수는 requests.test.ts 가 고정한다.
 
-import { addDays, type DateStr, type Place, type Role, type Settings, type TaskRow, type TaskRule, type Travel } from "../../lib/schedule";
+import { addDays, type DateStr, type Place, type Role, type Settings, type TaskRow, type TaskRule, type TaskWork, type Travel } from "../../lib/schedule";
 import type { Circle, Meet } from "../../lib/meet";
 import type { EventRows, MeetData, PlannerData, ScheduleData, SourceInfo, TaskLink } from "./types";
 
@@ -10,9 +10,19 @@ export type TaskLists = { tasks: TaskRow[]; links: TaskLink[]; rules: TaskRule[]
 export type MetaLists = { places: Place[]; travel: Travel[]; settings: Settings; sources: SourceInfo[] };
 export type Now = { date: DateStr; min: number };
 
+/** 시간 기록 합을 할 일에 얹는다 (기록이 없는 할 일은 work 없음) */
+export function withWork(tasks: readonly TaskRow[], sums: Readonly<Record<string, TaskWork>>): TaskRow[] {
+  return tasks.map((t) => {
+    const { work: _, ...rest } = t;
+    const w = sums[t.id];
+    return w ? { ...rest, work: w } : rest;
+  });
+}
+
+/** 플래너 · 작업대가 읽는 목록. 시간 기록 합(7-16)도 같은 차례에 읽어 할 일에 얹는다 — 못 읽으면 합 없이 그린다 */
 export async function readPlannerLists(T: PlannerData): Promise<PlannerLists> {
-  const [tasks, links, rules, roles] = await Promise.all([T.tasks(), T.links(), T.rules(), T.roles()]);
-  return { tasks, links, rules, roles };
+  const [tasks, links, rules, roles, sums] = await Promise.all([T.tasks(), T.links(), T.rules(), T.roles(), T.workSums().catch(() => ({}))]);
+  return { tasks: withWork(tasks, sums), links, rules, roles };
 }
 
 export async function readTaskLists(T: PlannerData): Promise<TaskLists> {

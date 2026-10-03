@@ -20,7 +20,9 @@ import type {
   Settings,
   TaskRow,
   TaskRule,
+  TaskWork,
   Travel,
+  WorkDay,
 } from "../../lib/schedule";
 import type { DataCache } from "./cache";
 
@@ -305,7 +307,7 @@ export type TaskInput = {
 export type TaskLink = { task_id: string; event_id: string; date: DateStr; start_min: number | null; end_min: number | null; repeating: boolean };
 
 /** 반복 규칙에 넣는 칸 (ez_task_rules). cycle 은 repeat · start, event 는 event_id */
-export type RuleInput = Omit<TaskRule, "id" | "version">;
+export type RuleInput = Omit<TaskRule, "id" | "version" | "bench" | "paused"> & Partial<Pick<TaskRule, "bench" | "paused">>;
 
 /** 역할에 넣는 칸 (ez_roles). sort 를 안 주면 맨 뒤 */
 export type RoleInput = { name: string; from_place?: PlaceRole | null; sort?: number };
@@ -317,11 +319,11 @@ export type RoleInput = { name: string; from_place?: PlaceRole | null; sort?: nu
 export type RoleDeps = { tasks: string[]; rules: string[] };
 
 export interface PlannerData {
-  /** 지우지 않은 할 일 전부 (끝낸 것 포함). 순서는 sort 오름차순 */
+  /** 지우지 않은 할 일 전부 (끝낸 것 포함). 순서는 sort 오름차순. 시간 기록 합(work)은 workSums 가 따로 준다 */
   tasks(): Promise<TaskRow[]>;
   /** 할 일과 이어진 일정들 */
   links(): Promise<TaskLink[]>;
-  /** 살아 있는(안 멈춘) 반복 규칙 */
+  /** 지우지 않은 반복 규칙 (잠깐 멈춘 것 포함 — paused) */
   rules(): Promise<TaskRule[]>;
   /** 일정 제목 (딸린 마감 · 딸린 규칙을 보여 줄 때). 지운 일정은 빠진다 */
   eventTitles(ids: readonly string[]): Promise<Record<string, string>>;
@@ -349,10 +351,27 @@ export interface PlannerData {
   /** 작업대 순서 — ids 순서대로 bench_order 1, 2, … (바뀐 것만 고친다). 고친 행들 */
   reorderBench(ids: readonly string[]): Promise<TaskRow[]>;
 
+  /**
+   * ez_work_sum — 시간 기록의 할 일별 합 (docs/플래너.md 7-16). 기록이 있는 할 일만, 할 일 id → 합.
+   * 목록을 읽을 때 같이 읽어 TaskRow.work 에 얹는다 (loaders.readPlannerLists)
+   */
+  workSums(): Promise<Record<string, TaskWork>>;
+  /**
+   * ez_work_start — 그 할 일에서 시간을 재기 시작한다. 돌고 있던 다른 구간은 닫힌다(한 번에 하나).
+   * 이미 그 할 일에서 돌고 있으면 그대로. 끝낸 할 일은 [EZ_VALUE]. 끝내거나 지우면 DB 가 닫는다
+   */
+  workStart(id: string): Promise<void>;
+  /** ez_work_stop — 돌고 있는 구간을 닫는다. 없으면 아무 일도 없다 */
+  workStop(): Promise<void>;
+  /** ez_work_week — 월요일 weekStart 부터 7일의 할 일 × 날짜 초 (Asia/Seoul) */
+  workWeek(weekStart: DateStr): Promise<WorkDay[]>;
+
   createRule(input: RuleInput): Promise<TaskRule>;
   updateRule(id: string, patch: Partial<RuleInput>): Promise<TaskRule>;
-  /** 멈추기 (deleted_at). 이미 생긴 할 일은 남는다 */
+  /** 지우기 (deleted_at) — 반복 목록에서 사라진다. 이미 생긴 할 일은 남는다. 잠깐 멈춤은 updateRule({ paused }) */
   stopRule(id: string): Promise<void>;
+  /** 지운 규칙을 되살린다 (되돌리기). 일정에 딸린 규칙은 그 일정이 살아 있는 반복 일정이어야 한다 */
+  restoreRule(id: string): Promise<TaskRule>;
 
   /** 살아 있는 역할. sort 순 */
   roles(): Promise<Role[]>;

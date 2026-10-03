@@ -112,14 +112,22 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
         role_id: R.univ,
         place_id: P.school,
         note: "도입은 짧게. 사례 둘, 결론에 질문 하나",
+        // 단계 안의 단계 · 단계별 걸릴 시간 (docs/플래너.md 7-16)
         checklist: [
-          { t: "자료 조사", done: true },
-          { t: "슬라이드 초안", done: false },
-          { t: "발표 대본 다듬기", done: false },
+          { t: "자료 조사", done: true, est: 15 },
+          {
+            t: "슬라이드 초안",
+            done: false,
+            sub: [
+              { t: "도입", done: true, est: 10 },
+              { t: "사례 둘", done: false, est: 25 },
+              { t: "결론", done: false, est: 10 },
+            ],
+          },
+          { t: "발표 대본 다듬기", done: false, est: 20 },
         ],
-        // 작업대 첫째, 지금 앉아 있다 (docs/플래너.md 7-15)
+        // 작업대 첫째
         bench_order: 1,
-        bench_at: ago(40),
       },
       {
         id: ID(202),
@@ -129,7 +137,7 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
         sort: 2,
         place_id: P.school,
         role_id: R.univ,
-        note: "스케줄링 문제는 강의 7장 예제부터\n제출은 PDF 하나",
+        note: "스케줄링 문제는 강의 7장 예제부터 https://example.com/os/ch7\n제출은 PDF 하나",
         checklist: [
           { t: "문제 1 풀이", done: true },
           { t: "문제 2 풀이", done: false },
@@ -156,6 +164,14 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
       { id: ID(223), title: "회의 안건 미리 올리기", due: md.regular, sort: 13, role_id: R.club, place_id: P.cafe, ...meetOrigin(M.regular) },
       { id: ID(211), title: "주간 정리", due: d(6), est_min: 40, sort: 10, rule_id: ID(301), rule_date: d(0), role_id: R.me, checklist: [{ t: "받은 편지함 비우기", done: false }, { t: "다음 주 일정 확인", done: false }] },
     ],
+    // 시간 기록 몇 구간 (7-16): 어제 · 오늘. 열린 구간은 없다 — 시작은 사람이 누른다
+    work: [
+      { task_id: ID(201), started_at: ago(60 * 26), ended_at: ago(60 * 26 - 35) },
+      { task_id: ID(201), started_at: ago(200), ended_at: ago(160) },
+      { task_id: ID(202), started_at: ago(60 * 25), ended_at: ago(60 * 25 - 50) },
+      { task_id: ID(202), started_at: ago(120), ended_at: ago(95) },
+      { task_id: ID(211), started_at: ago(60 * 27), ended_at: ago(60 * 27 - 15) },
+    ],
     rules: [
       {
         id: ID(301),
@@ -169,8 +185,19 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
         last_made: d(0),
         role_id: R.me,
       },
-      // 수업(반복 일정)에 딸린 규칙 — 열 때 roll 이 가장 최근에 끝난 수업의 할 일을 만든다
-      { id: ID(302), kind: "event", title: "자료구조 내용 정리", est_min: 30, place_id: P.school, event_id: ID(101), due_after: 6, role_id: R.univ },
+      // 수업(반복 일정)에 딸린 규칙 — 열 때 roll 이 가장 최근에 끝난 수업의 할 일을 만든다. 단계 틀이 든 채 작업대에 올라간다 (7-16)
+      {
+        id: ID(302),
+        kind: "event",
+        title: "자료구조 내용 정리",
+        est_min: 30,
+        place_id: P.school,
+        event_id: ID(101),
+        due_after: 6,
+        role_id: R.univ,
+        checklist: ["필기 옮기기", { t: "예제 풀기", est: 20, sub: ["기본", "응용"] }],
+        bench: true,
+      },
     ],
   };
 }

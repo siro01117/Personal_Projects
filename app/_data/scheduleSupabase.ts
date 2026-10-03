@@ -15,7 +15,9 @@ import {
   type Settings,
   type TaskRow,
   type TaskRule,
+  type TaskWork,
   type Travel,
+  type WorkDay,
 } from "../../lib/schedule";
 import { run, sb } from "./supabase";
 import type {
@@ -40,7 +42,7 @@ const EVENT_COLS =
 const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 const TASK_COLS =
   "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_order, bench_at, version, created_at, updated_at";
-const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
+const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, bench, paused, version";
 const ROLE_COLS = "id, name, from_place, sort, version";
 const SETTINGS_COLS = "prep_first, prep_again, home_stay, meal_min, lunch, dinner, tz, my_name";
 /** in(...) 한 번에 넣을 id 수 (주소 길이) */
@@ -337,6 +339,31 @@ export class SupabaseSchedule implements ScheduleData, PlannerData {
     return out;
   }
 
+  // ------------------------------------------------------------ 시간 기록 (0018)
+
+  async workSums(): Promise<Record<string, TaskWork>> {
+    const at = new Date().toISOString();
+    const rows = await run<{ task_id: string; today_sec: number; total_sec: number; running: boolean; started_at: string | null }[]>(sb().rpc("ez_work_sum"));
+    const out: Record<string, TaskWork> = {};
+    for (const r of Array.isArray(rows) ? rows : []) {
+      out[r.task_id] = { today_sec: r.today_sec, total_sec: r.total_sec, running: r.running, started_at: r.started_at, at };
+    }
+    return out;
+  }
+
+  async workStart(id: string): Promise<void> {
+    await run(sb().rpc("ez_work_start", { task_id: id }));
+  }
+
+  async workStop(): Promise<void> {
+    await run(sb().rpc("ez_work_stop"));
+  }
+
+  async workWeek(weekStart: DateStr): Promise<WorkDay[]> {
+    const rows = await run<WorkDay[]>(sb().rpc("ez_work_week", { p_week_start: weekStart }));
+    return Array.isArray(rows) ? rows.map((r) => ({ task_id: r.task_id, day: String(r.day).slice(0, 10), seconds: Number(r.seconds) })) : [];
+  }
+
   // ------------------------------------------------------------ 반복 규칙
 
   async createRule(input: RuleInput): Promise<TaskRule> {
@@ -351,6 +378,12 @@ export class SupabaseSchedule implements ScheduleData, PlannerData {
 
   async stopRule(id: string): Promise<void> {
     await run(this.t("ez_task_rules").update({ deleted_at: new Date().toISOString() }).eq("id", id).is("deleted_at", null));
+  }
+
+  async restoreRule(id: string): Promise<TaskRule> {
+    const rows = await run<TaskRule[]>(this.t("ez_task_rules").update({ deleted_at: null }).eq("id", id).select(RULE_COLS));
+    if (!rows[0]) throw ez("EZ_NOT_FOUND", "되돌릴 반복 규칙이 없습니다");
+    return rows[0];
   }
 
   // ------------------------------------------------------------ 역할 (0008)

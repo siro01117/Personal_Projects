@@ -13,7 +13,7 @@ export const menuLabels = (items: readonly MenuItem[]): string[] => items.flatMa
 
 // ------------------------------------------------------------ 플래너 할 일 줄
 
-export type TaskAct = "view" | "done" | "undone" | "bench" | "unbench" | "edit" | "plan" | "replan" | "unplan" | "send" | "delete";
+export type TaskAct = "view" | "done" | "undone" | "bench" | "unbench" | "edit" | "plan" | "replan" | "unplan" | "send" | "repeat" | "delete";
 
 /** 시간 · 일정으로 보내기 항목은 보기 패널(TaskDetail)의 단추와 같은 조건 */
 export function taskMenu(t: {
@@ -23,16 +23,19 @@ export function taskMenu(t: {
   /** 이어진 일정 (반복 일정에 이어진 것은 일정 쪽에서 고친다) */
   link: { repeating: boolean } | null;
   late: "event" | "due" | null;
+  /** 살아 있는 반복 규칙에서 온 회차 — "반복으로 만들기" 가 없다 (7-16) */
+  repeats?: boolean;
 }): MenuItem<TaskAct>[] {
   if (t.temp) return [];
   const out: MenuItem<TaskAct>[] = [it("view", "보기", "eye")];
   out.push(t.done ? it("undone", "되살리기", "restore") : it("done", "끝냄", "ring-check"));
-  if (!t.done) out.push(t.benched ? it("unbench", "작업대에서 내리기", "bench") : it("bench", "작업대에", "bench"));
+  if (!t.done) out.push(t.benched ? it("unbench", "작업대에서 내리기", "bench") : it("bench", "작업대", "bench"));
   out.push(it("edit", "수정", "pen"));
   if (!t.done) {
     if (t.late === "event" || (t.late === null && t.link && !t.link.repeating)) out.push(it("replan", "다시 정하기", "clock"), it("unplan", "시간 없음으로", "x"));
     else if (t.late === null && !t.link) out.push(it("plan", "시간 정하기", "clock"));
     if (!t.link) out.push(it("send", "일정으로 보내기", "cal"));
+    if (!t.repeats) out.push(it("repeat", "반복으로 만들기", "repeat"));
   }
   out.push("sep", del("delete"));
   return out;
@@ -48,11 +51,40 @@ export function benchMenu(t: { temp: boolean }): MenuItem<BenchAct>[] {
   return [it("focus", "집중 화면", "open"), it("done", "끝냄", "ring-check"), it("off", "내리기", "bench")];
 }
 
-export type StepAct = "check" | "detach" | "delete";
+export type StepAct = "check" | "indent" | "outdent" | "detach" | "delete";
 
-/** 집중 화면의 단계 줄 */
-export function stepMenu(s: { done: boolean }): MenuItem<StepAct>[] {
-  return [it("check", s.done ? "체크 풀기" : "체크", s.done ? "ring" : "ring-check"), it("detach", "떼어내기", "cut"), "sep", del("delete")];
+/** 집중 화면의 단계 줄. 들이기 · 내기는 될 때만 (Tab · Shift+Tab 과 같다 — 터치에서는 여기로) */
+export function stepMenu(s: { done: boolean; canIndent?: boolean; canOutdent?: boolean }): MenuItem<StepAct>[] {
+  const out: MenuItem<StepAct>[] = [it("check", s.done ? "체크 풀기" : "체크", s.done ? "ring" : "ring-check")];
+  if (s.canIndent) out.push(it("indent", "들이기", "right"));
+  if (s.canOutdent) out.push(it("outdent", "내기", "left"));
+  out.push(it("detach", "떼어내기", "cut"), "sep", del("delete"));
+  return out;
+}
+
+export type PickAct = "bench";
+
+/** 작업대 목록 옆 "가져올 만한 것" 줄 — 누르면 올라간다 */
+export function pickMenu(t: { temp: boolean }): MenuItem<PickAct>[] {
+  return t.temp ? [] : [it("bench", "작업대에 올리기", "bench")];
+}
+
+export type LogAct = "view" | "focus";
+
+/** 기록 표의 할 일 줄. 집중 화면은 작업대에 올라가 있을 때만 */
+export function logMenu(t: { benched: boolean }): MenuItem<LogAct>[] {
+  const out: MenuItem<LogAct>[] = [it("view", "보기", "eye")];
+  if (t.benched) out.push(it("focus", "집중 화면", "open"));
+  return out;
+}
+
+// ------------------------------------------------------------ 반복 규칙 (플래너의 반복 카드)
+
+export type RuleAct = "view" | "edit" | "pause" | "resume" | "delete";
+
+/** 반복 카드의 규칙 줄 */
+export function ruleMenu(r: { paused: boolean }): MenuItem<RuleAct>[] {
+  return [it("view", "보기", "eye"), it("edit", "수정", "pen"), r.paused ? it("resume", "다시 시작", "repeat") : it("pause", "멈춤", "x"), "sep", del("delete")];
 }
 
 // ------------------------------------------------------------ 모임

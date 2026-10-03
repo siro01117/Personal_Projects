@@ -12,7 +12,9 @@ import {
   type Settings,
   type TaskRow,
   type TaskRule,
+  type TaskWork,
   type Travel,
+  type WorkSpan,
 } from "../lib/schedule";
 import { DbError } from "./errors";
 import {
@@ -39,7 +41,9 @@ import {
   toRole,
   toRule,
   toSettings,
+  toSpan,
   toTask,
+  toWork,
 } from "./schedule-store";
 
 const PAGE = 1000; // PostgREST 기본 최대 행 수
@@ -273,6 +277,25 @@ export class SupabaseScheduleStore implements ScheduleStore {
       if (e instanceof DbError && e.message.startsWith("[EZ_NOT_FOUND]")) return null;
       throw e;
     }
+  }
+
+  async workSums(): Promise<Map<string, TaskWork>> {
+    const at = new Date().toISOString();
+    const rows = await run<Row[]>(this.sb.rpc("ez_work_sum", { p_as: this.owner }));
+    return new Map((rows ?? []).map((r) => [r.task_id as string, toWork(r, at)]));
+  }
+
+  async workStart(taskId: string): Promise<void> {
+    await run(this.sb.rpc("ez_work_start", { task_id: taskId, p_as: this.owner }));
+  }
+
+  async workStop(): Promise<number> {
+    return Number(await run<number>(this.sb.rpc("ez_work_stop", { p_as: this.owner })));
+  }
+
+  async workList(from: DateStr, to: DateStr): Promise<WorkSpan[]> {
+    const rows = await run<Row[]>(this.sb.rpc("ez_work_list", { p_from: from, p_to: to, p_as: this.owner }));
+    return (rows ?? []).map(toSpan);
   }
 
   async meetRef(id: string): Promise<MeetRef | null> {

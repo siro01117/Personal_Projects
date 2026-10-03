@@ -1,5 +1,5 @@
 // MCP 도구 등록: 이름·설명·입력 모양. 로직은 drawer.ts(보고서 6개, docs/보고서-서랍.md 4장),
-// schedule.ts(일정 4개 · 플래너 2개, docs/일정.md 5장 · docs/플래너.md 4장), meet.ts(모임 2개, docs/모임.md 6장).
+// schedule.ts(일정 4개 · 플래너 2개 · 시간 기록 1개, docs/일정.md 5장 · docs/플래너.md 4장 · 7-16), meet.ts(모임 2개, docs/모임.md 6장).
 // 도구 설명은 매번 에이전트 컨텍스트에 실리므로 짧게 쓴다.
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -11,7 +11,7 @@ import type { MeetTools } from "./meet";
 import type { Schedule } from "./schedule";
 
 export const DRAWER_TOOLS = ["drawer_list", "drawer_mkdir", "drawer_update", "report_create", "report_get", "report_edit"] as const;
-export const SCHEDULE_TOOLS = ["schedule_get", "schedule_save", "schedule_delete", "schedule_sync", "todo_list", "todo_save"] as const;
+export const SCHEDULE_TOOLS = ["schedule_get", "schedule_save", "schedule_delete", "schedule_sync", "todo_list", "todo_save", "work_log"] as const;
 export const MEET_TOOLS = ["meet_get", "meet_save"] as const;
 export const TOOL_NAMES = [...DRAWER_TOOLS, ...SCHEDULE_TOOLS, ...MEET_TOOLS] as const;
 
@@ -260,7 +260,7 @@ function registerScheduleTools(
     {
       title: "할 일 목록",
       description:
-        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. role 은 역할 이름으로 거르기. 이어진 일정·지점·역할·체크 항목·late(지난 것)·repeat(+rule_id)도 준다. 작업대는 맨 위 bench. 부를 때 반복 규칙의 새 회차가 생긴다.",
+        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. role 은 역할 이름으로 거르기. 이어진 일정·지점·역할·단계·late(지난 것)·repeat(+rule_id)·work(잰 시간)도 준다. 작업대는 맨 위 bench. 부를 때 반복 규칙의 새 회차가 생긴다.",
       inputSchema: {
         status: z.enum(["open", "done", "all", "rules"]).optional(),
         query: z.string().optional(),
@@ -277,7 +277,7 @@ function registerScheduleTools(
     {
       title: "할 일 넣기·고치기",
       description:
-        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id). repeat 를 주면 반복 규칙이 생긴다(after_event 는 규칙만). 규칙에서 온 할 일은 scope(once 이것만·rule 규칙도). 규칙만: rule_id+칸(base_version) 또는 stop. meet 를 주면 그 모임에서 나온 할 일(지점·역할을 물려받음).",
+        "id 없으면 새 할 일(맨 위). 고칠 땐 id+base_version. done true/false 로 끝냄·되돌림, delete true 로 지우기. 시간 정하기는 schedule_save(task_id). repeat 를 주면 반복 규칙이 생긴다(after_event 는 규칙만). 규칙에서 온 할 일은 scope(once 이것만·rule 규칙도). 규칙만: rule_id+칸(base_version) 또는 stop. meet 를 주면 그 모임에서 나온 할 일(지점·역할을 물려받음). checklist(단계)는 덧붙이기만 — 있으면 뒤에 더한다.",
       inputSchema: {
         id: z.string().optional(),
         base_version: z.number().int().optional().describe("고칠 때 todo_list 의 version"),
@@ -290,10 +290,20 @@ function registerScheduleTools(
         place: z.string().nullable().optional().describe("지점 이름"),
         role: z.string().nullable().optional().describe("역할 이름 (null=없음). 안 주면 지점에서 채움"),
         checklist: z
-          .array(z.union([z.string(), z.object({ t: z.string(), done: z.boolean().optional() })]))
+          .array(
+            z.union([
+              z.string(),
+              z.object({
+                t: z.string(),
+                done: z.boolean().optional(),
+                est: z.number().int().optional(),
+                sub: z.array(z.union([z.string(), z.object({ t: z.string(), done: z.boolean().optional(), est: z.number().int().optional() })])).optional(),
+              }),
+            ]),
+          )
           .nullable()
           .optional()
-          .describe("체크 항목(작업대의 단계) 0~50개: 글자 또는 {t, done}. 통째로 갈아끼움"),
+          .describe("단계 — 합쳐 50개: 글자 또는 {t, done?, est?(분), sub?: [아랫단]}. 덧붙이기만"),
         due_event: z
           .object({ id: z.string(), on_date: z.string().optional().describe(`반복 일정이면 회차 날짜 ${DATE}`) })
           .nullable()
@@ -312,9 +322,24 @@ function registerScheduleTools(
         stop: z.boolean().optional().describe("rule_id 와 같이: 반복 멈춤"),
         meet: z.string().optional().describe("모임 id (새 할 일만)"),
         bench: z.boolean().optional().describe("작업대: true 올리기 · false 내리기"),
+        work: z.enum(["start", "stop"]).optional().describe("시간 기록 시작 · 중지 (한 번에 하나만 돈다)"),
       },
     },
     (a) => call(schedule.todo_save(a)),
+  );
+
+  server.registerTool(
+    "work_log",
+    {
+      title: "시간 기록",
+      description: "from~to 에 잰 시간: 구간(spans) + 할 일·역할·날짜별 합(분). 366일까지.",
+      inputSchema: {
+        from: z.string().describe(DATE),
+        to: z.string().describe(`${DATE} (포함)`),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    (a) => call(schedule.work_log(a)),
   );
 }
 

@@ -54,7 +54,7 @@ const ROLE = [{ id: "ro1", name: "나", from_place: null, sort: 1, version: 1 }]
 afterEach(() => setClient(null));
 
 describe("플래너 열기", () => {
-  it("첫 그림까지 한 차례 — 굴리기 · 목록 넷 · 지점을 같이 보낸다 (예전: seed → roll → 목록 → 제목 네 차례)", async () => {
+  it("첫 그림까지 한 차례 — 굴리기 · 목록 넷 · 시간 기록 합 · 지점을 같이 보낸다 (예전: seed → roll → 목록 → 제목 네 차례)", async () => {
     const f = fake({ ez_roles: ROLE });
     const T = new SupabaseSchedule();
     let painted = false;
@@ -66,10 +66,11 @@ describe("플래너 열기", () => {
     void openPlanner(T, AT, load, () => T.seedRoles());
     void T.places();
     expect(await f.rounds(() => painted)).toBe(1);
-    expect([...f.log].sort()).toEqual(["ez_events", "ez_places", "ez_roles", "ez_task_rules", "ez_tasks", "rpc:ez_tasks_roll"]);
+    // 시간 기록 합(ez_work_sum, 7-16)도 같은 차례에 — 차례 수는 그대로다
+    expect([...f.log].sort()).toEqual(["ez_events", "ez_places", "ez_roles", "ez_task_rules", "ez_tasks", "rpc:ez_tasks_roll", "rpc:ez_work_sum"]);
     // 역할이 있고 굴린 게 없으면 더 부르지 않는다
     expect(await f.rounds()).toBe(0);
-    expect(f.log).toHaveLength(6);
+    expect(f.log).toHaveLength(7);
   });
 
   it("역할이 하나도 없을 때만 기본 역할을 넣고, 넣었을 때만 다시 읽는다", async () => {
@@ -99,10 +100,30 @@ describe("플래너 열기", () => {
       links: async () => [],
       rules: async () => [],
       roles: async () => ROLE,
+      workSums: async () => ({}),
     } as unknown as SupabaseSchedule;
     let loads = 0;
     await openPlanner(T, AT, () => (loads++, readPlannerLists(T)), async () => 0);
     expect(loads).toBe(1);
+  });
+});
+
+describe("시간 기록 합을 할 일에 얹기", () => {
+  it("기록이 있는 할 일에만 work. 합을 못 읽어도 목록은 그린다", async () => {
+    const work = { today_sec: 60, total_sec: 120, running: true, started_at: "2026-10-01T00:00:00Z", at: "2026-10-01T00:01:00Z" };
+    const base = { roll: async () => 0, links: async () => [], rules: async () => [], roles: async () => ROLE };
+    const tasks = async () => [{ id: "a" }, { id: "b", work: { ...work, total_sec: 1 } }];
+    const ok = await readPlannerLists({ ...base, tasks, workSums: async () => ({ a: work }) } as unknown as SupabaseSchedule);
+    expect(ok.tasks).toEqual([{ id: "a", work }, { id: "b" }]); // 낡은 합은 지운다
+    const bad = await readPlannerLists({ ...base, tasks, workSums: () => Promise.reject(new Error("x")) } as unknown as SupabaseSchedule);
+    expect(bad.tasks).toEqual([{ id: "a" }, { id: "b" }]);
+  });
+
+  it("ez_work_sum 의 줄을 할 일 id → 합으로", async () => {
+    const f = fake({ "rpc:ez_work_sum": [{ task_id: "a", today_sec: 5, total_sec: 9, running: false, started_at: null }] });
+    const p = new SupabaseSchedule().workSums();
+    await f.rounds();
+    expect(await p).toMatchObject({ a: { today_sec: 5, total_sec: 9, running: false, started_at: null } });
   });
 });
 

@@ -13,9 +13,12 @@ import type {
   Repeat,
   Role,
   Settings,
+  RuleCheck,
   TaskRow,
   TaskRule,
+  TaskWork,
   Travel,
+  WorkSpan,
 } from "../lib/schedule";
 
 /** 새 일정 — 사람이 만드는 것 (바깥 일정은 sync 로만) */
@@ -52,9 +55,9 @@ export type TaskPatch = Partial<Omit<NewTask, "origin_kind" | "origin_id">>;
 export type MeetRef = { id: string; title: string; place_id: string | null; role_id: string | null };
 
 /** 새 반복 규칙 (docs/플래너.md 7-2). cycle 은 repeat · start, event 는 event_id */
-export type NewRule = Omit<TaskRule, "id" | "version">;
+export type NewRule = Omit<TaskRule, "id" | "version" | "bench" | "paused"> & Partial<Pick<TaskRule, "bench" | "paused">>;
 export type RulePatch = Partial<
-  Pick<TaskRule, "title" | "note" | "est_min" | "place_id" | "checklist" | "repeat" | "event_id" | "due_after" | "last_made" | "role_id">
+  Pick<TaskRule, "title" | "note" | "est_min" | "place_id" | "checklist" | "repeat" | "event_id" | "due_after" | "last_made" | "role_id" | "bench" | "paused">
 >;
 
 export type NewPlace = { name: string; role?: PlaceRole | null };
@@ -99,10 +102,18 @@ export interface ScheduleStore {
   deleteTask(id: string, baseVersion: number): Promise<boolean>;
   /** ez_task_bench — 작업대에 올리기(맨 뒤로, 여럿) · 내리기 (docs/플래너.md 7-15). 없는 할 일이면 null, 끝낸 것을 올리면 [EZ_VALUE] */
   benchTask(id: string, on: boolean): Promise<TaskRow | null>;
+  /** ez_work_sum — 시간 기록의 할 일별 합 (docs/플래너.md 7-16). 기록이 있는 할 일만 */
+  workSums(): Promise<Map<string, TaskWork>>;
+  /** ez_work_start — 그 할 일에서 시간을 재기 시작한다(돌던 다른 것은 닫힌다). 끝낸 것은 [EZ_VALUE], 없으면 [EZ_NOT_FOUND] */
+  workStart(taskId: string): Promise<void>;
+  /** ez_work_stop — 돌고 있는 구간을 닫는다. 닫은 개수 */
+  workStop(): Promise<number>;
+  /** ez_work_list — 기간(from ~ to, Asia/Seoul)에 걸친 구간. 시작 순 */
+  workList(from: DateStr, to: DateStr): Promise<WorkSpan[]>;
   /** 살아 있는 내 모임 (할 일이 물려받을 지점 · 역할). 없으면 null */
   meetRef(id: string): Promise<MeetRef | null>;
 
-  /** 살아 있는(안 멈춘) 반복 규칙 전부, 만든 순 */
+  /** 지우지 않은 반복 규칙 전부(잠깐 멈춘 것 포함), 만든 순 */
   rules(): Promise<TaskRule[]>;
   getRule(id: string): Promise<TaskRule | null>;
   insertRule(r: NewRule): Promise<TaskRule>;
@@ -130,7 +141,7 @@ export const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
 export const TASK_COLS =
   "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_order, bench_at, version, created_at, updated_at";
-export const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
+export const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, bench, paused, version";
 export const ROLE_COLS = "id, name, from_place, sort, version";
 export const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 
@@ -196,15 +207,26 @@ export function toRule(r: Row): TaskRule {
     note: (r.note as string | null) ?? null,
     est_min: (r.est_min as number | null) ?? null,
     place_id: (r.place_id as string | null) ?? null,
-    checklist: (r.checklist as string[] | null) ?? [],
+    checklist: (r.checklist as RuleCheck[] | null) ?? [],
     repeat: (r.repeat as TaskRule["repeat"]) ?? null,
     start: day(r.start),
     event_id: (r.event_id as string | null) ?? null,
     due_after: (r.due_after as number | null) ?? null,
     last_made: day(r.last_made),
     role_id: (r.role_id as string | null) ?? null,
+    bench: r.bench === true,
+    paused: r.paused === true,
     version: r.version as number,
   };
+}
+
+/** ez_work_sum 한 줄 → 합. at = 읽은 때 */
+export function toWork(r: Row, at: string): TaskWork {
+  return { today_sec: Number(r.today_sec), total_sec: Number(r.total_sec), running: r.running === true, started_at: iso(r.started_at), at };
+}
+
+export function toSpan(r: Row): WorkSpan {
+  return { id: r.id as string, task_id: r.task_id as string, started_at: iso(r.started_at)!, ended_at: iso(r.ended_at)!, running: r.running === true };
 }
 
 export function toRole(r: Row): Role {

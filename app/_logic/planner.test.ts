@@ -12,11 +12,9 @@ import {
   firstFreeStart,
   lateLabel,
   lateOf,
-  mergeChecklist,
   moved,
   moveSort,
   overdue,
-  parseChecks,
   parseDueAfter,
   parseMinutes,
   parseSort,
@@ -27,26 +25,33 @@ import {
   sortGroups,
   splitTasks,
   taskDraft,
-  taskScopes,
   whenLabel,
   estOf,
-  addStep,
   benchCandidates,
+  benchLine,
   benchList,
   benchSides,
+  currentStepText,
+  detachTaskStep,
   firstLine,
-  detachStep,
   filterByRole,
-  insertStep,
-  moveStep,
+  focusMeta,
+  logDayLabel,
   NO_ROLE,
   parseRoleOff,
+  progressOf,
   roleFilterOn,
   roleKey,
-  satLabel,
-  satMinutes,
+  ruleDraft,
+  ruleDraftFromTask,
+  ruleDraftPatch,
+  ruleNext,
+  runningTask,
+  sortRules,
+  splitLinks,
+  todayLabel,
   toggleRoleOff,
-  withoutStep,
+  weekTable,
   type Sort,
 } from "./planner";
 
@@ -96,6 +101,8 @@ const rule = (over: Partial<TaskRule> = {}): TaskRule => ({
   due_after: null,
   last_made: null,
   role_id: null,
+  bench: false,
+  paused: false,
   version: 1,
   ...over,
 });
@@ -265,6 +272,8 @@ describe("글자", () => {
     expect(checkLabel([{ t: "a", done: true }, { t: "b", done: false }])).toEqual({ text: "1/2", all: false });
     expect(checkLabel([{ t: "a", done: true }, { t: "b", done: true }])).toEqual({ text: "2/2", all: true });
     expect(checkLabel([{ t: "a", done: false }])).toEqual({ text: "0/1", all: false });
+    // 아랫단까지 센다
+    expect(checkLabel([{ t: "a", done: true, sub: [{ t: "b", done: false }, { t: "c", done: true }] }])).toEqual({ text: "2/3", all: false });
   });
   it("반복 요약", () => {
     expect(ruleLabel(rule())).toBe("매주 월");
@@ -272,8 +281,8 @@ describe("글자", () => {
     expect(ruleLabel(rule({ repeat: { freq: "weekly", days: [1, 2, 3, 4, 5] } }))).toBe("매주 평일");
     expect(ruleLabel(rule({ repeat: { freq: "daily" } }))).toBe("매일");
     const ev = rule({ kind: "event", repeat: null, start: null, event_id: "e" });
-    expect(ruleLabel(ev, "상법")).toBe("상법 끝나면");
-    expect(ruleLabel(ev)).toBe("일정 끝나면");
+    expect(ruleLabel(ev, "상법")).toBe("상법 끝날 때마다");
+    expect(ruleLabel(ev)).toBe("일정이 끝날 때마다");
   });
   it("버전 충돌은 할 일 문구로", () => {
     const e = new DbError("[EZ_VERSION] 그 사이 다른 곳에서 이 할 일을 고쳤습니다", "P0001");
@@ -281,62 +290,55 @@ describe("글자", () => {
   });
 });
 
-describe("체크 항목", () => {
-  it("한 줄에 하나, 빈 줄은 버리고 앞뒤 공백을 뗀다", () => {
-    expect(parseChecks(" 자료 조사 \n\n슬라이드\r\n  \n")).toEqual({ texts: ["자료 조사", "슬라이드"], issue: null });
-    expect(parseChecks("")).toEqual({ texts: [], issue: null });
-  });
-  it("50개 · 100자를 넘기면 알린다", () => {
-    expect(parseChecks(Array.from({ length: 50 }, (_, i) => `항목 ${i}`).join("\n")).issue).toBeNull();
-    expect(parseChecks(Array.from({ length: 51 }, (_, i) => `항목 ${i}`).join("\n")).issue).toMatch(/50개/);
-    expect(parseChecks("가".repeat(100)).issue).toBeNull();
-    expect(parseChecks("가".repeat(101)).issue).toMatch(/100자/);
-  });
-  it("글자가 같은 항목은 체크를 지킨다 (순서가 바뀌어도, 같은 글자는 앞에서부터)", () => {
-    const prev = [
-      { t: "a", done: true },
-      { t: "b", done: false },
-      { t: "a", done: false },
-    ];
-    expect(mergeChecklist(prev, ["b", "a", "새것", "a", "a"])).toEqual([
-      { t: "b", done: false },
-      { t: "a", done: true },
-      { t: "새것", done: false },
-      { t: "a", done: false },
-      { t: "a", done: false },
-    ]);
-    expect(mergeChecklist(prev, ["a 고침"])).toEqual([{ t: "a 고침", done: false }]);
-  });
-});
-
 describe("수정 칸", () => {
   const t = task("a", { title: "주간 정리", est_min: 40, checklist: [{ t: "편지함", done: true }], rule_id: "r", rule_date: "2026-09-28" });
 
-  it("규칙에서 반복 칸을 읽는다", () => {
-    expect(taskDraft(task("x"), null)).toMatchObject({ repeat: "none", days: [], dueAfter: "", checks: "", dueEvent: null });
-    expect(taskDraft(t, rule({ due_after: 6 }))).toMatchObject({ repeat: "weekly", days: [1], dueAfter: "6", checks: "편지함" });
-    expect(taskDraft(t, rule({ repeat: { freq: "daily" } })).repeat).toBe("daily");
-    expect(taskDraft(t, rule({ kind: "event", repeat: null, start: null, event_id: "e" })).repeat).toBe("event");
-    expect(taskDraft(task("y", { due: "2026-10-11", due_event_id: "e" }), null, { e: "결혼식" }).dueEvent).toEqual({ id: "e", title: "결혼식" });
+  it("할 일 → 칸: 반복 설정은 없다(반복 카드에서). 체크 항목은 한 줄에 하나, 아랫단은 들여서", () => {
+    expect(taskDraft(task("x"))).toEqual({ title: "x", due: "", dueEvent: null, est: "", note: "", place_id: null, checks: "", role_id: null, roleManual: false });
+    expect(taskDraft(t)).toMatchObject({ title: "주간 정리", est: "40", checks: "편지함" });
+    const nested = task("n", { checklist: [{ t: "정리", done: false, sub: [{ t: "1장", done: true, est: 10 }] }, { t: "문제", done: false }] });
+    expect(taskDraft(nested).checks).toBe("정리\n  1장\n문제");
+    expect(taskDraft(task("y", { due: "2026-10-11", due_event_id: "e" }), { e: "결혼식" }).dueEvent).toEqual({ id: "e", title: "결혼식" });
   });
 
-  it("반복에서 온 할 일: 모양을 바꾸면 이번만 / 앞으로도, 반복 설정을 바꾸면 앞으로도만", () => {
-    const base = taskDraft(t, rule({ due_after: 6 }));
-    expect(taskScopes(base, base)).toEqual([]);
-    expect(taskScopes({ ...base, due: "2026-10-09" }, base)).toEqual([]);
-    expect(taskScopes({ ...base, title: "주간 회고" }, base)).toEqual(["once", "future"]);
-    expect(taskScopes({ ...base, checks: "편지함\n일정 확인" }, base)).toEqual(["once", "future"]);
-    expect(taskScopes({ ...base, place_id: "p" }, base)).toEqual(["once", "future"]);
-    expect(taskScopes({ ...base, days: [1, 4] }, base)).toEqual(["future"]);
-    expect(taskScopes({ ...base, dueAfter: "3", title: "x" }, base)).toEqual(["future"]);
-    expect(taskScopes({ ...base, repeat: "daily" }, base)).toEqual(["future"]);
+  it("규칙 → 칸: 주기 · 요일 · 마감까지 며칠 · 단계 틀 · 작업대에 올리기", () => {
+    expect(ruleDraft(rule({ due_after: 6, est_min: 40, checklist: ["편지함", { t: "일정", sub: ["이번 주", { t: "다음 주", est: 5 }] }], bench: true }))).toMatchObject({
+      title: "주간 정리",
+      est: "40",
+      kind: "weekly",
+      days: [1],
+      dueAfter: "6",
+      checks: "편지함\n일정\n  이번 주\n  다음 주",
+      bench: true,
+    });
+    expect(ruleDraft(rule({ repeat: { freq: "daily" } }))).toMatchObject({ kind: "daily", days: [], dueAfter: "" });
+    expect(ruleDraft(rule({ kind: "event", repeat: null, start: null, event_id: "e" })).kind).toBe("event");
   });
 
-  it("반복을 끄거나 새로 켜면 범위를 묻지 않는다", () => {
-    const base = taskDraft(t, rule());
-    expect(taskScopes({ ...base, repeat: "none", title: "x" }, base)).toEqual([]);
-    const plain = taskDraft(task("x"), null);
-    expect(taskScopes({ ...plain, repeat: "weekly", days: [2], title: "y" }, plain)).toEqual([]);
+  it("반복으로 만들기: 할 일의 모양을 옮기고 처음에는 매주 · 오늘 요일", () => {
+    const d = ruleDraftFromTask(t, "2026-10-07"); // 수
+    expect(d).toMatchObject({ title: "주간 정리", est: "40", checks: "편지함", kind: "weekly", days: [3], dueAfter: "", bench: false });
+  });
+
+  it("규칙 칸 → 저장할 칸: 단계 틀은 글자로 걸릴 시간을 이어받는다", () => {
+    const prev = ["편지함", { t: "일정", sub: [{ t: "이번 주", est: 5 }] }];
+    const base = ruleDraft(rule({ checklist: prev, due_after: 6 }));
+    const r = ruleDraftPatch({ ...base, title: " 주간 회고 ", checks: "편지함\n일정\n  이번 주\n  다음 주", days: [5, 1], bench: true }, prev);
+    expect(r).toEqual({
+      patch: { title: "주간 회고", note: null, est_min: null, place_id: null, role_id: null, checklist: ["편지함", { t: "일정", sub: [{ t: "이번 주", est: 5 }, "다음 주"] }], due_after: 6, bench: true },
+      repeat: { freq: "weekly", days: [1, 5] },
+    });
+    expect(ruleDraftPatch({ ...base, kind: "daily" }, prev)).toMatchObject({ repeat: { freq: "daily" } });
+    expect(ruleDraftPatch({ ...base, kind: "event" }, prev)).toMatchObject({ repeat: null });
+  });
+
+  it("규칙 칸의 틀린 값", () => {
+    const base = ruleDraft(rule());
+    expect(ruleDraftPatch({ ...base, title: "  " }, [])).toEqual({ issue: "제목을 써 주세요" });
+    expect(ruleDraftPatch({ ...base, days: [] }, [])).toEqual({ issue: "요일을 하나 이상 고르세요" });
+    expect(ruleDraftPatch({ ...base, dueAfter: "61" }, [])).toEqual({ issue: "마감까지는 0~60일입니다" });
+    expect(ruleDraftPatch({ ...base, est: "3" }, [])).toMatchObject({ issue: expect.stringContaining("5~600") });
+    expect(ruleDraftPatch({ ...base, checks: "가".repeat(101) }, [])).toMatchObject({ issue: expect.stringContaining("100자") });
   });
 
   it("마감까지 며칠: 빈칸은 없음, 0~60", () => {
@@ -479,7 +481,7 @@ describe("역할 (7-11)", () => {
     const school = { id: "p-school", role: "school" as const };
     const work = { id: "p-work", role: "work" as const };
     const cafe = { id: "p-cafe", role: null };
-    let d = taskDraft(task("x"), null);
+    let d = taskDraft(task("x"));
     expect(d).toMatchObject({ role_id: null, roleManual: false });
     d = draftWithPlace(d, school, roles);
     expect(d).toMatchObject({ place_id: "p-school", role_id: "univ", roleManual: false });
@@ -494,16 +496,13 @@ describe("역할 (7-11)", () => {
   });
 
   it("수정 칸을 열 때: 역할이 지점이 주는 것과 다르면 손으로 고른 것으로 본다", () => {
-    expect(taskDraft(task("x", { role_id: "univ" }), null, {}, "univ").roleManual).toBe(false);
-    expect(taskDraft(task("x", { role_id: "club" }), null, {}, "univ").roleManual).toBe(true);
-    expect(taskDraft(task("x", { role_id: "club" }), null).roleManual).toBe(true);
-    expect(taskDraft(task("x"), null, {}, "univ").roleManual).toBe(false);
-  });
-
-  it("반복에서 온 할 일의 역할을 바꾸면 이번만 / 앞으로도", () => {
-    const base = taskDraft(task("a", { rule_id: "r", rule_date: "2026-09-28", role_id: "me" }), rule(), {}, null);
-    expect(taskScopes(draftWithRole(base, "univ"), base)).toEqual(["once", "future"]);
-    expect(taskScopes(draftWithRole(base, "me"), base)).toEqual([]);
+    expect(taskDraft(task("x", { role_id: "univ" }), {}, "univ").roleManual).toBe(false);
+    expect(taskDraft(task("x", { role_id: "club" }), {}, "univ").roleManual).toBe(true);
+    expect(taskDraft(task("x", { role_id: "club" })).roleManual).toBe(true);
+    expect(taskDraft(task("x"), {}, "univ").roleManual).toBe(false);
+    // 규칙 칸도 같다 (지점 · 역할 고르기를 같이 쓴다)
+    expect(ruleDraft(rule({ role_id: "club" }), "univ").roleManual).toBe(true);
+    expect(draftWithRole(ruleDraft(rule()), "univ")).toMatchObject({ role_id: "univ", roleManual: true, kind: "weekly" });
   });
 
   it("역할 오류 문구", () => {
@@ -718,41 +717,176 @@ describe("작업대 여럿 (7-15)", () => {
   });
 });
 
-describe("작업대 (7-13)", () => {
+describe("작업대 — 지금 단계 · 진행 · 시간 기록 글자 (7-16)", () => {
   const steps = [
-    { t: "1장", done: true },
-    { t: "2장", done: false },
-    { t: "3장", done: false },
+    { t: "읽기", done: true, est: 20 },
+    { t: "정리", done: false, sub: [{ t: "1장", done: true }, { t: "2장", done: false, est: 15 }] },
+    { t: "문제", done: false, est: 30 },
+  ];
+  const NOW = Date.parse("2026-10-07T03:00:00Z");
+  const work = (over: Partial<NonNullable<TaskRow["work"]>> = {}) => ({ today_sec: 2400, total_sec: 4800, running: false, started_at: null, at: "2026-10-07T03:00:00Z", ...over });
+
+  it("지금 단계 글자: 깊이 상관없이 첫 번째 안 끝난 줄", () => {
+    expect(currentStepText(steps)).toBe("2장");
+    expect(currentStepText([{ t: "a", done: true }])).toBeNull();
+    expect(currentStepText([])).toBeNull();
+  });
+
+  it("카드의 한 줄: 지금 단계, 단계가 하나도 없으면 메모 첫 줄", () => {
+    expect(benchLine({ checklist: steps, note: "메모" })).toBe("2장");
+    expect(benchLine({ checklist: [], note: "\n계획부터\n둘째" })).toBe("계획부터");
+    expect(benchLine({ checklist: [{ t: "a", done: true }], note: "메모" })).toBeNull(); // 다 끝냈으면 비운다
+    expect(benchLine({ checklist: [], note: null })).toBeNull();
+  });
+
+  it("진행 막대: 끝낸 줄 / 전체 줄. 단계가 없으면 막대가 없다", () => {
+    expect(progressOf(steps)).toBe(2 / 5);
+    expect(progressOf([{ t: "a", done: true }])).toBe(1);
+    expect(progressOf([])).toBeNull();
+  });
+
+  it('카드의 "오늘 40분" — 오늘 잰 것이 있을 때만. 돌고 있으면 읽은 뒤로 흐른 만큼 더한다', () => {
+    expect(todayLabel({ work: work() }, NOW)).toBe("오늘 40분");
+    expect(todayLabel({ work: work({ today_sec: 0 }) }, NOW)).toBeNull();
+    expect(todayLabel({}, NOW)).toBeNull();
+    expect(todayLabel({ work: work({ running: true, started_at: "2026-10-07T02:50:00Z" }) }, NOW + 20 * 60_000)).toBe("오늘 1시간");
+  });
+
+  it("집중 화면 머리 줄: 걸릴 시간 · 단계 합 · 오늘 · 누적 — 있는 것만", () => {
+    expect(focusMeta({ est_min: 60, checklist: steps, work: work() }, NOW).map((b) => b.text)).toEqual(["걸릴 시간 1시간", "단계 합 1시간 5분", "오늘 40분", "누적 1시간 20분"]);
+    expect(focusMeta({ est_min: null, checklist: [], work: undefined }, NOW)).toEqual([]);
+    expect(focusMeta({ est_min: 30, checklist: [{ t: "a", done: false }], work: undefined }, NOW)).toEqual([{ key: "est", text: "걸릴 시간 30분" }]);
+    // 누적이 오늘과 같으면 한 번만
+    expect(focusMeta({ est_min: null, checklist: [], work: work({ total_sec: 2400 }) }, NOW).map((b) => b.key)).toEqual(["today"]);
+  });
+
+  it("단계 합이 걸릴 시간을 넘으면 걸릴 시간 토막에만 표시", () => {
+    const over = focusMeta({ est_min: 60, checklist: steps, work: undefined }, NOW);
+    expect(over).toEqual([
+      { key: "est", text: "걸릴 시간 1시간", over: true },
+      { key: "steps", text: "단계 합 1시간 5분" },
+    ]);
+    expect(focusMeta({ est_min: 90, checklist: steps, work: undefined }, NOW)[0]).toEqual({ key: "est", text: "걸릴 시간 1시간 30분" });
+  });
+
+  it("지금 시간이 가고 있는 할 일은 하나", () => {
+    const tasks = [task("a", { work: work() }), task("b", { work: work({ running: true, started_at: "2026-10-07T02:50:00Z" }) })];
+    expect(runningTask(tasks)?.id).toBe("b");
+    expect(runningTask([tasks[0]!])).toBeNull();
+  });
+
+  it("떼어내기: 그 줄이 제목, 역할 · 지점 · 마감은 물려받는다. 윗단이면 아랫단이 새 할 일의 단계", () => {
+    const t = task("상법", { checklist: steps, role_id: "r1", place_id: "p1", due: "2026-10-10", due_event_id: "e1", note: "메모", est_min: 90 });
+    const sub = detachTaskStep(t, 3)!;
+    expect(sub.input).toEqual({ title: "2장", role_id: "r1", place_id: "p1", due: "2026-10-10", due_event_id: "e1", checklist: [] });
+    expect(sub.rest).toEqual([steps[0], { t: "정리", done: false, sub: [{ t: "1장", done: true }] }, steps[2]]);
+    const top = detachTaskStep(t, 1)!;
+    expect(top.input).toMatchObject({ title: "정리", checklist: [{ t: "1장", done: true }, { t: "2장", done: false, est: 15 }] });
+    expect(top.rest).toEqual([steps[0], steps[2]]);
+    expect(detachTaskStep(t, 9)).toBeNull();
+  });
+
+  it("메모 안 주소: http · https 만, 끝의 문장 부호는 뺀다", () => {
+    expect(splitLinks("강의 https://example.com/os/ch7 보고, http://a.kr/x?y=1.")).toEqual([
+      { text: "강의 " },
+      { text: "https://example.com/os/ch7", url: "https://example.com/os/ch7" },
+      { text: " 보고, " },
+      { text: "http://a.kr/x?y=1", url: "http://a.kr/x?y=1" },
+      { text: "." },
+    ]);
+    expect(splitLinks("주소 없음\n둘째 줄")).toEqual([{ text: "주소 없음\n둘째 줄" }]);
+    expect(splitLinks("javascript:alert(1) ftp://x.y")).toEqual([{ text: "javascript:alert(1) ftp://x.y" }]);
+    expect(splitLinks("")).toEqual([]);
+  });
+});
+
+describe("반복 카드 — 다음 회차 · 줄 순서 (7-16)", () => {
+  it("주기 규칙: 오늘 이후의 첫 날. 이미 만든 회차는 건너뛴다", () => {
+    // 매주 월, 2026-10-05 가 월요일
+    expect(ruleNext(rule(), "2026-10-07")).toBe("2026-10-12");
+    expect(ruleNext(rule(), "2026-10-05")).toBe("2026-10-05");
+    expect(ruleNext(rule({ last_made: "2026-10-05" }), "2026-10-05")).toBe("2026-10-12");
+    expect(ruleNext(rule({ repeat: { freq: "daily" }, last_made: "2026-10-07" }), "2026-10-07")).toBe("2026-10-08");
+    // 아직 시작 전
+    expect(ruleNext(rule({ start: "2026-11-02" }), "2026-10-07")).toBe("2026-11-02");
+  });
+
+  it("일정에 딸린 규칙: 그 일정의 다음 회차 (이미 만든 회차 뒤)", () => {
+    const ev = rule({ kind: "event", repeat: null, start: null, event_id: "e1", last_made: "2026-10-05" });
+    const occ = [
+      { event_id: "e1", on_date: "2026-10-05", date: "2026-10-05" },
+      { event_id: "e2", on_date: "2026-10-06", date: "2026-10-06" },
+      { event_id: "e1", on_date: "2026-10-07", date: "2026-10-07" },
+      { event_id: "e1", on_date: "2026-10-12", date: "2026-10-12" },
+    ];
+    expect(ruleNext(ev, "2026-10-05", occ)).toBe("2026-10-07");
+    expect(ruleNext({ ...ev, last_made: null }, "2026-10-05", occ)).toBe("2026-10-05");
+    expect(ruleNext(ev, "2026-10-05")).toBeNull(); // 회차를 아직 못 읽었다
+  });
+
+  it("멈춘 규칙은 다음 회차가 없고 줄의 맨 뒤로 간다", () => {
+    expect(ruleNext(rule({ paused: true }), "2026-10-07")).toBeNull();
+    const rows = [
+      { rule: rule({ id: "멈춤", paused: true, title: "가" }), next: null },
+      { rule: rule({ id: "늦음", title: "나" }), next: "2026-10-12" },
+      { rule: rule({ id: "모름", title: "다" }), next: null },
+      { rule: rule({ id: "이름", title: "라" }), next: "2026-10-08" },
+    ];
+    expect(sortRules(rows).map((r) => r.rule.id)).toEqual(["이름", "늦음", "모름", "멈춤"]);
+  });
+});
+
+describe("기록 표 — 한 주 (7-16)", () => {
+  const tasks = [
+    task("a", { title: "상법 정리", role_id: "univ", place_id: "school" }),
+    task("b", { title: "수업 준비", role_id: "teach" }),
+    task("c", { title: "빨래" }),
+    task("d", { title: "과제", role_id: "univ" }),
+  ];
+  const by = {
+    roles: [
+      { id: "teach", name: "강사", sort: 2 },
+      { id: "univ", name: "대학", sort: 1 },
+    ],
+    places: [{ id: "school", name: "학교" }],
+  };
+  const week = [
+    { task_id: "a", day: "2026-10-05", seconds: 2700 },
+    { task_id: "a", day: "2026-10-06", seconds: 1800 },
+    { task_id: "a", day: "2026-10-07", seconds: 1800 },
+    { task_id: "b", day: "2026-10-05", seconds: 1200 },
+    { task_id: "c", day: "2026-10-11", seconds: 20 },
+    { task_id: "d", day: "2026-10-05", seconds: 600 },
+    { task_id: "지운 것", day: "2026-10-05", seconds: 999 },
+    { task_id: "a", day: "2026-10-12", seconds: 999 }, // 주 밖
   ];
 
-  it("올라간 할 일 · 앉은 지", () => {
-    expect(satMinutes("2026-10-04T01:00:00Z", new Date("2026-10-04T01:40:59Z"))).toBe(40);
-    expect(satMinutes("2026-10-04T01:00:00Z", new Date("2026-10-04T00:59:00Z"))).toBe(0);
-    expect([0, 1, 40, 60, 65].map(satLabel)).toEqual(["방금 앉음", "앉은 지 1분", "앉은 지 40분", "앉은 지 1시간", "앉은 지 1시간 5분"]);
+  it("행 = 할 일(역할 · 지점), 열 = 월~일, 칸 = 분. 주 합계가 큰 순, 맨 아래 합계 줄", () => {
+    const t = weekTable(week, "2026-10-05", tasks, by);
+    expect(t.days).toEqual(["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11"]);
+    expect(t.rows).toEqual([
+      { kind: "task", id: "a", title: "상법 정리", role: "대학", place: "학교", cells: [45, 30, 30, 0, 0, 0, 0], total: 105 },
+      { kind: "task", id: "b", title: "수업 준비", role: "강사", place: null, cells: [20, 0, 0, 0, 0, 0, 0], total: 20 },
+      { kind: "task", id: "d", title: "과제", role: "대학", place: null, cells: [10, 0, 0, 0, 0, 0, 0], total: 10 },
+      { kind: "task", id: "c", title: "빨래", role: null, place: null, cells: [0, 0, 0, 0, 0, 0, 1], total: 1 }, // 1분이 안 돼도 1
+    ]);
+    expect(t.sum).toEqual({ cells: [75, 30, 30, 0, 0, 0, 1], total: 136 });
   });
 
-  it("단계 더하기: 앞뒤 공백 떼고, 빈 것은 그대로, 50개 · 100자 상한", () => {
-    expect(addStep(steps, "  4장  ").list.map((c) => c.t)).toEqual(["1장", "2장", "3장", "4장"]);
-    expect(addStep(steps, "   ")).toEqual({ list: steps, issue: null });
-    const full = Array.from({ length: 50 }, (_, i) => ({ t: `${i}`, done: false }));
-    expect(addStep(full, "하나 더").issue).toMatch(/50개/);
-    expect(addStep(steps, "가".repeat(101)).issue).toMatch(/100자/);
+  it("정렬이 역할이면 역할 순서로 묶고 묶음 끝에 소계 줄. 역할 없는 것은 맨 뒤", () => {
+    const t = weekTable(week, "2026-10-05", tasks, by, true);
+    expect(t.rows.map((r) => (r.kind === "task" ? r.title : `= ${r.label} ${r.total}`))).toEqual(["상법 정리", "과제", "= 대학 115", "수업 준비", "= 강사 20", "빨래", "= 없음 1"]);
+    expect(t.rows[2]).toEqual({ kind: "role", id: "role:univ", label: "대학", cells: [55, 30, 30, 0, 0, 0, 0], total: 115 });
+    expect(t.sum.total).toBe(136);
   });
 
-  it("끌어 옮기기 · 빼기 · 도로 넣기", () => {
-    expect(moveStep(steps, 0, 2).map((c) => c.t)).toEqual(["2장", "3장", "1장"]);
-    expect(moveStep(steps, 2, 0).map((c) => c.t)).toEqual(["3장", "1장", "2장"]);
-    expect(moveStep(steps, 5, 0)).toEqual(steps);
-    expect(withoutStep(steps, 1).map((c) => c.t)).toEqual(["1장", "3장"]);
-    expect(insertStep(withoutStep(steps, 1), 1, steps[1]!)).toEqual(steps);
+  it("비면 줄이 없다", () => {
+    expect(weekTable([], "2026-10-05", tasks, by)).toMatchObject({ rows: [], sum: { total: 0 } });
+    expect(weekTable(week, "2026-10-19", tasks, by, true).rows).toEqual([]);
   });
 
-  it("떼어내기: 그 줄이 제목, 역할 · 지점 · 마감은 물려받고 단계에서는 빠진다", () => {
-    const t = task("상법", { checklist: steps, role_id: "r1", place_id: "p1", due: "2026-10-10", due_event_id: "e1", note: "메모", est_min: 90 });
-    expect(detachStep(t, 1)).toEqual({
-      input: { title: "2장", role_id: "r1", place_id: "p1", due: "2026-10-10", due_event_id: "e1" },
-      rest: [steps[0], steps[2]],
-    });
-    expect(detachStep(t, 9)).toBeNull();
+  it('표 머리 "월 5"', () => {
+    expect(logDayLabel("2026-10-05")).toBe("월 5");
+    expect(logDayLabel("2026-10-11")).toBe("일 11");
   });
 });

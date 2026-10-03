@@ -1,34 +1,54 @@
 // 플래너 화면 계산 (docs/플래너.md 3장 · 7장). DOM 없이 시험할 수 있는 것만:
 // 목록 넷으로 나누기(지남 · 할 일 · 시간 정함 · 끝냄) · 지남 판정, 사이 sort 값, 시간 정하기의 기본 시작 시각,
 // "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 정렬과 구분 묶음(7-12),
-// 작업대의 단계 다루기 · 떼어내기 · "앉은 지 n분"(7-13), 역할 필터(7-14), 작업대 목록 · 가져오기 후보 · 순서(7-15).
+// 작업대의 떼어내기(7-13), 역할 필터(7-14), 작업대 목록 · 가져오기 후보 · 순서(7-15),
+// 지금 단계 · 진행 막대 · 시간 기록 글자 · 반복 카드(규칙의 다음 회차 · 규칙 칸) · 기록 표(7-16).
+// 단계(체크 항목) 자체를 다루는 함수는 lib/schedule/steps.ts, 시간 기록 계산은 lib/schedule/work.ts.
 // 빈 시간 계산은 lib/schedule 의 planRange + freeSlots 가 한다.
 
 import type { KoreanError } from "../../lib/errors";
 import {
   addDays,
-  CHECK_ITEM_MAX,
-  CHECKLIST_MAX,
+  currentStep,
   daysBetween,
   DEFAULT_SETTINGS,
+  detachStep,
   DUE_AFTER_MAX,
+  estSum,
   expand,
+  flatSteps,
+  formatStepLines,
   freeSlots,
+  liveWork,
+  mergeSteps,
+  occursOn,
+  parseStepLines,
   planRange,
   ROLE_NAME_MAX,
   roleForPlace,
+  ruleChecks,
+  secToMin,
+  stepProgress,
+  stepsFromRule,
+  validateTask,
   weekday,
   type CheckItem,
   type DateStr,
+  type EventRow,
+  type Occurrence,
   type Place,
+  type RemovedStep,
+  type Repeat,
   type Role,
+  type RuleCheck,
   type Settings,
   type TaskRow,
   type TaskRule,
   type Travel,
+  type WorkDay,
 } from "../../lib/schedule";
 import type { EventRows, TaskLink } from "../_data/types";
-import { hm, nowIn, repeatLabel, scheduleKorean, WEEKDAYS } from "./schedule";
+import { duration, hm, nowIn, repeatLabel, scheduleKorean, WEEKDAYS } from "./schedule";
 
 /** 끝낸 것은 최근 며칠만 */
 export const DONE_DAYS = 14;
@@ -299,62 +319,100 @@ export function firstLine(note: string | null): string | null {
   return line ? line.trim() : null;
 }
 
-/** 올린 뒤 지난 분 (0 이상) */
-export function satMinutes(benchAt: string, now: Date): number {
-  return Math.max(0, Math.floor((now.getTime() - Date.parse(benchAt)) / 60_000));
-}
-
-/** "앉은 지 40분" · "앉은 지 1시간 5분" · 1분이 안 됐으면 "방금 앉음" */
-export function satLabel(min: number): string {
-  if (min < 1) return "방금 앉음";
-  if (min < 60) return `앉은 지 ${min}분`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m === 0 ? `앉은 지 ${h}시간` : `앉은 지 ${h}시간 ${m}분`;
-}
-
-/** 단계(체크 항목) 하나 더하기. 앞뒤 공백을 떼고, 비면 그대로. 넘치면 issue */
-export function addStep(list: readonly CheckItem[], text: string): { list: CheckItem[]; issue: string | null } {
-  const t = text.trim();
-  if (t === "") return { list: [...list], issue: null };
-  if (list.length >= CHECKLIST_MAX) return { list: [...list], issue: `단계는 ${CHECKLIST_MAX}개까지입니다` };
-  if ([...t].length > CHECK_ITEM_MAX) return { list: [...list], issue: `단계 하나는 ${CHECK_ITEM_MAX}자까지입니다` };
-  return { list: [...list, { t, done: false }], issue: null };
-}
-
-/** from 번째 단계를 to 자리로 (to 는 그 단계를 뺀 목록에서의 자리) */
-export function moveStep(list: readonly CheckItem[], from: number, to: number): CheckItem[] {
-  const item = list[from];
-  if (!item) return [...list];
-  const rest = list.filter((_, k) => k !== from);
-  const at = Math.max(0, Math.min(rest.length, to));
-  return [...rest.slice(0, at), item, ...rest.slice(at)];
-}
-
-/** i 번째 단계를 뺀 목록 */
-export function withoutStep(list: readonly CheckItem[], i: number): CheckItem[] {
-  return list.filter((_, k) => k !== i);
-}
-
-/** i 자리에 단계를 도로 넣은 목록 (떼어내기 되돌리기) */
-export function insertStep(list: readonly CheckItem[], i: number, item: CheckItem): CheckItem[] {
-  const at = Math.max(0, Math.min(list.length, i));
-  return [...list.slice(0, at), item, ...list.slice(at)];
-}
+const URL_RE = /https?:\/\/[^\s<>"'`]+/g;
 
 /**
- * 떼어내기: i 번째 단계가 새 할 일이 된다. 제목 = 그 줄, 역할 · 지점 · 마감(딸린 일정 포함)은 지금 할 일에서 물려받는다.
- * 돌려주는 것: 새 할 일 입력과 그 단계를 뺀 지금 할 일의 단계. 없는 줄이면 null
+ * 메모 글을 주소와 나머지로 나눈다 (집중 화면의 메모 — 읽기 상태에서 주소가 눌린다, 7-16). http · https 만.
+ * 주소 끝의 문장 부호(. , ; : ! ? ) ] })는 주소에서 뺀다
  */
-export function detachStep(
+export function splitLinks(text: string): { text: string; url?: string }[] {
+  const out: { text: string; url?: string }[] = [];
+  let at = 0;
+  for (const m of text.matchAll(URL_RE)) {
+    const url = m[0].replace(/[.,;:!?)\]}]+$/, "");
+    try {
+      const u = new URL(url);
+      if ((u.protocol !== "http:" && u.protocol !== "https:") || u.hostname === "") continue;
+    } catch {
+      continue;
+    }
+    if (m.index > at) out.push({ text: text.slice(at, m.index) });
+    out.push({ text: url, url });
+    at = m.index + url.length;
+  }
+  if (at < text.length) out.push({ text: text.slice(at) });
+  return out;
+}
+
+/** 지금 단계의 글자 (첫 번째 안 끝난 줄). 단계가 없거나 다 끝났으면 null */
+export function currentStepText(list: readonly CheckItem[]): string | null {
+  const k = currentStep(list);
+  return k === null ? null : (flatSteps(list)[k]?.t ?? null);
+}
+
+/** 작업대 카드의 한 줄: 지금 단계, 단계가 하나도 없으면 메모 첫 줄 (7-16) */
+export function benchLine(task: Pick<TaskRow, "checklist" | "note">): string | null {
+  return task.checklist.length > 0 ? currentStepText(task.checklist) : firstLine(task.note);
+}
+
+/** 얇은 진행 막대의 비율 0~1 (끝낸 줄 / 전체 줄). 단계가 없으면 null — 막대를 그리지 않는다 */
+export function progressOf(list: readonly CheckItem[]): number | null {
+  const p = stepProgress(list);
+  return p ? p.done / p.total : null;
+}
+
+/** 카드의 "오늘 40분" — 오늘 잰 것이 있을 때만 */
+export function todayLabel(task: Pick<TaskRow, "work">, nowMs: number): string | null {
+  const w = liveWork(task.work, nowMs);
+  return w.today > 0 ? `오늘 ${duration(secToMin(w.today))}` : null;
+}
+
+/** 집중 화면 머리 줄의 한 토막. over = 단계 합이 걸릴 시간을 넘었다(걸릴 시간 글자만 키위) */
+export type FocusBit = { key: "est" | "steps" | "today" | "total"; text: string; over?: boolean };
+
+/**
+ * 집중 화면 머리 한 줄 "걸릴 시간 1시간 · 단계 합 50분 · 오늘 40분 · 누적 1시간 20분" — 있는 것만.
+ * 누적은 오늘과 다를 때만(같으면 같은 말을 두 번 하지 않는다)
+ */
+export function focusMeta(task: Pick<TaskRow, "est_min" | "checklist" | "work">, nowMs: number): FocusBit[] {
+  const out: FocusBit[] = [];
+  const sum = estSum(task.checklist);
+  if (task.est_min !== null) out.push({ key: "est", text: `걸릴 시간 ${duration(task.est_min)}`, ...(sum > task.est_min ? { over: true } : {}) });
+  if (sum > 0) out.push({ key: "steps", text: `단계 합 ${duration(sum)}` });
+  const w = liveWork(task.work, nowMs);
+  const today = secToMin(w.today);
+  const total = secToMin(w.total);
+  if (today > 0) out.push({ key: "today", text: `오늘 ${duration(today)}` });
+  if (total > 0 && total !== today) out.push({ key: "total", text: `누적 ${duration(total)}` });
+  return out;
+}
+
+/** 지금 시간이 가고 있는 할 일 (한 번에 하나). 없으면 null */
+export function runningTask(tasks: readonly TaskRow[]): TaskRow | null {
+  return tasks.find((t) => t.work?.running && t.done_at === null) ?? null;
+}
+
+/** 끝낸 단계가 이만큼을 넘으면 접는다 (7-16) */
+export const DONE_FOLD = 8;
+
+/**
+ * 떼어내기: k 번째 줄(평탄 번호)이 새 할 일이 된다. 제목 = 그 줄, 역할 · 지점 · 마감(딸린 일정 포함)은 지금 할 일에서 물려받는다.
+ * 윗단이면 아랫단이 새 할 일의 단계가 된다. 돌려주는 것: 새 할 일 입력, 그 줄을 뺀 단계, 되돌릴 자리. 없는 줄이면 null
+ */
+export function detachTaskStep(
   task: Pick<TaskRow, "checklist" | "role_id" | "place_id" | "due" | "due_event_id">,
-  i: number,
-): { input: { title: string; role_id: string | null; place_id: string | null; due: DateStr | null; due_event_id: string | null }; rest: CheckItem[] } | null {
-  const item = task.checklist[i];
-  if (!item) return null;
+  k: number,
+): {
+  input: { title: string; role_id: string | null; place_id: string | null; due: DateStr | null; due_event_id: string | null; checklist: CheckItem[] };
+  rest: CheckItem[];
+  removed: RemovedStep;
+} | null {
+  const d = detachStep(task.checklist, k);
+  if (!d) return null;
   return {
-    input: { title: item.t, role_id: task.role_id, place_id: task.place_id, due: task.due, due_event_id: task.due_event_id },
-    rest: withoutStep(task.checklist, i),
+    input: { title: d.title, role_id: task.role_id, place_id: task.place_id, due: task.due, due_event_id: task.due_event_id, checklist: d.checklist },
+    rest: d.rest,
+    removed: d.removed,
   };
 }
 
@@ -384,54 +442,57 @@ export function lateLabel(l: Late): string {
   return l.task.due ? dueLabel(l.task.due) : "";
 }
 
-/** 줄의 체크 수 "1/2". 다 했으면 all. 체크 항목이 없으면 null */
+/** 줄의 체크 수 "1/2" (아랫단까지 센다). 다 했으면 all. 체크 항목이 없으면 null */
 export function checkLabel(list: readonly CheckItem[]): { text: string; all: boolean } | null {
-  if (list.length === 0) return null;
-  const n = list.filter((c) => c.done).length;
-  return { text: `${n}/${list.length}`, all: n === list.length };
+  const p = stepProgress(list);
+  return p ? { text: `${p.done}/${p.total}`, all: p.all } : null;
 }
 
-/** 반복 한 줄: "매주 월" · "매일" · 일정에 딸렸으면 "자료구조 끝나면" */
+/** 반복 한 줄: "매주 월" · "매일" · 일정에 딸렸으면 "자료구조 끝날 때마다"(제목을 모르면 "일정이 끝날 때마다") */
 export function ruleLabel(rule: TaskRule, eventTitle?: string | null): string {
-  if (rule.kind === "event") return eventTitle ? `${eventTitle} 끝나면` : "일정 끝나면";
+  if (rule.kind === "event") return eventTitle ? `${eventTitle} 끝날 때마다` : "일정이 끝날 때마다";
   return repeatLabel(rule.repeat) ?? "";
 }
 
-// ------------------------------------------------------------ 체크 항목
-
-/** 수정 칸의 여러 줄 → 항목 글자. 한 줄에 하나, 앞뒤 공백을 떼고 빈 줄은 버린다. 넘치면 issue */
-export function parseChecks(text: string): { texts: string[]; issue: string | null } {
-  const texts = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l !== "");
-  let issue: string | null = null;
-  if (texts.length > CHECKLIST_MAX) issue = `체크 항목은 ${CHECKLIST_MAX}개까지입니다 (지금 ${texts.length}개)`;
-  else if (texts.some((t) => [...t].length > CHECK_ITEM_MAX)) issue = `체크 항목 하나는 ${CHECK_ITEM_MAX}자까지입니다`;
-  return { texts, issue };
+/**
+ * 규칙의 다음 회차 날짜 (반복 카드의 줄). 멈춘 규칙 · 알 수 없으면 null.
+ * 주기 규칙: 오늘 이후(이미 만든 회차 다음)의 첫 날. 일정에 딸린 규칙: 그 일정의 다음 회차 — occ 는 오늘부터 펼친 회차들
+ */
+export function ruleNext(rule: TaskRule, today: DateStr, occ: readonly Pick<Occurrence, "event_id" | "on_date" | "date">[] = []): DateStr | null {
+  if (rule.paused) return null;
+  if (rule.kind === "event") {
+    const made = rule.last_made ?? "";
+    return (
+      occ
+        .filter((o) => o.event_id === rule.event_id && o.on_date > made && o.date >= today)
+        .map((o) => o.date)
+        .sort()[0] ?? null
+    );
+  }
+  if (!rule.repeat || !rule.start) return null;
+  const base = { date: rule.start, repeat: rule.repeat } as EventRow;
+  let from = today > rule.start ? today : rule.start;
+  if (rule.last_made && rule.last_made >= from) from = addDays(rule.last_made, 1);
+  for (let k = 0; k < 370; k++) {
+    const d = addDays(from, k);
+    if (occursOn(base, d)) return d;
+  }
+  return null;
 }
 
-/** 고친 글자에 체크를 얹는다: 글자가 같은 항목은 체크를 지킨다 (같은 글자가 여럿이면 앞에서부터 하나씩) */
-export function mergeChecklist(prev: readonly CheckItem[], texts: readonly string[]): CheckItem[] {
-  const left = prev.map((c) => ({ ...c }));
-  return texts.map((t) => {
-    const i = left.findIndex((c) => c.t === t);
-    if (i < 0) return { t, done: false };
-    const [hit] = left.splice(i, 1);
-    return { t, done: hit!.done };
-  });
-}
-
-/** i 번째 항목의 체크를 바꾼 목록 */
-export function toggleCheck(list: readonly CheckItem[], i: number, done: boolean): CheckItem[] {
-  return list.map((c, k) => (k === i ? { ...c, done } : c));
+/** 반복 카드의 줄 순서: 멈춘 것은 뒤로, 그 안은 다음 회차가 가까운 순(모르면 뒤), 같으면 제목 */
+export function sortRules<T extends { rule: TaskRule; next: DateStr | null }>(rows: readonly T[]): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      Number(a.rule.paused) - Number(b.rule.paused) ||
+      (a.next ?? "9999").localeCompare(b.next ?? "9999") ||
+      a.rule.title.localeCompare(b.rule.title, "ko"),
+  );
 }
 
 // ------------------------------------------------------------ 수정 칸
 
-export type RepeatKind = "none" | "daily" | "weekly" | "event";
-
-/** 수정 칸의 값. 글 칸은 빈 글자 = 없음 */
+/** 수정 칸의 값. 글 칸은 빈 글자 = 없음. 반복 설정은 여기 없다 — 반복 카드의 규칙에서 (7-16) */
 export type TaskDraft = {
   title: string;
   due: string;
@@ -440,24 +501,17 @@ export type TaskDraft = {
   est: string;
   note: string;
   place_id: string | null;
-  /** 체크 항목 — 한 줄에 하나 */
+  /** 체크 항목 — 한 줄에 하나, 들여 쓰면 아랫단 */
   checks: string;
-  /** event = 일정에 딸린 규칙에서 온 할 일 (여기서는 멈추기만) */
-  repeat: RepeatKind;
-  days: number[];
-  /** 마감까지 며칠 (빈칸 = 마감 없음) */
-  dueAfter: string;
   role_id: string | null;
   /** 역할을 손으로 골랐다 — 지점을 바꿔도 역할을 덮지 않는다 */
   roleManual: boolean;
 };
 
 /**
- * 할 일 → 수정 칸. rule = 이 할 일이 나온 살아 있는 규칙 (없으면 null).
- * autoRole = 지금 지점이 주는 역할(roleForPlace). 역할이 그것과 다르면 손으로 고른 것으로 본다
+ * 할 일 → 수정 칸. autoRole = 지금 지점이 주는 역할(roleForPlace). 역할이 그것과 다르면 손으로 고른 것으로 본다
  */
-export function taskDraft(t: TaskRow, rule: TaskRule | null, titles: Readonly<Record<string, string>> = {}, autoRole: string | null = null): TaskDraft {
-  const r = rule?.repeat ?? null;
+export function taskDraft(t: TaskRow, titles: Readonly<Record<string, string>> = {}, autoRole: string | null = null): TaskDraft {
   return {
     title: t.title,
     due: t.due ?? "",
@@ -465,17 +519,103 @@ export function taskDraft(t: TaskRow, rule: TaskRule | null, titles: Readonly<Re
     est: t.est_min === null ? "" : String(t.est_min),
     note: t.note ?? "",
     place_id: t.place_id,
-    checks: t.checklist.map((c) => c.t).join("\n"),
-    repeat: !rule ? "none" : rule.kind === "event" ? "event" : r?.freq === "weekly" ? "weekly" : "daily",
-    days: r?.freq === "weekly" ? [...r.days].sort((a, b) => a - b) : [],
-    dueAfter: rule?.due_after == null ? "" : String(rule.due_after),
+    checks: formatStepLines(t.checklist),
     role_id: t.role_id,
     roleManual: t.role_id !== null && t.role_id !== autoRole,
   };
 }
 
-/** 지점을 고른다. 역할을 손으로 고른 적이 없으면 그 지점의 역할을 채운다(맞는 역할이 없으면 그대로) */
-export function draftWithPlace(d: TaskDraft, place: Pick<Place, "id" | "role"> | null, roles: Role[]): TaskDraft {
+// ------------------------------------------------------------ 규칙 칸 (반복 카드, 7-16)
+
+export type RuleKind = "daily" | "weekly" | "event";
+
+/** 규칙 수정 칸의 값. event = 일정에 딸린 규칙(주기는 못 바꾼다) */
+export type RuleDraft = {
+  title: string;
+  est: string;
+  note: string;
+  place_id: string | null;
+  role_id: string | null;
+  roleManual: boolean;
+  /** 단계 틀 — 한 줄에 하나, 들여 쓰면 아랫단 */
+  checks: string;
+  kind: RuleKind;
+  days: number[];
+  /** 마감까지 며칠 (빈칸 = 마감 없음) */
+  dueAfter: string;
+  /** 회차가 생기면 작업대에 올리기 */
+  bench: boolean;
+};
+
+/** 규칙 → 수정 칸 */
+export function ruleDraft(rule: TaskRule, autoRole: string | null = null): RuleDraft {
+  const r = rule.repeat;
+  return {
+    title: rule.title,
+    est: rule.est_min === null ? "" : String(rule.est_min),
+    note: rule.note ?? "",
+    place_id: rule.place_id,
+    role_id: rule.role_id,
+    roleManual: rule.role_id !== null && rule.role_id !== autoRole,
+    checks: formatStepLines(stepsFromRule(rule.checklist)),
+    kind: rule.kind === "event" ? "event" : r?.freq === "weekly" ? "weekly" : "daily",
+    days: r?.freq === "weekly" ? [...r.days].sort((a, b) => a - b) : [],
+    dueAfter: rule.due_after == null ? "" : String(rule.due_after),
+    bench: rule.bench,
+  };
+}
+
+/** "반복으로 만들기": 할 일의 모양을 옮긴 새 규칙 칸. 처음에는 매주, 오늘 요일 */
+export function ruleDraftFromTask(t: TaskRow, today: DateStr, autoRole: string | null = null): RuleDraft {
+  return {
+    title: t.title,
+    est: t.est_min === null ? "" : String(t.est_min),
+    note: t.note ?? "",
+    place_id: t.place_id,
+    role_id: t.role_id,
+    roleManual: t.role_id !== null && t.role_id !== autoRole,
+    checks: formatStepLines(t.checklist),
+    kind: "weekly",
+    days: [weekday(today)],
+    dueAfter: "",
+    bench: false,
+  };
+}
+
+/** 규칙 칸 → 저장할 칸들. prev = 고치기 전 단계 틀(걸릴 시간을 글자로 이어받는다). 틀리면 issue */
+export function ruleDraftPatch(
+  d: RuleDraft,
+  prev: readonly RuleCheck[],
+): { issue: string } | { patch: Pick<TaskRule, "title" | "note" | "est_min" | "place_id" | "role_id" | "checklist" | "due_after" | "bench">; repeat: Exclude<Repeat, null> | null } {
+  const title = d.title.trim();
+  const est = parseMinutes(d.est);
+  const note = d.note.trim() === "" ? null : d.note;
+  const bad = validateTask({ title, est_min: est, note })[0];
+  if (bad) return { issue: bad.path === "title" && title === "" ? "제목을 써 주세요" : bad.reason };
+  const lines = parseStepLines(d.checks);
+  if (lines.issue) return { issue: lines.issue };
+  const dueAfter = parseDueAfter(d.dueAfter);
+  if (Number.isNaN(dueAfter)) return { issue: `마감까지는 0~${DUE_AFTER_MAX}일입니다` };
+  if (d.kind === "weekly" && d.days.length === 0) return { issue: "요일을 하나 이상 고르세요" };
+  return {
+    patch: {
+      title,
+      note,
+      est_min: est,
+      place_id: d.place_id,
+      role_id: d.role_id,
+      checklist: ruleChecks(mergeSteps(stepsFromRule(prev), lines.lines)),
+      due_after: dueAfter,
+      bench: d.bench,
+    },
+    repeat: d.kind === "daily" ? { freq: "daily" } : d.kind === "weekly" ? { freq: "weekly", days: [...d.days].sort((a, b) => a - b) } : null,
+  };
+}
+
+type RoleDraft = { place_id: string | null; role_id: string | null; roleManual: boolean };
+
+/** 지점을 고른다. 역할을 손으로 고른 적이 없으면 그 지점의 역할을 채운다(맞는 역할이 없으면 그대로). 할 일 칸 · 규칙 칸 공용 */
+export function draftWithPlace<D extends RoleDraft>(d: D, place: Pick<Place, "id" | "role"> | null, roles: Role[]): D {
   const next = { ...d, place_id: place?.id ?? null };
   if (d.roleManual) return next;
   const r = roleForPlace(place, roles);
@@ -483,7 +623,7 @@ export function draftWithPlace(d: TaskDraft, place: Pick<Place, "id" | "role"> |
 }
 
 /** 역할 칩을 직접 눌렀다 */
-export function draftWithRole(d: TaskDraft, role_id: string | null): TaskDraft {
+export function draftWithRole<D extends RoleDraft>(d: D, role_id: string | null): D {
   return { ...d, role_id, roleManual: true };
 }
 
@@ -496,33 +636,82 @@ export function parseDueAfter(s: string): number | null {
   return n <= DUE_AFTER_MAX ? n : Number.NaN;
 }
 
-export type TaskScope = "once" | "future";
+// ------------------------------------------------------------ 기록 표 (7-16, /planner/log)
 
-/** 반복 설정(매일 / 매주 요일 · 마감까지 며칠)을 바꿨나 */
-export function repeatChanged(d: TaskDraft, base: TaskDraft): boolean {
-  return d.repeat !== base.repeat || (d.repeat === "weekly" && d.days.join() !== base.days.join()) || d.dueAfter.trim() !== base.dueAfter.trim();
-}
+/** 표의 한 줄. task = 할 일(역할 · 지점 이름 옆에), role = 역할 소계(정렬이 역할일 때). cells = 월~일 분, total = 주 합계 */
+export type LogRow =
+  | { kind: "task"; id: string; title: string; role: string | null; place: string | null; cells: number[]; total: number }
+  | { kind: "role"; id: string; label: string; cells: number[]; total: number };
 
-/** 규칙이 만들 할 일의 모양(제목 · 걸릴 시간 · 지점 · 역할 · 메모 · 체크 항목 글자)을 바꿨나 */
-export function templateChanged(d: TaskDraft, base: TaskDraft): boolean {
-  return (
-    d.title.trim() !== base.title.trim() ||
-    d.est.trim() !== base.est.trim() ||
-    d.note !== base.note ||
-    d.place_id !== base.place_id ||
-    d.role_id !== base.role_id ||
-    parseChecks(d.checks).texts.join("\n") !== parseChecks(base.checks).texts.join("\n")
-  );
-}
+export type LogTable = { days: DateStr[]; rows: LogRow[]; sum: { cells: number[]; total: number } };
 
 /**
- * 저장할 때 고를 범위. 반복에서 온 할 일(base.repeat 이 none 이 아님)만:
- * 반복 설정을 바꾸면 '앞으로도' 만, 모양만 바꾸면 '이번만 / 앞으로도'. 반복을 끄거나 새로 켜면 빈 목록(그냥 저장)
+ * 한 주의 기록 표. week = 할 일 × 날짜 초(ez_work_week), monday = 그 주 월요일.
+ * 칸은 분(1분이 안 돼도 기록이 있으면 1), 합계는 보이는 칸의 합 — 화면의 숫자끼리 맞게.
+ * byRole 이 아니면 주 합계가 큰 순. byRole 이면 역할 목록 순서로 묶고(역할 없는 것은 맨 뒤) 묶음 끝에 소계 줄
  */
-export function taskScopes(d: TaskDraft, base: TaskDraft): TaskScope[] {
-  if (base.repeat === "none" || d.repeat === "none") return [];
-  if (repeatChanged(d, base)) return ["future"];
-  return templateChanged(d, base) ? ["once", "future"] : [];
+export function weekTable(
+  week: readonly WorkDay[],
+  monday: DateStr,
+  tasks: readonly Pick<TaskRow, "id" | "title" | "role_id" | "place_id">[],
+  by: { roles: readonly Pick<Role, "id" | "name" | "sort">[]; places: readonly Pick<Place, "id" | "name">[] },
+  byRole = false,
+): LogTable {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const col = new Map(days.map((d, i) => [d, i]));
+  const taskOf = new Map(tasks.map((t) => [t.id, t]));
+  const roleName = new Map(by.roles.map((r) => [r.id, r.name]));
+  const placeName = new Map(by.places.map((p) => [p.id, p.name]));
+  const secs = new Map<string, number[]>();
+  for (const w of week) {
+    const i = col.get(w.day);
+    if (i === undefined || !taskOf.has(w.task_id) || w.seconds <= 0) continue;
+    const row = secs.get(w.task_id) ?? Array.from({ length: 7 }, () => 0);
+    row[i]! += w.seconds;
+    secs.set(w.task_id, row);
+  }
+  const total = (cells: readonly number[]) => cells.reduce((n, x) => n + x, 0);
+  const addCells = (a: readonly number[], b: readonly number[]) => a.map((x, i) => x + b[i]!);
+  type TaskLine = Extract<LogRow, { kind: "task" }> & { role_id: string | null };
+  const lines: TaskLine[] = [...secs.entries()].map(([id, row]) => {
+    const t = taskOf.get(id)!;
+    const cells = row.map(secToMin);
+    const known = t.role_id !== null && roleName.has(t.role_id);
+    return {
+      kind: "task",
+      id,
+      title: t.title,
+      role: known ? roleName.get(t.role_id!)! : null,
+      place: t.place_id ? (placeName.get(t.place_id) ?? null) : null,
+      cells,
+      total: total(cells),
+      role_id: known ? t.role_id : null,
+    };
+  });
+  lines.sort((a, b) => b.total - a.total || a.title.localeCompare(b.title, "ko"));
+  const strip = ({ role_id: _, ...row }: TaskLine): LogRow => row;
+  const zero = Array.from({ length: 7 }, () => 0);
+  const sumCells = lines.reduce((acc, l) => addCells(acc, l.cells), zero);
+  let rows: LogRow[];
+  if (!byRole) rows = lines.map(strip);
+  else {
+    rows = [];
+    const heads: { id: string | null; label: string }[] = [...by.roles].sort((a, b) => a.sort - b.sort).map((r) => ({ id: r.id, label: r.name }));
+    heads.push({ id: null, label: NONE_LABEL });
+    for (const h of heads) {
+      const group = lines.filter((l) => l.role_id === h.id);
+      if (group.length === 0) continue;
+      rows.push(...group.map(strip));
+      const cells = group.reduce((acc, l) => addCells(acc, l.cells), zero);
+      rows.push({ kind: "role", id: `role:${h.id ?? "none"}`, label: h.label, cells, total: total(cells) });
+    }
+  }
+  return { days, rows, sum: { cells: sumCells, total: total(sumCells) } };
+}
+
+/** 표 머리의 날짜 "월 5" */
+export function logDayLabel(d: DateStr): string {
+  return `${wd(d)} ${Number(d.slice(8, 10))}`;
 }
 
 // ------------------------------------------------------------ 일정에 딸린 마감

@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import type { DateStr, EventRow, Place, TaskRow } from "../../../lib/schedule";
+import { flatSteps, type DateStr, type EventRow, type Place, type TaskRow } from "../../../lib/schedule";
 import type { TaskLink } from "../../_data/types";
 import { dueLabel, overdue } from "../../_logic/planner";
 import { dayLabel, duration, hm, repeatLabel, timeRange } from "../../_logic/schedule";
@@ -50,16 +50,17 @@ export function TaskDetail({
   today: DateStr;
   scheduleHref: string | null;
   onToggle: (t: TaskRow) => void;
-  onCheck: (index: number, done: boolean) => void;
+  /** k = 줄 번호(윗단 · 아랫단을 위에서부터 센다) */
+  onCheck: (k: number, done: boolean) => void;
   onPlan: () => void;
   onUnplan: () => void;
   onDue: () => void;
   onClearDue: () => void;
   onEdit: () => void;
-  /** 작업대에 올리고 집중 화면으로 (docs/플래너.md 7-15). 없으면(끝냄 · 이미 올라감) 단추를 그리지 않는다 */
-  onBench: (() => void) | null;
+  /** "작업대" — 올리기만, 이동 없음. 이미 올라가 있으면 "내리기" (docs/플래너.md 7-16). 없으면(끝냄) 단추를 그리지 않는다 */
+  onBench: ((on: boolean) => void) | null;
   onDelete: () => void;
-  /** 더보기 메뉴 (일정으로). 없으면 버튼을 그리지 않는다 */
+  /** 더보기 메뉴 (일정으로 · 반복으로 만들기). 없으면 버튼을 그리지 않는다 */
   onMore: ((e: MouseEvent<HTMLButtonElement>) => void) | null;
 }) {
   const done = task.done_at !== null;
@@ -139,12 +140,13 @@ export function TaskDetail({
       )}
       {task.checklist.length > 0 && (
         <ul className="ck-list" aria-label="체크 항목">
-          {task.checklist.map((c, i) => (
-            <li key={i}>
-              <button type="button" className={c.done ? "ck on" : "ck"} role="checkbox" aria-checked={c.done} onClick={() => onCheck(i, !c.done)}>
+          {flatSteps(task.checklist).map((c) => (
+            <li key={c.k} className={c.depth === 1 ? "sub" : undefined}>
+              <button type="button" className={c.done ? "ck on" : "ck"} role="checkbox" aria-checked={c.done} onClick={() => onCheck(c.k, !c.done)}>
                 <Icon name={c.done ? "ring-check" : "ring"} />
                 <span>{c.t}</span>
               </button>
+              {c.est !== null && <span className="ck-est num">{c.est}분</span>}
             </li>
           ))}
         </ul>
@@ -201,15 +203,15 @@ export function TaskDetail({
           </>
         )}
         {onBench && (
-          <button type="button" className="ghost" onClick={onBench}>
-            작업대에
+          <button type="button" className="ghost" onClick={() => onBench(task.bench_order === null)}>
+            {task.bench_order === null ? "작업대" : "내리기"}
           </button>
         )}
         <button type="button" className="ghost" onClick={onEdit}>
           수정
         </button>
         <button type="button" className="del" onClick={onDelete}>
-          없애기
+          지우기
         </button>
         {onMore && (
           <button type="button" className="iconbtn more-b" aria-label="더보기" title="더보기" aria-haspopup="menu" onClick={onMore}>

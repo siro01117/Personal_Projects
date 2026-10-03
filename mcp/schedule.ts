@@ -1,4 +1,4 @@
-// MCP 일정 4개 · 플래너 2개 도구 로직 (docs/일정.md 5장, docs/플래너.md 4장 · 7-8). ScheduleStore 를 받아 돈다.
+// MCP 일정 4개 · 플래너 2개 · 시간 기록 1개 도구 로직 (docs/일정.md 5장, docs/플래너.md 4장 · 7-8 · 7-16). ScheduleStore 를 받아 돈다.
 // 계산(회차 펼치기·동선·빈 시간)과 입력 검사는 lib/schedule 것을 그대로 쓴다. 규칙의 마지막 문은 DB 다.
 // 에이전트 쪽 표기: 날짜 'YYYY-MM-DD', 시각 "HH:MM"(다음 날이면 "+1"), 요일 "월".."일". 결과는 drawer.ts 와 같은 ToolResult.
 
@@ -6,14 +6,24 @@ import {
   CHECKLIST_MAX,
   CHECK_ITEM_MAX,
   DUE_AFTER_MAX,
+  STEP_EST_MAX,
+  STEP_EST_MIN,
   addDays,
+  appendSteps,
   daysBetween,
   freeSlots,
   isDateStr,
   occursOn,
   planRange,
   roleForPlace,
+  ruleChecks,
+  sameSteps,
+  secToMin,
+  seoulMidnight,
   spillsOver,
+  splitByDay,
+  stepCount,
+  stepsFromRule,
   validateEvent,
   validateTask,
   weekday,
@@ -28,8 +38,10 @@ import {
   type Role,
   type Segment,
   type CheckItem,
+  type SubCheck,
   type TaskRow,
   type TaskRule,
+  type TaskWork,
 } from "../lib/schedule";
 import { charCount, sameName } from "../lib/names";
 import type { ToolResult } from "./drawer";
@@ -37,6 +49,8 @@ import { toKorean } from "./errors";
 import type { EventPatch, NewEvent, RulePatch, ScheduleStore, SplitPatch, SyncEvent, TaskPatch } from "./schedule-store";
 
 export const MAX_DAYS = 62;
+/** work_log 한 번에 볼 수 있는 날 수 */
+export const WORK_MAX_DAYS = 366;
 /** 빈 시간은 07:00~24:00 안에서만 */
 export const FREE_FROM = 7 * 60;
 export const FREE_TO = 24 * 60;
@@ -422,6 +436,9 @@ function ruleOut(r: TaskRule, names: Names, events: Map<string, EventRow>, roleN
   if (r.checklist.length > 0) o.checklist = r.checklist;
   if (r.due_after !== null) o.due_after = r.due_after;
   if (r.last_made) o.last_made = r.last_made;
+  // 회차가 생기면 작업대에 올린다 · 잠깐 멈춤 (docs/플래너.md 7-16)
+  if (r.bench) o.bench = true;
+  if (r.paused) o.paused = true;
   o.version = r.version;
   return o;
 }
@@ -441,7 +458,16 @@ export function lateOf(t: TaskRow, ev: EventRow | undefined, today: DateStr, now
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
-type TaskCtx = { names: Names; roleNames: Names; rules: Map<string, TaskRule>; events: Map<string, EventRow>; today: DateStr; nowMin: number };
+type TaskCtx = {
+  names: Names;
+  roleNames: Names;
+  rules: Map<string, TaskRule>;
+  events: Map<string, EventRow>;
+  /** 시간 기록의 할 일별 합 (기록이 있는 것만) */
+  work: Map<string, TaskWork>;
+  today: DateStr;
+  nowMin: number;
+};
 
 function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   const o: Obj = { id: t.id, title: t.title };
@@ -454,8 +480,11 @@ function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   if (role) o.role = role;
   if (t.checklist.length > 0) o.checklist = t.checklist;
   if (t.done_at) o.done_at = t.done_at;
-  // 작업대에 올라간 할 일 — 순서(작은 것이 앞) · 지금 앉은 것인지 (docs/플래너.md 7-15)
-  if (t.bench_order !== null) o.bench = { order: t.bench_order, sitting: t.bench_at !== null };
+  // 시간 기록: 오늘 · 누적(초) · 지금 재는 중인지 (docs/플래너.md 7-16)
+  const w = c.work.get(t.id);
+  if (w) o.work = { today_sec: w.today_sec, total_sec: w.total_sec, running: w.running };
+  // 작업대에 올라간 할 일 — 순서(작은 것이 앞) · 지금 시간이 가고 있는지
+  if (t.bench_order !== null) o.bench = { order: t.bench_order, running: w?.running === true };
   // 모임에서 나온 할 일 (docs/모임.md 4장)
   if (t.origin_kind === "meet" && t.origin_id) o.meet = t.origin_id;
   o.version = t.version;
@@ -475,31 +504,70 @@ function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
 // ---------------------------------------------------------------------------
 // 플래너 입력
 
-/** 체크 항목: 글자 배열 또는 [{t, done}]. 글자면 done:false. null 은 비움. undefined = 안 바꿈 */
+/** 체크 항목 한 줄. canSub = 윗단(아랫단을 가질 수 있다). 틀리면 issues 에 적고 null */
+function checkLineIn(x: unknown, path: string, issues: Issue[], canSub: boolean): CheckItem | null {
+  const t = typeof x === "string" ? x : isObj(x) && typeof x.t === "string" ? x.t : null;
+  if (t === null || (isObj(x) && x.done !== undefined && typeof x.done !== "boolean")) {
+    issues.push({ path, reason: "체크 항목은 글자 또는 {t: 글자, done?: true/false, est?: 분, sub?: [아랫단]} 입니다" });
+    return null;
+  }
+  const s = t.trim();
+  const n = charCount(s);
+  if (n === 0) issues.push({ path, reason: "체크 항목이 비어 있습니다" });
+  else if (n > CHECK_ITEM_MAX) issues.push({ path, reason: `체크 항목은 ${CHECK_ITEM_MAX}자까지 쓸 수 있습니다 (지금 ${n}자)` });
+  const out: CheckItem = { t: s, done: isObj(x) && x.done === true };
+  if (!isObj(x)) return out;
+  if (x.est !== undefined && x.est !== null) {
+    if (typeof x.est !== "number" || !Number.isInteger(x.est) || x.est < STEP_EST_MIN || x.est > STEP_EST_MAX) {
+      issues.push({ path: `${path}.est`, reason: `단계의 걸릴 시간(est)은 ${STEP_EST_MIN}~${STEP_EST_MAX}분 정수입니다` });
+    } else out.est = x.est;
+  }
+  if (x.sub !== undefined && x.sub !== null) {
+    if (!canSub) issues.push({ path: `${path}.sub`, reason: "아랫단 밑에는 더 넣을 수 없습니다 (두 단까지)" });
+    else if (!Array.isArray(x.sub)) issues.push({ path: `${path}.sub`, reason: "sub 는 아랫단 배열입니다: 글자 또는 {t, done?, est?}" });
+    else {
+      const subs: SubCheck[] = [];
+      x.sub.forEach((y, j) => {
+        const s2 = checkLineIn(y, `${path}.sub[${j}]`, issues, false);
+        if (s2) subs.push(s2.est === undefined ? { t: s2.t, done: s2.done } : { t: s2.t, done: s2.done, est: s2.est });
+      });
+      if (subs.length > 0) {
+        out.sub = subs;
+        delete out.est; // 아랫단이 있으면 윗단의 걸릴 시간은 아랫단 합
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 체크 항목(단계): 글자 또는 {t, done?, est?, sub?: [글자 | {t, done?, est?}]} 의 배열. 글자면 done:false.
+ * 윗단 + 아랫단 합쳐 50개까지. null 은 빈 목록. undefined = 안 바꿈
+ */
 function checklistIn(v: unknown, issues: Issue[]): CheckItem[] | undefined {
   if (v === undefined) return undefined;
   if (v === null) return [];
   if (!Array.isArray(v)) {
-    issues.push({ path: "checklist", reason: '체크 항목은 글자 배열 ["우유"] 또는 [{t, done}] 로 씁니다' });
+    issues.push({ path: "checklist", reason: '체크 항목은 글자 배열 ["우유"] 또는 [{t, done?, est?, sub?}] 로 씁니다' });
     return undefined;
   }
-  if (v.length > CHECKLIST_MAX) issues.push({ path: "checklist", reason: `체크 항목은 ${CHECKLIST_MAX}개까지 넣을 수 있습니다 (지금 ${v.length}개)` });
+  const count = v.reduce<number>((n, x) => n + 1 + (isObj(x) && Array.isArray(x.sub) ? x.sub.length : 0), 0);
+  if (count > CHECKLIST_MAX) issues.push({ path: "checklist", reason: `체크 항목은 ${CHECKLIST_MAX}개까지 넣을 수 있습니다 (지금 ${count}개)` });
   const out: CheckItem[] = [];
   v.forEach((x, i) => {
-    const path = `checklist[${i}]`;
-    const t = typeof x === "string" ? x : isObj(x) && typeof x.t === "string" ? x.t : null;
-    if (t === null || (isObj(x) && x.done !== undefined && typeof x.done !== "boolean")) {
-      issues.push({ path, reason: "체크 항목은 글자 또는 {t: 글자, done: true/false} 입니다" });
-      return;
-    }
-    const s = t.trim();
-    const n = charCount(s);
-    if (n === 0) issues.push({ path, reason: "체크 항목이 비어 있습니다" });
-    else if (n > CHECK_ITEM_MAX) issues.push({ path, reason: `체크 항목은 ${CHECK_ITEM_MAX}자까지 쓸 수 있습니다 (지금 ${n}자)` });
-    out.push({ t: s, done: isObj(x) && x.done === true });
+    const c = checkLineIn(x, `checklist[${i}]`, issues, true);
+    if (c) out.push(c);
   });
   return out;
 }
+
+/** 덧붙인 뒤 넘치면 이유 (단계는 덧붙이기만 — docs/플래너.md 7-16) */
+function tooManySteps(next: readonly CheckItem[]): Issue | null {
+  const n = stepCount(next);
+  return n > CHECKLIST_MAX ? { path: "checklist", reason: `단계는 덧붙이기만 됩니다 — 이미 있는 것과 합쳐 ${CHECKLIST_MAX}개를 넘습니다 (합치면 ${n}개)` } : null;
+}
+
+const APPEND_ONLY = "단계(checklist)는 덧붙이기만 됩니다 — 이미 있는 단계를 지우거나 바꾸는 것은 화면에서 합니다";
 
 function dueAfterIn(v: unknown, issues: Issue[]): number | null | undefined {
   if (v === undefined) return undefined;
@@ -548,7 +616,7 @@ function todoRepeatIn(v: unknown, today: DateStr, issues: Issue[]): TodoRepeat |
 
 /** 규칙이 만들 할 일의 모양 (할 일에서 옮겨 적는다) */
 function ruleShape(t: Pick<TaskRow, "title" | "note" | "est_min" | "place_id" | "checklist" | "role_id">) {
-  return { title: t.title, note: t.note, est_min: t.est_min, place_id: t.place_id, role_id: t.role_id, checklist: t.checklist.map((c) => c.t) };
+  return { title: t.title, note: t.note, est_min: t.est_min, place_id: t.place_id, role_id: t.role_id, checklist: ruleChecks(t.checklist) };
 }
 
 const same = (a: unknown, b: unknown) => a === b || (typeof a === "object" && a !== null && JSON.stringify(a) === JSON.stringify(b));
@@ -610,6 +678,8 @@ type TodoArgs = {
   meet?: string;
   /** 작업대에 올리기(true) · 내리기(false) (docs/플래너.md 7-15) */
   bench?: boolean;
+  /** 시간 기록 시작 · 중지 (docs/플래너.md 7-16) */
+  work?: string;
 };
 
 const blank = (v: string | null | undefined) => (v == null || v.trim() === "" ? null : v);
@@ -722,7 +792,18 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       if (r?.event_id) ids.add(r.event_id);
     }
     const events = new Map((await store.eventsByIds([...ids])).map((e) => [e.id, e]));
-    return { names: n, roleNames, rules, events, ...seoul(now()) };
+    return { names: n, roleNames, rules, events, work: await store.workSums(), ...seoul(now()) };
+  }
+
+  /** 시간 기록 시작 · 중지. 요약에 붙일 글자. 중지는 그 할 일에서 돌고 있을 때만 */
+  async function doWork(id: string, to: "start" | "stop"): Promise<string> {
+    if (to === "start") {
+      await store.workStart(id);
+      return "시간 기록을 시작했습니다";
+    }
+    if (!(await store.workSums()).get(id)?.running) return "돌고 있는 시간 기록이 없습니다";
+    await store.workStop();
+    return "시간 기록을 멈췄습니다";
   }
 
   const show = async (t: TaskRow, ev: EventRow | undefined) => taskOut(t, ev, await taskCtx([t]));
@@ -773,7 +854,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
   async function saveRule(a: TodoArgs): Promise<ToolResult> {
     const rid = String(a.rule_id).trim();
     if (!UUID.test(rid)) return fail("rule_id 는 반복 규칙의 uuid 입니다 — todo_list(status: rules) 로 찾으세요", "BAD_INPUT");
-    const extra = (["id", "due", "done", "delete", "due_event", "scope", "bench"] as const).filter((k) => a[k] !== undefined);
+    const extra = (["id", "due", "done", "delete", "due_event", "scope", "bench", "work"] as const).filter((k) => a[k] !== undefined);
     if (extra.length > 0) return fail(`rule_id 는 ${extra.join(" · ")} 와 같이 못 씁니다 — 규칙의 칸은 title · note · est_min · place · role · checklist · due_after · repeat 입니다`, "BAD_INPUT");
     const rule = await store.getRule(rid);
     if (!rule) return fail(`반복 규칙이 없습니다(이미 멈췄을 수 있습니다): ${rid}`, "NOT_FOUND");
@@ -813,8 +894,16 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
       const from = roleFrom(patch.place_id, places, roles);
       if (from) patch.role_id = from;
     }
+    // 단계 틀은 덧붙이기만 (7-16)
+    if (a.checklist === null && rule.checklist.length > 0) return fail(APPEND_ONLY, "BAD_INPUT");
     const checklist = checklistIn(a.checklist, issues);
-    if (checklist !== undefined) patch.checklist = checklist.map((c) => c.t);
+    if (checklist !== undefined) {
+      const had = stepsFromRule(rule.checklist);
+      const next = appendSteps(had, checklist);
+      const many = tooManySteps(next);
+      if (many) issues.push(many);
+      if (!sameSteps(next, had)) patch.checklist = ruleChecks(next);
+    }
     const dueAfter = dueAfterIn(a.due_after, issues);
     if (dueAfter !== undefined) patch.due_after = dueAfter;
     const rep = todoRepeatIn(a.repeat, rule.start ?? seoul(now()).today, issues);
@@ -1221,11 +1310,11 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         // 작업대에 올라간 할 일이 맨 위, 올린 순서대로 (docs/플래너.md 7-15)
         const onBench = open.filter((t) => t.bench_order !== null).sort((x, y) => x.bench_order! - y.bench_order!);
         const ordered = [...onBench, ...open.filter((t) => t.bench_order === null), ...done];
-        const sitting = onBench.find((t) => t.bench_at !== null);
+        const running = all.find((t) => ctx.work.get(t.id)?.running);
         const items = ordered.map((t) => taskOut(t, linked.get(t.id), ctx));
         const late = items.filter((t) => t.late).length;
         const what = { open: "안 끝남", done: "끝냄", all: "전체" }[status];
-        const benchNote = onBench.length > 0 ? ` · 작업대 ${onBench.length}개${sitting ? ` (앉은 것 "${sitting.title}")` : ""}` : "";
+        const benchNote = `${onBench.length > 0 ? ` · 작업대 ${onBench.length}개` : ""}${running ? ` · 시간 재는 중 "${running.title}"` : ""}`;
         return ok(`할 일 ${items.length}개 (${what})${late > 0 ? ` · 지남 ${late}개` : ""}${benchNote}${tail}`, {
           status,
           items,
@@ -1247,6 +1336,9 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (a.scope !== undefined && a.scope !== "once" && a.scope !== "rule") return fail("scope 는 once(이 할 일만) · rule(규칙도 같이) 중 하나입니다", "BAD_INPUT");
         if (a.bench !== undefined && typeof a.bench !== "boolean") return fail("bench 는 true(작업대에 올리기) · false(내리기) 입니다", "BAD_INPUT");
         if (a.bench === true && a.done === true) return fail("끝낸 할 일은 작업대에 올릴 수 없습니다 — done 과 bench 를 같이 쓰지 마세요", "BAD_INPUT");
+        if (a.work !== undefined && a.work !== "start" && a.work !== "stop") return fail('work 는 "start"(시간 기록 시작) · "stop"(중지) 입니다', "BAD_INPUT");
+        const workTo = a.work as "start" | "stop" | undefined;
+        if (workTo === "start" && a.done === true) return fail("끝낸 할 일은 시작할 수 없습니다 — done 과 work: start 를 같이 쓰지 마세요", "BAD_INPUT");
 
         // ---- 새 칸 읽기
         const issues: Issue[] = [];
@@ -1318,7 +1410,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
 
           // 일정이 끝날 때마다: 규칙만 만든다 (지금 할 일은 없음). last_made = 오늘이라 지난 회차는 안 생긴다
           if (rep?.kind === "event") {
-            const extra = (["due", "due_event", "done", "bench"] as const).filter((k) => a[k] !== undefined && a[k] !== null);
+            const extra = (["due", "due_event", "done", "bench", "work"] as const).filter((k) => a[k] !== undefined && a[k] !== null);
             if (extra.length > 0) {
               return badInput(extra.map((k) => ({ path: k, reason: "일정이 끝날 때마다 생기는 규칙에는 못 씁니다 — 마감은 due_after(며칠 뒤)로" })));
             }
@@ -1340,7 +1432,8 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           if (!rep) {
             let t = await store.insertTask({ ...row, ...origin, sort, done_at });
             if (a.bench === true) t = (await store.benchTask(t.id, true)) ?? t;
-            return ok(`넣었습니다: ${t.title}${meetRef ? ` (모임 ${meetRef.title})` : ""}${a.bench === true ? " · 작업대에 올림" : ""}`, {
+            const started = workTo === "start" ? ` · ${await doWork(t.id, "start")}` : "";
+            return ok(`넣었습니다: ${t.title}${meetRef ? ` (모임 ${meetRef.title})` : ""}${a.bench === true ? " · 작업대에 올림" : ""}${started}`, {
               created: true,
               task: await show(t, undefined),
             });
@@ -1356,7 +1449,8 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
             throw e;
           }
           if (a.bench === true) t = (await store.benchTask(t.id, true)) ?? t;
-          return ok(`넣었습니다: ${t.title} (반복 ${ruleSummary(rule, new Map())})${a.bench === true ? " · 작업대에 올림" : ""}`, {
+          const started = workTo === "start" ? ` · ${await doWork(t.id, "start")}` : "";
+          return ok(`넣었습니다: ${t.title} (반복 ${ruleSummary(rule, new Map())})${a.bench === true ? " · 작업대에 올림" : ""}${started}`, {
             created: true,
             task: await show(t, undefined),
           });
@@ -1381,7 +1475,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (cur.version !== a.base_version) return taskConflict(cur, linked);
 
         if (a.delete === true) {
-          const others = (["title", "note", "due", "est_min", "done", "place", "role", "checklist", "due_event", "repeat", "due_after", "scope", "bench"] as const).filter(
+          const others = (["title", "note", "due", "est_min", "done", "place", "role", "checklist", "due_event", "repeat", "due_after", "scope", "bench", "work"] as const).filter(
             (k) => a[k] !== undefined,
           );
           if (others.length > 0) return fail(`delete 는 ${others.join(" · ")} 와 같이 못 씁니다 — 따로 부르세요`, "BAD_INPUT");
@@ -1408,7 +1502,14 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           const from = await fromPlace(placeId);
           if (from) patch.role_id = from;
         }
-        if (checklist !== undefined) patch.checklist = checklist;
+        // 단계는 덧붙이기만 (7-16): 비어 있으면 채우고, 있으면 뒤에 더한다. 같은 글자의 윗단은 건너뛴다
+        if (a.checklist === null && cur.checklist.length > 0) return fail(APPEND_ONLY, "BAD_INPUT");
+        if (checklist !== undefined) {
+          const next = appendSteps(cur.checklist, checklist);
+          const many = tooManySteps(next);
+          if (many) return badInput([many]);
+          if (!sameSteps(next, cur.checklist)) patch.checklist = next;
+        }
         if (a.done === true && cur.done_at === null) patch.done_at = nowIso;
         if (a.done === false && cur.done_at !== null) patch.done_at = null;
         if (link) {
@@ -1456,7 +1557,13 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
             const from = await fromPlace(placeId);
             if (from) rulePatch.role_id = from;
           }
-          if (checklist !== undefined) rulePatch.checklist = checklist.map((c) => c.t);
+          if (checklist !== undefined) {
+            const had = stepsFromRule(rule.checklist);
+            const tpl = appendSteps(had, checklist);
+            const many = tooManySteps(tpl);
+            if (many) return badInput([many]);
+            if (!sameSteps(tpl, had)) rulePatch.checklist = ruleChecks(tpl);
+          }
           if (dueAfter !== undefined) rulePatch.due_after = dueAfter;
           for (const k of Object.keys(rulePatch) as (keyof RulePatch)[]) if (same(rulePatch[k], rule[k])) delete rulePatch[k];
         }
@@ -1486,11 +1593,16 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           return fail("끝낸 할 일은 작업대에 올릴 수 없습니다 — done: false 로 다시 연 뒤 올리세요", "BAD_INPUT");
         }
         const benchWord = benchTo === undefined ? "" : benchTo ? "작업대에 올렸습니다" : "작업대에서 내렸습니다";
+        if (workTo === "start" && (patch.done_at || (cur.done_at !== null && patch.done_at !== null))) {
+          return fail("끝낸 할 일은 시작할 수 없습니다 — done: false 로 다시 연 뒤 시작하세요", "BAD_INPUT");
+        }
         if (Object.keys(patch).length === 0 && !ruleChanged) {
-          if (benchTo === undefined) return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: await show(cur, linked) });
-          const b = await store.benchTask(id, benchTo);
+          if (benchTo === undefined && workTo === undefined) return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: await show(cur, linked) });
+          let b: TaskRow | null = cur;
+          if (benchTo !== undefined) b = await store.benchTask(id, benchTo);
           if (!b) return lostTask();
-          return ok(`${benchWord}: ${b.title}`, { changed: true, task: await show(b, linked) });
+          const workWord = workTo ? await doWork(id, workTo) : "";
+          return ok(`${[benchWord, workWord].filter(Boolean).join(" · ")}: ${b.title}`, { changed: true, task: await show(b, linked) });
         }
         let t: TaskRow | null;
         try {
@@ -1513,7 +1625,80 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         const cut = patch.due_event_id === null ? " (일정에 딸린 마감 연결을 끊음)" : "";
         const what = "done_at" in patch ? (patch.done_at ? "끝냈습니다" : "다시 열었습니다") : "고쳤습니다";
         const benchNote = benchWord ? ` · ${benchWord}` : "";
-        return ok(`${what}: ${t.title}${ruleNote}${cut}${benchNote}`, { changed: true, task: await show(t, linked) });
+        const workNote = workTo ? ` · ${await doWork(id, workTo)}` : "";
+        return ok(`${what}: ${t.title}${ruleNote}${cut}${benchNote}${workNote}`, { changed: true, task: await show(t, linked) });
+      }),
+
+    // ---------------------------------------------------------------- work_log
+    /**
+     * 시간 기록 (docs/플래너.md 7-16): from~to(Asia/Seoul, 그날 포함)의 원 구간과 할 일별 · 역할별 · 날짜별 합(분).
+     * 구간이 기간 밖으로 걸치면 기간 안의 몫만 센다. 자정을 넘는 구간은 날짜별로 나눈다
+     */
+    work_log: (a: { from?: string; to?: string } = {}) =>
+      guard(async () => {
+        const issues: Issue[] = [];
+        if (!isDateStr(a.from)) issues.push({ path: "from", reason: "from 은 YYYY-MM-DD 날짜입니다" });
+        if (!isDateStr(a.to)) issues.push({ path: "to", reason: "to 는 YYYY-MM-DD 날짜입니다 (그날 포함)" });
+        if (issues.length > 0) return badInput(issues);
+        const from = a.from as DateStr;
+        const to = a.to as DateStr;
+        if (to < from) return fail("to 가 from 보다 이릅니다", "RANGE");
+        if (daysBetween(from, to) + 1 > WORK_MAX_DAYS) return fail(`한 번에 ${WORK_MAX_DAYS}일까지 볼 수 있습니다`, "RANGE");
+
+        const spans = await store.workList(from, to);
+        const tasks = new Map((await store.tasks()).map((t) => [t.id, t]));
+        const { names: n } = await names();
+        const rn = roleNamesOf(await store.roles());
+        const lo = seoulMidnight(from);
+        const hi = seoulMidnight(addDays(to, 1));
+        const byTask = new Map<string, number>();
+        const byRole = new Map<string, number>();
+        const byDay = new Map<string, number>();
+        const add = (m: Map<string, number>, k: string, sec: number) => m.set(k, (m.get(k) ?? 0) + sec);
+        let total = 0;
+        const rows = spans.map((s) => {
+          const t = tasks.get(s.task_id);
+          const role = placeName(rn, t?.role_id ?? null);
+          const place = placeName(n, t?.place_id ?? null);
+          let sec = 0;
+          for (const p of splitByDay(Math.max(lo, Date.parse(s.started_at)), Math.min(hi, Date.parse(s.ended_at)))) {
+            sec += p.seconds;
+            add(byDay, p.day, p.seconds);
+          }
+          add(byTask, s.task_id, sec);
+          add(byRole, role ?? NO_ROLE, sec);
+          total += sec;
+          const o: Obj = { task_id: s.task_id, title: t?.title ?? "", started_at: s.started_at, ended_at: s.ended_at, minutes: secToMin(sec) };
+          if (role) o.role = role;
+          if (place) o.place = place;
+          if (s.running) o.running = true;
+          return o;
+        });
+        const desc = (m: Map<string, number>) => [...m.entries()].sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]));
+        const by_task = desc(byTask).map(([id, sec]) => {
+          const t = tasks.get(id);
+          const o: Obj = { task_id: id, title: t?.title ?? "", minutes: secToMin(sec) };
+          const role = placeName(rn, t?.role_id ?? null);
+          const place = placeName(n, t?.place_id ?? null);
+          if (role) o.role = role;
+          if (place) o.place = place;
+          if (t?.est_min != null) o.est_min = t.est_min;
+          if (t?.done_at) o.done_at = t.done_at;
+          return o;
+        });
+        const by_role = desc(byRole).map(([role, sec]) => ({ role, minutes: secToMin(sec) }));
+        const by_day = [...byDay.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([date, sec]) => ({ date, minutes: secToMin(sec) }));
+        const min = secToMin(total);
+        const sum = min >= 60 ? `${Math.floor(min / 60)}시간${min % 60 > 0 ? ` ${min % 60}분` : ""}` : `${min}분`;
+        return ok(`시간 기록 ${dayLabel(from)}~${dayLabel(to)}: 구간 ${rows.length}개 · 할 일 ${by_task.length}개 · 합 ${sum}`, {
+          from,
+          to,
+          total_minutes: min,
+          spans: rows,
+          by_task,
+          by_role,
+          by_day,
+        });
       }),
   };
 }

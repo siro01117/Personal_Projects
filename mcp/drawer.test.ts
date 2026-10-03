@@ -830,7 +830,7 @@ describe("MCP 프로토콜", () => {
     return client;
   }
 
-  it("도구 12개(서랍 6 + 일정·플래너 6), 설계서 이름 그대로. report_create 설명에 블록 어휘와 예시", async () => {
+  it("도구 이름은 설계서 그대로(서랍 6 + 일정·플래너·시간 기록 7 + 모임 2). report_create 설명에 블록 어휘와 예시", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());

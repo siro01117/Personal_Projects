@@ -1,7 +1,7 @@
 // 우클릭(길게 누르기) 메뉴의 항목 목록 — 화면별 · 상태별 (docs/공통.md 2장).
 
 import { describe, expect, it } from "vitest";
-import { benchMenu, blockEditMenu, blockReadMenu, eventMenu, meetMenu, memberMenu, menuLabels, personMenu, stepMenu, taskMenu, type MenuItem } from "./menus";
+import { benchMenu, blockEditMenu, blockReadMenu, eventMenu, logMenu, meetMenu, memberMenu, menuLabels, personMenu, pickMenu, ruleMenu, stepMenu, taskMenu, type MenuItem } from "./menus";
 
 /** 규칙: 지우기(위험)는 맨 아래에 모이고, 다른 항목이 있으면 그 바로 위가 구분선. 구분선은 처음 · 끝 · 겹침 없이 */
 function wellFormed(items: readonly MenuItem[]) {
@@ -19,19 +19,22 @@ function wellFormed(items: readonly MenuItem[]) {
 const task = (over: Partial<Parameters<typeof taskMenu>[0]> = {}) => taskMenu({ temp: false, done: false, benched: false, link: null, late: null, ...over });
 
 describe("플래너 할 일 줄", () => {
-  it("열린 할 일: 보기 · 끝냄 · 작업대에 · 수정 · 시간 정하기 · 일정으로 보내기 · 지우기", () => {
-    expect(menuLabels(task())).toEqual(["보기", "끝냄", "작업대에", "수정", "시간 정하기", "일정으로 보내기", "지우기"]);
+  it("열린 할 일: 보기 · 끝냄 · 작업대 · 수정 · 시간 정하기 · 일정으로 보내기 · 반복으로 만들기 · 지우기", () => {
+    expect(menuLabels(task())).toEqual(["보기", "끝냄", "작업대", "수정", "시간 정하기", "일정으로 보내기", "반복으로 만들기", "지우기"]);
     expect(task()[0]).toMatchObject({ act: "view" });
   });
   it("작업대에 올라가 있으면 내리기", () => {
     expect(menuLabels(task({ benched: true }))).toContain("작업대에서 내리기");
-    expect(menuLabels(task({ benched: true }))).not.toContain("작업대에");
+    expect(menuLabels(task({ benched: true }))).not.toContain("작업대");
   });
   it("시간 정함(안 지남): 다시 정하기 · 시간 없음으로, 일정으로 보내기는 없다", () => {
-    expect(menuLabels(task({ link: { repeating: false } }))).toEqual(["보기", "끝냄", "작업대에", "수정", "다시 정하기", "시간 없음으로", "지우기"]);
+    expect(menuLabels(task({ link: { repeating: false } }))).toEqual(["보기", "끝냄", "작업대", "수정", "다시 정하기", "시간 없음으로", "반복으로 만들기", "지우기"]);
   });
   it("반복 일정에 이어진 것은 시간을 여기서 안 바꾼다", () => {
-    expect(menuLabels(task({ link: { repeating: true } }))).toEqual(["보기", "끝냄", "작업대에", "수정", "지우기"]);
+    expect(menuLabels(task({ link: { repeating: true } }))).toEqual(["보기", "끝냄", "작업대", "수정", "반복으로 만들기", "지우기"]);
+  });
+  it("반복 규칙에서 온 회차에는 '반복으로 만들기' 가 없다 (규칙은 반복 카드에서)", () => {
+    expect(menuLabels(task({ repeats: true }))).toEqual(["보기", "끝냄", "작업대", "수정", "시간 정하기", "일정으로 보내기", "지우기"]);
   });
   it("지난 일정: 다시 정하기 · 시간 없음으로 (반복이어도)", () => {
     expect(menuLabels(task({ link: { repeating: true }, late: "event" }))).toContain("다시 정하기");
@@ -62,6 +65,28 @@ describe("작업대", () => {
     expect(menuLabels(stepMenu({ done: false }))).toEqual(["체크", "떼어내기", "지우기"]);
     expect(menuLabels(stepMenu({ done: true }))).toEqual(["체크 풀기", "떼어내기", "지우기"]);
     wellFormed(stepMenu({ done: false }));
+  });
+  it("단계 줄: 들이기 · 내기는 될 때만 (Tab · Shift+Tab 과 같은 동작)", () => {
+    expect(menuLabels(stepMenu({ done: false, canIndent: true }))).toEqual(["체크", "들이기", "떼어내기", "지우기"]);
+    expect(menuLabels(stepMenu({ done: false, canOutdent: true }))).toEqual(["체크", "내기", "떼어내기", "지우기"]);
+    wellFormed(stepMenu({ done: true, canIndent: true }));
+  });
+  it("가져올 만한 것 줄: 작업대에 올리기 하나", () => {
+    expect(menuLabels(pickMenu({ temp: false }))).toEqual(["작업대에 올리기"]);
+    expect(pickMenu({ temp: true })).toEqual([]);
+  });
+  it("기록 표 줄: 보기 · (작업대에 올라가 있으면) 집중 화면", () => {
+    expect(menuLabels(logMenu({ benched: false }))).toEqual(["보기"]);
+    expect(menuLabels(logMenu({ benched: true }))).toEqual(["보기", "집중 화면"]);
+  });
+});
+
+describe("반복 규칙 줄", () => {
+  it("보기 · 수정 · 멈춤(멈춘 것은 다시 시작) · 지우기", () => {
+    expect(menuLabels(ruleMenu({ paused: false }))).toEqual(["보기", "수정", "멈춤", "지우기"]);
+    expect(menuLabels(ruleMenu({ paused: true }))).toEqual(["보기", "수정", "다시 시작", "지우기"]);
+    expect(ruleMenu({ paused: false })[0]).toMatchObject({ act: "view" });
+    wellFormed(ruleMenu({ paused: true }));
   });
 });
 

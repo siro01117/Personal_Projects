@@ -1,4 +1,4 @@
-// MCP 일정 4개 · 플래너 2개 도구를 진짜 DB 규칙(PGlite + 마이그레이션 전부, service_role) 위에서 시험한다.
+// MCP 일정 4개 · 플래너 2개 · 시간 기록 1개 도구를 진짜 DB 규칙(PGlite + 마이그레이션 전부, service_role) 위에서 시험한다.
 // 준비 방식은 drawer.test.ts 와 같다. 날짜: 2026-10-05 가 월요일.
 
 import type { PGlite } from "@electric-sql/pglite";
@@ -509,7 +509,7 @@ describe("플래너 · todo_list · todo_save", () => {
 });
 
 describe("플래너 v2 — 지점 · 체크 항목 · 일정에 딸린 마감 · 지남", () => {
-  it("새 칸 넣기·읽기: place(이름) · checklist 두 모양, null 로 비우기", async () => {
+  it("새 칸 넣기·읽기: place(이름) · checklist 두 모양. 고칠 때 단계는 덧붙이기만", async () => {
     const { s, work } = await withPlaces();
     const t = good(await s.todo_save({ title: "장보기", place: " 회사 ", checklist: ["우유", { t: " 빵 ", done: true }] })).task;
     expect(t).toMatchObject({ place: "회사", checklist: [{ t: "우유", done: false }, { t: "빵", done: true }], version: 1 });
@@ -518,12 +518,16 @@ describe("플래너 v2 — 지점 · 체크 항목 · 일정에 딸린 마감 ·
 
     const same = good(await s.todo_save({ id: t.id, base_version: 1, place: "회사", checklist: [{ t: "우유", done: false }, { t: "빵", done: true }] }));
     expect(same.changed).toBe(false);
-    const u = good(await s.todo_save({ id: t.id, base_version: 1, checklist: [{ t: "우유", done: true }], place: null })).task;
-    expect(u.checklist).toEqual([{ t: "우유", done: true }]);
+    // 단계는 덧붙이기만 (7-16): 이미 있는 글자는 건너뛰고(체크도 안 바뀐다) 새 것만 뒤에. null 로 비울 수 없다
+    const u = good(await s.todo_save({ id: t.id, base_version: 1, checklist: [{ t: "우유", done: true }, "계란"], place: null })).task;
+    expect(u.checklist).toEqual([{ t: "우유", done: false }, { t: "빵", done: true }, { t: "계란", done: false }]);
     expect(u.place).toBeUndefined();
-    const v = good(await s.todo_save({ id: t.id, base_version: 2, checklist: null })).task;
-    expect(v.checklist).toBeUndefined();
-    expect((await rawTask(t.id)).checklist).toEqual([]);
+    const v = bad(await s.todo_save({ id: t.id, base_version: 2, checklist: null }), "BAD_INPUT");
+    expect(v.error.message).toContain("덧붙이기만");
+    expect((await rawTask(t.id)).checklist).toHaveLength(3);
+    // 비어 있는 할 일에는 null 도 그냥 지나간다
+    const empty = good(await s.todo_save({ title: "빈 것" })).task;
+    expect(good(await s.todo_save({ id: empty.id, base_version: 1, checklist: null })).changed).toBe(false);
   });
 
   it("없는 지점 이름이면 가까운 이름 제안", async () => {
@@ -1077,33 +1081,34 @@ describe("플래너 — 역할", () => {
 });
 
 describe("플래너 — 작업대 (7-13 · 7-15)", () => {
-  it("bench: true 로 여럿 올리면 todo_list 맨 위에 올린 순서로 bench: {order, sitting}", async () => {
+  it("bench: true 로 여럿 올리면 todo_list 맨 위에 올린 순서로 bench: {order, running}", async () => {
     const { s } = setup();
     const a = good(await s.todo_save({ title: "상법 정리", checklist: ["1장 읽기"] })).task;
     const b = good(await s.todo_save({ title: "장보기" })).task;
     good(await s.todo_save({ title: "청소" }));
     const on = await s.todo_save({ id: a.id, base_version: a.version, bench: true });
     expect(on.summary).toBe("작업대에 올렸습니다: 상법 정리");
-    good(await s.todo_save({ id: b.id, base_version: b.version, bench: true }));
+    const b2 = good(await s.todo_save({ id: b.id, base_version: b.version, bench: true })).task;
     const list = await s.todo_list({});
     expect((good(list).items as Row[]).map((t) => [t.title, t.bench])).toEqual([
-      ["상법 정리", { order: 1, sitting: false }],
-      ["장보기", { order: 2, sitting: false }],
+      ["상법 정리", { order: 1, running: false }],
+      ["장보기", { order: 2, running: false }],
       ["청소", undefined],
     ]);
     expect(list.summary).toBe("할 일 3개 (안 끝남) · 작업대 2개");
-    // 앉는 것은 화면(집중 화면)이 한다
-    await db.query("update ez_tasks set bench_at = now() where id = $1", [b.id]);
+    // 시간을 재기 시작하면 running (7-16). 0017 의 앉음(bench_at)은 더 보지 않는다
+    await db.query("update ez_tasks set bench_at = now() where id = $1", [a.id]);
+    good(await s.todo_save({ id: b.id, base_version: b2.version, work: "start" }));
     const after = await s.todo_list({});
-    expect((good(after).items as Row[])[1]!.bench).toEqual({ order: 2, sitting: true });
-    expect(after.summary).toBe('할 일 3개 (안 끝남) · 작업대 2개 (앉은 것 "장보기")');
+    expect((good(after).items as Row[]).map((t) => t.bench)).toEqual([{ order: 1, running: false }, { order: 2, running: true }, undefined]);
+    expect(after.summary).toBe('할 일 3개 (안 끝남) · 작업대 2개 · 시간 재는 중 "장보기"');
     expect((await rawTask(a.id)).checklist).toEqual([{ t: "1장 읽기", done: false }]);
   });
 
   it("넣으면서 올리기 · 내리기 · 끝내면 내려옴 · 끝낸 것은 못 올림", async () => {
     const { s } = setup();
     const t = good(await s.todo_save({ title: "보고서", bench: true })).task;
-    expect(t.bench).toEqual({ order: 1, sitting: false });
+    expect(t.bench).toEqual({ order: 1, running: false });
     const off = await s.todo_save({ id: t.id, base_version: t.version, bench: false });
     expect(off.summary).toBe("작업대에서 내렸습니다: 보고서");
     expect(good(off).task.bench).toBeUndefined();
@@ -1121,6 +1126,183 @@ describe("플래너 — 작업대 (7-13 · 7-15)", () => {
     const { s } = setup();
     good(await s.todo_save({ title: "단계 많음", checklist: Array.from({ length: 50 }, (_, i) => `단계 ${i}`) }));
     bad(await s.todo_save({ title: "너무 많음", checklist: Array.from({ length: 51 }, (_, i) => `단계 ${i}`) }), "BAD_INPUT");
+  });
+});
+
+describe("플래너 — 시간 기록 · 단계 두 단 (7-16)", () => {
+  /** 시험용: 정한 때의 닫힌 구간을 바로 넣는다 */
+  const span = (owner: string, id: string, from: string, to: string) =>
+    db.query("insert into ez_work_log (owner, task_id, started_at, ended_at) values ($1, $2, $3::timestamptz, $4::timestamptz)", [owner, id, from, to]);
+
+  it('work: "start" · "stop" — 한 번에 하나만 돈다. todo_list 에 work', async () => {
+    const { s } = setup();
+    const a = good(await s.todo_save({ title: "상법 정리" })).task;
+    const b = good(await s.todo_save({ title: "과제" })).task;
+    expect(a.work).toBeUndefined();
+    const st = await s.todo_save({ id: a.id, base_version: 1, work: "start" });
+    expect(st.summary).toBe("시간 기록을 시작했습니다: 상법 정리");
+    expect(good(st).task.work).toMatchObject({ running: true });
+    expect(good(st).task.version).toBe(1); // 할 일 행은 안 바뀐다
+    // 다른 할 일에서 시작하면 앞의 것은 멈춘다
+    good(await s.todo_save({ id: b.id, base_version: 1, work: "start" }));
+    const items = good(await s.todo_list({})).items as Row[];
+    expect(items.find((t) => t.id === a.id)!.work).toMatchObject({ running: false });
+    expect(items.find((t) => t.id === b.id)!.work).toMatchObject({ running: true });
+    // 돌고 있지 않은 것을 멈추면 아무 일도 없다 (다른 할 일의 시간은 그대로 간다)
+    const idle = await s.todo_save({ id: a.id, base_version: 1, work: "stop" });
+    expect(idle.summary).toBe("돌고 있는 시간 기록이 없습니다: 상법 정리");
+    expect((good(await s.todo_list({})).items as Row[]).find((t) => t.id === b.id)!.work.running).toBe(true);
+    const stop = await s.todo_save({ id: b.id, base_version: 1, work: "stop" });
+    expect(stop.summary).toBe("시간 기록을 멈췄습니다: 과제");
+    expect(good(stop).task.work).toMatchObject({ running: false });
+    // 넣으면서 시작 · 다른 칸과 같이
+    const c = await s.todo_save({ title: "보고서", bench: true, work: "start" });
+    expect(c.summary).toBe("넣었습니다: 보고서 · 작업대에 올림 · 시간 기록을 시작했습니다");
+    expect(good(c).task).toMatchObject({ bench: { order: 1, running: true }, work: { running: true } });
+    // 끝내면 멈춘다 (DB 트리거)
+    const done = good(await s.todo_save({ id: good(c).task.id, base_version: good(c).task.version, done: true })).task;
+    expect(done.work).toMatchObject({ running: false });
+  });
+
+  it("work 의 틀린 입력", async () => {
+    const { s } = setup();
+    const t = good(await s.todo_save({ title: "x", repeat: { freq: "daily" } })).task;
+    bad(await s.todo_save({ id: t.id, base_version: 1, work: "pause" }), "BAD_INPUT");
+    bad(await s.todo_save({ title: "y", done: true, work: "start" }), "BAD_INPUT");
+    bad(await s.todo_save({ id: t.id, base_version: 1, done: true, work: "start" }), "BAD_INPUT");
+    bad(await s.todo_save({ rule_id: t.rule_id, base_version: 1, work: "start" }), "BAD_INPUT");
+    bad(await s.todo_save({ id: t.id, base_version: 1, delete: true, work: "stop" }), "BAD_INPUT");
+    const done = good(await s.todo_save({ id: t.id, base_version: 1, done: true })).task;
+    bad(await s.todo_save({ id: t.id, base_version: done.version, work: "start" }), "BAD_INPUT");
+    // 다시 열면서 시작은 된다
+    const again = await s.todo_save({ id: t.id, base_version: done.version, done: false, work: "start" });
+    expect(again.summary).toBe("다시 열었습니다: x · 시간 기록을 시작했습니다");
+  });
+
+  it("work_log: 원 구간 + 할 일별 · 역할별 · 날짜별 합(분). 자정 · 기간 끝에서 나눈다", async () => {
+    const { s, owner } = await withPlaces();
+    const a = good(await s.todo_save({ title: "상법 정리", place: "학교", est_min: 60 })).task; // 역할 대학
+    const b = good(await s.todo_save({ title: "수업 준비", place: "회사" })).task; // 역할 강사
+    const c = good(await s.todo_save({ title: "빨래" })).task; // 역할 없음
+    // 한국 시각: 10/5 09:00~09:45 · 10/6 23:30~10/7 00:30 (상법), 10/5 10:00~10:20 (수업 준비), 10/7 23:50~10/8 00:10 (빨래)
+    await span(owner, a.id, "2026-10-05T00:00:00Z", "2026-10-05T00:45:00Z");
+    await span(owner, a.id, "2026-10-06T14:30:00Z", "2026-10-06T15:30:00Z");
+    await span(owner, b.id, "2026-10-05T01:00:00Z", "2026-10-05T01:20:00Z");
+    await span(owner, c.id, "2026-10-07T14:50:00Z", "2026-10-07T15:10:00Z");
+    // 기간 밖
+    await span(owner, b.id, "2026-10-09T01:00:00Z", "2026-10-09T02:00:00Z");
+
+    const r = await s.work_log({ from: "2026-10-05", to: "2026-10-07" });
+    const d = good(r);
+    expect(r.summary).toBe("시간 기록 10/5(월)~10/7(수): 구간 4개 · 할 일 3개 · 합 2시간 15분");
+    expect(d.total_minutes).toBe(135);
+    expect(d.by_task).toEqual([
+      { task_id: a.id, title: "상법 정리", minutes: 105, role: "대학", place: "학교", est_min: 60 },
+      { task_id: b.id, title: "수업 준비", minutes: 20, role: "강사", place: "회사" },
+      { task_id: c.id, title: "빨래", minutes: 10 }, // 10/8 로 넘어간 10분은 뺀다
+    ]);
+    expect(d.by_role).toEqual([
+      { role: "대학", minutes: 105 },
+      { role: "강사", minutes: 20 },
+      { role: "없음", minutes: 10 },
+    ]);
+    expect(d.by_day).toEqual([
+      { date: "2026-10-05", minutes: 65 },
+      { date: "2026-10-06", minutes: 30 },
+      { date: "2026-10-07", minutes: 40 },
+    ]);
+    expect(d.spans).toHaveLength(4);
+    expect(d.spans[0]).toMatchObject({ task_id: a.id, title: "상법 정리", role: "대학", place: "학교", minutes: 45, started_at: "2026-10-05T00:00:00.000Z", ended_at: "2026-10-05T00:45:00.000Z" });
+    expect(d.spans[3]).toMatchObject({ task_id: c.id, minutes: 10 });
+    // 비어 있는 기간 · 지운 할 일
+    expect(good(await s.work_log({ from: "2026-09-01", to: "2026-09-30" }))).toMatchObject({ total_minutes: 0, spans: [], by_task: [], by_role: [], by_day: [] });
+    good(await s.todo_save({ id: c.id, base_version: 1, delete: true }));
+    expect(good(await s.work_log({ from: "2026-10-05", to: "2026-10-07" })).by_task).toHaveLength(2);
+  });
+
+  it("work_log: 돌고 있는 구간은 지금까지 · 입력 검사", async () => {
+    const { s, at, tick } = setup();
+    at("2026-10-05T09:00:00+09:00");
+    const t = good(await s.todo_save({ title: "과제", work: "start" })).task;
+    void t;
+    void tick;
+    const d = good(await s.work_log({ from: "2026-10-05", to: "2026-10-05" }));
+    // 시작은 DB 의 지금(시험을 돌리는 때)이라 기간 밖일 수 있다 — 넓게 잡아 running 만 본다
+    void d;
+    const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
+    const live = good(await s.work_log({ from: today, to: today }));
+    expect(live.spans).toHaveLength(1);
+    expect(live.spans[0]).toMatchObject({ title: "과제", running: true });
+    expect(bad(await s.work_log({ from: "10/5", to: "2026-10-05" }), "BAD_INPUT").errors[0].path).toBe("from");
+    expect(bad(await s.work_log({ from: "2026-10-05" }), "BAD_INPUT").errors[0].path).toBe("to");
+    bad(await s.work_log({ from: "2026-10-06", to: "2026-10-05" }), "RANGE");
+    bad(await s.work_log({ from: "2025-01-01", to: "2026-10-05" }), "RANGE");
+  });
+
+  it("단계 두 단 · 단계별 걸릴 시간: 넣기 · 읽기 · 덧붙이기", async () => {
+    const { s } = setup();
+    const t = good(
+      await s.todo_save({
+        title: "상법 내용 정리",
+        checklist: ["교재 읽기", { t: "정리", est: 20, sub: ["1장", { t: " 2장 ", est: 15, done: true }] }, { t: "문제 풀기", est: 30 }],
+      }),
+    ).task;
+    const steps = [
+      { t: "교재 읽기", done: false },
+      { t: "정리", done: false, sub: [{ t: "1장", done: false }, { t: "2장", done: true, est: 15 }] }, // 아랫단이 있으면 윗단의 est 는 뺀다
+      { t: "문제 풀기", done: false, est: 30 },
+    ];
+    expect(t.checklist).toEqual(steps);
+    expect((await rawTask(t.id)).checklist).toEqual(steps);
+    // 덧붙이기: 같은 글자의 윗단("정리")은 건너뛴다 — 아랫단도 안 바뀐다
+    const u = good(await s.todo_save({ id: t.id, base_version: 1, checklist: [{ t: "정리", sub: ["3장"] }, { t: "복습", sub: ["퀴즈"] }] })).task;
+    expect(u.checklist).toEqual([...steps, { t: "복습", done: false, sub: [{ t: "퀴즈", done: false }] }]);
+    expect(good(await s.todo_save({ id: t.id, base_version: 2, checklist: ["복습", "교재 읽기"] })).changed).toBe(false);
+  });
+
+  it("단계의 틀린 모양: 셋째 단 · est 범위 · 합쳐 50개", async () => {
+    const { s } = setup();
+    const deep = bad(await s.todo_save({ title: "x", checklist: [{ t: "가", sub: [{ t: "나", sub: ["다"] }] }] }), "BAD_INPUT");
+    expect(deep.errors[0].path).toBe("checklist[0].sub[0].sub");
+    expect(bad(await s.todo_save({ title: "x", checklist: [{ t: "가", est: 0 }] }), "BAD_INPUT").errors[0].path).toBe("checklist[0].est");
+    expect(bad(await s.todo_save({ title: "x", checklist: [{ t: "가", est: 601 }] }), "BAD_INPUT").errors[0].path).toBe("checklist[0].est");
+    expect(bad(await s.todo_save({ title: "x", checklist: [{ t: "가", sub: "나" }] }), "BAD_INPUT").errors[0].path).toBe("checklist[0].sub");
+    const many = bad(await s.todo_save({ title: "x", checklist: [{ t: "윗단", sub: Array.from({ length: 50 }, (_, i) => `아랫단 ${i}`) }] }), "BAD_INPUT");
+    expect(many.errors[0].reason).toBe("체크 항목은 50개까지 넣을 수 있습니다 (지금 51개)");
+    // 덧붙여서 넘치는 것도 막는다
+    const t = good(await s.todo_save({ title: "많음", checklist: Array.from({ length: 49 }, (_, i) => `단계 ${i}`) })).task;
+    const over = bad(await s.todo_save({ id: t.id, base_version: 1, checklist: ["하나 더", "둘 더"] }), "BAD_INPUT");
+    expect(over.errors[0].reason).toContain("합치면 51개");
+    good(await s.todo_save({ id: t.id, base_version: 1, checklist: ["하나 더"] }));
+  });
+
+  it("반복 규칙의 단계 틀도 두 단 · 걸릴 시간을 옮긴다. 규칙 목록에 bench · paused", async () => {
+    const { s, at, owner } = setup();
+    at("2026-10-01T12:00:00+09:00");
+    const t = good(await s.todo_save({ title: "복습", repeat: { freq: "daily" }, checklist: ["읽기", { t: "정리", sub: [{ t: "1장", est: 10, done: true }, "2장"] }] })).task;
+    const rule = (await rules(owner))[0]!;
+    expect(rule.checklist).toEqual(["읽기", { t: "정리", sub: [{ t: "1장", est: 10 }, "2장"] }]);
+    expect(rule).toMatchObject({ bench: false, paused: false });
+    // 규칙의 단계 틀도 덧붙이기만
+    const r = good(await s.todo_save({ rule_id: t.rule_id, base_version: 1, checklist: ["읽기", { t: "문제", est: 25 }] })).rule;
+    expect(r.checklist).toEqual(["읽기", { t: "정리", sub: [{ t: "1장", est: 10 }, "2장"] }, { t: "문제", est: 25 }]);
+    bad(await s.todo_save({ rule_id: t.rule_id, base_version: 2, checklist: null }), "BAD_INPUT");
+    // 화면에서 켠 것: 회차가 생기면 작업대에 · 잠깐 멈춤
+    await db.query("update ez_task_rules set bench = true where id = $1", [t.rule_id]);
+    expect(good(await s.todo_list({ status: "rules" })).rules[0]).toMatchObject({ bench: true });
+    at("2026-10-02T09:00:00+09:00");
+    const next = (good(await s.todo_list({})).items as Row[]).find((x) => x.id !== t.id)!;
+    expect(next.checklist).toEqual([
+      { t: "읽기", done: false },
+      { t: "정리", done: false, sub: [{ t: "1장", done: false, est: 10 }, { t: "2장", done: false }] },
+      { t: "문제", done: false, est: 25 },
+    ]);
+    expect(next.bench).toEqual({ order: 1, running: false });
+    await db.query("update ez_task_rules set paused = true where id = $1", [t.rule_id]);
+    at("2026-10-03T09:00:00+09:00");
+    const paused = good(await s.todo_list({}));
+    expect(paused.made).toBeUndefined();
+    expect(good(await s.todo_list({ status: "rules" })).rules[0]).toMatchObject({ bench: true, paused: true });
   });
 });
 
@@ -1165,14 +1347,15 @@ describe("MCP 프로토콜", () => {
     return client;
   }
 
-  it("도구 12개, 일정·플래너 설명은 짧게", async () => {
+  it("도구 15개(서랍 6 + 일정·플래너 6 + 시간 기록 1 + 모임 2), 일정·플래너 설명은 짧게", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
-    expect(TOOL_NAMES).toHaveLength(14);
+    expect(TOOL_NAMES).toHaveLength(15);
     expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
     const mine = tools.filter((t) => (SCHEDULE_TOOLS as readonly string[]).includes(t.name));
     const total = mine.reduce((n, t) => n + (t.description?.length ?? 0), 0);
-    expect(total).toBeLessThan(1000);
+    // 도구 7개 (work_log 가 늘었다 — 7-16)
+    expect(total).toBeLessThan(1100);
     expect(tools.find((t) => t.name === "schedule_get")!.inputSchema.required).toEqual(["from", "to"]);
   });
 

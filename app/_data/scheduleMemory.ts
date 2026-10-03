@@ -4,25 +4,31 @@
 // 여기서는 화면이 의지하는 것만 흉내 낸다: 버전 확인 · 바깥 일정 거절 · 집 하나 · 할 일 하나에 일정 하나 ·
 // 지점 이름 겹침 · 지점 12개 · 반복 회차 검사 · split/cut · 일정에 딸린 마감(따라가기 · 끊기) · 반복 규칙 굴리기(roll) ·
 // 역할(0008: 이름 겹침 · from_place 하나 · 12개 · 지우면 role_id null · seed 는 행이 하나도 없을 때만) ·
+// 시간 기록(0018: 열린 구간 하나 · 24시간에서 자름 · 끝내거나 지우면 닫힘) · 규칙의 멈춤 · 작업대에 올리기 · 손댄 지난 회차 보호 ·
 // 모임에서 온 일정(0011: 지우면 모임에 알리고 되돌리면 다시 알린다 — meetHooks. 모임 쪽 흉내는 meetMemory.ts).
 // 칸 검사는 lib/schedule 의 validateEvent 를 그대로 쓰고, 오류는 DB 와 같은 모양(SQLSTATE · '[EZ_*] 설명')으로 던진다.
 
 import { DbError } from "../../lib/errors";
 import {
   addDays,
-  CHECK_ITEM_MAX,
-  CHECKLIST_MAX,
   daysBetween,
   DEFAULT_ROLES,
   DEFAULT_SETTINGS,
   DUE_AFTER_MAX,
+  isChecklist,
+  isRuleChecks,
   occursOn,
   PLACE_COLORS,
   PLACES_MAX,
   ROLE_NAME_MAX,
   ROLES_MAX,
+  spanEnd,
+  spanRunning,
+  stepsFromRule,
   validateEvent,
   validateTask,
+  workSums,
+  workWeek,
   type DateStr,
   type EventException,
   type EventRow,
@@ -34,7 +40,9 @@ import {
   type Settings,
   type TaskRow,
   type TaskRule,
+  type TaskWork,
   type Travel,
+  type WorkDay,
 } from "../../lib/schedule";
 import type {
   EventDeps,
@@ -61,6 +69,8 @@ type PlRow = Place & { deleted_at: string | null };
 type TkRow = TaskRow & { deleted_at: string | null };
 type RlRow = TaskRule & { deleted_at: string | null };
 type RoRow = Role & { deleted_at: string | null };
+/** ez_work_log 한 줄 */
+type WlRow = { id: string; task_id: string; started_at: string; ended_at: string | null };
 
 export type ScheduleSeed = {
   places?: Place[];
@@ -72,9 +82,11 @@ export type ScheduleSeed = {
   tasks?: (Partial<TaskRow> & Pick<TaskRow, "id" | "title">)[];
   rules?: (Partial<TaskRule> & Pick<TaskRule, "id" | "kind" | "title">)[];
   roles?: (Partial<Role> & Pick<Role, "id" | "name">)[];
+  /** 시간 기록 구간 (ended_at 이 null 이면 돌고 있는 것 — 하나만) */
+  work?: { task_id: string; started_at: string; ended_at: string | null }[];
 };
 
-const RULE_KEYS = ["kind", "title", "note", "est_min", "place_id", "checklist", "repeat", "start", "event_id", "due_after", "last_made", "role_id"] as const;
+const RULE_KEYS = ["kind", "title", "note", "est_min", "place_id", "checklist", "repeat", "start", "event_id", "due_after", "last_made", "role_id", "bench", "paused"] as const;
 const TASK_KEYS = ["title", "note", "due", "est_min", "place_id", "due_event_id", "checklist", "rule_id", "rule_date", "role_id"] as const;
 /** roll 이 돌아보는 날 수 */
 const ROLL_BACK = 60;
@@ -102,6 +114,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
   /** 넣은 순서 = 만든 순서 (roll 이 이 순서로 돈다) */
   private readonly rl = new Map<string, RlRow>();
   private readonly ro = new Map<string, RoRow>();
+  private wl: WlRow[] = [];
   private ex: EventException[] = [];
   private tr: Travel[] = [];
   private st: Settings;
@@ -174,11 +187,14 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         due_after: null,
         last_made: null,
         role_id: null,
+        bench: false,
+        paused: false,
         version: 1,
         deleted_at: null,
         ...clone(r),
       });
     }
+    this.wl = (seed.work ?? []).map((w) => ({ id: globalThis.crypto.randomUUID(), ...w }));
     for (const [i, r] of (seed.roles ?? []).entries()) this.ro.set(r.id, { from_place: null, sort: i + 1, version: 1, deleted_at: null, ...r });
   }
 
@@ -670,12 +686,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
   private checkTask(next: TkRow, old: TkRow | null): void {
     const issues = validateTask(next);
     if (issues.length > 0) throw ez("EZ_VALUE", issues[0]!.reason);
-    const list = next.checklist;
-    const ok =
-      Array.isArray(list) &&
-      list.length <= CHECKLIST_MAX &&
-      list.every((c) => typeof c.t === "string" && typeof c.done === "boolean" && c.t === c.t.trim() && [...c.t].length >= 1 && [...c.t].length <= CHECK_ITEM_MAX);
-    if (!ok) throw new DbError('new row for relation "ez_tasks" violates check constraint "ez_tasks_checklist_check"', "23514");
+    if (!isChecklist(next.checklist)) throw new DbError('new row for relation "ez_tasks" violates check constraint "ez_tasks_checklist_check"', "23514");
     if (next.place_id !== null && !this.pl.has(next.place_id)) {
       throw new DbError('insert or update on table "ez_tasks" violates foreign key constraint "ez_tasks_place_fk"', "23503");
     }
@@ -751,10 +762,11 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     const t = this.task(id);
     this.taskVersion(t, baseVersion);
     t.done_at = done ? new Date().toISOString() : null;
-    // 끝내면 작업대에서 내려온다 (0017 ez_tasks_bench)
+    // 끝내면 작업대에서 내려오고(0017 ez_tasks_bench) 돌던 시간이 멈춘다(0018 ez_tasks_work)
     if (done) {
       t.bench_at = null;
       t.bench_order = null;
+      this.closeWork((w) => w.task_id === id);
     }
     this.bumpTask(t);
     return this.out(t);
@@ -767,6 +779,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     t.deleted_at = new Date().toISOString();
     t.bench_at = null;
     t.bench_order = null;
+    this.closeWork((w) => w.task_id === id);
     this.bumpTask(t);
   }
 
@@ -842,6 +855,50 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     return out;
   }
 
+  // ------------------------------------------------------------ 시간 기록 (0018 ez_work_log)
+
+  /** 열린 구간 중 고른 것을 닫는다. 24시간 넘게 열려 있었으면 24시간으로 자른다. 닫은 개수 */
+  private closeWork(pick: (w: WlRow) => boolean): number {
+    const now = Date.now();
+    let n = 0;
+    for (const w of this.wl) {
+      if (w.ended_at !== null || !pick(w)) continue;
+      w.ended_at = new Date(spanEnd(w.started_at, null, now)).toISOString();
+      n++;
+    }
+    return n;
+  }
+
+  /** 살아 있는 할 일의 구간만 */
+  private liveWork(): WlRow[] {
+    return this.wl.filter((w) => this.tk.get(w.task_id)?.deleted_at === null);
+  }
+
+  async workSums(): Promise<Record<string, TaskWork>> {
+    await this.wait();
+    return Object.fromEntries(workSums(this.liveWork(), new Date()));
+  }
+
+  async workStart(id: string): Promise<void> {
+    await this.wait();
+    const t = this.task(id);
+    if (t.done_at !== null) throw ez("EZ_VALUE", "끝낸 할 일은 시작할 수 없습니다. 끝냄을 풀고 다시 하세요");
+    const now = Date.now();
+    if (this.wl.some((w) => w.task_id === id && spanRunning(w.started_at, w.ended_at, now))) return;
+    this.closeWork(() => true);
+    this.wl.push({ id: globalThis.crypto.randomUUID(), task_id: id, started_at: new Date(now).toISOString(), ended_at: null });
+  }
+
+  async workStop(): Promise<void> {
+    await this.wait();
+    this.closeWork(() => true);
+  }
+
+  async workWeek(weekStart: DateStr): Promise<WorkDay[]> {
+    await this.wait();
+    return workWeek(this.liveWork(), weekStart, new Date());
+  }
+
   // ------------------------------------------------------------ 반복 규칙 (0007 ez_task_rules · ez_tasks_roll)
 
   private outRule(r: RlRow): TaskRule {
@@ -856,10 +913,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     if (r.title !== r.title.trim() || len < 1 || len > 200) throw bad("title");
     if (r.note !== null && [...r.note].length > 2000) throw bad("note");
     if (r.est_min !== null && (!Number.isInteger(r.est_min) || r.est_min < 5 || r.est_min > 600)) throw bad("est");
-    const texts = r.checklist;
-    if (!Array.isArray(texts) || texts.length > CHECKLIST_MAX || !texts.every((t) => typeof t === "string" && t === t.trim() && [...t].length >= 1 && [...t].length <= CHECK_ITEM_MAX)) {
-      throw bad("checklist");
-    }
+    if (!isRuleChecks(r.checklist)) throw bad("checklist");
     if (r.due_after !== null && (!Number.isInteger(r.due_after) || r.due_after < 0 || r.due_after > DUE_AFTER_MAX)) throw bad("due_after");
     if (r.place_id !== null && !this.pl.has(r.place_id)) {
       throw new DbError('insert or update on table "ez_task_rules" violates foreign key constraint "ez_task_rules_place_fk"', "23503");
@@ -884,7 +938,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
 
   async createRule(input: RuleInput): Promise<TaskRule> {
     await this.wait();
-    const r: RlRow = { id: globalThis.crypto.randomUUID(), ...clone(input), version: 1, deleted_at: null };
+    const r: RlRow = { id: globalThis.crypto.randomUUID(), bench: false, paused: false, ...clone(input), version: 1, deleted_at: null };
     this.checkRule(r, null);
     this.rl.set(r.id, r);
     return this.outRule(r);
@@ -910,6 +964,17 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     r.version += 1;
   }
 
+  async restoreRule(id: string): Promise<TaskRule> {
+    await this.wait();
+    const r = this.rl.get(id);
+    if (!r) throw ez("EZ_NOT_FOUND", "되돌릴 반복 규칙이 없습니다");
+    const next: RlRow = { ...r, deleted_at: null };
+    this.checkRule(next, r);
+    Object.assign(r, next);
+    r.version += 1;
+    return this.outRule(r);
+  }
+
   /**
    * 그 회차가 끝나는 시각 (회차 날짜 0시부터 센 분). 이번만 바꾼 end_min 이 있으면 그것, 종일이면 1440.
    * 건너뛴 회차는 null
@@ -928,7 +993,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     const later = (a: DateStr, b: DateStr) => (a >= b ? a : b);
     let made = 0;
     for (const r of [...this.rl.values()]) {
-      if (r.deleted_at !== null) continue;
+      if (r.deleted_at !== null || r.paused) continue;
       // 가장 최근 회차 하나: last_made 다음 날(없으면 시작)과 60일 전 중 늦은 날부터 오늘까지에서 가장 늦은 날
       let d: DateStr | null = null;
       if (r.kind === "cycle") {
@@ -956,8 +1021,9 @@ export class MemorySchedule implements ScheduleData, PlannerData {
       }
       if (d === null) continue;
 
-      // 밀리면 한 건만: 안 끝낸 지난 회차는 지운다
+      // 밀리면 한 건만: 안 끝낸 지난 회차는 지운다. 작업대에 올라가 있거나 시간 기록이 있는 것은 남긴다 (0018)
       for (const t of this.tk.values()) {
+        if (t.bench_order !== null || this.wl.some((w) => w.task_id === t.id)) continue;
         if (t.rule_id === r.id && t.rule_date !== null && t.rule_date < d && t.done_at === null && t.deleted_at === null) {
           t.deleted_at = new Date().toISOString();
           t.bench_at = null;
@@ -981,11 +1047,11 @@ export class MemorySchedule implements ScheduleData, PlannerData {
           origin_id: null,
           place_id: r.place_id,
           due_event_id: null,
-          checklist: r.checklist.map((c) => ({ t: c, done: false })),
+          checklist: stepsFromRule(r.checklist),
           rule_id: r.id,
           rule_date: on,
           role_id: r.role_id,
-          bench_order: null,
+          bench_order: r.bench ? this.nextBench() : null,
           bench_at: null,
           version: 1,
           created_at: at,

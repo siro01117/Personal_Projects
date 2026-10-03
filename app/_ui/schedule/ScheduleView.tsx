@@ -491,7 +491,7 @@ export function ScheduleView() {
   const saveRef = useRef(save);
   saveRef.current = save;
 
-  // ------------------------------------------------------------ 없애기
+  // ------------------------------------------------------------ 지우기
 
   async function remove(scope: Scope | null, occ: Occurrence | null = selOcc) {
     const selOcc = occ;
@@ -519,7 +519,7 @@ export function ScheduleView() {
         (r) => ({ ...r, events: r.events.filter((e) => e.id !== ev.id) }),
         (srv) => dropEvent(srv, (v) => D.S.deleteEvent(ev.id, v)),
       );
-      if (deps) undoable("일정을 없앴습니다", () => D.S.restoreEvent(ev.id, deps));
+      if (deps) undoable("일정을 지웠습니다", () => D.S.restoreEvent(ev.id, deps));
       return;
     }
     if (scope === "once") {
@@ -534,7 +534,7 @@ export function ScheduleView() {
           return true;
         },
       );
-      if (ok) undoable("일정을 없앴습니다", () => (prev && !prev.skip ? D.S.setException(ev.id, on, prev.patch) : D.S.clearException(ev.id, on)));
+      if (ok) undoable("일정을 지웠습니다", () => (prev && !prev.skip ? D.S.setException(ev.id, on, prev.patch) : D.S.clearException(ev.id, on)));
       return;
     }
     // 이후 모두
@@ -552,7 +552,7 @@ export function ScheduleView() {
       (srv) => dropEvent(srv, (v) => D.S.cut(ev.id, v, on)),
     );
     if (!deps) return;
-    undoable("일정을 없앴습니다", async (srv) => {
+    undoable("일정을 지웠습니다", async (srv) => {
       if (first) return D.S.restoreEvent(ev.id, deps);
       const v = srv.events.find((e) => e.id === ev.id)?.version ?? ev.version + 1;
       await D.S.updateEvent(ev.id, v, { repeat: oldRepeat });

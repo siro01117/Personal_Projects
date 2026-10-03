@@ -144,7 +144,7 @@ export function Detail({
             수정
           </button>
           <button type="button" className="del" onClick={() => onDelete(null)}>
-            없애기
+            지우기
           </button>
         </div>
       )}

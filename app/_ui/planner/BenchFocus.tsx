@@ -1,13 +1,15 @@
 "use client";
 
-// 집중 화면 /planner/bench/[id] (docs/플래너.md 7-15). 작업대 종이(BenchCard) 한 장을 화면 가운데에 — 가로 가운데, 최대 폭 960, 위 여백 넉넉히.
-// 열면 앉는다(ez_task_sit — 안 올라가 있으면 올라간다). 종이 양옆 바깥에 작은 ‹ ›(올린 순서), 위에 목록으로 가는 길 하나.
-// 좁아서 양옆에 자리가 없으면 ‹ › 는 위 줄 오른쪽으로 간다. 끝냄 · 내리기 뒤에는 목록으로.
+// 집중 화면 /planner/bench/[id] (docs/플래너.md 7-15 · 7-16). 작업대 종이(BenchCard) 한 장을 화면 가운데에 — 가로 가운데, 최대 폭 960, 위 여백 넉넉히.
+// 열어도 시간은 가지 않는다 — 시작을 눌러야 간다(다른 할 일에서 돌던 것은 그때 멈춘다). 안 올라가 있던 할 일을 열면 작업대에 올린다.
+// 종이 양옆 바깥에 작은 ‹ ›(올린 순서), 위에 목록으로 가는 길 하나. 좁아서 양옆에 자리가 없으면 ‹ › 는 위 줄 오른쪽으로 간다.
+// 끝냄 · 내리기 뒤에는 목록으로.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
-import { benchList, benchSides, moveStep, NONE_LABEL, roleText } from "../../_logic/planner";
+import { moveStep, moveSubStep } from "../../../lib/schedule";
+import { benchList, benchSides, NONE_LABEL } from "../../_logic/planner";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { HomeButton } from "../Shell";
@@ -27,12 +29,12 @@ export function BenchFocus({ id }: { id: string }) {
   const { prev, next } = benchSides(list, id);
   const toList = href("/planner/bench");
 
-  // 열면 앉는다 — 이 화면에서 한 번 (다른 집중 화면을 열면 앉는 자리가 옮겨 간다)
-  const sat = useRef<string | null>(null);
+  // 주소로 바로 연 할 일이 아직 안 올라가 있으면 올린다 — 이 화면에서 한 번 (내린 뒤에는 목록으로 나간다)
+  const raised = useRef<string | null>(null);
   useEffect(() => {
-    if (!task || !open || isTemp(task.id) || sat.current === task.id) return;
-    sat.current = task.id;
-    ops.sit(task);
+    if (!task || !open || isTemp(task.id) || raised.current === task.id) return;
+    raised.current = task.id;
+    if (task.bench_order === null) void ops.bench(task, true);
   }, [task, open, ops]);
 
   const nav = (cls: string) => (
@@ -87,15 +89,19 @@ export function BenchFocus({ id }: { id: string }) {
               <BenchCard
                 key={task.id}
                 task={task}
-                role={roleText(task, state.roles)}
                 onOpen={() => router.push(href(`/planner?task=${task.id}`))}
-                onCheck={(i, done) => ops.check(task, i, done)}
-                onAddStep={(text) => ops.addBenchStep(task, text)}
+                onCheck={(k, done) => ops.check(task, k, done)}
+                onAddStep={(after, depth, text) => ops.addStep(task, after, depth, text)}
                 onMoveStep={(from, to) => void ops.editSteps(task, (l) => moveStep(l, from, to))}
-                onDetach={(i) => void ops.detach(task, i)}
-                onDeleteStep={(i) => void ops.removeStep(task, i)}
+                onMoveSub={(i, from, to) => void ops.editSteps(task, (l) => moveSubStep(l, i, from, to))}
+                onIndent={(k, into) => ops.indent(task, k, into)}
+                onEst={(k, est) => ops.setEst(task, k, est)}
+                onDetach={(k) => void ops.detach(task, k)}
+                onDeleteStep={(k) => void ops.removeStep(task, k)}
                 onNote={(note) => ops.saveNote(task, note)}
                 onAddTask={ops.addTask}
+                onStart={() => ops.workStart(task)}
+                onStop={ops.workStop}
                 onDone={() => {
                   void ops.toggle(task);
                   router.push(toList);
