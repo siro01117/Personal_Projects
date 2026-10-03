@@ -184,7 +184,7 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .av.t4{background:color-mix(in srgb,var(--point) 72%,var(--ink))}
 .av.t5{background:color-mix(in srgb,var(--point) 50%,var(--bg))}
 .av.more{background:var(--surface-3);color:var(--text-2);font-size:11px}
-.avrow{display:inline-flex;align-items:center;height:36px;padding:0 8px 0 10px;border-radius:var(--r-m);transition:background var(--t),transform var(--t)}
+.avrow{position:relative;display:inline-flex;align-items:center;height:36px;padding:0 8px 0 10px;border-radius:var(--r-m);transition:background var(--t),transform var(--t)}
 .avrow .av{margin-left:-6px}
 .avrow .av:first-child{margin-left:0}
 .avrow:hover,.avrow[aria-pressed="true"]{background:var(--surface-2)}
@@ -206,6 +206,70 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .peer{position:absolute;left:0;top:2px;transform:translate(calc(var(--k) * 12px),var(--y));transition:transform var(--m-slow) var(--ease-out)}
 .rail a{position:relative}
 .rail a[data-live]::after{content:"";position:absolute;left:-5px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--point);outline:2px solid var(--bg)}
+/* 새 것 표시: 단추 · 칸의 작은 키위 점 (설계서 7-5장) */
+.ndot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--point);outline:2px solid var(--surface);pointer-events:none}
+.avrow .ndot{top:4px;right:4px}
+.seg button{position:relative}
+.seg .ndot{top:3px;right:3px;outline-color:var(--surface-2)}
+.views-pop .seg{align-self:stretch}
+.views-pop .seg button{flex:1}
+/* 본 사람 줄을 누르면 방문 목록 */
+.views-pop .vrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:8px;width:100%;min-height:28px;padding:0 4px;margin:0 -4px;border-radius:6px;text-align:left;font-size:13px;transition:background var(--t)}
+.views-pop .vrow:hover,.views-pop li[data-open] .vrow{background:var(--surface-2)}
+.views-pop .vp-hist li{grid-template-columns:minmax(0,1fr)}
+.views-pop .vp-hist li:not([data-open]) > .vrow ~ *{display:none}
+.views-pop .vp-visits{padding:2px 0 6px 10px;border-left:2px solid var(--border);margin:2px 0 4px 4px}
+.views-pop .vp-visits li{grid-template-columns:auto auto auto;justify-content:start;min-height:24px;font-size:12px}
+.views-pop .vp-notes{display:flex;flex-direction:column;gap:10px;max-height:min(60vh,460px);overflow-y:auto}
+.views-pop .notes li{display:block;min-height:0}
+.views-pop .plc{align-self:flex-start;text-align:left}
+.ver{font-size:11px;color:var(--text-3);opacity:.7;white-space:nowrap}
+
+/* 방명록 · 댓글 (설계서 7-5장): 글은 텍스트로만. 라벨 · 상대 시간 · 다른 버전이면 옅은 v12 */
+.notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.6}
+.notes.sm{gap:10px;font-size:14px}
+.note .nh{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;min-height:20px}
+.note .nm{font-weight:600;color:var(--text-1)}
+.note .at{font-size:12px;color:var(--text-3);white-space:nowrap}
+.note .nh .lnk{margin-left:4px}
+.note .nh .lnk + .lnk{margin-left:0}
+.note .nb{margin:2px 0 0;white-space:pre-wrap;color:var(--text-2);overflow-wrap:anywhere}
+.note.owner .nm{color:var(--point-ink)}
+.note .plc{display:inline-block;font-size:12px;color:var(--text-3);margin-bottom:2px}
+.note .lnk.plc{text-decoration:underline;text-underline-offset:3px;padding:0}
+.note .lnk.plc:hover{color:var(--text-1)}
+.lnk{font-size:12px;color:var(--text-3);padding:2px 0;white-space:nowrap}
+.lnk:hover{color:var(--text-1)}
+.note-in{display:flex;flex-direction:column;gap:8px}
+.note-ta{display:block;width:100%;min-height:38px;max-height:40vh;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-m);background:var(--surface);font:inherit;font-size:15px;line-height:1.5;color:var(--text-1);outline:none;resize:none;field-sizing:content;overflow-wrap:anywhere}
+.note-ta:focus{border-color:var(--point-ink)}
+.note-ta::placeholder{color:var(--text-3)}
+.note-ta:disabled{opacity:.6}
+.note-acts{display:flex;align-items:center;gap:12px}
+.note-acts .btn{height:32px;font-size:12px}
+.note-in .err,.note .err{margin:0;font-size:13px;color:var(--danger)}
+/* 블록 옆 댓글 수: 오른쪽 여백에 작은 숫자. 없으면 블록에 올렸을 때만 + . 2칸 행 · 사진 옆 글은 여백이 없어 블록 아래에 */
+.cmt-n{position:absolute;right:-44px;top:0;min-width:24px;height:24px;padding:0 6px;display:inline-grid;place-items:center;border-radius:12px;font-size:12px;font-weight:600;color:var(--text-3);background:var(--surface-2);transition:background var(--t),color var(--t),opacity var(--t)}
+.cmt-n:hover,.cmt-n[aria-expanded="true"]{background:var(--point-soft);color:var(--point-ink)}
+.cmt-n.zero{opacity:0}
+.blk:hover > .cmt-n.zero,.cmt-n.zero:focus-visible,.cmt-n.zero[aria-expanded="true"]{opacity:1}
+.row.pair .cmt-n,.row.solo .cmt-n{position:static;display:inline-grid;margin-top:10px}
+.row.pair .cmt-n.zero,.row.solo .cmt-n.zero{display:none}
+.blk[data-cmt]{cursor:default}
+/* 펼친 댓글 줄: 블록 아래, 가는 왼쪽 선 */
+.cmt{margin-top:16px;padding:2px 0 2px 14px;border-left:2px solid var(--border);font-size:14px;line-height:1.6;display:flex;flex-direction:column;gap:12px;cursor:auto}
+.cmt .notes{font-size:14px}
+.cmt .note-ta{font-size:14px;min-height:34px}
+/* 블록 종류(목록 · 출처 · 근거)의 li · p 규칙이 댓글 줄 안으로 번지지 않게 */
+.cmt .notes li{display:block;grid-template-columns:none;gap:0;padding:0;border:0;white-space:normal;font-size:inherit}
+.cmt .notes li::before{content:none}
+.cmt .notes p{white-space:pre-wrap}
+.cmt .nh{display:flex}
+.b-image .cmt{text-align:left}
+/* 맨 아래 방명록 */
+.gb{display:flex;flex-direction:column;gap:16px;font-size:15px;line-height:1.6}
+.page > .gb{margin-top:52px;padding-top:44px;border-top:1px solid var(--border)}
+.page > .gb + .sv-name{margin-top:28px}
 /* 공유 페이지 맨 아래: 이름 적기 · 바꾸기 */
 .sv-name{font-size:14px}
 .sv-name .lnk{font-size:13px;color:var(--text-3);text-decoration:underline;text-underline-offset:3px;padding:4px 0}
@@ -434,6 +498,10 @@ sup.r a:hover{background:var(--point-soft)}
   .page > .peers{left:1px}
   .peer{transform:translate(0,calc(var(--y) + var(--k) * 14px))}
   .peer .av.sm{width:16px;height:16px;font-size:9px;box-shadow:0 0 0 1px var(--paper)}
+  /* 폰: 오른쪽 여백이 16px 뿐 — 댓글 수는 블록 아래에, 올리기가 없으니 빈 블록의 + 는 없다 (블록을 누른다) */
+  .cmt-n{position:static;display:inline-grid;margin-top:10px}
+  .cmt-n.zero{display:none}
+  .page > .gb{margin-top:40px;padding-top:36px}
   .grip{left:-40px;width:28px;height:36px}
   .page > * + *{margin-top:36px}
   .page > .row.has-img,.page > .row.has-img + *{margin-top:44px}

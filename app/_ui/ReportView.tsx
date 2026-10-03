@@ -11,16 +11,21 @@
 //  - 새로 불러오거나(load) 순서 저장이 실패해 되돌려질 때(epoch 가 바뀔 때)도 비운다. 되돌리기 자체는 기록을 남기지 않는다
 // 읽은 사람 (설계서 7-4장): 기록(ez_views)은 열어 둔 동안 30초마다(tick) 다시 읽고, 라이브는 공유가 켜져 있을 때 presence 채널을 듣는다.
 //  - 도구 줄의 아바타 줄(없으면 눈) → 작은 창. 보는 블록 왼쪽에 작은 아바타(PeerMarks), 차례 레일에 점
+// 방명록 · 댓글 · 방문 (설계서 7-5장): 글(ez_notes)도 기록과 같이 30초마다 읽는다. 작은 창은 세 칸(보는 사람 · 방명록 · 댓글).
+//  - 마지막으로 창을 연 때를 기기에 기억해, 그 뒤에 온 것이 있으면 단추와 칸에 키위 점. 본 사람을 누르면 방문 목록(날짜 · 읽은 시간 · 그때 버전)
+//  - 댓글은 블록 옆에 공개 페이지와 같은 모양으로(고치기 모드가 아닐 때만). 주인은 답글(by_owner)을 달고 아무 글이나 지운다
+//  - 버전이 바뀌어 블록을 다시 찾은 댓글은 그 블록 옆에, 못 찾은 것은 창의 댓글 칸에 "원래 n번째 블록"
 
 import { ThemeToggle } from "./ThemeToggle";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { arrangeBlocks, editRule, isSameOrder, tidyText } from "../../lib/blocks";
 import { toKorean } from "../../lib/errors";
 import { blocksToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
+import { browserStore } from "../_data/cache";
 import { withDemo } from "../_data/source";
-import type { Presence, ReportDoc, ViewRow } from "../_data/types";
+import type { NoteRow, Presence, ReportDoc, ViewRow, VisitRow } from "../_data/types";
 import {
   folderTrail,
   formatDay,
@@ -36,9 +41,10 @@ import {
   withTextAt,
   type UndoEntry,
 } from "../_logic/drawer";
+import { anchorsOf, hasNew, lostLabel, markSeen, newSince, noteCounts, placeNotes, seenAt } from "../_logic/notes";
 import { liveNow } from "../_logic/views";
 import { useApp } from "./AppContext";
-import { Blocks, Field, tocOf, type EditCtx, type ImageUrls, type Path } from "./Blocks";
+import { Blocks, Field, tocOf, type EditCtx, type ImageUrls, type NotesCtx, type Path } from "./Blocks";
 import { Crumbs, type Crumb } from "./Crumbs";
 import { useDrawer } from "./DrawerContext";
 import { EditBar, type EditAct } from "./EditBar";
@@ -47,13 +53,16 @@ import { useFlip } from "./motion/useFlip";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
 import { useArrange } from "./useArrange";
-import { PeerMarks, ViewersButton, ViewsPop } from "./Viewers";
+import { NoteInput, NoteList, Thread } from "./Notes";
+import { PeerMarks, ViewersButton, ViewsPop, type ReadersTab } from "./Viewers";
 
 const CONFLICT = "방금 다른 곳에서 이 보고서를 고쳤습니다";
 /** 차례 레일은 블록이 이만큼 이상일 때만 */
 export const RAIL_MIN = 8;
 /** 지운 뒤 되돌리기 알림이 떠 있는 시간 — 그동안 저장을 미룬다 */
 export const DELETE_HOLD_MS = 6000;
+/** 주인 화면에서 주인 글의 이름 */
+const ME = "나";
 
 /** keys: 블록마다 순서가 바뀌어도 유지되는 열쇠 (blocks 와 같은 길이). 불러올 때 번호로 매긴다 */
 type Doc = ReportDoc & { keys: string[] };
@@ -66,7 +75,9 @@ type Held = { scope: Scope; order: number[]; snap: Snap; timer: ReturnType<typeo
 type Undo = UndoEntry<Held>;
 
 const NO_KEYS: readonly string[] = [];
+const NO_BLOCKS: unknown[] = [];
 const NO_ROOT = { current: null };
+const ALL = () => true;
 
 export function ReportView({ id }: { id: string }) {
   const { data, demo, href, folders, tick, fail } = useDrawer();
@@ -86,6 +97,15 @@ export function ReportView({ id }: { id: string }) {
   const [presence, setPresence] = useState<Presence[] | null>(null);
   const [viewsOpen, setViewsOpen] = useState(false);
   const [viewsMore, setViewsMore] = useState(false);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [openBlock, setOpenBlock] = useState<number | null>(null);
+  const [tab, setTab] = useState<ReadersTab>("viewers");
+  /** 방문 목록을 펼친 사람 · 그 사람의 방문 */
+  const [picked, setPicked] = useState<string | null>(null);
+  const [visits, setVisits] = useState<VisitRow[] | null>(null);
+  /** 마지막으로 창을 연 때 (기기에 기억). 창을 여는 순간 지금으로 바뀌고, 열려 있는 동안의 점은 popSeen 기준 */
+  const [seen, setSeen] = useState<string | null>(null);
+  const [popSeen, setPopSeen] = useState<string | null>(null);
 
   const images = useCallback<ImageUrls>((paths) => data.imageUrls(paths), [data]);
 
@@ -176,11 +196,17 @@ export function ReportView({ id }: { id: string }) {
 
   // ------------------------------------------------------------ 읽은 사람
 
-  // 기록: 열 때와 30초마다(tick — 탭이 숨겨지면 멈춘다). 다른 보고서로 넘어가면 비운다
+  // 기록 · 글: 열 때와 30초마다(tick — 탭이 숨겨지면 멈춘다). 다른 보고서로 넘어가면 비운다
   const docReady = doc !== null && doc !== "missing";
   useEffect(() => {
     setViews([]);
     setViewsMore(false);
+    setNotes([]);
+    setOpenBlock(null);
+    setTab("viewers");
+    setPicked(null);
+    setVisits(null);
+    setSeen(seenAt(browserStore(), id));
   }, [id]);
   useEffect(() => {
     if (!docReady) return;
@@ -189,10 +215,38 @@ export function ReportView({ id }: { id: string }) {
       (rows) => alive && setViews(rows),
       () => {},
     );
+    data.notes(id).then(
+      (rows) => alive && setNotes(rows),
+      () => {},
+    );
     return () => {
       alive = false;
     };
   }, [data, id, docReady, tick]);
+
+  // 창을 열면: 열려 있는 동안의 점은 그 전에 본 때 기준, 단추의 점은 바로 꺼진다 (지금을 본 때로 기억)
+  useEffect(() => {
+    if (!viewsOpen) return;
+    setPopSeen(seen);
+    const at = new Date();
+    markSeen(browserStore(), id, at);
+    setSeen(at.toISOString());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewsOpen, id]);
+
+  // 본 사람을 누르면 그 사람의 방문들
+  useEffect(() => {
+    if (!picked) return;
+    let alive = true;
+    setVisits(null);
+    data.visits(picked).then(
+      (rows) => alive && setVisits(rows),
+      (e) => alive && fail(e),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [data, picked, fail]);
 
   // 라이브: 공유가 켜져 있는 동안 채널을 듣는다 (자기 상태는 올리지 않는다). 안 되면 null → 기록의 70초 판정만
   const shareToken = docReady ? doc.share_token : null;
@@ -207,6 +261,85 @@ export function ReportView({ id }: { id: string }) {
   const now = new Date();
   const liveNowList = liveNow(presence, views, now);
   const liveBlocks = new Set(liveNowList.flatMap((p) => (p.block === null ? [] : [p.block])));
+
+  // ------------------------------------------------------------ 방명록 · 댓글
+
+  const blocksNow = docReady ? doc.blocks : NO_BLOCKS;
+  const versionNow = docReady ? doc.version : 0;
+  const anchors = useMemo(() => anchorsOf(blocksNow), [blocksNow]);
+  const placed = useMemo(() => placeNotes(notes, anchors, versionNow), [notes, anchors, versionNow]);
+  const counts = useMemo(() => noteCounts(placed), [placed]);
+  const dots = newSince(views, notes, seen);
+  const popDots = newSince(views, notes, popSeen);
+
+  const reply = useCallback(
+    async (body: string, block?: number) => {
+      const row = await data.noteReply(id, body, block ?? null, block === undefined ? null : (anchors[block] ?? null));
+      setNotes((list) => [...list, row]);
+    },
+    [data, id, anchors],
+  );
+
+  const removeNote = useCallback(
+    async (noteId: string) => {
+      let prev: NoteRow[] = [];
+      setNotes((list) => {
+        prev = list;
+        return list.filter((x) => x.id !== noteId);
+      });
+      try {
+        await data.noteDelete(noteId);
+      } catch (e) {
+        setNotes(prev);
+        throw e;
+      }
+    },
+    [data],
+  );
+
+  /** 창의 댓글 칸에서 블록을 누르면 그 블록으로 가서 댓글 줄을 펼친다 */
+  const goBlock = useCallback((i: number) => {
+    setViewsOpen(false);
+    setOpenBlock(i);
+    requestAnimationFrame(() => document.getElementById(`b${i}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, []);
+
+  const notesCtx: NotesCtx | undefined = docReady
+    ? {
+        counts,
+        open: openBlock,
+        onToggle: (i) => setOpenBlock((cur) => (cur === i ? null : i)),
+        thread: (i) => (
+          <Thread
+            notes={placed.byBlock.get(i) ?? []}
+            current={versionNow}
+            ownerLabel={ME}
+            now={now}
+            canDelete={ALL}
+            onDelete={removeNote}
+            onWrite={(body) => reply(body, i)}
+          />
+        ),
+      }
+    : undefined;
+
+  /** 창의 댓글 칸: 전부 — 다시 찾은 것은 그 블록 이름(누르면 그 블록으로), 못 찾은 것은 "원래 n번째 블록" */
+  const commentRows = useMemo(() => {
+    const at = new Map<string, number>();
+    for (const [i, list] of placed.byBlock) for (const n of list) at.set(n.id, i);
+    return [...placed.byBlock.values()].flat().concat(placed.lost).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  }, [placed]);
+  const placeOf = (n: NoteRow) => {
+    for (const [i, list] of placed.byBlock) {
+      if (!list.includes(n)) continue;
+      return (
+        <button type="button" className="lnk plc" onClick={() => goBlock(i)}>
+          {anchors[i] ?? `${i + 1}번째 블록`}
+        </button>
+      );
+    }
+    return <span className="plc">{lostLabel(n)}</span>;
+  };
 
   const reload = useCallback(() => {
     void load();
@@ -564,6 +697,7 @@ export function ReportView({ id }: { id: string }) {
               ref={viewsBtn}
               live={liveNowList}
               open={viewsOpen}
+              dot={hasNew(dots)}
               onClick={() => {
                 setShareOpen(false);
                 setViewsOpen((v) => !v);
@@ -587,7 +721,37 @@ export function ReportView({ id }: { id: string }) {
           </div>
         )}
         {ready && viewsOpen && (
-          <ViewsPop ref={viewsRef} live={liveNowList} rows={views} toc={tocOf(doc.blocks)} now={now} expanded={viewsMore} onMore={() => setViewsMore(true)} />
+          <ViewsPop
+            ref={viewsRef}
+            live={liveNowList}
+            rows={views}
+            toc={tocOf(doc.blocks)}
+            now={now}
+            expanded={viewsMore}
+            onMore={() => setViewsMore(true)}
+            tab={tab}
+            onTab={setTab}
+            dots={popDots}
+            picked={picked}
+            onPick={(vid) => setPicked((cur) => (cur === vid ? null : vid))}
+            visits={visits}
+            version={doc.version}
+            guestbook={
+              <div className="vp-notes">
+                <NoteList notes={placed.guestbook} current={doc.version} ownerLabel={ME} now={now} canDelete={ALL} onDelete={removeNote} small />
+                <NoteInput placeholder="답글" ariaLabel="방명록 답글" onSave={(body) => reply(body)} />
+              </div>
+            }
+            comments={
+              <div className="vp-notes">
+                {commentRows.length === 0 ? (
+                  <p className="none">아직 댓글이 없습니다</p>
+                ) : (
+                  <NoteList notes={commentRows} current={doc.version} ownerLabel={ME} now={now} canDelete={ALL} onDelete={removeNote} place={placeOf} small />
+                )}
+              </div>
+            }
+          />
         )}
         {ready && shareOpen && (
           <div className="share-pop" ref={shareRef}>
@@ -636,7 +800,7 @@ export function ReportView({ id }: { id: string }) {
                 <span>{relativeDay(freshAt(doc))}</span>
               </div>
             </div>
-            <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} />
+            <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} notes={notesCtx} />
             {!editing && <PeerMarks live={liveNowList} page={pageRef} blockCount={doc.blocks.length} />}
           </article>
           {editing && <div className="drop-line" ref={lineRef} aria-hidden="true" />}

@@ -499,7 +499,17 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
           });
           const vb = blocks.find((b) => isObj(b) && b.type === "verdict") as Record<string, unknown> | undefined;
           const verdict = vb ? { v: vb.v, ...(vb.w !== undefined ? { w: vb.w } : {}) } : undefined;
-          return ok(withUrl(`${rep.name} — 블록 ${n}개, version ${rep.version}. 내용은 from·to 로 범위를 주고 읽으세요`, url), {
+          // 읽은 사람이 남긴 글 (설계서 7-5장): 라벨 · 그때 version · 블록 번호(방명록은 null) · 글. 있을 때만 싣는다
+          const notes = (await store.notes(rep.id)).map((x) => ({
+            label: x.by_owner ? "주인" : (x.label ?? "게스트"),
+            version: x.version,
+            block: x.block,
+            ...(x.anchor !== null ? { anchor: x.anchor } : {}),
+            body: x.body,
+            created_at: x.created_at,
+          }));
+          const noteNote = notes.length > 0 ? `, 읽은 사람의 글 ${notes.length}개` : "";
+          return ok(withUrl(`${rep.name} — 블록 ${n}개, version ${rep.version}${noteNote}. 내용은 from·to 로 범위를 주고 읽으세요`, url), {
             id: rep.id,
             title: rep.name,
             kind: rep.report_kind,
@@ -509,6 +519,7 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
             updated_at: rep.updated_at,
             outline,
             ...(verdict ? { verdict } : {}),
+            ...(notes.length > 0 ? { notes } : {}),
           });
         }
 

@@ -423,6 +423,71 @@ describe("읽은 사람 (0013 흉내)", () => {
     expect(await d.views(ROOT_REPORT)).toHaveLength(1);
   });
 
+  it("방문: 들어오면 한 줄(지금 버전), 핑은 현재 방문과 요약 둘 다에, 30분 지나면 새 방문 (0014 흉내)", async () => {
+    const t = { at: Date.parse("2026-10-03T12:00:00+09:00") };
+    const d = new MemoryDrawer([{ id: ROOT_REPORT, kind: "report", name: "보고서", report_kind: "method", blocks: sampleBlocks(), share_token: TOKEN, version: 4 }], {
+      now: () => new Date(t.at),
+    });
+    await d.viewOpen(TOKEN, dev(1), "");
+    const [v] = await d.views(ROOT_REPORT);
+    await d.viewPing(TOKEN, dev(1), 30);
+    t.at += 10 * 60_000;
+    await d.viewPing(TOKEN, dev(1), 20);
+    expect((await d.visits(v!.id)).map((x) => [x.version, x.seconds])).toEqual([[4, 50]]);
+    t.at += 31 * 60_000;
+    await d.viewOpen(TOKEN, dev(1), "");
+    await d.viewPing(TOKEN, dev(1), 5);
+    expect((await d.visits(v!.id)).map((x) => [x.version, x.seconds])).toEqual([
+      [4, 5],
+      [4, 50],
+    ]);
+    expect((await d.views(ROOT_REPORT))[0]).toMatchObject({ hits: 2, seconds: 55 });
+    expect(await d.visits("없는 id")).toEqual([]);
+  });
+
+  it("글: 방명록 · 댓글 쓰기(지금 버전 · 라벨) · 같은 기기만 고치기 · 지우기, 주인 답글 · 지우기, 10초 규칙 (0014 흉내)", async () => {
+    const t = { at: Date.parse("2026-10-03T12:00:00+09:00") };
+    const d = new MemoryDrawer([{ id: ROOT_REPORT, kind: "report", name: "보고서", report_kind: "method", blocks: sampleBlocks(), share_token: TOKEN, version: 2 }], {
+      now: () => new Date(t.at),
+    });
+    expect(await d.noteWrite(TOKEN, dev(1), "아직")).toBeNull(); // 기기 줄이 없다
+    await d.viewOpen(TOKEN, dev(1), "");
+    await d.viewOpen(TOKEN, dev(2), "");
+    await d.viewName(TOKEN, dev(2), "민서");
+    const g = (await d.noteWrite(TOKEN, dev(1), "  잘 읽었습니다 "))!;
+    expect(g).toMatchObject({ guest_no: 1, label: "게스트 1", by_owner: false, body: "잘 읽었습니다", version: 2, block: null, anchor: null });
+    expect(await code(d.noteWrite(TOKEN, dev(1), "너무 빨리"))).toBe("EZ_RATE");
+    t.at += 11_000;
+    const c = (await d.noteWrite(TOKEN, dev(2), "근거가 약합니다", 5, " 근거 "))!;
+    expect(c).toMatchObject({ label: "민서", block: 5, anchor: "근거", version: 2 });
+    expect(await code(d.noteWrite(TOKEN, dev(2), "   "))).toBe("EZ_VALUE");
+    expect(await code(d.noteWrite(TOKEN, dev(2), "가".repeat(1001)))).toBe("EZ_VALUE");
+    t.at += 1000; // 같은 밀리초면 순서가 id 로 갈린다
+    const r = await d.noteReply(ROOT_REPORT, "보강하겠습니다", 5, "근거");
+    expect(r).toMatchObject({ guest_no: null, label: null, by_owner: true, block: 5, version: 2 });
+    expect((await d.notes(ROOT_REPORT)).map((n) => n.body)).toEqual(["잘 읽었습니다", "근거가 약합니다", "보강하겠습니다"]);
+    expect(await d.sharedNotes(TOKEN)).toEqual(await d.notes(ROOT_REPORT));
+    expect(await d.sharedNotes("a".repeat(22))).toEqual([]);
+
+    // 남의 글 · 주인 글은 기기로 못 건드린다
+    await d.noteEdit(TOKEN, dev(1), c.id, "남이 고침");
+    await d.noteEdit(TOKEN, dev(1), r.id, null);
+    t.at += 1000;
+    await d.noteEdit(TOKEN, dev(1), g.id, " 고친 글 ");
+    const after = (await d.notes(ROOT_REPORT)).find((n) => n.id === g.id)!;
+    expect(after.body).toBe("고친 글");
+    expect(after.updated_at > after.created_at).toBe(true);
+    expect((await d.notes(ROOT_REPORT)).map((n) => n.body)).toEqual(["고친 글", "근거가 약합니다", "보강하겠습니다"]);
+    await d.noteEdit(TOKEN, dev(1), g.id, null);
+    await d.noteDelete(c.id);
+    expect((await d.notes(ROOT_REPORT)).map((n) => n.body)).toEqual(["보강하겠습니다"]);
+    // 이름을 바꾸면 라벨도 바뀐다 (읽을 때 기기 줄에서)
+    t.at += 11_000;
+    const n2 = (await d.noteWrite(TOKEN, dev(2), "둘째"))!;
+    await d.viewName(TOKEN, dev(2), null);
+    expect((await d.notes(ROOT_REPORT)).find((n) => n.id === n2.id)!.label).toBe("게스트 2");
+  });
+
   it("표본으로 시작할 수 있고, 게스트 번호는 표본 다음부터", async () => {
     const d = new MemoryDrawer([{ id: ROOT_REPORT, kind: "report", name: "보고서", report_kind: "method", blocks: sampleBlocks(), share_token: TOKEN }], {
       now,

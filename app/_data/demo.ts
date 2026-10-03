@@ -4,7 +4,7 @@
 import { sampleBlocks } from "../../lib/fixtures";
 import { cachedDrawer, DataCache } from "./cache";
 import { MemoryLive } from "./liveMemory";
-import { MemoryDrawer, type Seed, type ViewSeed } from "./memory";
+import { MemoryDrawer, type NoteSeed, type Seed, type ViewSeed, type VisitSeed } from "./memory";
 import { meetSeed } from "./meetDemo";
 import { MemoryMeet } from "./meetMemory";
 import { scheduleSeed } from "./scheduleDemo";
@@ -154,6 +154,8 @@ function seed(now: Date): Seed[] {
       agent_updated_at: ago(60 * 24 * 3),
       read_at: null,
       share_token: DEMO_SHARE_TOKEN,
+      // 세 번 고친 보고서 — 옛 버전에 붙은 글에 v1 · v2 라벨이 보인다 (7-5장)
+      version: 3,
       blocks: [
         { type: "verdict", v: "진짜 틈은 기능 개수가 아니라 이어짐", w: "투두·프로젝트 관리·암기 앱은 무료로 충분하다." },
         { type: "list", h: "남은 빈칸", items: ["의견을 결정·할 일로 옮기는 단계", "IA·플로우와 프로젝트가 같은 것을 가리키는 것", "시간을 맞춘 뒤의 모임 기록"] },
@@ -193,6 +195,58 @@ function viewSeed(now: Date): ViewSeed[] {
   ];
 }
 
+/** 방문 표본: 기기마다 몇 번 (읽은 초의 합이 viewSeed 의 seconds 와 같다). 보고서는 지금 v3 */
+function visitSeed(now: Date): VisitSeed[] {
+  const ago = (sec: number) => new Date(now.getTime() - sec * 1000).toISOString();
+  const H = 3600;
+  const row = (n: number, version: number, startSec: number, seconds: number): VisitSeed => ({
+    item_id: SHARED_ID,
+    device: dev(n),
+    version,
+    started_at: ago(startSec),
+    last_at: ago(Math.max(startSec - seconds, 0)),
+    seconds,
+  });
+  return [
+    row(1, 1, 24 * H * 3, 600),
+    row(1, 2, 24 * H * 2, 300),
+    row(1, 3, 24 * H, 200),
+    row(1, 3, 180, 160),
+    row(2, 3, 140, 95),
+    row(3, 2, 24 * H * 2, 25),
+    row(3, 3, 5 * H + 15, 15),
+    row(4, 3, 24 * H, 610),
+    row(5, 1, 24 * H * 6, 100),
+    row(5, 1, 24 * H * 4, 60),
+    row(5, 2, 24 * H * 2 + 40, 40),
+  ];
+}
+
+/** 방명록 · 댓글 표본: 방명록 둘 + 주인 답글, 댓글 셋 — 하나는 v2 때 0번 블록에 쓴 것(지금은 1번으로 옮겨짐), 하나는 없어진 블록 */
+function noteSeed(now: Date): NoteSeed[] {
+  const ago = (sec: number) => new Date(now.getTime() - sec * 1000).toISOString();
+  const H = 3600;
+  const n = (device: string | null, body: string, version: number, agoSec: number, block: number | null = null, anchor: string | null = null): NoteSeed => ({
+    item_id: SHARED_ID,
+    device,
+    by_owner: device === null,
+    body,
+    version,
+    block,
+    anchor,
+    created_at: ago(agoSec),
+    updated_at: ago(agoSec),
+  });
+  return [
+    n(dev(1), "일정 연동은 어디까지 보나요? 캘린더 쪽 비교가 있으면 좋겠습니다", 1, 24 * H * 3 - 60, 5, "일정 연동"),
+    n(dev(3), "의견을 결정으로 옮기는 단계가 정말 빈칸인지는 더 봐야 할 것 같습니다.\n노션 데이터베이스로도 비슷하게 됩니다", 2, 24 * H * 2 - 120, 0, "남은 빈칸"),
+    n(dev(1), "정리가 깔끔해서 한 번에 읽혔습니다", 2, 24 * H * 2 - 60),
+    n(dev(5), "이어짐이라는 표현이 좋네요", 3, 24 * H * 2 - 30, 1, "남은 빈칸"),
+    n(dev(4), "모임 기록 부분이 더 궁금합니다", 3, 23 * H - 300),
+    n(null, "다음 판에 모임 기록을 더 넣겠습니다", 3, 20 * H),
+  ];
+}
+
 /** 라이브 표본: 핑 기준 둘이 presence 에도 있다 (게스트 2 는 블록을 옮겨 다닌다) */
 const liveSamples = (): Record<string, Presence[]> => ({
   [DEMO_SHARE_TOKEN]: [
@@ -206,7 +260,7 @@ let instance: MemoryDrawer | null = null;
 export function demoDrawer(): MemoryDrawer {
   if (!instance) {
     const now = new Date();
-    instance = new MemoryDrawer(seed(now), { latency: 150, images: DEMO_IMAGES, views: viewSeed(now) });
+    instance = new MemoryDrawer(seed(now), { latency: 150, images: DEMO_IMAGES, views: viewSeed(now), visits: visitSeed(now), notes: noteSeed(now) });
   }
   return instance;
 }

@@ -105,7 +105,7 @@ ${BLOCKS_HELP}`,
     {
       title: "보고서 읽기",
       description:
-        "보고서 읽기. 범위 없이 부르면 차례(outline)·판정·version 만 준다. 내용은 from·to(0부터, to 포함)로 필요한 블록만 읽는다.",
+        "보고서 읽기. 범위 없이 부르면 차례(outline)·판정·version 만 준다. 내용은 from·to(0부터, to 포함)로 필요한 블록만 읽는다.\n범위 없는 결과에는 읽은 사람이 남긴 글(notes: 라벨·그때 version·블록 번호·글)도 실린다 — 블록 번호는 그 version 기준이다.",
       inputSchema: {
         id: z.string().describe("보고서 id (uuid) 또는 웹 링크"),
         from: z.number().int().optional().describe("첫 블록 번호 (0부터)"),

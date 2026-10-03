@@ -446,6 +446,40 @@ describe("report_get", () => {
     expect(good(await drawer.report_get({ id: rep.id })).verdict).toBeUndefined();
   });
 
+  it("읽은 사람이 남긴 글(notes)은 범위 없는 결과에만, 있을 때만 — 라벨 · 그때 version · 블록 · 글. 지운 것은 빠진다", async () => {
+    const { owner, drawer } = setup();
+    const rep = await newReport(drawer, "/", "글 달린 보고서");
+    expect(good(await drawer.report_get({ id: rep.id })).notes).toBeUndefined();
+    // 공유 → 손님 둘이 들어와 방명록 · 댓글, 주인이 답글, 하나는 지움
+    const token = "mcp-notes-token-000001";
+    await db.query("update ez_items set share_token = $2 where id = $1 and owner = $3", [rep.id, token, owner]);
+    const dev = (n: number) => `device-${String(n).padStart(15, "0")}`;
+    await db.query("select * from ez_view_open($1, $2, $3)", [token, dev(1), "PC"]);
+    await db.query("select * from ez_view_open($1, $2, $3)", [token, dev(2), "PC"]);
+    await db.query("select ez_view_name($1, $2, $3)", [token, dev(2), "민서"]);
+    const g = (await db.query<Row>("select * from ez_note_write($1, $2, $3)", [token, dev(1), "잘 읽었습니다"])).rows[0]!;
+    await db.query("update ez_notes set created_at = created_at - interval '2 minutes' where id = $1", [g.id]);
+    await db.query("select * from ez_note_write($1, $2, $3, $4, $5)", [token, dev(2), "근거가 약합니다", 5, "근거"]);
+    await db.query("update ez_notes set created_at = created_at - interval '1 minute' where item_id = $1 and block = 5", [rep.id]);
+    await db.query("insert into ez_notes (item_id, body, block, anchor, by_owner, version) values ($1, '보강하겠습니다', 5, '근거', true, 1)", [rep.id]);
+    const gone = (await db.query<Row>("select * from ez_note_write($1, $2, $3)", [token, dev(1), "지울 글"])).rows[0]!;
+    await db.query("select ez_note_edit($1, $2, $3)", [token, dev(1), gone.id]);
+
+    const r = good(await drawer.report_get({ id: rep.id }));
+    expect(r.notes.map((x: Row) => [x.label, x.version, x.block, x.anchor, x.body])).toEqual([
+      ["게스트 1", 1, null, undefined, "잘 읽었습니다"],
+      ["민서", 1, 5, "근거", "근거가 약합니다"],
+      ["주인", 1, 5, "근거", "보강하겠습니다"],
+    ]);
+    expect(typeof r.notes[0].created_at).toBe("string");
+    expect(r.notes[0].id).toBeUndefined();
+    expect(good(await drawer.report_get({ id: rep.id, from: 0, to: 1 })).notes).toBeUndefined();
+    // 남의 서랍에서는 안 보인다
+    expect(good(await drawer.report_get({ id: rep.id })).notes).toHaveLength(3);
+    const other = setup();
+    bad(await other.drawer.report_get({ id: rep.id }), "NOT_FOUND");
+  });
+
   it("범위(0부터, to 포함)면 그 블록들 + version", async () => {
     const { drawer } = setup();
     const rep = await newReport(drawer, "/", "범위");

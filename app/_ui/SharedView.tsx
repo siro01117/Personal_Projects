@@ -6,23 +6,31 @@
 //    페이지를 떠날 때(pagehide)는 keepalive 로 마지막 한 번
 //  - 라이브에는 {기기, 라벨, 화면 가운데 블록 번호} 만 올린다. 블록은 스크롤이 멈춘 뒤 300ms, 바뀔 때만. 남의 상태는 읽지 않는다
 //  - 맨 아래 작은 글자 "이름 적기"(이미 적었으면 "이름 · 바꾸기"). 한글 조합 중 Enter 는 무시. 비우면 다시 게스트 n
-//  - 주인 본인(로그인 세션)은 DB 가 건너뛴다(open 이 빈 결과) — 그때는 핑 · 라이브 · 이름 칸 모두 없다
+//  - 주인 본인(로그인 세션)은 DB 가 건너뛴다(open 이 빈 결과) — 그때는 핑 · 라이브 · 이름 칸 · 적는 칸 모두 없다
+// 방명록 · 댓글 (설계서 7-5장): 글은 ez_notes_list 로 읽고(열어 둔 동안 30초마다 다시), 쓰기 · 고치기 · 지우기는 기기 열쇠로.
+//  - 맨 아래 방명록(글 목록 + 적는 칸). 블록 옆 댓글 수, 블록을 누르면 그 아래 댓글 줄 + 적는 칸. 자기 것(같은 게스트 번호)만 고치고 지운다
+//  - 글마다 썼을 때 버전 — 지금 버전과 다르면 옅은 v12. 버전이 바뀌어 옮겨진 블록은 anchor 로 다시 찾는다 (_logic/notes)
+//  - 라벨이 "게스트 n" 이면 적는 칸 옆에 "이름 적기" 가 한 번 더 보인다
 
 import { ThemeToggle } from "./ThemeToggle";
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { charCount } from "../../lib/names";
-import { toKorean } from "../../lib/errors";
+import { DbError, toKorean } from "../../lib/errors";
 import { browserStore } from "../_data/cache";
 import { useSource } from "../_data/source";
-import type { LiveSession, Presence, SharedDoc, Viewer } from "../_data/types";
+import type { LiveSession, NoteRow, Presence, SharedDoc, Viewer } from "../_data/types";
 import { formatDay } from "../_logic/drawer";
+import { anchorsOf, noteCounts, NOTES_REFRESH_MS, placeNotes } from "../_logic/notes";
 import { centerBlock, deviceOf, PING_MS, SEEN_MAX_SEC, uaHint, VIEWER_NAME_MAX, viewerLabel } from "../_logic/views";
-import { Blocks, type ImageUrls } from "./Blocks";
+import { Blocks, type ImageUrls, type NotesCtx } from "./Blocks";
+import { NoteInput, NoteList, Thread } from "./Notes";
 import { Rail, RAIL_MIN } from "./ReportView";
 
 /** 스크롤이 멈춘 뒤 이만큼 지나면 가운데 블록을 다시 본다 */
 const SCROLL_SETTLE_MS = 300;
 const composing = (e: KeyboardEvent) => e.nativeEvent.isComposing || e.keyCode === 229;
+/** 공개 페이지에서 주인 글의 이름 */
+const OWNER = "주인";
 
 export function SharedView({ token }: { token: string }) {
   const src = useSource();
@@ -34,9 +42,12 @@ export function SharedView({ token }: { token: string }) {
   const [nameIn, setNameIn] = useState("");
   const [nameErr, setNameErr] = useState<string | null>(null);
   const [nameBusy, setNameBusy] = useState(false);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [openBlock, setOpenBlock] = useState<number | null>(null);
   /** 라이브에 올린 상태 · 들어가 있는 채널 */
   const state = useRef<Presence | null>(null);
   const session = useRef<LiveSession | null>(null);
+  const nameRef = useRef<HTMLDivElement>(null);
   // 사진은 로그인 없이(anon) — 공유 켜진 보고서가 쓰는 것만 정책이 허용한다
   const images = useCallback<ImageUrls>((paths) => (src ? src.data.imageUrls(paths, true) : Promise.resolve({})), [src]);
 
@@ -119,6 +130,25 @@ export function SharedView({ token }: { token: string }) {
     };
   }, [src, token, device, ready]);
 
+  // 글: 열 때와 보이는 동안 30초마다 다시 읽는다 (남이 쓴 것 · 주인 답글이 들어온다)
+  useEffect(() => {
+    if (!src || !ready) return;
+    let alive = true;
+    const load = () => {
+      if (document.visibilityState !== "visible") return;
+      src.data.sharedNotes(token).then(
+        (rows) => alive && setNotes(rows),
+        () => {},
+      );
+    };
+    load();
+    const timer = setInterval(load, NOTES_REFRESH_MS);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [src, token, ready]);
+
   // 화면 가운데 블록: 스크롤이 멈춘 뒤 300ms, 바뀔 때만 올린다
   const blockCount = ready && Array.isArray(doc.blocks) ? doc.blocks.length : 0;
   useEffect(() => {
@@ -168,6 +198,8 @@ export function SharedView({ token }: { token: string }) {
         state.current = { ...state.current, label: viewerLabel({ ...viewer, name: next }) };
         session.current?.track(state.current);
       }
+      // 내 글의 라벨도 바뀐다 (서버는 읽을 때 기기 줄에서 가져온다)
+      if (viewer) setNotes((list) => list.map((x) => (x.guest_no === viewer.guest_no && !x.by_owner ? { ...x, label: next ?? `게스트 ${viewer.guest_no}` } : x)));
       setNaming(false);
     } catch (err) {
       setNameErr(toKorean(err).message);
@@ -175,6 +207,101 @@ export function SharedView({ token }: { token: string }) {
       setNameBusy(false);
     }
   }
+
+  /** 적는 칸 옆 "이름 적기" — 맨 아래 이름 칸을 열고 거기로 */
+  const openNaming = useCallback(() => {
+    setNameIn("");
+    setNaming(true);
+    requestAnimationFrame(() => nameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, []);
+
+  // ------------------------------------------------------------ 방명록 · 댓글
+
+  const blocks = ready && Array.isArray(doc.blocks) ? doc.blocks : [];
+  const version = ready ? doc.version : 0;
+  const anchors = useMemo(() => anchorsOf(blocks), [blocks]);
+  const placed = useMemo(() => placeNotes(notes, anchors, version), [notes, anchors, version]);
+  const counts = useMemo(() => noteCounts(placed), [placed]);
+  const now = new Date();
+  const mine = useCallback((n: NoteRow) => viewer !== null && !n.by_owner && n.guest_no === viewer.guest_no, [viewer]);
+
+  const write = useCallback(
+    async (body: string, block?: number) => {
+      if (!src || !device) throw new DbError("[EZ_NOT_FOUND] 아직 준비되지 않았습니다. 잠시 뒤 다시 하세요", "P0001");
+      const row = await src.data.noteWrite(token, device, body, block ?? null, block === undefined ? null : (anchors[block] ?? null));
+      if (!row) throw new DbError("[EZ_NOT_FOUND] 이 링크에는 남길 수 없습니다", "P0001");
+      setNotes((list) => [...list, row]);
+    },
+    [src, device, token, anchors],
+  );
+
+  const edit = useCallback(
+    async (id: string, body: string) => {
+      if (!src || !device) return;
+      let prev: NoteRow | undefined;
+      setNotes((list) =>
+        list.map((x) => {
+          if (x.id !== id) return x;
+          prev = x;
+          return { ...x, body, updated_at: new Date().toISOString() };
+        }),
+      );
+      try {
+        await src.data.noteEdit(token, device, id, body);
+      } catch (e) {
+        setNotes((list) => list.map((x) => (x.id === id && prev ? prev : x)));
+        throw e;
+      }
+    },
+    [src, device, token],
+  );
+
+  const remove = useCallback(
+    async (id: string) => {
+      if (!src || !device) return;
+      let prev: NoteRow[] = [];
+      setNotes((list) => {
+        prev = list;
+        return list.filter((x) => x.id !== id);
+      });
+      try {
+        await src.data.noteEdit(token, device, id, null);
+      } catch (e) {
+        setNotes(prev);
+        throw e;
+      }
+    },
+    [src, device, token],
+  );
+
+  const nameAside =
+    viewer && !viewer.name ? (
+      <button type="button" className="lnk" onClick={openNaming}>
+        이름 적기
+      </button>
+    ) : null;
+
+  const notesCtx: NotesCtx | undefined = ready
+    ? {
+        counts,
+        open: openBlock,
+        onToggle: (i) => setOpenBlock((cur) => (cur === i ? null : i)),
+        thread: (i) => (
+          <Thread
+            notes={placed.byBlock.get(i) ?? []}
+            current={version}
+            ownerLabel={OWNER}
+            now={now}
+            canEdit={mine}
+            canDelete={mine}
+            onEdit={edit}
+            onDelete={remove}
+            onWrite={viewer ? (body) => write(body, i) : undefined}
+            aside={nameAside}
+          />
+        ),
+      }
+    : undefined;
 
   if (doc === null) return null;
   if (doc === "gone") {
@@ -185,7 +312,6 @@ export function SharedView({ token }: { token: string }) {
       </div>
     );
   }
-  const blocks = Array.isArray(doc.blocks) ? doc.blocks : [];
   const rail = blocks.length >= RAIL_MIN;
   return (
     <div className="app shared">
@@ -196,9 +322,16 @@ export function SharedView({ token }: { token: string }) {
             <h1>{doc.name}</h1>
             <div className="by">{formatDay(doc.updated_at)}</div>
           </div>
-          <Blocks blocks={blocks} images={images} />
+          <Blocks blocks={blocks} images={images} notes={notesCtx} />
+          {(viewer || placed.guestbook.length > 0) && (
+            <section className="gb" aria-label="방명록">
+              <NoteList notes={placed.guestbook} current={version} ownerLabel={OWNER} now={now} canEdit={mine} canDelete={mine} onEdit={edit} onDelete={remove} />
+              {/* 방명록 칸 옆에는 "이름 적기" 를 두지 않는다 — 바로 아래 이름 칸이 있다 */}
+              {viewer && <NoteInput placeholder="남길 말" ariaLabel="방명록" onSave={(body) => write(body)} />}
+            </section>
+          )}
           {viewer && (
-            <div className="sv-name">
+            <div className="sv-name" ref={nameRef}>
               {naming ? (
                 <form onSubmit={(e) => void saveName(e)} aria-label="이름">
                   <input

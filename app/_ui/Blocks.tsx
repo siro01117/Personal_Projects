@@ -12,6 +12,8 @@
 // 가장자리가 화면 바탕과 같은 밝기(라이트+light · 다크+dark)인 사진만 포인트색 테두리 — globals.css --img-edge-*.
 // 고치기 모드에서 arrange 를 받으면 블록마다 손잡이(점 여섯 개)와 고름 표시가 붙는다 — 고르기 · 지우기 · 옮기기는 useArrange 가 한다.
 // 블록의 React 열쇠는 keys(순서가 바뀌어도 유지) — id="b{번호}" 는 늘 지금 순서의 번호다.
+// 댓글(설계서 7-5장): notes 를 받으면(고치기 모드가 아닐 때) 블록마다 오른쪽 여백에 댓글 수(없으면 올렸을 때만 +), 블록을 누르면 그 아래에 댓글 줄(thread).
+// 링크 · 단추 · 글자 고르기 · 댓글 줄 안을 누른 것은 블록 누르기로 치지 않는다.
 
 import { Component, Fragment, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -43,6 +45,23 @@ export type EditCtx = {
   /** 있으면 고치기 모드에서 손잡이가 보인다 */
   arrange?: ArrangeCtx;
 };
+
+/** 댓글 (설계서 7-5장). 블록 번호 기준 */
+export type NotesCtx = {
+  counts: ReadonlyMap<number, number>;
+  /** 펼친 블록 */
+  open: number | null;
+  onToggle: (i: number) => void;
+  /** 펼친 블록 아래에 그릴 댓글 줄 */
+  thread: (i: number) => ReactNode;
+};
+
+/** 블록 어디를 눌렀을 때 댓글을 펼치거나 접을지 — 링크 · 단추 · 칸 · 댓글 줄 · 사진 크게 보기는 아니고, 글자를 골랐으면 아니다 */
+export function wantsToggle(target: EventTarget | null, selectionCollapsed: boolean): boolean {
+  if (!selectionCollapsed) return false;
+  const el = target instanceof Element ? target : null;
+  return !el?.closest("a, button, input, textarea, [contenteditable], .cmt, .lightbox");
+}
 
 export type EnterAction = "ignore" | "save" | "break" | "none";
 
@@ -170,8 +189,16 @@ class Boundary extends Component<{ children: ReactNode; fallback: ReactNode }, {
   }
 }
 
-/** 블록 맨 바깥 요소에 싣는 것: 지금 번호의 id, 고치기 모드면 열쇠 · 고름 · 끌림 */
-type RootAttrs = { id: string; "data-bk"?: string; "data-flip"?: string; "data-sel"?: ""; "data-moving"?: "" };
+/** 블록 맨 바깥 요소에 싣는 것: 지금 번호의 id, 고치기 모드면 열쇠 · 고름 · 끌림, 댓글이 있으면 누르기 · 펼침 */
+type RootAttrs = {
+  id: string;
+  "data-bk"?: string;
+  "data-flip"?: string;
+  "data-sel"?: "";
+  "data-moving"?: "";
+  "data-cmt"?: "";
+  onClick?: (e: MouseEvent<HTMLElement>) => void;
+};
 
 /** 손잡이: 누르면 고르고, 끌면 옮긴다. 블록 왼쪽 바깥에 선다 (globals.css .grip) */
 function Grip({ k, a }: { k: string; a: ArrangeCtx }) {
@@ -582,12 +609,15 @@ export function Blocks({
   ctx,
   images,
   keys,
+  notes,
 }: {
   blocks: unknown[];
   ctx?: EditCtx;
   images?: ImageUrls;
   /** 블록마다 순서가 바뀌어도 유지되는 열쇠 (blocks 와 같은 길이). 없으면 번호 */
   keys?: readonly string[];
+  /** 댓글 — 고치기 모드에서는 쓰지 않는다 (손잡이 · 도구 줄과 겹치지 않게) */
+  notes?: NotesCtx;
 }) {
   const parsed = blocks.map(parseBlock);
   // 인용 번호는 첫 출처 블록을 가리킨다 (lib/blocks 검사와 같다)
@@ -613,6 +643,7 @@ export function Blocks({
 
   const keyOf = (i: number) => keys?.[i] ?? `k${i}`;
   const arrange = ctx?.editing ? ctx.arrange : undefined;
+  const nc = ctx?.editing ? undefined : notes;
 
   const one = (i: number) => {
     const b = parsed[i];
@@ -624,7 +655,33 @@ export function Blocks({
       if (arrange.selected.has(k)) root["data-sel"] = "";
       if (arrange.moving.has(k)) root["data-moving"] = "";
     }
-    const grip = arrange ? <Grip k={k} a={arrange} /> : null;
+    let grip: ReactNode = arrange ? <Grip k={k} a={arrange} /> : null;
+    if (nc) {
+      const count = nc.counts.get(i) ?? 0;
+      const open = nc.open === i;
+      root["data-cmt"] = "";
+      root.onClick = (e) => {
+        const sel = typeof getSelection === "function" ? getSelection() : null;
+        if (wantsToggle(e.target, !sel || sel.isCollapsed)) nc.onToggle(i);
+      };
+      grip = (
+        <>
+          <button
+            type="button"
+            className={count === 0 ? "cmt-n num zero" : "cmt-n num"}
+            aria-label={count === 0 ? "댓글 적기" : `댓글 ${count}개`}
+            aria-expanded={open}
+            onClick={(e) => {
+              e.stopPropagation();
+              nc.onToggle(i);
+            }}
+          >
+            {count === 0 ? "+" : count}
+          </button>
+          {open && nc.thread(i)}
+        </>
+      );
+    }
     const unknown = (
       <div className="blk b-unknown" {...root}>
         {UNKNOWN_BLOCK}

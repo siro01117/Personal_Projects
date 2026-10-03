@@ -14,6 +14,7 @@ import {
   type SearchHit,
   type Store,
   type StoredImage,
+  type StoredNote,
 } from "./store";
 
 const TABLE = "ez_items";
@@ -113,6 +114,24 @@ export class SupabaseStore implements Store {
     return run<SearchHit[]>(
       this.sb.rpc("ez_search", { p_query: q, p_as: this.owner, p_under: under, p_limit: limit }),
     );
+  }
+
+  /** service_role 은 RLS 를 우회하므로 보고서가 주인 것인지 먼저 본다. 쓴 사람은 ez_views 를 끼워 읽는다 */
+  async notes(itemId: string): Promise<StoredNote[]> {
+    const rep = await this.get(itemId);
+    if (!rep) return [];
+    type Raw = Omit<StoredNote, "label"> & { view: { guest_no: number; name: string | null } | null };
+    const rows = (await run<unknown>(
+      this.sb
+        .from("ez_notes")
+        .select("id, by_owner, body, version, block, anchor, created_at, view:ez_views!ez_notes_view_id_fkey(guest_no, name)")
+        .eq("item_id", itemId)
+        .is("deleted_at", null)
+        .order("created_at")
+        .order("id")
+        .limit(PAGE),
+    )) as Raw[];
+    return rows.map(({ view, ...n }) => ({ ...n, label: view ? (view.name ?? `게스트 ${view.guest_no}`) : null }));
   }
 
   // ---------------------------------------------------------------- 사진 (Storage API — SQL 로 지우지 않는다)

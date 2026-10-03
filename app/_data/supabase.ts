@@ -8,7 +8,7 @@ import { browserStore, cachedDrawer, DataCache } from "./cache";
 import { SupabaseLive } from "./liveSupabase";
 import { SupabaseMeet, SupabaseMeetPublic } from "./meetSupabase";
 import { SupabaseSchedule } from "./scheduleSupabase";
-import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow, Viewer, ViewRow } from "./types";
+import type { Auth, Copied, DrawerData, Entry, Folder, NoteRow, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow, Viewer, ViewRow, VisitRow } from "./types";
 
 const TABLE = "ez_items";
 const PAGE = 1000;
@@ -21,6 +21,14 @@ const REPORT_COLS = `${ENTRY_COLS}, blocks, version, agent, share_token`;
 const VIEW_COLS = "id, device, guest_no, name, first_at, last_at, hits, seconds, ua";
 /** 보고서당 기록 상한 (0013 과 같다) */
 const VIEWS_MAX = 500;
+/** 방문 · 글 (0014). 글의 쓴 사람은 ez_views 를 끼워 읽는다 (view_id 외래키) */
+const VISIT_COLS = "id, version, started_at, last_at, seconds";
+const NOTE_COLS = "id, by_owner, body, version, block, anchor, created_at, updated_at, view:ez_views!ez_notes_view_id_fkey(guest_no, name)";
+const VISITS_MAX = 200;
+const NOTES_MAX = 1000;
+
+type NoteRaw = Omit<NoteRow, "guest_no" | "label"> & { view: { guest_no: number; name: string | null } | null };
+const toNote = ({ view, ...n }: NoteRaw): NoteRow => ({ ...n, guest_no: view?.guest_no ?? null, label: view ? (view.name ?? `게스트 ${view.guest_no}`) : null });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Res<T> = { data: T | null; error: { message: string; code?: string; details?: string | null } | null };
@@ -249,6 +257,52 @@ class SupabaseDrawer implements DrawerData {
 
   async viewName(token: string, device: string, name: string | null): Promise<void> {
     await run(sb().rpc("ez_view_name", { p_token: token, p_device: device, p_name: name }));
+  }
+
+  // ------------------------------------------------------------ 방명록 · 댓글 · 방문 (0014)
+  // 주인은 RLS 아래 테이블을 직접 (지운 글은 deleted_at is null 로 걸러 읽는다). 공개 함수 셋은 읽은 사람과 같이 세션 클라이언트로
+
+  async visits(viewId: string): Promise<VisitRow[]> {
+    if (!UUID.test(viewId)) return [];
+    return run<VisitRow[]>(sb().from("ez_visits").select(VISIT_COLS).eq("view_id", viewId).order("started_at", { ascending: false }).limit(VISITS_MAX));
+  }
+
+  async notes(itemId: string): Promise<NoteRow[]> {
+    if (!UUID.test(itemId)) return [];
+    // 끼워 읽은 view 는 외래키가 하나라 객체로 온다 (타입 추론은 배열이라 unknown 을 거친다)
+    const rows = (await run<unknown>(
+      sb().from("ez_notes").select(NOTE_COLS).eq("item_id", itemId).is("deleted_at", null).order("created_at").order("id").limit(NOTES_MAX),
+    )) as NoteRaw[];
+    return rows.map(toNote);
+  }
+
+  async noteReply(itemId: string, body: string, block: number | null = null, anchor: string | null = null): Promise<NoteRow> {
+    const row = (await run<unknown>(
+      sb()
+        .from("ez_notes")
+        .insert({ item_id: itemId, body: body.trim(), block, anchor: block === null ? null : anchor, by_owner: true })
+        .select(NOTE_COLS)
+        .single(),
+    )) as NoteRaw;
+    return toNote(row);
+  }
+
+  async noteDelete(id: string): Promise<void> {
+    // returning 없이 — 지운 줄은 select 정책에 걸리지 않지만, 돌려받을 것도 없다
+    await run(sb().from("ez_notes").update({ deleted_at: new Date().toISOString() }).eq("id", id));
+  }
+
+  async sharedNotes(token: string): Promise<NoteRow[]> {
+    return run<NoteRow[]>(sb().rpc("ez_notes_list", { p_token: token }));
+  }
+
+  async noteWrite(token: string, device: string, body: string, block: number | null = null, anchor: string | null = null): Promise<NoteRow | null> {
+    const rows = await run<NoteRow[]>(sb().rpc("ez_note_write", { p_token: token, p_device: device, p_body: body, p_block: block, p_anchor: anchor }));
+    return rows[0] ?? null;
+  }
+
+  async noteEdit(token: string, device: string, id: string, body: string | null): Promise<void> {
+    await run(sb().rpc("ez_note_edit", { p_token: token, p_device: device, p_id: id, p_body: body }));
   }
 
   async imageUrls(paths: readonly string[], shared = false): Promise<Record<string, string>> {

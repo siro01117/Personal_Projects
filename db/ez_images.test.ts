@@ -126,7 +126,7 @@ describe("공유 페이지에는 local_path 를 싣지 않는다", () => {
     const id = await report(a, "공유 사진", blocks);
     const t = await share(a, id);
     const [got] = await sql("anon", "select * from ez_shared($1)", [t]);
-    expect(Object.keys(got!).sort()).toEqual(["blocks", "name", "report_kind", "schema_version", "updated_at"]);
+    expect(Object.keys(got!).sort()).toEqual(["blocks", "name", "report_kind", "schema_version", "updated_at", "version"]);
     const { local_path: _, ...noPath } = image(src(a));
     expect(got!.blocks).toEqual([blocks[0], noPath, blocks[2]]);
     expect(JSON.stringify(got!.blocks)).not.toContain("비밀 폴더");

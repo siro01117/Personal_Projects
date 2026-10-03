@@ -52,7 +52,8 @@ export type ReportDoc = Entry & {
   share_token: string | null;
 };
 
-export type SharedDoc = { name: string; report_kind: string | null; blocks: unknown[]; updated_at: string };
+/** ez_shared 가 주는 것. version 은 글마다 붙은 버전과 비교하려고 (7-5장) */
+export type SharedDoc = { name: string; report_kind: string | null; blocks: unknown[]; version: number; updated_at: string };
 
 /** ez_views 한 줄 — 보고서 × 기기 (설계서 7-4장). 주인만 읽는다 */
 export type ViewRow = {
@@ -69,6 +70,27 @@ export type ViewRow = {
 
 /** ez_view_open 이 돌려주는 것 — 공개 페이지가 자기 라벨("게스트 n" 또는 이름)을 안다 */
 export type Viewer = { guest_no: number; name: string | null };
+
+/**
+ * ez_notes 한 줄 — 방명록(block 없음) · 댓글(block + anchor) (설계서 7-5장). 공개 페이지 · 주인 화면이 같은 모양으로 본다.
+ * guest_no · label 은 쓴 사람(이름 또는 "게스트 n"). 주인 글은 둘 다 null + by_owner. 기기 줄이 지워진 글도 둘 다 null
+ */
+export type NoteRow = {
+  id: string;
+  guest_no: number | null;
+  label: string | null;
+  by_owner: boolean;
+  body: string;
+  /** 썼을 때 보고서 버전 */
+  version: number;
+  block: number | null;
+  anchor: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** ez_visits 한 줄 — 한 기기의 방문 하나 (들어왔을 때 버전 · 시작 · 마지막 · 읽은 초). 주인만 읽는다 */
+export type VisitRow = { id: string; version: number; started_at: string; last_at: string; seconds: number };
 
 /** 라이브(presence)에 올리는 상태 — 라벨과 보고 있는 블록 번호뿐 */
 export type Presence = { device: string; label: string; block: number | null };
@@ -149,6 +171,20 @@ export interface DrawerData {
   viewPing(token: string, device: string, seenSec: number, keepalive?: boolean): Promise<void>;
   /** ez_view_name — 이름 적기 · 바꾸기 (null 이면 다시 게스트 n) */
   viewName(token: string, device: string, name: string | null): Promise<void>;
+  /** 방문 기록 (주인만, RLS). 최근 것부터 */
+  visits(viewId: string): Promise<VisitRow[]>;
+  /** 방명록 · 댓글 (주인만, RLS — 지운 것은 뺀다). 오래된 것부터 */
+  notes(itemId: string): Promise<NoteRow[]>;
+  /** 주인의 답글 (by_owner). block 을 주면 그 블록의 댓글, 없으면 방명록 */
+  noteReply(itemId: string, body: string, block?: number | null, anchor?: string | null): Promise<NoteRow>;
+  /** 주인이 아무 글이나 지우기 (soft) */
+  noteDelete(id: string): Promise<void>;
+  /** ez_notes_list — 공개 페이지의 글 전부 (없는 열쇠 · 꺼진 링크 · 주인 본인이면 빈 목록) */
+  sharedNotes(token: string): Promise<NoteRow[]>;
+  /** ez_note_write — 그 기기 줄이 있어야 한다. 없으면 null. 10초에 하나([EZ_RATE]) · 1~1,000자([EZ_VALUE]) */
+  noteWrite(token: string, device: string, body: string, block?: number | null, anchor?: string | null): Promise<NoteRow | null>;
+  /** ez_note_edit — 같은 기기가 쓴 것만. body 가 null 이면 지우기 */
+  noteEdit(token: string, device: string, id: string, body: string | null): Promise<void>;
   /**
    * 사진 파일의 잠깐(1시간) 유효한 주소. shared 면 로그인 없이(anon — 공유 켜진 보고서가 쓰는 사진만).
    * 못 받은 경로는 빠진다. 같은 페이지 안에서는 다시 받지 않는다

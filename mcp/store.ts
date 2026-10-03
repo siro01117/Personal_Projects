@@ -57,6 +57,18 @@ export type ItemPatch = Partial<{
 /** 사진 저장소에 있는 파일 하나 (주인 폴더 안) */
 export type StoredImage = { path: string; created_at: string };
 
+/** 읽은 사람이 남긴 글 하나 (ez_notes + 쓴 사람 라벨). 방명록은 block 이 null. 주인 답글은 by_owner (label null) */
+export type StoredNote = {
+  id: string;
+  label: string | null;
+  by_owner: boolean;
+  body: string;
+  version: number;
+  block: number | null;
+  anchor: string | null;
+  created_at: string;
+};
+
 /** 사진 파일: 버킷 ez-images, 경로 <주인 uuid>/<sha256>.webp. 주인 폴더 밖은 다루지 않는다 */
 export interface ImageStore {
   imageExists(path: string): Promise<boolean>;
@@ -88,6 +100,8 @@ export interface Store extends ImageStore {
   remove(id: string): Promise<string>;
   /** ez_search — 이름 또는 보고서 본문 글자에서 찾기. under 가 있으면 그 폴더 아래만 */
   search(q: string, under: string | null, limit: number): Promise<SearchHit[]>;
+  /** 그 보고서의 방명록 · 댓글 (지운 것 빼고, 오래된 것부터). 주인 보고서가 아니면 빈 목록 */
+  notes(itemId: string): Promise<StoredNote[]>;
 }
 
 export const ITEM_COLS = "id, parent_id, kind, name, report_kind, version, agent_updated_at, read_at, updated_at";

@@ -9,7 +9,8 @@ import { arrangeBlocks, arrangeError, editRule, isSameOrder, LIMITS, tidyText, w
 import { DbError } from "../../lib/errors";
 import { charCount, copyName, sameName, uniqueName, validateName } from "../../lib/names";
 import { isUnread } from "../_logic/drawer";
-import type { Copied, DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored, SearchHit, SharedDoc, TrashRow, Viewer, ViewRow } from "./types";
+import { isCurrentVisit, NOTE_GAP_MS, NOTE_MAX } from "../_logic/notes";
+import type { Copied, DrawerData, Entry, Folder, Kind, NoteRow, Path, ReportDoc, Restored, SearchHit, SharedDoc, TrashRow, Viewer, ViewRow, VisitRow } from "./types";
 
 const MAX_DEPTH = 8;
 /** 찾기에서 뺄 키 — 사용자 글자가 아닌 값 (ez_search 와 같다) */
@@ -18,6 +19,11 @@ const TOKEN = /^[A-Za-z0-9_-]{22}$/;
 /** 읽은 사람: 보고서당 상한 · 한 핑에 더하는 초의 상한 (0013 과 같다) */
 const VIEWS_MAX = 500;
 const SEEN_MAX = 60;
+/** 방문: 기기당 상한 · 글: 보고서당 상한 (0014 와 같다) */
+const VISITS_MAX = 200;
+const NOTES_MAX = 1000;
+/** 글에 못 넣는 제어문자 (줄바꿈 · 탭은 된다 — 0014 와 같다) */
+const CONTROL = /[\u0001-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 /** 줄바꿈 + 줄/문단 구분자(U+2028, U+2029) — ez_edit_text 와 같다 */
 const LINE_BREAK = new RegExp(`[\\n\\r${String.fromCharCode(0x2028, 0x2029)}]`);
 
@@ -44,6 +50,12 @@ export type Seed = Partial<Row> & { id: string; kind: Kind; name: string };
 /** 읽은 사람 한 줄 (ez_views 흉내). item_id 가 붙는다 */
 export type ViewSeed = Omit<ViewRow, "id"> & { item_id: string };
 type ViewRecord = ViewRow & { item_id: string };
+/** 방문 한 줄 (ez_visits 흉내). 기기는 item_id + device 로 가리킨다 */
+export type VisitSeed = Omit<VisitRow, "id"> & { item_id: string; device: string };
+type VisitRecord = VisitRow & { view_id: string };
+/** 글 한 줄 (ez_notes 흉내). 쓴 기기는 device (주인 글은 null) */
+export type NoteSeed = Pick<NoteRow, "body" | "version" | "block" | "anchor" | "created_at" | "updated_at"> & { item_id: string; device: string | null; by_owner?: boolean };
+type NoteRecord = Omit<NoteRow, "guest_no" | "label"> & { item_id: string; view_id: string | null; deleted_at: string | null };
 
 export type MemoryOptions = {
   /** 응답을 늦춰 낙관적 갱신이 보이게 (ms) */
@@ -53,6 +65,9 @@ export type MemoryOptions = {
   images?: Record<string, string>;
   /** 읽은 사람 표본 */
   views?: ViewSeed[];
+  /** 방문 · 글 표본 (views 의 기기를 가리킨다) */
+  visits?: VisitSeed[];
+  notes?: NoteSeed[];
 };
 
 const usesImage = (blocks: unknown[] | null, src: string) =>
@@ -80,6 +95,9 @@ export class MemoryDrawer implements DrawerData {
   /** 읽은 사람 (ez_views) · 보고서마다 마지막 게스트 번호 (ez_view_seq) */
   readonly viewRows: ViewRecord[] = [];
   private readonly viewSeq = new Map<string, number>();
+  /** 방문 (ez_visits) · 글 (ez_notes) */
+  readonly visitRows: VisitRecord[] = [];
+  readonly noteRows: NoteRecord[] = [];
   private readonly latency: number;
   private readonly now: () => Date;
   private readonly images: Record<string, string>;
@@ -91,6 +109,27 @@ export class MemoryDrawer implements DrawerData {
     for (const v of opts.views ?? []) {
       this.viewRows.push({ id: randomId(), ...clone(v) });
       this.viewSeq.set(v.item_id, Math.max(this.viewSeq.get(v.item_id) ?? 0, v.guest_no));
+    }
+    for (const x of opts.visits ?? []) {
+      const view = this.viewRow(x.item_id, x.device);
+      if (view) this.visitRows.push({ id: randomId(), view_id: view.id, version: x.version, started_at: x.started_at, last_at: x.last_at, seconds: x.seconds });
+    }
+    for (const n of opts.notes ?? []) {
+      const view = n.device === null ? undefined : this.viewRow(n.item_id, n.device);
+      if (n.device !== null && !view) continue;
+      this.noteRows.push({
+        id: randomId(),
+        item_id: n.item_id,
+        view_id: view?.id ?? null,
+        by_owner: n.by_owner ?? false,
+        body: n.body,
+        version: n.version,
+        block: n.block,
+        anchor: n.anchor,
+        created_at: n.created_at,
+        updated_at: n.updated_at,
+        deleted_at: null,
+      });
     }
     const at = this.now().toISOString();
     for (const s of seed) {
@@ -569,7 +608,7 @@ export class MemoryDrawer implements DrawerData {
     await this.wait();
     if (!TOKEN.test(token)) return null;
     const r = [...this.rows.values()].find((x) => x.share_token === token && x.kind === "report" && x.deleted_at === null);
-    return r ? clone({ name: r.name, report_kind: r.report_kind, blocks: withoutLocalPaths(r.blocks ?? []), updated_at: r.updated_at }) : null;
+    return r ? clone({ name: r.name, report_kind: r.report_kind, blocks: withoutLocalPaths(r.blocks ?? []), version: r.version, updated_at: r.updated_at }) : null;
   }
 
   // ---------------------------------------------------------------- 읽은 사람 (0013 흉내)
@@ -613,6 +652,7 @@ export class MemoryDrawer implements DrawerData {
       const mine = this.viewRows.filter((x) => x.item_id === r.id).sort((a, b) => Date.parse(b.last_at) - Date.parse(a.last_at));
       for (const old of mine.slice(VIEWS_MAX)) this.viewRows.splice(this.viewRows.indexOf(old), 1);
     }
+    this.touchVisit(v, r, 0);
     return { guest_no: v.guest_no, name: v.name };
   }
 
@@ -621,8 +661,129 @@ export class MemoryDrawer implements DrawerData {
     const r = this.viewTarget(token);
     const v = r && this.viewRow(r.id, device);
     if (!v) return;
+    const sec = Math.min(Math.max(Math.round(seenSec) || 0, 0), SEEN_MAX);
     v.last_at = this.now().toISOString();
-    v.seconds += Math.min(Math.max(Math.round(seenSec) || 0, 0), SEEN_MAX);
+    v.seconds += sec;
+    this.touchVisit(v, r, sec);
+  }
+
+  // ---------------------------------------------------------------- 방문 · 글 (0014 흉내)
+
+  /** 현재 방문(30분 안에 살아 있는 마지막 방문)에 초를 더한다. 없으면 새 방문(지금 버전). 기기당 200줄 */
+  private touchVisit(v: ViewRecord, r: Row, sec: number): void {
+    const now = this.now();
+    const at = now.toISOString();
+    const mine = this.visitRows.filter((x) => x.view_id === v.id).sort((a, b) => Date.parse(b.last_at) - Date.parse(a.last_at));
+    const cur = mine[0] && isCurrentVisit(mine[0].last_at, now) ? mine[0] : undefined;
+    if (cur) {
+      cur.last_at = at;
+      cur.seconds += sec;
+      return;
+    }
+    this.visitRows.push({ id: randomId(), view_id: v.id, version: r.version, started_at: at, last_at: at, seconds: sec });
+    for (const old of mine.slice(VISITS_MAX - 1)) this.visitRows.splice(this.visitRows.indexOf(old), 1);
+  }
+
+  async visits(viewId: string): Promise<VisitRow[]> {
+    await this.wait();
+    return this.visitRows
+      .filter((x) => x.view_id === viewId)
+      .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at))
+      .map(({ view_id: _, ...x }) => clone(x));
+  }
+
+  /** 라벨은 읽을 때 기기 줄에서 (ez_notes_list 의 join 과 같다) */
+  private toNote(n: NoteRecord): NoteRow {
+    const { item_id: _i, view_id, deleted_at: _d, ...rest } = n;
+    const v = view_id === null ? undefined : this.viewRows.find((x) => x.id === view_id);
+    return clone({ ...rest, guest_no: v?.guest_no ?? null, label: v ? (v.name ?? `게스트 ${v.guest_no}`) : null });
+  }
+
+  private liveNotes(itemId: string): NoteRecord[] {
+    return this.noteRows
+      .filter((n) => n.item_id === itemId && n.deleted_at === null)
+      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at) || (a.id < b.id ? -1 : 1));
+  }
+
+  private checkBody(body: string): string {
+    const b = body.trim();
+    if (b === "" || charCount(b) > NOTE_MAX || CONTROL.test(b)) throw ez("EZ_VALUE", "글은 1~1,000자로 씁니다");
+    return b;
+  }
+
+  private pushNote(r: Row, view: ViewRecord | null, body: string, block: number | null | undefined, anchor: string | null | undefined): NoteRecord {
+    if (this.noteRows.filter((n) => n.item_id === r.id).length >= NOTES_MAX) throw ez("EZ_LIMIT", "이 보고서에는 더 남길 수 없습니다 (1,000개까지)");
+    const at = this.now().toISOString();
+    const b = block ?? null;
+    const a = b === null ? null : (anchor ?? "").trim().slice(0, 200) || null;
+    const n: NoteRecord = {
+      id: randomId(),
+      item_id: r.id,
+      view_id: view?.id ?? null,
+      by_owner: view === null,
+      body,
+      version: r.version,
+      block: b,
+      anchor: a,
+      created_at: at,
+      updated_at: at,
+      deleted_at: null,
+    };
+    this.noteRows.push(n);
+    return n;
+  }
+
+  async notes(itemId: string): Promise<NoteRow[]> {
+    await this.wait();
+    return this.liveNotes(itemId).map((n) => this.toNote(n));
+  }
+
+  async noteReply(itemId: string, body: string, block: number | null = null, anchor: string | null = null): Promise<NoteRow> {
+    await this.wait();
+    const b = this.checkBody(body);
+    const r = this.live(itemId);
+    if (!r || r.kind !== "report") throw ez("EZ_NOT_FOUND", "보고서가 없습니다");
+    if (block !== null && block < 0) throw ez("EZ_VALUE", "블록 번호가 맞지 않습니다");
+    return this.toNote(this.pushNote(r, null, b, block, anchor));
+  }
+
+  async noteDelete(id: string): Promise<void> {
+    await this.wait();
+    const n = this.noteRows.find((x) => x.id === id && x.deleted_at === null);
+    if (n) n.deleted_at = this.now().toISOString();
+  }
+
+  async sharedNotes(token: string): Promise<NoteRow[]> {
+    await this.wait();
+    const r = this.viewTarget(token);
+    return r ? this.liveNotes(r.id).map((n) => this.toNote(n)) : [];
+  }
+
+  async noteWrite(token: string, device: string, body: string, block: number | null = null, anchor: string | null = null): Promise<NoteRow | null> {
+    await this.wait();
+    const b = this.checkBody(body);
+    if (block !== null && block < 0) throw ez("EZ_VALUE", "블록 번호가 맞지 않습니다");
+    const r = this.viewTarget(token);
+    const v = r && TOKEN.test(device) ? this.viewRow(r.id, device) : undefined;
+    if (!r || !v) return null;
+    const last = this.noteRows.filter((n) => n.view_id === v.id).map((n) => Date.parse(n.created_at));
+    if (last.length > 0 && this.now().getTime() - Math.max(...last) < NOTE_GAP_MS) throw ez("EZ_RATE", "10초에 하나만 남길 수 있습니다");
+    return this.toNote(this.pushNote(r, v, b, block, anchor));
+  }
+
+  async noteEdit(token: string, device: string, id: string, body: string | null): Promise<void> {
+    await this.wait();
+    const b = (body ?? "").trim() === "" ? null : this.checkBody(body!);
+    const r = this.viewTarget(token);
+    const v = r && TOKEN.test(device) ? this.viewRow(r.id, device) : undefined;
+    if (!r || !v) return;
+    const n = this.noteRows.find((x) => x.id === id && x.item_id === r.id && x.view_id === v.id && x.deleted_at === null);
+    if (!n) return;
+    if (b === null) n.deleted_at = this.now().toISOString();
+    else if (b !== n.body) {
+      n.body = b;
+      n.updated_at = this.now().toISOString();
+    }
   }
 
   async viewName(token: string, device: string, name: string | null): Promise<void> {

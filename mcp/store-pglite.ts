@@ -4,7 +4,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { DbError } from "./errors";
 import { migrations, SUPABASE_STUB } from "../db/testing";
-import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store, type StoredImage } from "./store";
+import { ITEM_COLS, type FolderNode, type Item, type ItemPatch, type NewItem, type Report, type SearchHit, type Store, type StoredImage, type StoredNote } from "./store";
 
 /** 마이그레이션까지 돈 빈 DB */
 export async function createTestDb(): Promise<PGlite> {
@@ -151,6 +151,28 @@ export class PgliteStore implements Store {
       match: r.match as SearchHit["match"],
       snippet: (r.snippet as string | null) ?? null,
       updated_at: iso(r.updated_at)!,
+    }));
+  }
+
+  async notes(itemId: string): Promise<StoredNote[]> {
+    const rows = await this.q(
+      `select n.id, coalesce(v.name, '게스트 ' || v.guest_no) as label, n.by_owner, n.body, n.version, n.block, n.anchor, n.created_at
+         from ez_notes n
+         join ez_items i on i.id = n.item_id
+         left join ez_views v on v.id = n.view_id
+        where n.item_id = $1 and i.owner = $2 and n.deleted_at is null
+        order by n.created_at, n.id`,
+      [itemId, this.owner],
+    );
+    return rows.map((r) => ({
+      id: r.id as string,
+      label: (r.label as string | null) ?? null,
+      by_owner: r.by_owner as boolean,
+      body: r.body as string,
+      version: r.version as number,
+      block: (r.block as number | null) ?? null,
+      anchor: (r.anchor as string | null) ?? null,
+      created_at: iso(r.created_at)!,
     }));
   }
 
