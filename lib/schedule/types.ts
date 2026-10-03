@@ -169,6 +169,8 @@ export type TaskRow = {
   rule_date: DateStr | null;
   /** 역할 — 누구로서 하는 일인가 (7-11) */
   role_id: string | null;
+  /** 작업대에 올린 때. null 이면 안 올라감. 사람당 하나 (7-13) */
+  bench_at: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -221,7 +223,8 @@ export const DEFAULT_ROLES: { name: string; from_place: PlaceRole }[] = [
 export const ROLES_MAX = 12;
 export const ROLE_NAME_MAX = 20;
 
-export const CHECKLIST_MAX = 20;
+/** 체크 항목(단계) 상한 — 0016 에서 20 → 50 (docs/플래너.md 7-13) */
+export const CHECKLIST_MAX = 50;
 export const CHECK_ITEM_MAX = 100;
 export const DUE_AFTER_MAX = 60;
 

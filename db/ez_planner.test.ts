@@ -134,14 +134,14 @@ describe("권한 · RLS", () => {
 });
 
 describe("ez_tasks 새 열", () => {
-  it("체크 항목: [{t, done}] 0~20개, t 는 trim 된 1~100자, 다른 키 없음", async () => {
+  it("체크 항목: [{t, done}] 0~50개, t 는 trim 된 1~100자, 다른 키 없음", async () => {
     const a = user();
     expect((await tk(await task(a))).checklist).toEqual([]);
     const item = (t: string, done = false) => ({ t, done });
-    const ok = [[], [item("하나"), item("둘", true)], Array.from({ length: 20 }, (_, i) => item(`항목 ${i}`)), [item("가".repeat(100))]];
+    const ok = [[], [item("하나"), item("둘", true)], Array.from({ length: 50 }, (_, i) => item(`항목 ${i}`)), [item("가".repeat(100))]];
     for (const checklist of ok) expect((await tk(await task(a, { checklist }))).checklist).toEqual(checklist);
     const bad = [
-      Array.from({ length: 21 }, (_, i) => item(`항목 ${i}`)),
+      Array.from({ length: 51 }, (_, i) => item(`항목 ${i}`)),
       [item("가".repeat(101))],
       [item("")],
       [item(" 앞")],
@@ -353,13 +353,13 @@ describe("ez_task_rules 제약", () => {
       await fails(cycle(a, extra), "23514");
   });
 
-  it("체크 항목은 글자 배열 0~20개, 각 trim 된 1~100자", async () => {
+  it("체크 항목은 글자 배열 0~50개, 각 trim 된 1~100자", async () => {
     const a = user();
     expect((await rule(await cycle(a))).checklist).toEqual([]);
-    await cycle(a, { checklist: Array.from({ length: 20 }, (_, i) => `항목 ${i}`) });
+    await cycle(a, { checklist: Array.from({ length: 50 }, (_, i) => `항목 ${i}`) });
     await cycle(a, { checklist: ["가".repeat(100)] });
     for (const checklist of [
-      Array.from({ length: 21 }, (_, i) => `항목 ${i}`),
+      Array.from({ length: 51 }, (_, i) => `항목 ${i}`),
       ["가".repeat(101)],
       [""],
       [" 앞"],

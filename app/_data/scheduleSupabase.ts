@@ -39,7 +39,7 @@ const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
 const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 const TASK_COLS =
-  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, version, created_at, updated_at";
+  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_at, version, created_at, updated_at";
 const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
 const ROLE_COLS = "id, name, from_place, sort, version";
 const SETTINGS_COLS = "prep_first, prep_again, home_stay, meal_min, lunch, dinner, tz, my_name";
@@ -310,6 +310,11 @@ export class SupabaseSchedule implements ScheduleData, PlannerData {
     return rows[0];
   }
 
+  async bench(id: string, on: boolean): Promise<TaskRow> {
+    const row = await run<Record<string, unknown>>(sb().rpc("ez_task_bench", { id, p_on: on }));
+    return pickTask(row);
+  }
+
   // ------------------------------------------------------------ 반복 규칙
 
   async createRule(input: RuleInput): Promise<TaskRule> {
@@ -384,4 +389,11 @@ function pick(r: EventRow & Record<string, unknown>): EventRow {
     id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at,
   } = r;
   return { id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at };
+}
+
+/** ez_task_bench 가 돌려주는 행(테이블 전체 칸)에서 TaskRow 칸만 */
+function pickTask(r: Record<string, unknown>): TaskRow {
+  const out: Record<string, unknown> = {};
+  for (const k of TASK_COLS.split(", ")) out[k] = r[k];
+  return out as TaskRow;
 }

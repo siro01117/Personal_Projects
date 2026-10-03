@@ -1,6 +1,7 @@
 // 플래너 화면 계산 (docs/플래너.md 3장 · 7장). DOM 없이 시험할 수 있는 것만:
 // 목록 넷으로 나누기(지남 · 할 일 · 시간 정함 · 끝냄) · 지남 판정, 사이 sort 값, 시간 정하기의 기본 시작 시각,
-// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 정렬과 구분 묶음(7-12).
+// "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 정렬과 구분 묶음(7-12),
+// 작업대의 단계 다루기 · 떼어내기 · "앉은 지 n분"(7-13), 역할 필터(7-14).
 // 빈 시간 계산은 lib/schedule 의 planRange + freeSlots 가 한다.
 
 import type { KoreanError } from "../../lib/errors";
@@ -215,6 +216,114 @@ export function sortGroups<T extends SortRow>(
   });
   groups.push({ key: "none", label: NONE_LABEL, kind: "none", items: none });
   return groups.filter((g) => g.items.length > 0);
+}
+
+// ------------------------------------------------------------ 역할 필터 (7-14)
+
+/** 역할 필터에서 '역할 없음' 줄의 열쇠 */
+export const NO_ROLE = "none";
+
+/** 필터의 열쇠: 역할 id, 역할이 없거나 지운 역할이면 NO_ROLE */
+export function roleKey(task: Pick<TaskRow, "role_id">, roles: readonly Pick<Role, "id">[]): string {
+  return task.role_id !== null && roles.some((r) => r.id === task.role_id) ? task.role_id : NO_ROLE;
+}
+
+/**
+ * 기억해 둔 필터 글자(끈 열쇠들의 JSON 배열) → 끈 열쇠들. 못 읽으면 빈 배열(전부 켬).
+ * 켠 것이 아니라 끈 것을 기억한다 — 새로 만든 역할은 처음부터 켜져 있다
+ */
+export function parseRoleOff(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const o: unknown = JSON.parse(raw);
+    return Array.isArray(o) ? [...new Set(o.filter((x): x is string => typeof x === "string" && x !== ""))] : [];
+  } catch {
+    return [];
+  }
+}
+
+/** 하나라도 꺼져 있나 (지금 있는 역할 · 역할 없음 기준. 지운 역할의 열쇠는 안 친다) */
+export function roleFilterOn(off: readonly string[], roles: readonly Pick<Role, "id">[]): boolean {
+  return off.some((k) => k === NO_ROLE || roles.some((r) => r.id === k));
+}
+
+/** 그 열쇠를 켜거나 끈 목록 */
+export function toggleRoleOff(off: readonly string[], key: string, on: boolean): string[] {
+  const rest = off.filter((k) => k !== key);
+  return on ? rest : [...rest, key];
+}
+
+/** 꺼진 역할의 줄을 뺀다 */
+export function filterByRole<T extends { task: Pick<TaskRow, "role_id"> }>(rows: readonly T[], off: readonly string[], roles: readonly Pick<Role, "id">[]): T[] {
+  if (off.length === 0) return [...rows];
+  const hide = new Set(off);
+  return rows.filter((r) => !hide.has(roleKey(r.task, roles)));
+}
+
+// ------------------------------------------------------------ 작업대 (7-13)
+
+/** 작업대에 올라간 할 일 (끝낸 것은 DB 가 내려놓지만 화면이 먼저 바뀌는 사이를 위해 한 번 더 거른다) */
+export function benchOf(tasks: readonly TaskRow[]): TaskRow | null {
+  return tasks.find((t) => t.bench_at !== null && t.done_at === null) ?? null;
+}
+
+/** 올린 뒤 지난 분 (0 이상) */
+export function satMinutes(benchAt: string, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - Date.parse(benchAt)) / 60_000));
+}
+
+/** "앉은 지 40분" · "앉은 지 1시간 5분" · 1분이 안 됐으면 "방금 앉음" */
+export function satLabel(min: number): string {
+  if (min < 1) return "방금 앉음";
+  if (min < 60) return `앉은 지 ${min}분`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m === 0 ? `앉은 지 ${h}시간` : `앉은 지 ${h}시간 ${m}분`;
+}
+
+/** 단계(체크 항목) 하나 더하기. 앞뒤 공백을 떼고, 비면 그대로. 넘치면 issue */
+export function addStep(list: readonly CheckItem[], text: string): { list: CheckItem[]; issue: string | null } {
+  const t = text.trim();
+  if (t === "") return { list: [...list], issue: null };
+  if (list.length >= CHECKLIST_MAX) return { list: [...list], issue: `단계는 ${CHECKLIST_MAX}개까지입니다` };
+  if ([...t].length > CHECK_ITEM_MAX) return { list: [...list], issue: `단계 하나는 ${CHECK_ITEM_MAX}자까지입니다` };
+  return { list: [...list, { t, done: false }], issue: null };
+}
+
+/** from 번째 단계를 to 자리로 (to 는 그 단계를 뺀 목록에서의 자리) */
+export function moveStep(list: readonly CheckItem[], from: number, to: number): CheckItem[] {
+  const item = list[from];
+  if (!item) return [...list];
+  const rest = list.filter((_, k) => k !== from);
+  const at = Math.max(0, Math.min(rest.length, to));
+  return [...rest.slice(0, at), item, ...rest.slice(at)];
+}
+
+/** i 번째 단계를 뺀 목록 */
+export function withoutStep(list: readonly CheckItem[], i: number): CheckItem[] {
+  return list.filter((_, k) => k !== i);
+}
+
+/** i 자리에 단계를 도로 넣은 목록 (떼어내기 되돌리기) */
+export function insertStep(list: readonly CheckItem[], i: number, item: CheckItem): CheckItem[] {
+  const at = Math.max(0, Math.min(list.length, i));
+  return [...list.slice(0, at), item, ...list.slice(at)];
+}
+
+/**
+ * 떼어내기: i 번째 단계가 새 할 일이 된다. 제목 = 그 줄, 역할 · 지점 · 마감(딸린 일정 포함)은 지금 할 일에서 물려받는다.
+ * 돌려주는 것: 새 할 일 입력과 그 단계를 뺀 지금 할 일의 단계. 없는 줄이면 null
+ */
+export function detachStep(
+  task: Pick<TaskRow, "checklist" | "role_id" | "place_id" | "due" | "due_event_id">,
+  i: number,
+): { input: { title: string; role_id: string | null; place_id: string | null; due: DateStr | null; due_event_id: string | null }; rest: CheckItem[] } | null {
+  const item = task.checklist[i];
+  if (!item) return null;
+  return {
+    input: { title: item.t, role_id: task.role_id, place_id: task.place_id, due: task.due, due_event_id: task.due_event_id },
+    rest: withoutStep(task.checklist, i),
+  };
 }
 
 // ------------------------------------------------------------ 글자

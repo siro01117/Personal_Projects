@@ -454,6 +454,8 @@ function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   if (role) o.role = role;
   if (t.checklist.length > 0) o.checklist = t.checklist;
   if (t.done_at) o.done_at = t.done_at;
+  // 작업대에 올라간 할 일 (docs/플래너.md 7-13)
+  if (t.bench_at) o.bench = true;
   // 모임에서 나온 할 일 (docs/모임.md 4장)
   if (t.origin_kind === "meet" && t.origin_id) o.meet = t.origin_id;
   o.version = t.version;
@@ -606,6 +608,8 @@ type TodoArgs = {
   rule_id?: string;
   stop?: boolean;
   meet?: string;
+  /** 작업대에 올리기(true) · 내려놓기(false) (docs/플래너.md 7-13) */
+  bench?: boolean;
 };
 
 const blank = (v: string | null | undefined) => (v == null || v.trim() === "" ? null : v);
@@ -769,7 +773,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
   async function saveRule(a: TodoArgs): Promise<ToolResult> {
     const rid = String(a.rule_id).trim();
     if (!UUID.test(rid)) return fail("rule_id 는 반복 규칙의 uuid 입니다 — todo_list(status: rules) 로 찾으세요", "BAD_INPUT");
-    const extra = (["id", "due", "done", "delete", "due_event", "scope"] as const).filter((k) => a[k] !== undefined);
+    const extra = (["id", "due", "done", "delete", "due_event", "scope", "bench"] as const).filter((k) => a[k] !== undefined);
     if (extra.length > 0) return fail(`rule_id 는 ${extra.join(" · ")} 와 같이 못 씁니다 — 규칙의 칸은 title · note · est_min · place · role · checklist · due_after · repeat 입니다`, "BAD_INPUT");
     const rule = await store.getRule(rid);
     if (!rule) return fail(`반복 규칙이 없습니다(이미 멈췄을 수 있습니다): ${rid}`, "NOT_FOUND");
@@ -1214,10 +1218,14 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         const linked = new Map<string, EventRow>();
         for (const e of await store.eventsForTasks(picked.map((t) => t.id))) if (e.task_id) linked.set(e.task_id, e);
         const ctx = await taskCtx(picked, rules, roles);
-        const items = [...open, ...done].map((t) => taskOut(t, linked.get(t.id), ctx));
+        // 작업대에 올라간 할 일이 맨 위 (docs/플래너.md 7-13)
+        const onBench = open.find((t) => t.bench_at !== null);
+        const ordered = onBench ? [onBench, ...open.filter((t) => t !== onBench), ...done] : [...open, ...done];
+        const items = ordered.map((t) => taskOut(t, linked.get(t.id), ctx));
         const late = items.filter((t) => t.late).length;
         const what = { open: "안 끝남", done: "끝냄", all: "전체" }[status];
-        return ok(`할 일 ${items.length}개 (${what})${late > 0 ? ` · 지남 ${late}개` : ""}${tail}`, {
+        const benchNote = onBench ? ` · 작업대 "${onBench.title}"` : "";
+        return ok(`할 일 ${items.length}개 (${what})${late > 0 ? ` · 지남 ${late}개` : ""}${benchNote}${tail}`, {
           status,
           items,
           roles: roles.map((r) => r.name),
@@ -1236,6 +1244,8 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         const isNew = a.id === undefined || a.id === null || a.id === "";
         if (isNew && a.delete) return fail("지울 할 일의 id 를 주세요", "BAD_INPUT");
         if (a.scope !== undefined && a.scope !== "once" && a.scope !== "rule") return fail("scope 는 once(이 할 일만) · rule(규칙도 같이) 중 하나입니다", "BAD_INPUT");
+        if (a.bench !== undefined && typeof a.bench !== "boolean") return fail("bench 는 true(작업대에 올리기) · false(내려놓기) 입니다", "BAD_INPUT");
+        if (a.bench === true && a.done === true) return fail("끝낸 할 일은 작업대에 올릴 수 없습니다 — done 과 bench 를 같이 쓰지 마세요", "BAD_INPUT");
 
         // ---- 새 칸 읽기
         const issues: Issue[] = [];
@@ -1307,7 +1317,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
 
           // 일정이 끝날 때마다: 규칙만 만든다 (지금 할 일은 없음). last_made = 오늘이라 지난 회차는 안 생긴다
           if (rep?.kind === "event") {
-            const extra = (["due", "due_event", "done"] as const).filter((k) => a[k] !== undefined && a[k] !== null);
+            const extra = (["due", "due_event", "done", "bench"] as const).filter((k) => a[k] !== undefined && a[k] !== null);
             if (extra.length > 0) {
               return badInput(extra.map((k) => ({ path: k, reason: "일정이 끝날 때마다 생기는 규칙에는 못 씁니다 — 마감은 due_after(며칠 뒤)로" })));
             }
@@ -1327,8 +1337,12 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           const done_at = a.done ? nowIso : null;
           const origin = meetRef ? { origin_kind: "meet" as const, origin_id: meetRef.id } : {};
           if (!rep) {
-            const t = await store.insertTask({ ...row, ...origin, sort, done_at });
-            return ok(`넣었습니다: ${t.title}${meetRef ? ` (모임 ${meetRef.title})` : ""}`, { created: true, task: await show(t, undefined) });
+            let t = await store.insertTask({ ...row, ...origin, sort, done_at });
+            if (a.bench === true) t = (await store.benchTask(t.id, true)) ?? t;
+            return ok(`넣었습니다: ${t.title}${meetRef ? ` (모임 ${meetRef.title})` : ""}${a.bench === true ? " · 작업대에 올림" : ""}`, {
+              created: true,
+              task: await show(t, undefined),
+            });
           }
           // 주기 반복: 규칙을 만들고 이 할 일이 첫 회차
           if (!link && row.due === null && dueAfter != null) row.due = addDays(today, dueAfter);
@@ -1340,7 +1354,11 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
             await store.stopRule(rule.id);
             throw e;
           }
-          return ok(`넣었습니다: ${t.title} (반복 ${ruleSummary(rule, new Map())})`, { created: true, task: await show(t, undefined) });
+          if (a.bench === true) t = (await store.benchTask(t.id, true)) ?? t;
+          return ok(`넣었습니다: ${t.title} (반복 ${ruleSummary(rule, new Map())})${a.bench === true ? " · 작업대에 올림" : ""}`, {
+            created: true,
+            task: await show(t, undefined),
+          });
         }
 
         // ---- 고치기
@@ -1362,7 +1380,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         if (cur.version !== a.base_version) return taskConflict(cur, linked);
 
         if (a.delete === true) {
-          const others = (["title", "note", "due", "est_min", "done", "place", "role", "checklist", "due_event", "repeat", "due_after", "scope"] as const).filter(
+          const others = (["title", "note", "due", "est_min", "done", "place", "role", "checklist", "due_event", "repeat", "due_after", "scope", "bench"] as const).filter(
             (k) => a[k] !== undefined,
           );
           if (others.length > 0) return fail(`delete 는 ${others.join(" · ")} 와 같이 못 씁니다 — 따로 부르세요`, "BAD_INPUT");
@@ -1461,8 +1479,17 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         }
 
         const ruleChanged = Object.keys(rulePatch).length > 0;
+        // 작업대: 지금과 다를 때만. 끝내면 DB 가 내려놓는다
+        const benchTo = a.bench !== undefined && a.bench !== (cur.bench_at !== null) ? a.bench : undefined;
+        if (benchTo === true && (cur.done_at !== null || patch.done_at)) {
+          return fail("끝낸 할 일은 작업대에 올릴 수 없습니다 — done: false 로 다시 연 뒤 올리세요", "BAD_INPUT");
+        }
+        const benchWord = benchTo === undefined ? "" : benchTo ? "작업대에 올렸습니다" : "작업대에서 내려놓았습니다";
         if (Object.keys(patch).length === 0 && !ruleChanged) {
-          return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: await show(cur, linked) });
+          if (benchTo === undefined) return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: await show(cur, linked) });
+          const b = await store.benchTask(id, benchTo);
+          if (!b) return lostTask();
+          return ok(`${benchWord}: ${b.title}`, { changed: true, task: await show(b, linked) });
         }
         let t: TaskRow | null;
         try {
@@ -1481,9 +1508,11 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
           const r = await store.updateRule(rule.id, rulePatch, rule.version);
           ruleNote = r ? " (앞으로 생길 할 일에도 적용)" : " — 단, 규칙은 그 사이 바뀌어 못 고쳤습니다. todo_list(status: rules) 를 보고 rule_id 로 다시 하세요";
         }
+        if (benchTo !== undefined) t = (await store.benchTask(id, benchTo)) ?? t;
         const cut = patch.due_event_id === null ? " (일정에 딸린 마감 연결을 끊음)" : "";
         const what = "done_at" in patch ? (patch.done_at ? "끝냈습니다" : "다시 열었습니다") : "고쳤습니다";
-        return ok(`${what}: ${t.title}${ruleNote}${cut}`, { changed: true, task: await show(t, linked) });
+        const benchNote = benchWord ? ` · ${benchWord}` : "";
+        return ok(`${what}: ${t.title}${ruleNote}${cut}${benchNote}`, { changed: true, task: await show(t, linked) });
       }),
   };
 }

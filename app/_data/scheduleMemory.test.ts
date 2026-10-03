@@ -362,17 +362,37 @@ describe("MemorySchedule — 일정에 딸린 마감", () => {
 });
 
 describe("MemorySchedule — 할 일의 새 칸", () => {
-  it("지점 · 체크 항목을 읽고 쓴다. 체크 항목은 20개 · 1~100자", async () => {
+  it("지점 · 체크 항목을 읽고 쓴다. 체크 항목은 50개 · 1~100자", async () => {
     const m = new MemorySchedule();
     const p = await m.createPlace({ name: "학교", role: "school" });
     const t = await m.createTask({ title: "과제", place_id: p.id, checklist: [{ t: "1번", done: false }] });
     expect(t).toMatchObject({ place_id: p.id, checklist: [{ t: "1번", done: false }], rule_id: null, rule_date: null, due_event_id: null });
     const u = await m.updateTask(t.id, t.version, { checklist: [{ t: "1번", done: true }], place_id: null });
     expect(u).toMatchObject({ place_id: null, checklist: [{ t: "1번", done: true }] });
-    const many = Array.from({ length: 21 }, (_, i) => ({ t: `항목 ${i}`, done: false }));
+    const many = Array.from({ length: 51 }, (_, i) => ({ t: `항목 ${i}`, done: false }));
     await expect(m.updateTask(u.id, u.version, { checklist: many })).rejects.toThrow(/ez_tasks_checklist_check/);
     await expect(m.updateTask(u.id, u.version, { checklist: [{ t: " 공백 ", done: false }] })).rejects.toThrow(/ez_tasks_checklist_check/);
     await expect(m.updateTask(u.id, u.version, { place_id: "없는 지점" })).rejects.toThrow(/ez_tasks_place_fk/);
+  });
+
+  it("작업대: 사람당 하나, 끝내거나 지우면 내려오고 끝낸 것은 못 올린다 (0016 과 같게)", async () => {
+    const m = new MemorySchedule();
+    const a = await m.createTask({ title: "상법" });
+    const b = await m.createTask({ title: "과제" });
+    expect(a.bench_at).toBeNull();
+    const on = await m.bench(a.id, true);
+    expect(on.bench_at).not.toBeNull();
+    expect((await m.bench(a.id, true)).version).toBe(on.version);
+    await m.bench(b.id, true);
+    expect((await m.tasks()).filter((t) => t.bench_at !== null).map((t) => t.title)).toEqual(["과제"]);
+    const cur = (await m.tasks()).find((t) => t.id === b.id)!;
+    const done = await m.setDone(b.id, cur.version, true);
+    expect(done.bench_at).toBeNull();
+    await expect(m.bench(b.id, true)).rejects.toThrow(/EZ_VALUE/);
+    const x = await m.bench(a.id, true);
+    await m.deleteTask(a.id, x.version);
+    expect((await m.tasks()).some((t) => t.bench_at !== null)).toBe(false);
+    await expect(m.bench(a.id, true)).rejects.toThrow(/EZ_NOT_FOUND/);
   });
 
   it("이어진 일정의 끝 시각이 같이 온다 (지남 판정)", async () => {

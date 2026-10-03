@@ -1,6 +1,6 @@
 "use client";
 
-// 목록 한 줄: 동그라미(끝냄 체크, 누르면 바로) · 지점 심볼 · 제목 · 반복 표시 · 역할(회색 글자, 역할 정렬일 때는 구분 라벨에 적고 줄에서는 뺀다) · 체크 수 · 마감 · 걸릴 시간
+// 목록 한 줄: (작업대에 올라가 있으면 맨 앞에 작은 키위 표시) 동그라미(끝냄 체크, 누르면 바로) · 지점 심볼 · 제목 · 반복 표시 · 역할(회색 글자, 역할 정렬일 때는 구분 라벨에 적고 줄에서는 뺀다) · 체크 수 · 마감 · 걸릴 시간
 // (시간 정함이면 걸릴 시간 대신 일정 시각, 지남이면 무엇이 지났는지).
 // 좁아지면 말줄임 대신 걸릴 시간 → 역할 → 체크 수 → 마감 → 반복 표시 순으로 뺀다(CSS 컨테이너 쿼리).
 // 지남 글자와 지점 심볼은 남긴다. 제목은 띄어쓰기에서만 줄을 바꾼다.
@@ -20,6 +20,7 @@ export function TaskLine({
   place,
   role,
   repeats,
+  benched,
   today,
   selected,
   dragging,
@@ -36,6 +37,8 @@ export function TaskLine({
   role?: string | null;
   /** 살아 있는 반복 규칙에서 온 할 일 */
   repeats?: boolean;
+  /** 작업대에 올라간 할 일 — 줄 앞에 작은 표시 하나 (7-13) */
+  benched?: boolean;
   today: DateStr;
   selected: boolean;
   dragging?: boolean;
@@ -48,11 +51,12 @@ export function TaskLine({
   const checks = checkLabel(task.checklist);
   const byEvent = late?.why === "event";
   const byDue = late?.why === "due";
-  const cls = ["pl-row", selected && "sel", done && "done", dragging && "dragging", onGrab && "movable", (link || byEvent) && "has-when"]
+  const cls = ["pl-row", selected && "sel", done && "done", benched && "benched", dragging && "dragging", onGrab && "movable", (link || byEvent) && "has-when"]
     .filter(Boolean)
     .join(" ");
   return (
     <li className={cls} data-id={task.id} onPointerDown={onGrab ? (e) => onGrab(e, task) : undefined} onClick={() => onPick(task)}>
+      {benched && <span className="bn-mark" title="작업대" />}
       <button
         type="button"
         className="chk"

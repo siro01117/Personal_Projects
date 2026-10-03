@@ -110,10 +110,15 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
         est_min: 60,
         sort: 1,
         role_id: R.univ,
+        place_id: P.school,
+        note: "도입은 짧게. 사례 둘, 결론에 질문 하나",
         checklist: [
           { t: "자료 조사", done: true },
           { t: "슬라이드 초안", done: false },
+          { t: "발표 대본 다듬기", done: false },
         ],
+        // 작업대에 올라가 있다 (docs/플래너.md 7-13)
+        bench_at: ago(40),
       },
       { id: ID(202), title: "운영체제 과제 3", due: d(6), est_min: 120, sort: 2, place_id: P.school, role_id: R.univ },
       { id: ID(203), title: "자취방 계약서 확인", est_min: 30, sort: 3, role_id: R.me },

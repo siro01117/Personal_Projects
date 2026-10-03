@@ -260,7 +260,7 @@ function registerScheduleTools(
     {
       title: "할 일 목록",
       description:
-        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. role 은 역할 이름으로 거르기. 이어진 일정·지점·역할·체크 항목·late(지난 것)·repeat(+rule_id)도 준다. 부를 때 반복 규칙의 새 회차가 생긴다.",
+        "플래너 할 일. status: open(기본)·done·all·rules(반복 규칙). query 는 제목·메모에서 찾기. role 은 역할 이름으로 거르기. 이어진 일정·지점·역할·체크 항목·late(지난 것)·repeat(+rule_id)도 준다. 맨 위 bench=작업대. 부를 때 반복 규칙의 새 회차가 생긴다.",
       inputSchema: {
         status: z.enum(["open", "done", "all", "rules"]).optional(),
         query: z.string().optional(),
@@ -293,7 +293,7 @@ function registerScheduleTools(
           .array(z.union([z.string(), z.object({ t: z.string(), done: z.boolean().optional() })]))
           .nullable()
           .optional()
-          .describe("체크 항목 0~20개: 글자 또는 {t, done}. 통째로 갈아끼움"),
+          .describe("체크 항목(작업대의 단계) 0~50개: 글자 또는 {t, done}. 통째로 갈아끼움"),
         due_event: z
           .object({ id: z.string(), on_date: z.string().optional().describe(`반복 일정이면 회차 날짜 ${DATE}`) })
           .nullable()
@@ -311,6 +311,7 @@ function registerScheduleTools(
         rule_id: z.string().optional().describe("반복 규칙 id (todo_list status: rules)"),
         stop: z.boolean().optional().describe("rule_id 와 같이: 반복 멈춤"),
         meet: z.string().optional().describe("모임 id (새 할 일만)"),
+        bench: z.boolean().optional().describe("작업대: true 올리기(사람당 하나) · false 내려놓기"),
       },
     },
     (a) => call(schedule.todo_save(a)),

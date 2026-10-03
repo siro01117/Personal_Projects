@@ -1,6 +1,6 @@
 "use client";
 
-// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 정렬 줄(7-12) → 목록 넷(지남 · 할 일 · 시간 정함 · 끝냄).
+// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 정렬 줄(7-12) + 역할 필터(7-14) → 작업대 카드(7-13) → 카드 넷(지남 · 할 일 · 시간 정함 · 끝냄, 자리 고정).
 // 줄 누르기는 보기만(넓은 데스크톱 오른쪽 패널 · 좁은 데스크톱 떠 있는 패널 · 폰 보기 시트), 고치기는 '수정' 을 한 번 더.
 // 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 '직접' 정렬일 때 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
 // 전환(docs/모션.md): 줄이 생기고 · 빠지고 · 자리를 바꾸면 FLIP 으로 미끄러진다(useFlip). 데이터는 먼저 바뀐다.
@@ -35,16 +35,24 @@ import {
 } from "../../../lib/schedule";
 import type { EventDeps, RuleInput, TaskInput, TaskLink } from "../../_data/types";
 import {
+  addStep,
+  benchOf,
   DEFAULT_LEN,
+  detachStep,
   dueOptions,
+  filterByRole,
+  insertStep,
   lateOf,
   mergeChecklist,
   moved,
   moveSort,
+  moveStep,
   parseChecks,
   parseDueAfter,
   parseMinutes,
+  parseRoleOff,
   parseSort,
+  roleFilterOn,
   roleText,
   ruleLabel,
   SORT_KEYS,
@@ -53,6 +61,7 @@ import {
   splitTasks,
   taskDraft,
   toggleCheck,
+  toggleRoleOff,
   type Late,
   type Sort,
   type SortGroup,
@@ -70,9 +79,12 @@ import { PlaceDot } from "../schedule/PlaceSymbol";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
+import { BenchCard } from "./BenchCard";
 import { DueForm } from "./DueForm";
 import { PlanForm, planDraftFor, type PlanDraft } from "./PlanForm";
+import { PlannerCards, type CardKey } from "./PlannerCards";
 import { RoleEdit } from "./RoleEdit";
+import { RoleFilter, RoleFilterButton } from "./RoleFilter";
 import { TaskDetail } from "./TaskDetail";
 import { TaskForm } from "./TaskForm";
 import { TaskLine } from "./TaskLine";
@@ -83,12 +95,22 @@ const PANEL_MIN = 1180;
 const CLOCK_MS = 60_000;
 /** 고른 정렬과 방향을 이 기기에 기억한다 ({key, dir}) */
 const SORT_KEY = "ezwork.planner.sort";
+/** 역할 필터에서 끈 열쇠들을 이 기기에 기억한다 (7-14) */
+const ROLE_OFF_KEY = "ezwork.planner.roles";
 
 function readSort(): Sort {
   try {
     return parseSort(localStorage.getItem(SORT_KEY));
   } catch {
     return parseSort(null);
+  }
+}
+
+function readRoleOff(): string[] {
+  try {
+    return parseRoleOff(localStorage.getItem(ROLE_OFF_KEY));
+  } catch {
+    return [];
   }
 }
 
@@ -160,6 +182,8 @@ export function PlannerView() {
   const [showDone, setShowDone] = useState(false);
   const [sort, setSort] = useState<Sort>(readSort);
   const [roleEdit, setRoleEdit] = useState(false);
+  const [roleOff, setRoleOff] = useState<string[]>(readRoleOff);
+  const [roleFilter, setRoleFilter] = useState(false);
   const [linkedEv, setLinkedEv] = useState<EventRow | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -168,7 +192,7 @@ export function PlannerView() {
   dragRef.current = drag;
   const justDragged = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
-  useFlip(listRef, ".pl-row[data-id], .pl-g[data-flip]", {
+  useFlip(listRef, ".pl-row[data-id], .pl-g[data-flip], .pl-bench[data-flip]", {
     // 끝내서 빠지는 줄은 체크가 그려진 채 잠깐 머물렀다 사라진다
     onGhost: (g, id) => {
       if (!state?.tasks.find((t) => t.id === id)?.done_at) return false;
@@ -177,11 +201,20 @@ export function PlannerView() {
     },
   });
 
-  const lists = useMemo(
-    () => splitTasks(state?.tasks ?? [], state?.links ?? [], new Date(clock), { date: today, min: nowMin }),
-    [state, clock, today, nowMin],
-  );
   const roles = useMemo<Role[]>(() => state?.roles ?? [], [state]);
+  // 카드 넷 — 역할 필터를 거친다(작업대 카드는 필터와 무관)
+  const lists = useMemo(() => {
+    const all = splitTasks(state?.tasks ?? [], state?.links ?? [], new Date(clock), { date: today, min: nowMin });
+    const keep = <T,>(xs: T[], task: (x: T) => TaskRow) => filterByRole(xs.map((x) => ({ x, task: task(x) })), roleOff, roles).map((r) => r.x);
+    return {
+      late: keep(all.late, (l) => l.task),
+      open: keep(all.open, (t) => t),
+      timed: keep(all.timed, (l) => l.task),
+      done: keep(all.done, (t) => t),
+    };
+  }, [state, clock, today, nowMin, roleOff, roles]);
+  const filtered = roleFilterOn(roleOff, roles);
+  const bench = useMemo(() => benchOf(state?.tasks ?? []), [state]);
   // 끌어서 순서 바꾸기는 '직접' 정렬에서만
   const manual = sort.key === "manual";
   const openShown = drag ? moved(lists.open, drag.id, drag.to) : lists.open;
@@ -239,6 +272,7 @@ export function PlannerView() {
     setSend(null);
     setMenu(null);
     setRoleEdit(false);
+    setRoleFilter(false);
   }, []);
 
   const closeAll = useCallback(() => {
@@ -248,15 +282,15 @@ export function PlannerView() {
 
   // ------------------------------------------------------------ 넣기 · 끝냄 · 체크 항목 · 순서
 
-  function add() {
-    const title = text.trim();
-    if (title === "" || !state) return;
+  /** 맨 위에 보통 할 일 하나 (역할 · 지점 없이). 넣었으면 true */
+  function addTask(raw: string): boolean {
+    const title = raw.trim();
+    if (title === "" || !state) return false;
     const issue = validateTask({ title })[0];
     if (issue) {
       toast(issue.reason);
-      return;
+      return false;
     }
-    setText("");
     const at = new Date().toISOString();
     const sort = Math.min(0, ...state.tasks.map((t) => t.sort)) - 1;
     const temp: TaskRow = {
@@ -275,19 +309,27 @@ export function PlannerView() {
       rule_id: null,
       rule_date: null,
       role_id: null,
+      bench_at: null,
       version: 1,
       created_at: at,
       updated_at: at,
     };
     void D.run((s) => ({ ...s, tasks: [temp, ...s.tasks] }), () => D.T.createTask({ title }));
+    return true;
   }
 
+  function add() {
+    if (addTask(text)) setText("");
+  }
+
+  /** 끝내면 작업대에서도 내려온다(DB). 되돌리면 작업대에 있던 것은 다시 올린다 */
   async function toggle(t: TaskRow) {
     if (isTemp(t.id)) return;
     const done = t.done_at === null;
+    const benched = t.bench_at !== null;
     const at = new Date().toISOString();
     const row = await D.run(
-      (s) => mapTask(s, t.id, (x) => ({ ...x, done_at: done ? at : null })),
+      (s) => mapTask(s, t.id, (x) => ({ ...x, done_at: done ? at : null, bench_at: done ? null : x.bench_at })),
       (srv) => D.T.setDone(t.id, D.versionOf(srv, t.id, t.version), done),
     );
     if (row && done) {
@@ -295,11 +337,122 @@ export function PlannerView() {
         label: "되돌리기",
         run: () =>
           void D.run(
-            (s) => mapTask(s, t.id, (x) => ({ ...x, done_at: null })),
-            (srv) => D.T.setDone(t.id, D.versionOf(srv, t.id, row.version), false),
+            (s) => (benched ? onBench(s, t.id, at) : mapTask(s, t.id, (x) => ({ ...x, done_at: null }))),
+            async (srv) => {
+              const back = await D.T.setDone(t.id, D.versionOf(srv, t.id, row.version), false);
+              return benched ? D.T.bench(t.id, true) : back;
+            },
           ),
       });
     }
+  }
+
+  // ------------------------------------------------------------ 작업대 (7-13)
+
+  /** 화면 먼저: 그것만 올라가 있게 (끝냄은 푼다) */
+  const onBench = (s: PlannerState, id: string, at: string): PlannerState => ({
+    ...s,
+    tasks: s.tasks.map((x) => (x.id === id ? { ...x, done_at: null, bench_at: x.bench_at ?? at } : x.bench_at !== null ? { ...x, bench_at: null } : x)),
+  });
+
+  function putOnBench(t: TaskRow) {
+    if (isTemp(t.id) || t.done_at !== null) return;
+    closeAll();
+    void D.run(
+      (s) => onBench(s, t.id, new Date().toISOString()),
+      () => D.T.bench(t.id, true),
+    );
+  }
+
+  function putDown(t: TaskRow) {
+    void D.run(
+      (s) => mapTask(s, t.id, (x) => ({ ...x, bench_at: null })),
+      () => D.T.bench(t.id, false),
+    );
+  }
+
+  /** 단계 목록 바꾸기 — 지금 목록은 부를 때의 서버 값에서 (빠르게 여러 번 해도 안 엇갈리게) */
+  function editSteps(t: TaskRow, f: (list: TaskRow["checklist"]) => TaskRow["checklist"]) {
+    return D.run(
+      (s) => mapTask(s, t.id, (x) => ({ ...x, checklist: f(x.checklist) })),
+      (srv) => {
+        const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
+        return D.T.updateTask(t.id, cur.version, { checklist: f(cur.checklist) });
+      },
+    );
+  }
+
+  function addBenchStep(t: TaskRow, text: string): boolean {
+    if (text.trim() === "") return false;
+    const r = addStep(t.checklist, text);
+    if (r.issue) {
+      toast(r.issue);
+      return false;
+    }
+    void editSteps(t, (list) => addStep(list, text).list);
+    return true;
+  }
+
+  /** 떼어내기: 그 단계가 새 할 일로(역할 · 지점 · 마감 물려받음), 단계에서는 빠진다. 되돌리기는 둘 다 */
+  async function detach(t: TaskRow, i: number) {
+    const d = detachStep(t, i);
+    if (!d || isTemp(t.id)) return;
+    const item = t.checklist[i]!;
+    const at = new Date().toISOString();
+    const sort = Math.min(0, ...(state?.tasks ?? []).map((x) => x.sort)) - 1;
+    const temp: TaskRow = {
+      id: tempId(),
+      note: null,
+      est_min: null,
+      sort,
+      done_at: null,
+      origin_kind: null,
+      origin_id: null,
+      checklist: [],
+      rule_id: null,
+      rule_date: null,
+      bench_at: null,
+      version: 1,
+      created_at: at,
+      updated_at: at,
+      ...d.input,
+    };
+    const made = await D.run(
+      (s) => ({ ...s, tasks: [temp, ...s.tasks.map((x) => (x.id === t.id ? { ...x, checklist: d.rest } : x))] }),
+      async (srv) => {
+        const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
+        const k = cur.checklist.findIndex((c) => c.t === item.t);
+        const row = await D.T.createTask(d.input);
+        try {
+          if (k >= 0) await D.T.updateTask(t.id, cur.version, { checklist: cur.checklist.filter((_, j) => j !== k) });
+        } catch (e) {
+          // 단계를 못 뺐으면 방금 만든 할 일을 남기지 않는다
+          await D.T.deleteTask(row.id, row.version).catch(() => {});
+          throw e;
+        }
+        return row;
+      },
+    );
+    if (!made) return;
+    toast("새 할 일로 떼어냈습니다", {
+      label: "되돌리기",
+      run: () =>
+        void D.run(
+          (s) => ({ ...s, tasks: s.tasks.filter((x) => x.id !== made.id).map((x) => (x.id === t.id ? { ...x, checklist: insertStep(x.checklist, i, item) } : x)) }),
+          async (srv) => {
+            await D.T.deleteTask(made.id, D.versionOf(srv, made.id, made.version));
+            const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
+            return D.T.updateTask(t.id, cur.version, { checklist: insertStep(cur.checklist, i, item) });
+          },
+        ),
+    });
+  }
+
+  function saveNote(t: TaskRow, note: string | null) {
+    void D.run(
+      (s) => mapTask(s, t.id, (x) => ({ ...x, note })),
+      (srv) => D.T.updateTask(t.id, D.versionOf(srv, t.id, t.version), { note }),
+    );
   }
 
   /** 체크 항목 체크는 바로. 버전과 지금 목록은 부를 때의 서버 값에서 읽는다(빠르게 여러 개 눌러도 안 엇갈리게) */
@@ -658,6 +811,25 @@ export function PlannerView() {
 
   // ------------------------------------------------------------ 정렬 · 역할 편집
 
+  function pickRole(key: string, on: boolean) {
+    const next = toggleRoleOff(roleOff, key, on);
+    setRoleOff(next);
+    try {
+      localStorage.setItem(ROLE_OFF_KEY, JSON.stringify(next));
+    } catch {
+      // 기억만 못 한다
+    }
+  }
+
+  function openRoleFilter() {
+    if (roleFilter) {
+      setRoleFilter(false);
+      return;
+    }
+    closeAll();
+    setRoleFilter(true);
+  }
+
   function pickSort(next: Sort) {
     setSort(next);
     try {
@@ -738,6 +910,7 @@ export function PlannerView() {
       if (e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Escape") {
         if (menu) setMenu(null);
+        else if (roleFilter) setRoleFilter(false);
         else if (roleEdit) setRoleEdit(false);
         else if (send) setSend(null);
         else if (dueEdit) setDueEdit(null);
@@ -780,6 +953,7 @@ export function PlannerView() {
       place={t.place_id ? placeOf.get(t.place_id) : undefined}
       role={sort.key === "role" ? null : roleText(t, roles)}
       repeats={t.rule_id !== null && liveRules.has(t.rule_id)}
+      benched={t.bench_at !== null && t.done_at === null}
       today={today}
       selected={sel === t.id}
       dragging={drag?.id === t.id}
@@ -813,6 +987,19 @@ export function PlannerView() {
     </div>
   );
 
+  const body = (k: CardKey) =>
+    k === "late"
+      ? rows("late", lists.late.map((l) => ({ task: l.task, link: l.link, late: l })))
+      : k === "open"
+        ? rows(
+            "open",
+            openShown.map((task) => ({ task })),
+            true,
+          )
+        : k === "timed"
+          ? rows("timed", lists.timed)
+          : rows("done", lists.done.map((task) => ({ task })));
+
   const taskById = (id: string | undefined) => (id ? (state.tasks.find((t) => t.id === id) ?? null) : null);
   const editTask = taskById(edit?.id);
   const planTask = taskById(plan?.id);
@@ -821,8 +1008,11 @@ export function PlannerView() {
   let panel: ReactNode = null;
   let panelLabel = "";
   /** 패널 내용이 바뀌면(다른 할 일 · 보기 → 수정) 새로 나타난다 */
-  const panelKey = roleEdit ? "roles" : send ? `send:${send.id}` : dueEdit ? `due:${dueEdit.id}` : plan ? `plan:${plan.id}` : edit ? `edit:${edit.id}` : `view:${sel}`;
-  if (roleEdit) {
+  const panelKey = roleFilter ? "filter" : roleEdit ? "roles" : send ? `send:${send.id}` : dueEdit ? `due:${dueEdit.id}` : plan ? `plan:${plan.id}` : edit ? `edit:${edit.id}` : `view:${sel}`;
+  if (roleFilter) {
+    panelLabel = "역할";
+    panel = <RoleFilter roles={roles} off={roleOff} onToggle={pickRole} />;
+  } else if (roleEdit) {
     panelLabel = "역할 편집";
     panel = <RoleEdit roles={roles} onRename={renameRole} onAdd={addRole} onMove={moveRole} onDelete={(r) => void removeRole(r)} />;
   } else if (send && sendTask) {
@@ -903,6 +1093,7 @@ export function PlannerView() {
         onDue={startDue}
         onClearDue={() => void clearDue()}
         onEdit={startEdit}
+        onBench={selTask.done_at === null && selTask.bench_at === null ? () => putOnBench(selTask) : null}
         onDelete={() => void remove()}
         onMore={
           canSend
@@ -959,6 +1150,7 @@ export function PlannerView() {
             <Icon name={sort.dir === "asc" ? "asc" : "desc"} />
           </button>
         )}
+        <RoleFilterButton active={filtered} open={roleFilter} onClick={openRoleFilter} />
         <button type="button" className="iconbtn rf-edit" aria-label="역할 편집" title="역할 편집" aria-expanded={roleEdit} onClick={openRoles}>
           <Icon name="pen" />
         </button>
@@ -972,59 +1164,31 @@ export function PlannerView() {
             if (viewing && !(e.target as HTMLElement).closest("li, button, a")) closeAll();
           }}
         >
-          {/* 데스크톱은 두 열(왼쪽: 지금 할 것 · 오른쪽: 정해 둔 것과 끝낸 것), 좁으면 한 열로 쌓인다 */}
-          <div className={lists.timed.length + lists.done.length > 0 ? "pl-cols two" : "pl-cols"}>
-            <div className="pl-col">
-              {lists.late.length > 0 && (
-                <section className="pl-sec late" aria-label="지남">
-                  <h2 className="pl-h">
-                    지남<span className="num">{lists.late.length}</span>
-                  </h2>
-                  {rows("late", lists.late.map((l) => ({ task: l.task, link: l.link, late: l })))}
-                </section>
-              )}
-              {openShown.length > 0 && (
-                <section className="pl-sec open" aria-label="할 일">
-                  <h2 className="pl-h">
-                    할 일<span className="num">{openShown.length}</span>
-                  </h2>
-                  {rows(
-                    "open",
-                    openShown.map((task) => ({ task })),
-                    true,
-                  )}
-                </section>
-              )}
-            </div>
-            {lists.timed.length + lists.done.length > 0 && (
-              <div className="pl-col">
-                {lists.timed.length > 0 && (
-                  <section className="pl-sec" aria-label="시간 정함">
-                    <h2 className="pl-h">
-                      시간 정함<span className="num">{lists.timed.length}</span>
-                    </h2>
-                    {rows("timed", lists.timed)}
-                  </section>
-                )}
-                {lists.done.length > 0 && (
-                  <section className="pl-sec" aria-label="끝냄">
-                    <button type="button" className="pl-h pl-fold" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
-                      끝냄
-                      <span className="num">{lists.done.length}</span>
-                      <Icon name={showDone ? "up" : "down"} />
-                    </button>
-                    <Presence>
-                      {showDone && (
-                        <div className="fold" data-flip-skip="">
-                          <div>{rows("done", lists.done.map((task) => ({ task })))}</div>
-                        </div>
-                      )}
-                    </Presence>
-                  </section>
-                )}
-              </div>
-            )}
-          </div>
+          <PlannerCards
+            count={{ late: lists.late.length, open: openShown.length, timed: lists.timed.length, done: lists.done.length }}
+            body={body}
+            showDone={showDone}
+            onFold={() => setShowDone((v) => !v)}
+            bench={
+              bench && (
+                <BenchCard
+                  key={bench.id}
+                  task={bench}
+                  place={bench.place_id ? (placeOf.get(bench.place_id) ?? null) : null}
+                  role={roleText(bench, roles)}
+                  onOpen={() => pick(bench)}
+                  onCheck={(i, done) => check(bench, i, done)}
+                  onAddStep={(text) => addBenchStep(bench, text)}
+                  onMoveStep={(from, to) => void editSteps(bench, (list) => moveStep(list, from, to))}
+                  onDetach={(i) => void detach(bench, i)}
+                  onNote={(note) => saveNote(bench, note)}
+                  onAddTask={addTask}
+                  onDone={() => void toggle(bench)}
+                  onPutDown={() => putDown(bench)}
+                />
+              )
+            }
+          />
         </div>
         {!phone && wide && panel && (
           <aside className="dp pl-dp" aria-label={panelLabel}>

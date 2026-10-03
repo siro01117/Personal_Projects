@@ -30,6 +30,7 @@ export function TaskDetail({
   onDue,
   onClearDue,
   onEdit,
+  onBench,
   onDelete,
   onMore,
 }: {
@@ -55,6 +56,8 @@ export function TaskDetail({
   onDue: () => void;
   onClearDue: () => void;
   onEdit: () => void;
+  /** 작업대에 올리기 (docs/플래너.md 7-13). 없으면(끝냄 · 이미 올라감) 단추를 그리지 않는다 */
+  onBench: (() => void) | null;
   onDelete: () => void;
   /** 더보기 메뉴 (일정으로). 없으면 버튼을 그리지 않는다 */
   onMore: ((e: MouseEvent<HTMLButtonElement>) => void) | null;
@@ -196,6 +199,11 @@ export function TaskDetail({
             </button>
             <span className="brk" />
           </>
+        )}
+        {onBench && (
+          <button type="button" className="ghost" onClick={onBench}>
+            작업대에
+          </button>
         )}
         <button type="button" className="ghost" onClick={onEdit}>
           수정

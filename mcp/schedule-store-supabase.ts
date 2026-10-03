@@ -266,6 +266,15 @@ export class SupabaseScheduleStore implements ScheduleStore {
     return rows.length > 0;
   }
 
+  async benchTask(id: string, on: boolean): Promise<TaskRow | null> {
+    try {
+      return toTask(await run<Row>(this.sb.rpc("ez_task_bench", { id, p_on: on, p_as: this.owner }).single()));
+    } catch (e) {
+      if (e instanceof DbError && e.message.startsWith("[EZ_NOT_FOUND]")) return null;
+      throw e;
+    }
+  }
+
   async meetRef(id: string): Promise<MeetRef | null> {
     const m = await run<Row | null>(
       this.sb.from("ez_meets").select("id, title, place_id, circle_id").eq("owner", this.owner).eq("id", id).is("deleted_at", null).maybeSingle(),

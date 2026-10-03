@@ -30,6 +30,20 @@ import {
   taskScopes,
   whenLabel,
   estOf,
+  addStep,
+  benchOf,
+  detachStep,
+  filterByRole,
+  insertStep,
+  moveStep,
+  NO_ROLE,
+  parseRoleOff,
+  roleFilterOn,
+  roleKey,
+  satLabel,
+  satMinutes,
+  toggleRoleOff,
+  withoutStep,
   type Sort,
 } from "./planner";
 
@@ -49,6 +63,7 @@ const task = (id: string, over: Partial<TaskRow> = {}): TaskRow => ({
   rule_id: null,
   rule_date: null,
   role_id: null,
+  bench_at: null,
   version: 1,
   created_at: "2026-09-01T00:00:00Z",
   updated_at: "2026-09-01T00:00:00Z",
@@ -267,9 +282,9 @@ describe("체크 항목", () => {
     expect(parseChecks(" 자료 조사 \n\n슬라이드\r\n  \n")).toEqual({ texts: ["자료 조사", "슬라이드"], issue: null });
     expect(parseChecks("")).toEqual({ texts: [], issue: null });
   });
-  it("20개 · 100자를 넘기면 알린다", () => {
-    expect(parseChecks(Array.from({ length: 20 }, (_, i) => `항목 ${i}`).join("\n")).issue).toBeNull();
-    expect(parseChecks(Array.from({ length: 21 }, (_, i) => `항목 ${i}`).join("\n")).issue).toMatch(/20개/);
+  it("50개 · 100자를 넘기면 알린다", () => {
+    expect(parseChecks(Array.from({ length: 50 }, (_, i) => `항목 ${i}`).join("\n")).issue).toBeNull();
+    expect(parseChecks(Array.from({ length: 51 }, (_, i) => `항목 ${i}`).join("\n")).issue).toMatch(/50개/);
     expect(parseChecks("가".repeat(100)).issue).toBeNull();
     expect(parseChecks("가".repeat(101)).issue).toMatch(/100자/);
   });
@@ -620,5 +635,75 @@ describe("정렬 (7-12)", () => {
     for (const bad of [null, undefined, "", "role", "{", "null", "[]", '{"key":"name","dir":"asc"}', '{"key":"role","dir":"up"}', '{"key":"role"}']) {
       expect(parseSort(bad)).toEqual({ key: "manual", dir: "asc" });
     }
+  });
+});
+
+describe("역할 필터 (7-14)", () => {
+  const roles = [{ id: "r1" }, { id: "r2" }];
+  const rows = [task("a", { role_id: "r1" }), task("b", { role_id: "r2" }), task("c"), task("d", { role_id: "지운 역할" })].map((t) => ({ task: t }));
+  const ids = (xs: { task: TaskRow }[]) => xs.map((x) => x.task.id);
+
+  it("역할이 없거나 지운 역할이면 '역할 없음' 열쇠", () => {
+    expect(rows.map((r) => roleKey(r.task, roles))).toEqual(["r1", "r2", NO_ROLE, NO_ROLE]);
+  });
+  it("기본은 전부 켬, 끈 역할 · 역할 없음의 줄만 빠진다", () => {
+    expect(ids(filterByRole(rows, [], roles))).toEqual(["a", "b", "c", "d"]);
+    expect(ids(filterByRole(rows, ["r1"], roles))).toEqual(["b", "c", "d"]);
+    expect(ids(filterByRole(rows, [NO_ROLE, "r2"], roles))).toEqual(["a"]);
+  });
+  it("켜고 끄기 · 하나라도 꺼졌나(지운 역할의 열쇠는 안 친다)", () => {
+    const off = toggleRoleOff([], "r1", false);
+    expect(off).toEqual(["r1"]);
+    expect(toggleRoleOff(off, "r1", false)).toEqual(["r1"]);
+    expect(toggleRoleOff(off, "r1", true)).toEqual([]);
+    expect(roleFilterOn([], roles)).toBe(false);
+    expect(roleFilterOn(["r1"], roles)).toBe(true);
+    expect(roleFilterOn([NO_ROLE], roles)).toBe(true);
+    expect(roleFilterOn(["지운 역할"], roles)).toBe(false);
+  });
+  it("기억해 둔 글자 읽기: 못 읽으면 전부 켬", () => {
+    expect(parseRoleOff('["r1","none","r1",3,""]')).toEqual(["r1", "none"]);
+    for (const bad of [null, undefined, "", "{", '{"r1":true}', "null"]) expect(parseRoleOff(bad)).toEqual([]);
+  });
+});
+
+describe("작업대 (7-13)", () => {
+  const steps = [
+    { t: "1장", done: true },
+    { t: "2장", done: false },
+    { t: "3장", done: false },
+  ];
+
+  it("올라간 할 일 · 앉은 지", () => {
+    expect(benchOf([task("a"), task("b", { bench_at: "2026-10-04T01:00:00Z" })])?.id).toBe("b");
+    expect(benchOf([task("b", { bench_at: "2026-10-04T01:00:00Z", done_at: "2026-10-04T02:00:00Z" })])).toBeNull();
+    expect(satMinutes("2026-10-04T01:00:00Z", new Date("2026-10-04T01:40:59Z"))).toBe(40);
+    expect(satMinutes("2026-10-04T01:00:00Z", new Date("2026-10-04T00:59:00Z"))).toBe(0);
+    expect([0, 1, 40, 60, 65].map(satLabel)).toEqual(["방금 앉음", "앉은 지 1분", "앉은 지 40분", "앉은 지 1시간", "앉은 지 1시간 5분"]);
+  });
+
+  it("단계 더하기: 앞뒤 공백 떼고, 빈 것은 그대로, 50개 · 100자 상한", () => {
+    expect(addStep(steps, "  4장  ").list.map((c) => c.t)).toEqual(["1장", "2장", "3장", "4장"]);
+    expect(addStep(steps, "   ")).toEqual({ list: steps, issue: null });
+    const full = Array.from({ length: 50 }, (_, i) => ({ t: `${i}`, done: false }));
+    expect(addStep(full, "하나 더").issue).toMatch(/50개/);
+    expect(addStep(steps, "가".repeat(101)).issue).toMatch(/100자/);
+  });
+
+  it("끌어 옮기기 · 빼기 · 도로 넣기", () => {
+    expect(moveStep(steps, 0, 2).map((c) => c.t)).toEqual(["2장", "3장", "1장"]);
+    expect(moveStep(steps, 2, 0).map((c) => c.t)).toEqual(["3장", "1장", "2장"]);
+    expect(moveStep(steps, 5, 0)).toEqual(steps);
+    expect(withoutStep(steps, 1).map((c) => c.t)).toEqual(["1장", "3장"]);
+    expect(insertStep(withoutStep(steps, 1), 1, steps[1]!)).toEqual(steps);
+  });
+
+  it("떼어내기: 그 줄이 제목, 역할 · 지점 · 마감은 물려받고 단계에서는 빠진다", () => {
+    const t = task("상법", { checklist: steps, role_id: "r1", place_id: "p1", due: "2026-10-10", due_event_id: "e1", note: "메모", est_min: 90 });
+    expect(detachStep(t, 1)).toEqual({
+      input: { title: "2장", role_id: "r1", place_id: "p1", due: "2026-10-10", due_event_id: "e1" },
+      rest: [steps[0], steps[2]],
+    });
+    expect(detachStep(t, 9)).toBeNull();
   });
 });

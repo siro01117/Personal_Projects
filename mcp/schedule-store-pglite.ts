@@ -43,7 +43,7 @@ type Row = Record<string, unknown>;
 const EV = `id, title, date::text as date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id,
   task_id, origin_kind, origin_id, version, updated_at`;
 const TASK = `id, title, note, due::text as due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist,
-  rule_id, rule_date::text as rule_date, role_id, version, created_at, updated_at`;
+  rule_id, rule_date::text as rule_date, role_id, bench_at, version, created_at, updated_at`;
 const RULE = `id, kind, title, note, est_min, place_id, checklist, repeat, start::text as start, event_id, due_after,
   last_made::text as last_made, role_id, version`;
 
@@ -270,6 +270,16 @@ export class PgliteScheduleStore implements ScheduleStore {
       [this.owner, id, baseVersion],
     );
     return rows.length > 0;
+  }
+
+  async benchTask(id: string, on: boolean): Promise<TaskRow | null> {
+    try {
+      const rows = await this.q(`select ${TASK} from ez_task_bench($1::uuid, $2::boolean, $3::uuid)`, [id, on, this.owner]);
+      return rows[0] ? toTask(rows[0]) : null;
+    } catch (e) {
+      if (e instanceof DbError && e.message.startsWith("[EZ_NOT_FOUND]")) return null;
+      throw e;
+    }
   }
 
   async meetRef(id: string): Promise<MeetRef | null> {

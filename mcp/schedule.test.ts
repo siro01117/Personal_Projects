@@ -536,10 +536,10 @@ describe("플래너 v2 — 지점 · 체크 항목 · 일정에 딸린 마감 ·
     expect(none.error.message).not.toContain("where");
   });
 
-  it("검사: 체크 항목 0~20개 · 각 1~100자, due_after 0~60 정수", async () => {
+  it("검사: 체크 항목 0~50개 · 각 1~100자, due_after 0~60 정수", async () => {
     const { s } = setup();
-    const many = bad(await s.todo_save({ title: "x", checklist: Array.from({ length: 21 }, (_, i) => `항목 ${i}`) }), "BAD_INPUT");
-    expect(many.errors).toEqual([{ path: "checklist", reason: "체크 항목은 20개까지 넣을 수 있습니다 (지금 21개)" }]);
+    const many = bad(await s.todo_save({ title: "x", checklist: Array.from({ length: 51 }, (_, i) => `항목 ${i}`) }), "BAD_INPUT");
+    expect(many.errors).toEqual([{ path: "checklist", reason: "체크 항목은 50개까지 넣을 수 있습니다 (지금 51개)" }]);
     const items = bad(await s.todo_save({ title: "x", checklist: ["좋음", "  ", "가".repeat(101), { t: "x", done: "yes" }, 3] }), "BAD_INPUT");
     expect(items.errors.map((e: Row) => e.path)).toEqual(["checklist[1]", "checklist[2]", "checklist[3]", "checklist[4]"]);
     expect(items.errors[1].reason).toBe("체크 항목은 100자까지 쓸 수 있습니다 (지금 101자)");
@@ -1073,6 +1073,51 @@ describe("플래너 — 역할", () => {
     const byTitle = Object.fromEntries(items.map((x) => [x.title, x.role]));
     expect(byTitle).toEqual({ "상법 정리": "대학", 복습: "개인", "역할 없음": undefined, "회사에서 정리": "강사", 스트레칭: undefined, "판례 읽기": "대학" });
     expect((good(await s.todo_list({ role: "대학" })).items as Row[]).map((x) => x.title).sort()).toEqual(["상법 정리", "판례 읽기"]);
+  });
+});
+
+describe("플래너 — 작업대 (7-13)", () => {
+  it("bench: true 로 올리면 todo_list 맨 위에 bench: true, 다른 것을 올리면 앞의 것은 내려온다", async () => {
+    const { s } = setup();
+    const a = good(await s.todo_save({ title: "상법 정리", checklist: ["1장 읽기"] })).task;
+    const b = good(await s.todo_save({ title: "장보기" })).task;
+    const on = await s.todo_save({ id: a.id, base_version: a.version, bench: true });
+    expect(on.summary).toBe("작업대에 올렸습니다: 상법 정리");
+    const list = await s.todo_list({});
+    expect((good(list).items as Row[]).map((t) => [t.title, t.bench])).toEqual([
+      ["상법 정리", true],
+      ["장보기", undefined],
+    ]);
+    expect(list.summary).toBe('할 일 2개 (안 끝남) · 작업대 "상법 정리"');
+    const cur = (good(list).items as Row[])[1]!;
+    good(await s.todo_save({ id: b.id, base_version: cur.version, bench: true }));
+    expect((good(await s.todo_list({})).items as Row[]).map((t) => [t.title, t.bench])).toEqual([
+      ["장보기", true],
+      ["상법 정리", undefined],
+    ]);
+    expect((await rawTask(a.id)).checklist).toEqual([{ t: "1장 읽기", done: false }]);
+  });
+
+  it("넣으면서 올리기 · 내려놓기 · 끝내면 내려옴 · 끝낸 것은 못 올림", async () => {
+    const { s } = setup();
+    const t = good(await s.todo_save({ title: "보고서", bench: true })).task;
+    expect(t.bench).toBe(true);
+    const off = await s.todo_save({ id: t.id, base_version: t.version, bench: false });
+    expect(off.summary).toBe("작업대에서 내려놓았습니다: 보고서");
+    const back = good(await s.todo_save({ id: t.id, base_version: good(off).task.version, bench: true })).task;
+    const done = good(await s.todo_save({ id: t.id, base_version: back.version, done: true })).task;
+    expect(done.bench).toBeUndefined();
+    expect((await rawTask(t.id)).bench_at).toBeNull();
+    bad(await s.todo_save({ id: t.id, base_version: done.version, bench: true }), "BAD_INPUT");
+    bad(await s.todo_save({ title: "x", done: true, bench: true }), "BAD_INPUT");
+    bad(await s.todo_save({ title: "x", bench: "yes" as unknown as boolean }), "BAD_INPUT");
+    bad(await s.todo_save({ id: t.id, base_version: done.version, delete: true, bench: false }), "BAD_INPUT");
+  });
+
+  it("체크 항목(단계)은 50개까지", async () => {
+    const { s } = setup();
+    good(await s.todo_save({ title: "단계 많음", checklist: Array.from({ length: 50 }, (_, i) => `단계 ${i}`) }));
+    bad(await s.todo_save({ title: "너무 많음", checklist: Array.from({ length: 51 }, (_, i) => `단계 ${i}`) }), "BAD_INPUT");
   });
 });
 

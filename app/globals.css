@@ -961,6 +961,58 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .planner .f > .line{min-height:32px}
 .iconbtn.clr{width:32px;height:32px}
 .iconbtn.clr .i{width:16px;height:16px}
+/* 카드 자리 고정(7-14): 비어도 제목 + "없음" 한 줄 */
+.pl-none{margin:0;padding:0 10px 12px 24px;font-size:13px;line-height:20px;color:var(--text-3)}
+/* 역할 필터 단추(7-14): 정렬 줄 오른쪽. 하나라도 끄면 키위 점 */
+.rf-role{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+.rf-role .dot{width:6px;height:6px;border-radius:50%;background:var(--point-ink)}
+.rf-role[aria-expanded="true"]{background:var(--surface-2);color:var(--text-1)}
+/* 필터 시트: 켠 것이 또렷하고 끈 것이 흐리다 (체크 항목과 반대) */
+.rf-list .ck.on span{color:var(--text-1)}
+.rf-list .ck:not(.on) span{color:var(--text-3)}
+/* 작업대에 올라간 할 일 — 줄 앞 작은 키위 막대 하나 */
+.pl-row.benched{position:relative}
+.pl-row .bn-mark{position:absolute;left:2px;top:15px;width:3px;height:14px;border-radius:2px;background:var(--point-ink)}
+/* 작업대 카드(7-13): 맨 위, 두 열에 걸친다. 넓으면 안에서 단계 | 메모 두 칸 */
+.pl-bench{max-width:1440px;margin:0 0 16px;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:16px 18px 14px}
+.bn-h{display:flex;align-items:flex-start;gap:10px;padding:0 6px}
+.bn-h .sym{flex:0 0 auto;display:grid;place-items:center;height:30px}
+.bn-t{min-width:0;text-align:left;font-size:20px;line-height:30px;font-weight:600;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.bn-t:focus-visible{outline:2px solid var(--point-ink);outline-offset:2px;border-radius:var(--r-s)}
+.bn-meta{display:flex;flex-wrap:wrap;gap:2px 12px;min-height:6px;padding:0 6px;margin:2px 0 8px;font-size:12.5px;line-height:18px;color:var(--text-3)}
+.bn-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;min-width:0}
+.bn-steps li{display:flex;align-items:flex-start;border-radius:var(--r-m);user-select:none;-webkit-user-select:none;transition:background var(--t)}
+.bn-steps li:hover{background:var(--surface-2)}
+.bn-steps li.dragging{background:var(--surface);box-shadow:0 6px 18px rgb(0 0 0 / .14);position:relative;z-index:1}
+.bn-steps .ck{flex:1;min-width:0;display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:8px 6px;text-align:left;font-size:15px;line-height:22px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.bn-steps .ck .i{width:18px;height:18px;margin-top:2px;color:var(--text-3);transition:color var(--t)}
+.bn-steps .ck:hover .i,.bn-steps .ck.on .i{color:var(--point-ink)}
+.bn-steps .ck.on span{color:var(--text-3)}
+.bn-cut{flex:0 0 auto;width:34px;height:38px;color:var(--text-3);opacity:0;transition:opacity var(--t),color var(--t)}
+.bn-cut .i{width:15px;height:15px}
+.bn-cut:hover{color:var(--text-1)}
+.bn-steps li:hover .bn-cut,.bn-cut:focus-visible{opacity:1}
+@media (hover: none){ .bn-cut{opacity:1} }
+.bn-steps li.bn-new{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:center;padding:3px 6px;background:none}
+.bn-new .i{width:18px;height:18px;color:var(--text-3);opacity:.45}
+.bn-new input{width:100%;height:32px;border:0;border-bottom:1px solid transparent;background:none;font:inherit;font-size:15px;color:var(--text-1);outline:none;transition:border-color var(--t)}
+.bn-new input:hover{border-bottom-color:var(--border)}
+.bn-new input:focus{border-bottom-color:var(--point-ink)}
+.bn-note{display:block;width:100%;min-height:72px;margin:12px 0 0;padding:10px 12px;border:0;border-radius:var(--r-m);background:var(--surface-2);font:inherit;font-size:14px;line-height:1.6;color:var(--text-1);resize:none;outline:none;field-sizing:content;max-height:60vh}
+.bn-note:focus{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.bn-add{display:flex;align-items:center;gap:10px;height:44px;margin-top:12px;padding:0 6px;border-top:1px solid var(--border);color:var(--text-3);cursor:text}
+.bn-add .i{flex:0 0 auto;width:18px;height:18px}
+.bn-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:14px;color:var(--text-1);outline:none}
+.bn-add:focus-within .i{color:var(--point-ink)}
+.bn-acts{display:flex;flex-wrap:wrap;gap:6px;padding:4px 6px 0}
+@container pstage (min-width: 720px){
+  .pl-bench{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px}
+  .bn-h,.bn-meta,.bn-add,.bn-acts{grid-column:1 / -1}
+  .bn-note{grid-column:2;grid-row:3;margin-top:0;align-self:stretch;min-height:120px}
+}
+@container app (max-width: 760px){
+  .pl-bench{margin-bottom:8px;border-left:0;border-right:0;border-radius:0;padding:12px 10px 12px}
+}
 
 /* ====================================================================================
    모임 (docs/모임.md 5장). 목록과 모임 화면은 플래너의 틀(.planner · .pl-*)을 같이 쓴다 — 회색 바탕 위 종이 카드, 넓으면 두 열.

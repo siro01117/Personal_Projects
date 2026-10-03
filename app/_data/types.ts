@@ -339,6 +339,11 @@ export interface PlannerData {
   restoreTask(id: string): Promise<TaskRow>;
   /** 손으로 정한 순서. 사이에 끼우려면 앞뒤 sort 의 가운데 값 */
   reorder(id: string, sort: number): Promise<TaskRow>;
+  /**
+   * ez_task_bench — 작업대(docs/플래너.md 7-13). on 이면 다른 할 일을 내려놓고 이것을 올린다(이미 올라가 있으면 그대로),
+   * 아니면 내려놓는다. 끝낸 할 일은 [EZ_VALUE]. 끝내거나 지우면 DB 가 내려놓는다
+   */
+  bench(id: string, on: boolean): Promise<TaskRow>;
 
   createRule(input: RuleInput): Promise<TaskRule>;
   updateRule(id: string, patch: Partial<RuleInput>): Promise<TaskRule>;
