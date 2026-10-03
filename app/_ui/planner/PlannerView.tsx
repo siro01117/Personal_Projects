@@ -74,7 +74,6 @@ import { Menu } from "../Menu";
 import { Presence } from "../motion/Presence";
 import { useFlip } from "../motion/useFlip";
 import { EventForm } from "../schedule/EventForm";
-import { PlaceDot } from "../schedule/PlaceSymbol";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
@@ -957,11 +956,6 @@ export function PlannerView() {
         <Fragment key={g.key}>
           {g.kind !== "all" && (
             <h3 className="pl-g" data-flip={`g:${sec}:${g.key}`}>
-              {g.kind === "place" && (
-                <span className={`sym pc-${placeOf.get(g.key)?.color}`}>
-                  <PlaceDot />
-                </span>
-              )}
               <span className="t">{g.label}</span>
             </h3>
           )}

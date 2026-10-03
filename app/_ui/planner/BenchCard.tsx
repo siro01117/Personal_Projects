@@ -12,7 +12,6 @@ import { satLabel, satMinutes } from "../../_logic/planner";
 import { duration } from "../../_logic/schedule";
 import { Icon } from "../Icon";
 import { useFlip } from "../motion/useFlip";
-import { PlaceDot } from "../schedule/PlaceSymbol";
 
 const enter = (e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && !(e.nativeEvent.isComposing || e.keyCode === 229);
 const MINUTE = 60_000;
@@ -154,11 +153,6 @@ export function BenchCard({
   return (
     <section className="pl-bench" aria-label="작업대" data-flip="bench">
       <div className="bn-h">
-        {place && (
-          <span className={`sym pc-${place.color}`} title={place.name}>
-            <PlaceDot />
-          </span>
-        )}
         <button type="button" className="bn-t" onClick={onOpen}>
           {task.title}
         </button>

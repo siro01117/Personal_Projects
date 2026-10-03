@@ -95,7 +95,7 @@ describe("작업대 카드 (7-13)", () => {
     const html = render();
     expect(text(html)).toBe("상법 내용 정리 대학 1시간 30분 앉은 지 40분 1장 읽기 요약 쓰기 판례는 뒤로 끝냄 내려놓기");
     expect(html).toContain('aria-label="작업대"');
-    expect(html).toContain('title="학교"');
+    expect(html).not.toContain('title="학교"'); // 지점 점은 없다 — 장소 정렬이 있으니 색으로 또 표시하지 않는다
     expect(html.match(/role="checkbox"/g)).toHaveLength(2);
     expect(html).toMatch(/aria-checked="true"[^>]*>.*?1장 읽기/);
     expect(html).toContain('aria-label="1장 읽기 떼어내기"');
