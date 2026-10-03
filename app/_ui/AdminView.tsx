@@ -52,6 +52,9 @@ export function lastSeen(at: string | null): string {
 type SheetFocus = "name" | "password" | "delete";
 type Panel = { kind: "add" } | { kind: "made"; login_id: string; password: string } | { kind: "member"; id: string; focus?: SheetFocus };
 
+/** 저장소마다 지난번에 읽은 목록 (화면을 떠났다 돌아와도 바로 그리게) */
+const LAST = new WeakMap<object, { members: MemberRow[]; mods: ModuleRow[] }>();
+
 export function AdminView() {
   const { src, me, fail, reloadMe, tick } = useApp();
   const toast = useToast();
@@ -59,41 +62,83 @@ export function AdminView() {
   const phone = (width ?? 1440) <= PHONE_MAX;
   const isAdmin = me?.role === "admin";
 
-  const [members, setMembers] = useState<MemberRow[] | null>(null);
-  const [mods, setMods] = useState<ModuleRow[] | null>(null);
+  // 지난번에 읽은 것을 먼저 그린다 (다시 들어올 때 빈 화면을 기다리지 않게). 뒤에서 새로 읽어 바꾼다
+  const kept = LAST.get(src.admin);
+  const [members, setMembersState] = useState<MemberRow[] | null>(kept?.members ?? null);
+  const [mods, setModsState] = useState<ModuleRow[] | null>(kept?.mods ?? null);
   const [panel, setPanel] = useState<Panel | null>(null);
   const cm = useContextMenu();
 
+  const setMembers = useCallback(
+    (f: MemberRow[] | ((list: MemberRow[] | null) => MemberRow[] | null)) =>
+      setMembersState((cur) => {
+        const next = typeof f === "function" ? f(cur) : f;
+        if (next) LAST.set(src.admin, { members: next, mods: LAST.get(src.admin)?.mods ?? [] });
+        return next;
+      }),
+    [src],
+  );
+  const setMods = useCallback(
+    (f: ModuleRow[] | ((list: ModuleRow[] | null) => ModuleRow[] | null)) =>
+      setModsState((cur) => {
+        const next = typeof f === "function" ? f(cur) : f;
+        if (next) LAST.set(src.admin, { members: LAST.get(src.admin)?.members ?? [], mods: next });
+        return next;
+      }),
+    [src],
+  );
+
+  // 저장 중인 고치기 수 · 고치기 차례(줄마다) · 읽기 차례 — 늦게 온 응답이 방금 누른 것을 덮지 않게
+  const pending = useRef(0);
+  const edits = useRef(0);
+  const rowSeq = useRef(new Map<string, number>());
+  const loadSeq = useRef(0);
+
   const load = useCallback(() => {
+    const seq = ++loadSeq.current;
+    const at = edits.current;
     Promise.all([src.admin.members(), src.admin.modules()]).then(([m, d]) => {
+      // 그 사이 다시 읽었거나, 읽는 동안 무언가 고쳤으면 버린다 (고친 쪽이 더 새것이다)
+      if (seq !== loadSeq.current || at !== edits.current || pending.current > 0) return;
       setMembers(m);
       setMods(d);
     }, fail);
-  }, [src, fail]);
+  }, [src, fail, setMembers, setMods]);
 
   useEffect(() => {
-    if (isAdmin) load();
+    // 30초마다 · 창에 돌아올 때 다시 읽는다. 저장 중이면 건너뛴다
+    if (isAdmin && pending.current === 0) load();
   }, [isAdmin, load, tick]);
 
-  /** 한 줄 고치기 (낙관적). 실패하면 다시 읽어 되돌린다 */
+  /** 한 줄 고치기 (낙관적). 같은 줄을 연달아 고치면 마지막 응답만 반영한다. 실패하면 다시 읽어 되돌린다 */
   const patch = useCallback(
     (m: MemberRow, p: Partial<Pick<MemberRow, "name" | "active" | "allowed">> & { password?: string }, done?: string) => {
       const { password, ...cols } = p;
+      const seq = (rowSeq.current.get(m.user_id) ?? 0) + 1;
+      rowSeq.current.set(m.user_id, seq);
+      edits.current++;
+      pending.current++;
       setMembers((list) => list && list.map((r) => (r.user_id === m.user_id ? { ...r, ...cols } : r)));
-      return src.admin.updateMember(m.user_id, p).then(
-        (row) => {
-          setMembers((list) => list && list.map((r) => (r.user_id === row.user_id ? row : r)));
-          if (done) toast(done);
-          return true;
-        },
-        (e) => {
-          fail(e);
-          load();
-          return false;
-        },
-      );
+      return src.admin
+        .updateMember(m.user_id, p)
+        .then(
+          (row) => {
+            if (rowSeq.current.get(m.user_id) === seq) setMembers((list) => list && list.map((r) => (r.user_id === row.user_id ? row : r)));
+            if (done) toast(done);
+            return true;
+          },
+          (e) => {
+            fail(e);
+            return false;
+          },
+        )
+        .then((ok) => {
+          pending.current--;
+          if (!ok && pending.current === 0) load();
+          return ok;
+        });
     },
-    [src, fail, load, toast],
+    [src, fail, load, toast, setMembers],
   );
 
   if (!me) return null;

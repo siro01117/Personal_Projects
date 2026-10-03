@@ -82,21 +82,29 @@ async function target(c: SupabaseClient, id: string): Promise<Row | Response> {
 
 // ---------------------------------------------------------------------------
 
-/** GET /api/admin/members — 회원 목록 + 마지막 로그인 */
-export async function listMembers(req: Request, c: ClientOrNull): Promise<Response> {
-  if (!c) return NO_CONFIG();
-  const who = await admin(req, c);
-  if (who instanceof Response) return who;
-  const { data, error } = await c.from("ez_members").select(COLS).order("created_at");
-  if (error) return SERVER("회원 목록을 읽지");
+/** 모든 Auth 사용자의 마지막 로그인 (id → 시각) */
+async function signIns(c: SupabaseClient): Promise<Map<string, string | null> | Response> {
   const last = new Map<string, string | null>();
   for (let page = 1; ; page++) {
-    const { data: users, error: e2 } = await c.auth.admin.listUsers({ page, perPage: PER_PAGE });
-    if (e2) return SERVER("로그인 기록을 읽지");
+    const { data: users, error } = await c.auth.admin.listUsers({ page, perPage: PER_PAGE });
+    if (error) return SERVER("로그인 기록을 읽지");
     for (const u of users.users) last.set(u.id, u.last_sign_in_at ?? null);
     if (users.users.length < PER_PAGE) break;
   }
-  const members: MemberRow[] = ((data ?? []) as Row[]).map((r) => ({ ...r, last_sign_in_at: last.get(r.user_id) ?? null }));
+  return last;
+}
+
+/**
+ * GET /api/admin/members — 회원 목록 + 마지막 로그인.
+ * 읽기 셋(관리자 확인 · 회원 줄 · 로그인 기록)을 한꺼번에 보낸다 — 차례로 하면 왕복이 넷. 결과는 관리자일 때만 돌려준다
+ */
+export async function listMembers(req: Request, c: ClientOrNull): Promise<Response> {
+  if (!c) return NO_CONFIG();
+  const [who, rows, last] = await Promise.all([admin(req, c), c.from("ez_members").select(COLS).order("created_at"), signIns(c)]);
+  if (who instanceof Response) return who;
+  if (rows.error) return SERVER("회원 목록을 읽지");
+  if (last instanceof Response) return last;
+  const members: MemberRow[] = ((rows.data ?? []) as Row[]).map((r) => ({ ...r, last_sign_in_at: last.get(r.user_id) ?? null }));
   return json(200, { members });
 }
 
@@ -176,13 +184,14 @@ export async function updateMember(req: Request, c: ClientOrNull, id: string): P
     (p.name !== undefined ? nameError(p.name) : null) ??
     (p.allowed !== undefined ? keysError(p.allowed) : null);
   if (bad) return err(400, "EZ_VALUE", bad);
-  if (p.allowed) {
-    const unknown = await unknownKeys(c, p.allowed);
-    if (unknown instanceof Response) return unknown;
-    if (unknown) return err(400, "EZ_VALUE", "없는 모듈입니다");
-  }
-
-  const t = await target(c, id);
+  // 읽기는 한꺼번에: 모듈 키 확인 · 고칠 회원 · 마지막 로그인
+  const [unknown, t, last] = await Promise.all([
+    p.allowed ? unknownKeys(c, p.allowed) : false,
+    target(c, id),
+    UUID.test(id) ? lastSignIn(c, id).catch(() => null) : null,
+  ]);
+  if (unknown instanceof Response) return unknown;
+  if (unknown) return err(400, "EZ_VALUE", "없는 모듈입니다");
   if (t instanceof Response) return t;
 
   if (p.password !== undefined) {
@@ -202,7 +211,7 @@ export async function updateMember(req: Request, c: ClientOrNull, id: string): P
     if (error || !data) return SERVER("회원을 고치지");
     row = data as Row;
   }
-  return json(200, { member: { ...row, last_sign_in_at: await lastSignIn(c, id) } satisfies MemberRow });
+  return json(200, { member: { ...row, last_sign_in_at: last } satisfies MemberRow });
 }
 
 /** DELETE /api/admin/members/[id] — Auth 사용자째 (회원 줄은 cascade). 그 회원의 데이터는 남는다 */
