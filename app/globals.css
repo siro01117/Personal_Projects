@@ -834,11 +834,11 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-row .nm:focus-visible{outline:none}
 .pl-row:has(.nm:focus-visible){box-shadow:inset 0 0 0 2px var(--point-ink)}
 .pl-row .due,.pl-row .est,.pl-row .when,.pl-row .cnt{flex:0 0 auto;font-size:12.5px;line-height:22px;color:var(--text-3);white-space:nowrap;text-align:right}
-.pl-row .cnt{min-width:28px}
+.pl-row .cnt{min-width:2.24em}
 .pl-row .cnt.all{color:var(--point-ink);font-weight:600}
-.pl-row .due{min-width:60px}
-.pl-row .est{min-width:64px}
-.pl-row .when{min-width:96px;color:var(--text-2)}
+.pl-row .due{min-width:4.8em}
+.pl-row .est{min-width:5.12em}
+.pl-row .when{min-width:7.68em;color:var(--text-2)}
 .pl-row .late{color:var(--danger)}
 /* 지점 심볼 (제목 앞, 지점 색) · 반복 표시 */
 .pl-row .sym{flex:0 0 auto;display:grid;place-items:center;height:22px;margin-right:-4px}
@@ -963,13 +963,13 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .iconbtn.clr .i{width:16px;height:16px}
 /* 카드 자리 고정(7-14): 비어도 제목 + "없음" 한 줄 */
 .pl-none{margin:0;padding:0 10px 12px 24px;font-size:13px;line-height:20px;color:var(--text-3)}
-/* 역할 필터 단추(7-14): 정렬 줄 오른쪽. 하나라도 끄면 키위 점 */
-.rf-role{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
-.rf-role .dot{width:6px;height:6px;border-radius:50%;background:var(--point-ink)}
-.rf-role[aria-expanded="true"]{background:var(--surface-2);color:var(--text-1)}
-/* 필터 시트: 켠 것이 또렷하고 끈 것이 흐리다 (체크 항목과 반대) */
-.rf-list .ck.on span{color:var(--text-1)}
-.rf-list .ck:not(.on) span{color:var(--text-3)}
+/* 조작 두 단(7-14): 1단 정렬 · 2단 역할 필터(칩 + 역할 편집). 둘 다 왼쪽, 같은 여백. 오른쪽은 비운다. 각 단은 넘치면 가로로 민다.
+   모임도 .pl-sort 를 쓰지만 .pl-ctl 이 없어 그대로 */
+.pl-ctl{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:2px 0 8px;border-bottom:1px solid var(--border)}
+.pl-ctl > .pl-sort{height:34px;padding-bottom:0;border-bottom:0}
+/* 역할 칩: 켠 것은 정렬 칩의 선택 모양, 끈 것은 글자만 흐리게 */
+.pl-roles .rf[aria-pressed="false"]{color:var(--text-3)}
+.pl-roles .rf-edit{margin-left:4px}
 /* 작업대에 올라간 할 일 — 줄 앞 작은 키위 막대 하나 */
 .pl-row.benched{position:relative}
 .pl-row .bn-mark{position:absolute;left:2px;top:15px;width:3px;height:14px;border-radius:2px;background:var(--point-ink)}
@@ -1012,6 +1012,57 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 }
 @container app (max-width: 760px){
   .pl-bench{margin-bottom:8px;border-left:0;border-right:0;border-radius:0;padding:12px 10px 12px}
+}
+
+/* 글자 20% (2026-10-04, 7-14): 플래너 줄 · 카드 · 조작 칩 · 작업대 · 할 일 보기만. 모임(.planner.meet)은 같은 틀이라도 그대로.
+   줄 칸 폭(마감 · 시간 · 체크 수)은 em 이라 글자를 따라 커진다 */
+.planner:not(.meet) .pl-add{height:44px}
+.planner:not(.meet) .pl-add input{font-size:18px}
+.planner:not(.meet) .rf{height:34px;padding:0 14px;font-size:15px}
+.planner:not(.meet) .rf-edit,.planner:not(.meet) .rf-dir{width:34px;height:34px}
+.planner:not(.meet) .rf-edit .i,.planner:not(.meet) .rf-dir .i{width:17px;height:17px}
+.planner:not(.meet) .pl-sec{padding:5px 10px 10px}
+.planner:not(.meet) .pl-h{height:50px;padding:0 12px;gap:10px;font-size:16px}
+.planner:not(.meet) .pl-h::before{width:7px;height:7px}
+.planner:not(.meet) .pl-h .num{font-size:15px}
+.planner:not(.meet) .pl-fold .i{width:19px;height:19px}
+.planner:not(.meet) .pl-none{padding:0 12px 14px 29px;font-size:16px;line-height:24px}
+.planner:not(.meet) .pl-g{min-height:28px;margin:16px 0 3px;padding:0 14px 0 12px;font-size:14px;line-height:21px}
+.planner:not(.meet) .pl-g:first-child{margin-top:0}
+.planner:not(.meet) .pl-row{min-height:50px;padding:12px 14px 12px 10px}
+.planner:not(.meet) .pl-row .chk{flex-basis:26px;width:26px;height:26px;margin-top:0}
+.planner:not(.meet) .pl-row .chk .i{width:22px;height:22px}
+.planner:not(.meet) .pl-row .nm{font-size:18px;line-height:26px}
+.planner:not(.meet) .pl-row :is(.due,.est,.when,.cnt,.role){font-size:15px;line-height:26px}
+.planner:not(.meet) .pl-row :is(.sym,.rpt){height:26px}
+.planner:not(.meet) .pl-row .rpt .i{width:17px;height:17px}
+.planner:not(.meet) .pl-row .bn-mark{top:17px;height:16px}
+.planner:not(.meet) .pl-bench{padding:19px 22px 17px}
+.planner:not(.meet) .bn-h .sym{height:36px}
+.planner:not(.meet) .bn-t{font-size:24px;line-height:36px}
+.planner:not(.meet) .bn-meta{font-size:15px;line-height:22px;margin:3px 0 10px}
+.planner:not(.meet) .bn-steps .ck{grid-template-columns:22px minmax(0,1fr);gap:12px;padding:10px 7px;font-size:18px;line-height:26px}
+.planner:not(.meet) .bn-steps .ck .i{width:20px;height:20px;margin-top:3px}
+.planner:not(.meet) .bn-cut{height:46px}
+.planner:not(.meet) .bn-steps li.bn-new{grid-template-columns:22px minmax(0,1fr);gap:12px;padding:4px 7px}
+.planner:not(.meet) .bn-new .i{width:20px;height:20px}
+.planner:not(.meet) .bn-new input{height:38px;font-size:18px}
+.planner:not(.meet) .bn-note{padding:12px 14px;font-size:17px}
+.planner:not(.meet) .bn-add{height:52px;gap:12px}
+.planner:not(.meet) .bn-add .i{width:20px;height:20px}
+.planner:not(.meet) .bn-add input{font-size:17px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .dp-h h2{font-size:24px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .dp-h .chk{flex-basis:28px;width:28px;height:28px;margin-top:2px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .dp-h .chk .i{width:26px;height:26px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .dp-f{grid-template-columns:22px minmax(0,1fr);gap:12px;padding:11px 0;font-size:17px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .dp-f > .i{width:21px;height:21px;margin-top:3px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .dp-f :is(.late,.dim){font-size:15.5px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .ck-list .ck{grid-template-columns:22px minmax(0,1fr);gap:12px;padding:7px 0;font-size:17px;line-height:24px}
+.planner:not(.meet) :is(.dp-in,.sh-in) > .ck-list .ck .i{width:20px;height:20px;margin-top:2px}
+@container app (max-width: 760px){
+  .planner:not(.meet) .pl-sec{padding:2px 6px 6px}
+  .planner:not(.meet) .pl-row{padding:12px 10px 12px 8px;gap:10px}
+  .planner:not(.meet) .pl-bench{padding:14px 12px 14px}
 }
 
 /* ====================================================================================

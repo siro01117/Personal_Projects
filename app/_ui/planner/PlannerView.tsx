@@ -52,7 +52,6 @@ import {
   parseMinutes,
   parseRoleOff,
   parseSort,
-  roleFilterOn,
   roleText,
   ruleLabel,
   SORT_KEYS,
@@ -84,7 +83,7 @@ import { DueForm } from "./DueForm";
 import { PlanForm, planDraftFor, type PlanDraft } from "./PlanForm";
 import { PlannerCards, type CardKey } from "./PlannerCards";
 import { RoleEdit } from "./RoleEdit";
-import { RoleFilter, RoleFilterButton } from "./RoleFilter";
+import { RoleFilter } from "./RoleFilter";
 import { TaskDetail } from "./TaskDetail";
 import { TaskForm } from "./TaskForm";
 import { TaskLine } from "./TaskLine";
@@ -183,7 +182,6 @@ export function PlannerView() {
   const [sort, setSort] = useState<Sort>(readSort);
   const [roleEdit, setRoleEdit] = useState(false);
   const [roleOff, setRoleOff] = useState<string[]>(readRoleOff);
-  const [roleFilter, setRoleFilter] = useState(false);
   const [linkedEv, setLinkedEv] = useState<EventRow | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +211,6 @@ export function PlannerView() {
       done: keep(all.done, (t) => t),
     };
   }, [state, clock, today, nowMin, roleOff, roles]);
-  const filtered = roleFilterOn(roleOff, roles);
   const bench = useMemo(() => benchOf(state?.tasks ?? []), [state]);
   // 끌어서 순서 바꾸기는 '직접' 정렬에서만
   const manual = sort.key === "manual";
@@ -272,7 +269,6 @@ export function PlannerView() {
     setSend(null);
     setMenu(null);
     setRoleEdit(false);
-    setRoleFilter(false);
   }, []);
 
   const closeAll = useCallback(() => {
@@ -821,15 +817,6 @@ export function PlannerView() {
     }
   }
 
-  function openRoleFilter() {
-    if (roleFilter) {
-      setRoleFilter(false);
-      return;
-    }
-    closeAll();
-    setRoleFilter(true);
-  }
-
   function pickSort(next: Sort) {
     setSort(next);
     try {
@@ -910,7 +897,6 @@ export function PlannerView() {
       if (e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "Escape") {
         if (menu) setMenu(null);
-        else if (roleFilter) setRoleFilter(false);
         else if (roleEdit) setRoleEdit(false);
         else if (send) setSend(null);
         else if (dueEdit) setDueEdit(null);
@@ -1008,11 +994,8 @@ export function PlannerView() {
   let panel: ReactNode = null;
   let panelLabel = "";
   /** 패널 내용이 바뀌면(다른 할 일 · 보기 → 수정) 새로 나타난다 */
-  const panelKey = roleFilter ? "filter" : roleEdit ? "roles" : send ? `send:${send.id}` : dueEdit ? `due:${dueEdit.id}` : plan ? `plan:${plan.id}` : edit ? `edit:${edit.id}` : `view:${sel}`;
-  if (roleFilter) {
-    panelLabel = "역할";
-    panel = <RoleFilter roles={roles} off={roleOff} onToggle={pickRole} />;
-  } else if (roleEdit) {
+  const panelKey = roleEdit ? "roles" : send ? `send:${send.id}` : dueEdit ? `due:${dueEdit.id}` : plan ? `plan:${plan.id}` : edit ? `edit:${edit.id}` : `view:${sel}`;
+  if (roleEdit) {
     panelLabel = "역할 편집";
     panel = <RoleEdit roles={roles} onRename={renameRole} onAdd={addRole} onMove={moveRole} onDelete={(r) => void removeRole(r)} />;
   } else if (send && sendTask) {
@@ -1133,27 +1116,26 @@ export function PlannerView() {
         </label>
         <ThemeToggle />
       </div>
-      <div className="pl-sort" role="group" aria-label="정렬">
-        {SORT_KEYS.map((k) => (
-          <button type="button" key={k} className="rf" aria-pressed={sort.key === k} onClick={() => pickSort({ ...sort, key: k })}>
-            {SORT_LABEL[k]}
-          </button>
-        ))}
-        {!manual && (
-          <button
-            type="button"
-            className="iconbtn rf-dir"
-            aria-label={sort.dir === "asc" ? "오름차순" : "내림차순"}
-            title={sort.dir === "asc" ? "오름차순" : "내림차순"}
-            onClick={() => pickSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
-          >
-            <Icon name={sort.dir === "asc" ? "asc" : "desc"} />
-          </button>
-        )}
-        <RoleFilterButton active={filtered} open={roleFilter} onClick={openRoleFilter} />
-        <button type="button" className="iconbtn rf-edit" aria-label="역할 편집" title="역할 편집" aria-expanded={roleEdit} onClick={openRoles}>
-          <Icon name="pen" />
-        </button>
+      <div className="pl-ctl">
+        <div className="pl-sort" role="group" aria-label="정렬">
+          {SORT_KEYS.map((k) => (
+            <button type="button" key={k} className="rf" aria-pressed={sort.key === k} onClick={() => pickSort({ ...sort, key: k })}>
+              {SORT_LABEL[k]}
+            </button>
+          ))}
+          {!manual && (
+            <button
+              type="button"
+              className="iconbtn rf-dir"
+              aria-label={sort.dir === "asc" ? "오름차순" : "내림차순"}
+              title={sort.dir === "asc" ? "오름차순" : "내림차순"}
+              onClick={() => pickSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
+            >
+              <Icon name={sort.dir === "asc" ? "asc" : "desc"} />
+            </button>
+          )}
+        </div>
+        <RoleFilter roles={roles} off={roleOff} onToggle={pickRole} editing={roleEdit} onEdit={openRoles} />
       </div>
       <div className="pl-stage">
         <div

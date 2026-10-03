@@ -1,11 +1,11 @@
-// 플래너 화면 조각 (docs/플래너.md 7-13 · 7-14): 카드 넷의 자리(비어도 그대로) · 작업대 카드 · 역할 필터 단추의 점 · 작업대 표시.
+// 플래너 화면 조각 (docs/플래너.md 7-13 · 7-14): 카드 넷의 자리(비어도 그대로) · 작업대 카드 · 역할 필터 칩 · 작업대 표시.
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Place, Role, TaskRow } from "../../lib/schedule";
 import { BenchCard } from "./planner/BenchCard";
 import { PlannerCards } from "./planner/PlannerCards";
-import { RoleFilter, RoleFilterButton } from "./planner/RoleFilter";
+import { RoleFilter } from "./planner/RoleFilter";
 import { TaskLine } from "./planner/TaskLine";
 
 const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -134,19 +134,20 @@ describe("역할 필터 (7-14)", () => {
     { id: "r2", name: "강사", from_place: "work", sort: 2, version: 1 },
   ];
 
-  it("하나라도 끄면 단추에 점", () => {
-    const off = renderToStaticMarkup(<RoleFilterButton active={false} open={false} onClick={noop} />);
-    const on = renderToStaticMarkup(<RoleFilterButton active open={false} onClick={noop} />);
-    expect(text(off)).toBe("역할");
-    expect(off).not.toContain('class="dot"');
-    expect(on).toContain('class="dot"');
+  it("둘째 단: 역할마다 칩 + 맨 뒤 역할 없음 + 역할 편집 연필. 라벨 글자 없음", () => {
+    const html = renderToStaticMarkup(<RoleFilter roles={roles} off={[]} onToggle={noop} editing={false} onEdit={noop} />);
+    expect(text(html)).toBe("대학 강사 역할 없음");
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(3);
+    expect(html).toMatch(/역할 없음<\/button><button[^>]*aria-label="역할 편집"/);
+    expect(html).not.toContain('role="checkbox"');
   });
 
-  it("시트: 역할마다 체크 + 역할 없음. 끈 것만 aria-checked=false", () => {
-    const html = renderToStaticMarkup(<RoleFilter roles={roles} off={["r2"]} onToggle={noop} />);
-    expect(text(html)).toBe("역할 대학 강사 역할 없음");
-    expect(html.match(/aria-checked="true"/g)).toHaveLength(2);
-    expect(html).toMatch(/aria-checked="false"[^>]*>.*?강사/);
+  it("끈 칩만 aria-pressed=false. 역할 편집이 열리면 연필이 펼침 상태", () => {
+    const html = renderToStaticMarkup(<RoleFilter roles={roles} off={["r2", "none"]} onToggle={noop} editing onEdit={noop} />);
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(html).toMatch(/aria-pressed="false"[^>]*>강사</);
+    expect(html).toMatch(/aria-pressed="false"[^>]*>역할 없음</);
+    expect(html).toContain('aria-expanded="true"');
   });
 });
 
