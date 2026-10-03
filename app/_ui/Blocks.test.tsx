@@ -101,7 +101,7 @@ describe("빈 칸", () => {
     expect(count(html, /<li>/g)).toBe(2);
     expect(html).toContain("<li><span>하나</span></li><li><span>셋</span></li>");
     expect(html).toContain("<th><span></span></th>");
-    expect(html).toContain("<td><span></span></td><td><span>칸</span></td>");
+    expect(html).toContain('<td data-col="a"><span></span></td><td data-col=""><span>칸</span></td>');
     expect(count(html, /class="c"/g)).toBe(1);
     expect(html).toContain("남는 근거");
     expect(html).toContain('<a href="https://a.dev/x" target="_blank" rel="noopener noreferrer">https://a.dev/x</a>');

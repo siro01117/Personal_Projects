@@ -499,10 +499,13 @@ function BlockView({
                 </tr>
               </thead>
               <tbody>
+                {/* td 의 data-col: 좁은 화면에서 행이 카드가 될 때 칸 앞에 붙는 열 이름 (globals.css .tbl-wrap 컨테이너 쿼리) */}
                 {b.rows.map((row, r) => (
                   <tr key={r}>
                     {row.map((c, j) => (
-                      <td key={j}>{F({ as: "span", path: [i, "rows", r, j], value: c })}</td>
+                      <td key={j} data-col={b.cols[j] ?? ""}>
+                        {F({ as: "span", path: [i, "rows", r, j], value: c })}
+                      </td>
                     ))}
                   </tr>
                 ))}

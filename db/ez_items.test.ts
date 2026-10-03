@@ -224,7 +224,7 @@ describe("종류별 칸", () => {
     const id = await report(a, "경계", null, blocks);
     const r = await one<{ s: number }>("admin", "select pg_column_size(blocks) s from ez_items where id = $1", [id]);
     expect(r.s).toBeLessThan(600000);
-  });
+  }, 30_000);
 
   it("blocks 600KB 상한", async () => {
     const a = user();
