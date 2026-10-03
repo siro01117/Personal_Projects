@@ -175,6 +175,46 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 .btn:active{transform:scale(.97)}
 .btn:disabled{opacity:.6;cursor:default}
 
+/* 읽은 사람 (설계서 7-4장): 도구 줄의 아바타 줄 · 작은 창 · 블록 옆 작은 아바타 · 레일의 점. 키위 농담 6개, 글자는 늘 --on-point */
+.av{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;font-size:12px;font-weight:600;line-height:1;color:var(--on-point);background:var(--point);box-shadow:0 0 0 2px var(--surface);user-select:none}
+.av.sm{width:20px;height:20px;font-size:10px}
+.av.t1{background:color-mix(in srgb,var(--point) 82%,var(--bg))}
+.av.t2{background:color-mix(in srgb,var(--point) 64%,var(--bg))}
+.av.t3{background:color-mix(in srgb,var(--point) 86%,var(--ink))}
+.av.t4{background:color-mix(in srgb,var(--point) 72%,var(--ink))}
+.av.t5{background:color-mix(in srgb,var(--point) 50%,var(--bg))}
+.av.more{background:var(--surface-3);color:var(--text-2);font-size:11px}
+.avrow{display:inline-flex;align-items:center;height:36px;padding:0 8px 0 10px;border-radius:var(--r-m);transition:background var(--t),transform var(--t)}
+.avrow .av{margin-left:-6px}
+.avrow .av:first-child{margin-left:0}
+.avrow:hover,.avrow[aria-pressed="true"]{background:var(--surface-2)}
+.avrow:active{transform:scale(.97)}
+.views-pop{gap:10px}
+.views-pop .none{margin:0;font-size:13px;color:var(--text-3)}
+.views-pop ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.views-pop .vp-hist{max-height:min(50vh,380px);overflow-y:auto}
+.views-pop li{display:grid;align-items:center;gap:8px;min-height:28px;font-size:13px}
+.views-pop .vp-live li{grid-template-columns:20px minmax(0,1fr) auto}
+.views-pop .vp-hist li{grid-template-columns:minmax(0,1fr) auto auto auto}
+.views-pop .nm{color:var(--text-1);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.views-pop .at,.views-pop .n{font-size:12px;color:var(--text-3);white-space:nowrap}
+.views-pop hr{border:0;border-top:1px solid var(--border);margin:0}
+.views-pop .more{align-self:flex-start;font-size:12px;color:var(--text-3);text-decoration:underline;text-underline-offset:3px}
+.views-pop .more:hover{color:var(--text-1)}
+.page{position:relative}
+.page > .peers{margin:0;position:absolute;left:18px;top:0;width:0;height:0;pointer-events:none}
+.peer{position:absolute;left:0;top:2px;transform:translate(calc(var(--k) * 12px),var(--y));transition:transform var(--m-slow) var(--ease-out)}
+.rail a{position:relative}
+.rail a[data-live]::after{content:"";position:absolute;left:-5px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--point);outline:2px solid var(--bg)}
+/* 공유 페이지 맨 아래: 이름 적기 · 바꾸기 */
+.sv-name{font-size:14px}
+.sv-name .lnk{font-size:13px;color:var(--text-3);text-decoration:underline;text-underline-offset:3px;padding:4px 0}
+.sv-name .lnk:hover{color:var(--text-1)}
+.sv-name form{display:flex;flex-wrap:wrap;align-items:center;gap:10px;max-width:420px}
+.sv-name .txt-in{flex:1 1 160px;height:38px;font-size:15px}
+.sv-name .btn{height:36px;font-size:13px}
+.sv-name .err{flex-basis:100%;margin:0;font-size:13px;color:var(--danger)}
+
 /* 보고서 (설계서 7-3장): 본문은 최대 920px 가운데. 차례 레일은 본문 바깥 오른쪽 — 자리가 모자라면 숨긴다.
    글씨는 보고서 안만 1.3배(본문 18px). 검은 채움 면 없이 여백 · 가는 선 · 굵기로 나눈다 */
 .doc-body{container:doc/inline-size;flex:1;background:var(--canvas);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1032px) minmax(0,1fr);padding:clamp(24px,2.4cqw,48px) clamp(16px,3cqw,56px) 96px;align-items:start}
@@ -376,6 +416,10 @@ sup.r a:hover{background:var(--point-soft)}
   .page{border:0;border-radius:0;padding:24px 16px 48px}
   /* 폰: 고치기 모드에서는 손잡이 자리만큼 왼쪽을 비운다 */
   .page.editing{padding-left:46px;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+  /* 폰: 왼쪽 여백이 16px 뿐 — 아바타를 작게, 여백 안에 */
+  .page > .peers{left:1px}
+  .peer{transform:translate(0,calc(var(--y) + var(--k) * 14px))}
+  .peer .av.sm{width:16px;height:16px;font-size:9px;box-shadow:0 0 0 1px var(--paper)}
   .grip{left:-40px;width:28px;height:36px}
   .page > * + *{margin-top:36px}
   .page > .row.has-img,.page > .row.has-img + *{margin-top:44px}

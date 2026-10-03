@@ -5,9 +5,10 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueName } from "../../lib/names";
 import { DbError } from "../../lib/errors";
 import { browserStore, cachedDrawer, DataCache } from "./cache";
+import { SupabaseLive } from "./liveSupabase";
 import { SupabaseMeet, SupabaseMeetPublic } from "./meetSupabase";
 import { SupabaseSchedule } from "./scheduleSupabase";
-import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow } from "./types";
+import type { Auth, Copied, DrawerData, Entry, Folder, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow, Viewer, ViewRow } from "./types";
 
 const TABLE = "ez_items";
 const PAGE = 1000;
@@ -16,6 +17,10 @@ const ENTRY_COLS = "id, parent_id, kind, name, report_kind, agent_updated_at, re
 /** 찾기 결과 수 (ez_search 상한) */
 const SEARCH_LIMIT = 50;
 const REPORT_COLS = `${ENTRY_COLS}, blocks, version, agent, share_token`;
+/** 읽은 사람 (0013). item_id 는 물은 것이라 싣지 않는다 */
+const VIEW_COLS = "id, device, guest_no, name, first_at, last_at, hits, seconds, ua";
+/** 보고서당 기록 상한 (0013 과 같다) */
+const VIEWS_MAX = 500;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Res<T> = { data: T | null; error: { message: string; code?: string; details?: string | null } | null };
@@ -26,7 +31,7 @@ export async function run<T>(p: PromiseLike<Res<T>>): Promise<T> {
   return res.data as T;
 }
 
-function env(): { url: string; key: string } {
+export function env(): { url: string; key: string } {
   // NEXT_PUBLIC_* 는 빌드 때 글자 그대로 박힌다 — 이름을 문자열로 바꿔 쓰면 안 된다
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -205,6 +210,47 @@ class SupabaseDrawer implements DrawerData {
     return rows[0] ?? null;
   }
 
+  // ------------------------------------------------------------ 읽은 사람 (0013)
+  // 적는 함수 셋은 세션 클라이언트(sb)로 부른다 — 로그인해 있으면 그 세션이 같이 가서 DB 가 주인 본인을 건너뛴다.
+  // 세션이 없으면 anon 키만 가니 anon 으로 실행된다
+
+  async views(itemId: string): Promise<ViewRow[]> {
+    if (!UUID.test(itemId)) return [];
+    return run<ViewRow[]>(
+      sb().from("ez_views").select(VIEW_COLS).eq("item_id", itemId).order("last_at", { ascending: false }).order("guest_no").limit(VIEWS_MAX),
+    );
+  }
+
+  async viewOpen(token: string, device: string, ua: string): Promise<Viewer | null> {
+    const rows = await run<Viewer[]>(sb().rpc("ez_view_open", { p_token: token, p_device: device, p_ua: ua }));
+    return rows[0] ?? null;
+  }
+
+  async viewPing(token: string, device: string, seenSec: number, keepalive = false): Promise<void> {
+    const body = { p_token: token, p_device: device, p_seen_sec: Math.round(seenSec) };
+    if (!keepalive) {
+      await run(sb().rpc("ez_view_ping", body));
+      return;
+    }
+    // 페이지를 떠나는 중 — supabase-js 를 기다릴 수 없어 REST 주소로 바로. sendBeacon 은 apikey 헤더를 못 붙여 keepalive fetch 로.
+    // anon 키로만 간다(주인 본인 줄은 애초에 없으니 아무것도 안 바뀐다)
+    const { url, key } = env();
+    try {
+      void fetch(`${url}/rest/v1/rpc/ez_view_ping`, {
+        method: "POST",
+        keepalive: true,
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify(body),
+      }).catch(() => {});
+    } catch {
+      /* 떠나는 길이라 알리지 않는다 */
+    }
+  }
+
+  async viewName(token: string, device: string, name: string | null): Promise<void> {
+    await run(sb().rpc("ez_view_name", { p_token: token, p_device: device, p_name: name }));
+  }
+
   async imageUrls(paths: readonly string[], shared = false): Promise<Record<string, string>> {
     const out: Record<string, string> = {};
     const now = Date.now();
@@ -270,7 +316,17 @@ let source: Source | null = null;
 export function supabaseSource(): Source {
   if (!source) {
     const schedule = new SupabaseSchedule();
-    source = { data: cachedDrawer(new SupabaseDrawer(), cache), schedule, planner: schedule, meet: new SupabaseMeet(), meetPublic: new SupabaseMeetPublic(), auth, demo: false, cache };
+    source = {
+      data: cachedDrawer(new SupabaseDrawer(), cache),
+      schedule,
+      planner: schedule,
+      meet: new SupabaseMeet(),
+      meetPublic: new SupabaseMeetPublic(),
+      live: new SupabaseLive(),
+      auth,
+      demo: false,
+      cache,
+    };
   }
   return source;
 }

@@ -333,6 +333,11 @@ export function cachedDrawer<D extends DrawerData>(raw: D, cache: DataCache): Dr
     search: (q) => raw.search(q),
     trash: () => raw.trash(),
     shared: (token) => raw.shared(token),
+    // 읽은 사람: 30초마다 새로 읽는 것이라 담지 않는다. 공개 페이지의 적기는 서랍 캐시와 무관하다
+    views: (itemId) => raw.views(itemId),
+    viewOpen: (token, device, ua) => raw.viewOpen(token, device, ua),
+    viewPing: (token, device, seenSec, keepalive) => raw.viewPing(token, device, seenSec, keepalive),
+    viewName: (token, device, name) => raw.viewName(token, device, name),
     imageUrls: (paths, shared) => raw.imageUrls(paths, shared),
     createFolder: write((parentId: string | null, name: string) => raw.createFolder(parentId, name)),
     rename: write((id: string, name: string) => raw.rename(id, name)),

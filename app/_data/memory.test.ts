@@ -371,3 +371,64 @@ describe("블록 지우기 · 옮기기 (ez_blocks_arrange 흉내)", () => {
     expect(((await d.report(ROOT_REPORT))!.blocks[0] as { body: string }).body).toBe("새 번호");
   });
 });
+
+describe("읽은 사람 (0013 흉내)", () => {
+  const TOKEN = "demo-shared-link-00001";
+  const dev = (n: number) => `device-${String(n).padStart(15, "0")}`;
+  async function withShare() {
+    const d = drawer();
+    const r = d.rows.get(ROOT_REPORT)!;
+    r.share_token = TOKEN;
+    return d;
+  }
+
+  it("들어오면 게스트 번호 1부터, 다시 들어오면 hits + 1. 없는 열쇠 · 꺼진 링크는 null", async () => {
+    const d = await withShare();
+    expect(await d.viewOpen(TOKEN, dev(1), "PC · Chrome")).toEqual({ guest_no: 1, name: null });
+    expect(await d.viewOpen(TOKEN, dev(2), "폰 · Safari")).toEqual({ guest_no: 2, name: null });
+    expect(await d.viewOpen(TOKEN, dev(1), "PC · Edge")).toEqual({ guest_no: 1, name: null });
+    expect(await d.viewOpen("a".repeat(22), dev(3), "")).toBeNull();
+    expect(await d.viewOpen("짧음", dev(3), "")).toBeNull();
+    const rows = await d.views(ROOT_REPORT);
+    expect(rows.map((r) => [r.guest_no, r.hits, r.ua])).toEqual([
+      [1, 2, "PC · Edge"],
+      [2, 1, "폰 · Safari"],
+    ]);
+    await d.unshare(ROOT_REPORT);
+    expect(await d.viewOpen(TOKEN, dev(3), "")).toBeNull();
+    expect(await d.views(ROOT_REPORT)).toHaveLength(2);
+    expect(await code(d.viewOpen(TOKEN, "short", ""))).toBe("EZ_VALUE");
+  });
+
+  it("핑은 last_at 과 seconds(60초 상한)만, 줄이 없으면 아무것도 안 한다. 이름 적기 · 비우기", async () => {
+    const d = await withShare();
+    await d.viewPing(TOKEN, dev(1), 30);
+    expect(await d.views(ROOT_REPORT)).toEqual([]);
+    await d.viewOpen(TOKEN, dev(1), "");
+    const [before] = await d.views(ROOT_REPORT);
+    await d.viewPing(TOKEN, dev(1), 30);
+    await d.viewPing(TOKEN, dev(1), 95);
+    await d.viewPing(TOKEN, dev(1), -3);
+    const [after] = await d.views(ROOT_REPORT);
+    expect(after).toMatchObject({ hits: 1, seconds: 90, first_at: before!.first_at });
+    expect(after!.last_at > before!.last_at).toBe(true);
+
+    await d.viewName(TOKEN, dev(1), "  민서 ");
+    expect((await d.views(ROOT_REPORT))[0]!.name).toBe("민서");
+    expect(await d.viewOpen(TOKEN, dev(1), "")).toEqual({ guest_no: 1, name: "민서" });
+    await d.viewName(TOKEN, dev(1), null);
+    expect((await d.views(ROOT_REPORT))[0]!.name).toBeNull();
+    expect(await code(d.viewName(TOKEN, dev(1), "가".repeat(21)))).toBe("EZ_VALUE");
+    await d.viewName(TOKEN, dev(9), "유령");
+    expect(await d.views(ROOT_REPORT)).toHaveLength(1);
+  });
+
+  it("표본으로 시작할 수 있고, 게스트 번호는 표본 다음부터", async () => {
+    const d = new MemoryDrawer([{ id: ROOT_REPORT, kind: "report", name: "보고서", report_kind: "method", blocks: sampleBlocks(), share_token: TOKEN }], {
+      now,
+      views: [{ item_id: ROOT_REPORT, device: dev(5), guest_no: 5, name: "민서", first_at: "2026-09-01T00:00:00Z", last_at: "2026-09-02T00:00:00Z", hits: 3, seconds: 600, ua: null }],
+    });
+    expect(await d.viewOpen(TOKEN, dev(6), "")).toEqual({ guest_no: 6, name: null });
+    expect((await d.views(ROOT_REPORT)).map((r) => r.guest_no)).toEqual([6, 5]);
+  });
+});

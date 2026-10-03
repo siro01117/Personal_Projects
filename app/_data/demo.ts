@@ -3,12 +3,13 @@
 
 import { sampleBlocks } from "../../lib/fixtures";
 import { cachedDrawer, DataCache } from "./cache";
-import { MemoryDrawer, type Seed } from "./memory";
+import { MemoryLive } from "./liveMemory";
+import { MemoryDrawer, type Seed, type ViewSeed } from "./memory";
 import { meetSeed } from "./meetDemo";
 import { MemoryMeet } from "./meetMemory";
 import { scheduleSeed } from "./scheduleDemo";
 import { MemorySchedule } from "./scheduleMemory";
-import type { Auth, Source } from "./types";
+import type { Auth, Presence, Source } from "./types";
 
 /** 공유 페이지 확인용 고정 열쇠: /s/demo-shared-link-0001?demo=1 */
 export const DEMO_SHARE_TOKEN = "demo-shared-link-00001";
@@ -164,11 +165,57 @@ function seed(now: Date): Seed[] {
   ];
 }
 
+/** 공유 중인 보고서(열쇠 DEMO_SHARE_TOKEN)의 id */
+const SHARED_ID = "d0000000-0000-4000-8000-000000000013";
+/** 표본 기기 열쇠 (22자) */
+const dev = (n: number) => `demo-device-${String(n).padStart(10, "0")}`;
+
+/** 읽은 사람 표본: 지금 보는 중 둘(핑 기준) + 지난 것들 */
+function viewSeed(now: Date): ViewSeed[] {
+  const ago = (sec: number) => new Date(now.getTime() - sec * 1000).toISOString();
+  const row = (n: number, name: string | null, firstSec: number, lastSec: number, hits: number, seconds: number, ua: string): ViewSeed => ({
+    item_id: SHARED_ID,
+    device: dev(n),
+    guest_no: n,
+    name,
+    first_at: ago(firstSec),
+    last_at: ago(lastSec),
+    hits,
+    seconds,
+    ua,
+  });
+  return [
+    row(1, "민서", 60 * 60 * 24 * 3, 20, 4, 1260, "PC · Chrome"),
+    row(2, null, 60 * 60 * 2, 45, 1, 95, "폰 · Safari"),
+    row(3, "도윤", 60 * 60 * 24 * 2, 60 * 60 * 5, 2, 40, "폰 · Chrome"),
+    row(4, null, 60 * 60 * 24, 60 * 60 * 23, 1, 610, "PC · Edge"),
+    row(5, "Jae", 60 * 60 * 24 * 6, 60 * 60 * 24 * 2, 3, 200, "태블릿 · Safari"),
+  ];
+}
+
+/** 라이브 표본: 핑 기준 둘이 presence 에도 있다 (게스트 2 는 블록을 옮겨 다닌다) */
+const liveSamples = (): Record<string, Presence[]> => ({
+  [DEMO_SHARE_TOKEN]: [
+    { device: dev(2), label: "게스트 2", block: 2 },
+    { device: dev(1), label: "민서", block: 0 },
+  ],
+});
+
 let instance: MemoryDrawer | null = null;
 
 export function demoDrawer(): MemoryDrawer {
-  if (!instance) instance = new MemoryDrawer(seed(new Date()), { latency: 150, images: DEMO_IMAGES });
+  if (!instance) {
+    const now = new Date();
+    instance = new MemoryDrawer(seed(now), { latency: 150, images: DEMO_IMAGES, views: viewSeed(now) });
+  }
   return instance;
+}
+
+let liveInstance: MemoryLive | null = null;
+
+export function demoLive(): MemoryLive {
+  if (!liveInstance) liveInstance = new MemoryLive({ samples: liveSamples(), wanderMs: 5000, wanderBlocks: 5 });
+  return liveInstance;
 }
 
 let scheduleInstance: MemorySchedule | null = null;
@@ -212,5 +259,5 @@ export function demoSource(): Source {
       bumpEvent: (id: string) => schedule.bump(id),
     };
   }
-  return { data: cachedDrawer(data, demoCache), schedule, planner: schedule, meet, meetPublic: meet, auth: demoAuth, demo: true, cache: demoCache };
+  return { data: cachedDrawer(data, demoCache), schedule, planner: schedule, meet, meetPublic: meet, live: demoLive(), auth: demoAuth, demo: true, cache: demoCache };
 }

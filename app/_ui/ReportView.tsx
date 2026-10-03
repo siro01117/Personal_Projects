@@ -9,6 +9,8 @@
 // 되돌리기 기록(undo)은 이 화면을 연 동안 쌓인다. 글자는 블록 열쇠로 기억했다가 원래 글자를 다시 저장하고, 옮기기는 거꾸로 옮긴다.
 //  - 지우기는 아직 미뤄 둔(held) 동안만 살린다. 지우기가 저장되면(flushHeld) 번호가 달라지므로 기록을 전부 비운다
 //  - 새로 불러오거나(load) 순서 저장이 실패해 되돌려질 때(epoch 가 바뀔 때)도 비운다. 되돌리기 자체는 기록을 남기지 않는다
+// 읽은 사람 (설계서 7-4장): 기록(ez_views)은 열어 둔 동안 30초마다(tick) 다시 읽고, 라이브는 공유가 켜져 있을 때 presence 채널을 듣는다.
+//  - 도구 줄의 아바타 줄(없으면 눈) → 작은 창. 보는 블록 왼쪽에 작은 아바타(PeerMarks), 차례 레일에 점
 
 import { ThemeToggle } from "./ThemeToggle";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +20,7 @@ import { toKorean } from "../../lib/errors";
 import { blocksToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
 import { withDemo } from "../_data/source";
-import type { ReportDoc } from "../_data/types";
+import type { Presence, ReportDoc, ViewRow } from "../_data/types";
 import {
   folderTrail,
   formatDay,
@@ -34,6 +36,8 @@ import {
   withTextAt,
   type UndoEntry,
 } from "../_logic/drawer";
+import { liveNow } from "../_logic/views";
+import { useApp } from "./AppContext";
 import { Blocks, Field, tocOf, type EditCtx, type ImageUrls, type Path } from "./Blocks";
 import { Crumbs, type Crumb } from "./Crumbs";
 import { useDrawer } from "./DrawerContext";
@@ -43,6 +47,7 @@ import { useFlip } from "./motion/useFlip";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
 import { useArrange } from "./useArrange";
+import { PeerMarks, ViewersButton, ViewsPop } from "./Viewers";
 
 const CONFLICT = "방금 다른 곳에서 이 보고서를 고쳤습니다";
 /** 차례 레일은 블록이 이만큼 이상일 때만 */
@@ -65,6 +70,7 @@ const NO_ROOT = { current: null };
 
 export function ReportView({ id }: { id: string }) {
   const { data, demo, href, folders, tick, fail } = useDrawer();
+  const { live } = useApp().src;
   const toast = useToast();
   const router = useRouter();
   const sp = useSearchParams();
@@ -76,6 +82,10 @@ export function ReportView({ id }: { id: string }) {
   const [shareBusy, setShareBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
+  const [views, setViews] = useState<ViewRow[]>([]);
+  const [presence, setPresence] = useState<Presence[] | null>(null);
+  const [viewsOpen, setViewsOpen] = useState(false);
+  const [viewsMore, setViewsMore] = useState(false);
 
   const images = useCallback<ImageUrls>((paths) => data.imageUrls(paths), [data]);
 
@@ -91,6 +101,8 @@ export function ReportView({ id }: { id: string }) {
   const lineRef = useRef<HTMLDivElement>(null);
   const shareRef = useRef<HTMLDivElement>(null);
   const shareBtn = useRef<HTMLButtonElement>(null);
+  const viewsRef = useRef<HTMLDivElement>(null);
+  const viewsBtn = useRef<HTMLButtonElement>(null);
   const loadSeq = useRef(0);
 
   const record = useCallback((e: Undo) => {
@@ -150,17 +162,51 @@ export function ReportView({ id }: { id: string }) {
     void loadRef.current();
   }, [tick]);
 
-  // 공유 창: 바깥을 누르면 닫힘
+  // 공유 창 · 읽은 사람 창: 바깥을 누르면 닫힘
   useEffect(() => {
-    if (!shareOpen) return;
+    if (!shareOpen && !viewsOpen) return;
     const down = (e: PointerEvent) => {
       const t = e.target as Node;
-      if (shareRef.current?.contains(t) || shareBtn.current?.contains(t)) return;
-      setShareOpen(false);
+      if (shareOpen && !(shareRef.current?.contains(t) || shareBtn.current?.contains(t))) setShareOpen(false);
+      if (viewsOpen && !(viewsRef.current?.contains(t) || viewsBtn.current?.contains(t))) setViewsOpen(false);
     };
     document.addEventListener("pointerdown", down, true);
     return () => document.removeEventListener("pointerdown", down, true);
-  }, [shareOpen]);
+  }, [shareOpen, viewsOpen]);
+
+  // ------------------------------------------------------------ 읽은 사람
+
+  // 기록: 열 때와 30초마다(tick — 탭이 숨겨지면 멈춘다). 다른 보고서로 넘어가면 비운다
+  const docReady = doc !== null && doc !== "missing";
+  useEffect(() => {
+    setViews([]);
+    setViewsMore(false);
+  }, [id]);
+  useEffect(() => {
+    if (!docReady) return;
+    let alive = true;
+    data.views(id).then(
+      (rows) => alive && setViews(rows),
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [data, id, docReady, tick]);
+
+  // 라이브: 공유가 켜져 있는 동안 채널을 듣는다 (자기 상태는 올리지 않는다). 안 되면 null → 기록의 70초 판정만
+  const shareToken = docReady ? doc.share_token : null;
+  useEffect(() => {
+    if (!shareToken) {
+      setPresence(null);
+      return;
+    }
+    return live.watch(shareToken, setPresence);
+  }, [live, shareToken]);
+
+  const now = new Date();
+  const liveNowList = liveNow(presence, views, now);
+  const liveBlocks = new Set(liveNowList.flatMap((p) => (p.block === null ? [] : [p.block])));
 
   const reload = useCallback(() => {
     void load();
@@ -514,6 +560,15 @@ export function ReportView({ id }: { id: string }) {
             <button type="button" className="iconbtn" aria-label="Markdown 복사" title="Markdown 복사" onClick={() => void copyMarkdown()}>
               <Icon name={mdCopied ? "check" : "copy"} />
             </button>
+            <ViewersButton
+              ref={viewsBtn}
+              live={liveNowList}
+              open={viewsOpen}
+              onClick={() => {
+                setShareOpen(false);
+                setViewsOpen((v) => !v);
+              }}
+            />
             <button
               type="button"
               ref={shareBtn}
@@ -522,11 +577,17 @@ export function ReportView({ id }: { id: string }) {
               aria-pressed={shareOpen}
               aria-label="공유 링크"
               title="공유 링크"
-              onClick={() => setShareOpen((v) => !v)}
+              onClick={() => {
+                setViewsOpen(false);
+                setShareOpen((v) => !v);
+              }}
             >
               <Icon name="link" />
             </button>
           </div>
+        )}
+        {ready && viewsOpen && (
+          <ViewsPop ref={viewsRef} live={liveNowList} rows={views} toc={tocOf(doc.blocks)} now={now} expanded={viewsMore} onMore={() => setViewsMore(true)} />
         )}
         {ready && shareOpen && (
           <div className="share-pop" ref={shareRef}>
@@ -576,23 +637,39 @@ export function ReportView({ id }: { id: string }) {
               </div>
             </div>
             <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} />
+            {!editing && <PeerMarks live={liveNowList} page={pageRef} blockCount={doc.blocks.length} />}
           </article>
           {editing && <div className="drop-line" ref={lineRef} aria-hidden="true" />}
           {editing && <EditBar canUp={arr.canUp} canDown={arr.canDown} hasSelection={arr.selected.size > 0} onAct={act} />}
-          {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} />}
+          {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} marks={liveBlocks} />}
         </div>
       ) : null}
     </>
   );
 }
 
-export function Rail({ blocks }: { blocks: unknown[] }) {
+/** marks: 지금 누가 보고 있는 블록 번호들 — 그 블록이 속한 절 항목 옆에 점 */
+export function Rail({ blocks, marks }: { blocks: unknown[]; marks?: ReadonlySet<number> }) {
+  const toc = tocOf(blocks);
+  // 블록 번호 → 그 블록이 속한 차례 항목(그 번호 이하 가장 가까운 것)
+  const marked = new Set<number>();
+  if (marks) {
+    for (const b of marks) {
+      let hit: number | null = null;
+      for (const [i] of toc) {
+        if (i > b) break;
+        hit = i;
+      }
+      if (hit !== null) marked.add(hit);
+    }
+  }
   return (
     <nav className="rail" aria-label="차례">
-      {tocOf(blocks).map(([i, name]) => (
+      {toc.map(([i, name]) => (
         <a
           key={i}
           href={`#b${i}`}
+          data-live={marked.has(i) ? "" : undefined}
           onClick={(e) => {
             e.preventDefault();
             document.getElementById(`b${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" });

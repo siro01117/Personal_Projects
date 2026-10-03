@@ -54,6 +54,25 @@ export type ReportDoc = Entry & {
 
 export type SharedDoc = { name: string; report_kind: string | null; blocks: unknown[]; updated_at: string };
 
+/** ez_views 한 줄 — 보고서 × 기기 (설계서 7-4장). 주인만 읽는다 */
+export type ViewRow = {
+  id: string;
+  device: string;
+  guest_no: number;
+  name: string | null;
+  first_at: string;
+  last_at: string;
+  hits: number;
+  seconds: number;
+  ua: string | null;
+};
+
+/** ez_view_open 이 돌려주는 것 — 공개 페이지가 자기 라벨("게스트 n" 또는 이름)을 안다 */
+export type Viewer = { guest_no: number; name: string | null };
+
+/** 라이브(presence)에 올리는 상태 — 라벨과 보고 있는 블록 번호뿐 */
+export type Presence = { device: string; label: string; block: number | null };
+
 /** ez_restore 한 줄 */
 export type Restored = { id: string; name: string; to_root: boolean; renamed: boolean };
 
@@ -122,6 +141,14 @@ export interface DrawerData {
   unshare(id: string): Promise<void>;
   /** ez_shared — 로그인 없이. 없거나 꺼졌으면 null. 사진의 local_path 는 빠져 온다 */
   shared(token: string): Promise<SharedDoc | null>;
+  /** 읽은 사람 기록 (주인만, RLS). 최근 것부터 */
+  views(itemId: string): Promise<ViewRow[]>;
+  /** ez_view_open — 공개 페이지가 들어왔다. 없는 열쇠 · 꺼진 링크 · 주인 본인이면 null */
+  viewOpen(token: string, device: string, ua: string): Promise<Viewer | null>;
+  /** ez_view_ping — 살아 있음 + 그 사이 보인 초(60까지). keepalive 면 페이지를 떠나며 보내는 마지막 한 번 */
+  viewPing(token: string, device: string, seenSec: number, keepalive?: boolean): Promise<void>;
+  /** ez_view_name — 이름 적기 · 바꾸기 (null 이면 다시 게스트 n) */
+  viewName(token: string, device: string, name: string | null): Promise<void>;
   /**
    * 사진 파일의 잠깐(1시간) 유효한 주소. shared 면 로그인 없이(anon — 공유 켜진 보고서가 쓰는 사진만).
    * 못 받은 경로는 빠진다. 같은 페이지 안에서는 다시 받지 않는다
@@ -375,5 +402,33 @@ export interface MeetPublicData {
   rsvp(token: string, name: string, pin: string, attend: Attend | null): Promise<Entered>;
 }
 
+/** 공개 페이지가 채널에 들어가 있는 동안 */
+export type LiveSession = {
+  /** 상태가 바뀌면(라벨 · 블록) 다시 올린다 */
+  track(state: Presence): void;
+  /** 나간다 (untrack + 채널 닫기) */
+  leave(): void;
+};
+
+/**
+ * 라이브 — Realtime presence 채널 report:<열쇠> (설계서 7-4장). DB 를 거치지 않고 남지도 않는다.
+ * 공개 페이지는 join 으로 자기 상태만 올리고 남의 상태는 읽지 않는다. 주인 화면은 watch 로 듣기만 한다
+ */
+export interface LiveData {
+  join(token: string, state: Presence): LiveSession;
+  /** 바뀔 때마다 지금 있는 사람들. 연결이 안 되거나 끊기면 null (화면은 기록의 70초 판정으로 물러난다). 해제 함수 */
+  watch(token: string, onChange: (people: Presence[] | null) => void): () => void;
+}
+
 /** cache = 마지막으로 읽은 것 (먼저 그리기용). data 는 이미 캐시를 낀 서랍 */
-export type Source = { data: DrawerData; schedule: ScheduleData; planner: PlannerData; meet: MeetData; meetPublic: MeetPublicData; auth: Auth; demo: boolean; cache: DataCache };
+export type Source = {
+  data: DrawerData;
+  schedule: ScheduleData;
+  planner: PlannerData;
+  meet: MeetData;
+  meetPublic: MeetPublicData;
+  live: LiveData;
+  auth: Auth;
+  demo: boolean;
+  cache: DataCache;
+};

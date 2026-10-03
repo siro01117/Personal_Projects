@@ -9,12 +9,15 @@ import { arrangeBlocks, arrangeError, editRule, isSameOrder, LIMITS, tidyText, w
 import { DbError } from "../../lib/errors";
 import { charCount, copyName, sameName, uniqueName, validateName } from "../../lib/names";
 import { isUnread } from "../_logic/drawer";
-import type { Copied, DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored, SearchHit, SharedDoc, TrashRow } from "./types";
+import type { Copied, DrawerData, Entry, Folder, Kind, Path, ReportDoc, Restored, SearchHit, SharedDoc, TrashRow, Viewer, ViewRow } from "./types";
 
 const MAX_DEPTH = 8;
 /** 찾기에서 뺄 키 — 사용자 글자가 아닌 값 (ez_search 와 같다) */
 const NOT_TEXT = ["type", "tag", "url", "src", "place", "size", "local_path", "edge"];
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
+/** 읽은 사람: 보고서당 상한 · 한 핑에 더하는 초의 상한 (0013 과 같다) */
+const VIEWS_MAX = 500;
+const SEEN_MAX = 60;
 /** 줄바꿈 + 줄/문단 구분자(U+2028, U+2029) — ez_edit_text 와 같다 */
 const LINE_BREAK = new RegExp(`[\\n\\r${String.fromCharCode(0x2028, 0x2029)}]`);
 
@@ -38,12 +41,18 @@ export type Row = {
 
 export type Seed = Partial<Row> & { id: string; kind: Kind; name: string };
 
+/** 읽은 사람 한 줄 (ez_views 흉내). item_id 가 붙는다 */
+export type ViewSeed = Omit<ViewRow, "id"> & { item_id: string };
+type ViewRecord = ViewRow & { item_id: string };
+
 export type MemoryOptions = {
   /** 응답을 늦춰 낙관적 갱신이 보이게 (ms) */
   latency?: number;
   now?: () => Date;
   /** 사진 경로 → 보여 줄 주소 (확인 모드는 public/ 의 샘플) */
   images?: Record<string, string>;
+  /** 읽은 사람 표본 */
+  views?: ViewSeed[];
 };
 
 const usesImage = (blocks: unknown[] | null, src: string) =>
@@ -68,6 +77,9 @@ const clone = <T>(x: T): T => structuredClone(x);
 
 export class MemoryDrawer implements DrawerData {
   readonly rows = new Map<string, Row>();
+  /** 읽은 사람 (ez_views) · 보고서마다 마지막 게스트 번호 (ez_view_seq) */
+  readonly viewRows: ViewRecord[] = [];
+  private readonly viewSeq = new Map<string, number>();
   private readonly latency: number;
   private readonly now: () => Date;
   private readonly images: Record<string, string>;
@@ -76,6 +88,10 @@ export class MemoryDrawer implements DrawerData {
     this.latency = opts.latency ?? 0;
     this.now = opts.now ?? (() => new Date());
     this.images = opts.images ?? {};
+    for (const v of opts.views ?? []) {
+      this.viewRows.push({ id: randomId(), ...clone(v) });
+      this.viewSeq.set(v.item_id, Math.max(this.viewSeq.get(v.item_id) ?? 0, v.guest_no));
+    }
     const at = this.now().toISOString();
     for (const s of seed) {
       this.rows.set(s.id, {
@@ -554,6 +570,69 @@ export class MemoryDrawer implements DrawerData {
     if (!TOKEN.test(token)) return null;
     const r = [...this.rows.values()].find((x) => x.share_token === token && x.kind === "report" && x.deleted_at === null);
     return r ? clone({ name: r.name, report_kind: r.report_kind, blocks: withoutLocalPaths(r.blocks ?? []), updated_at: r.updated_at }) : null;
+  }
+
+  // ---------------------------------------------------------------- 읽은 사람 (0013 흉내)
+
+  /** 열쇠 → 공유가 켜진 살아 있는 보고서. 메모리에는 로그인이 없어 주인 건너뛰기는 흉내 내지 않는다 */
+  private viewTarget(token: string): Row | undefined {
+    if (!TOKEN.test(token)) return undefined;
+    return [...this.rows.values()].find((x) => x.share_token === token && x.kind === "report" && x.deleted_at === null);
+  }
+
+  private viewRow(itemId: string, device: string): ViewRecord | undefined {
+    return this.viewRows.find((v) => v.item_id === itemId && v.device === device);
+  }
+
+  async views(itemId: string): Promise<ViewRow[]> {
+    await this.wait();
+    return this.viewRows
+      .filter((v) => v.item_id === itemId)
+      .sort((a, b) => Date.parse(b.last_at) - Date.parse(a.last_at) || a.guest_no - b.guest_no)
+      .map(({ item_id: _, ...v }) => clone(v));
+  }
+
+  async viewOpen(token: string, device: string, ua: string): Promise<Viewer | null> {
+    await this.wait();
+    if (!TOKEN.test(device)) throw ez("EZ_VALUE", "기기 열쇠 모양이 맞지 않습니다");
+    const r = this.viewTarget(token);
+    if (!r) return null;
+    const at = this.now().toISOString();
+    const hint = ua.trim().slice(0, 80) || null;
+    let v = this.viewRow(r.id, device);
+    if (v) {
+      v.ua = hint;
+      v.last_at = at;
+      v.hits += 1;
+    } else {
+      const no = (this.viewSeq.get(r.id) ?? 0) + 1;
+      this.viewSeq.set(r.id, no);
+      v = { id: randomId(), item_id: r.id, device, guest_no: no, name: null, first_at: at, last_at: at, hits: 1, seconds: 0, ua: hint };
+      this.viewRows.push(v);
+      // 보고서당 500줄: 가장 오래 전에 살아 있던 줄부터 지운다
+      const mine = this.viewRows.filter((x) => x.item_id === r.id).sort((a, b) => Date.parse(b.last_at) - Date.parse(a.last_at));
+      for (const old of mine.slice(VIEWS_MAX)) this.viewRows.splice(this.viewRows.indexOf(old), 1);
+    }
+    return { guest_no: v.guest_no, name: v.name };
+  }
+
+  async viewPing(token: string, device: string, seenSec: number): Promise<void> {
+    await this.wait();
+    const r = this.viewTarget(token);
+    const v = r && this.viewRow(r.id, device);
+    if (!v) return;
+    v.last_at = this.now().toISOString();
+    v.seconds += Math.min(Math.max(Math.round(seenSec) || 0, 0), SEEN_MAX);
+  }
+
+  async viewName(token: string, device: string, name: string | null): Promise<void> {
+    await this.wait();
+    const n = (name ?? "").trim();
+    if (charCount(n) > 20 || LINE_BREAK.test(n)) throw ez("EZ_VALUE", "이름은 20자까지, 한 줄로 씁니다");
+    const r = this.viewTarget(token);
+    const v = r && this.viewRow(r.id, device);
+    if (!v) return;
+    v.name = n === "" ? null : n;
   }
 
   /** 사진 주소 흉내: 생성할 때 준 images(경로 → 주소). shared 면 공유 켜진 살아 있는 보고서가 쓰는 것만 (0004 anon 정책) */
