@@ -43,7 +43,7 @@ type Row = Record<string, unknown>;
 const EV = `id, title, date::text as date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id,
   task_id, origin_kind, origin_id, version, updated_at`;
 const TASK = `id, title, note, due::text as due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist,
-  rule_id, rule_date::text as rule_date, role_id, bench_at, version, created_at, updated_at`;
+  rule_id, rule_date::text as rule_date, role_id, bench_order, bench_at, version, created_at, updated_at`;
 const RULE = `id, kind, title, note, est_min, place_id, checklist, repeat, start::text as start, event_id, due_after,
   last_made::text as last_made, role_id, version`;
 

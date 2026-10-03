@@ -169,7 +169,9 @@ export type TaskRow = {
   rule_date: DateStr | null;
   /** 역할 — 누구로서 하는 일인가 (7-11) */
   role_id: string | null;
-  /** 작업대에 올린 때. null 이면 안 올라감. 사람당 하나 (7-13) */
+  /** 작업대에 올린 순서 (작은 것이 앞). null 이면 안 올라감. 여럿 (7-15) */
+  bench_order: number | null;
+  /** 지금 앉은 때 — 집중 화면을 연 것. 사람당 하나, 올라간 것에만 (7-15) */
   bench_at: string | null;
   version: number;
   created_at: string;

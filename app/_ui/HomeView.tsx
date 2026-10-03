@@ -1,6 +1,6 @@
 "use client";
 
-// 홈 벤또 (목업 .home). 보고서 서랍 · 일정 · 플래너 · 모임 타일이 동작한다. 나머지는 점선 '나중' 타일, 눌러도 아무 일 없음.
+// 홈 벤또 (목업 .home). 보고서 서랍 · 일정 · 플래너 · 작업대(플래너의 하위, docs/플래너.md 7-15) · 모임 타일이 동작한다. 나머지는 점선 '나중' 타일, 눌러도 아무 일 없음.
 // 켠 추가 모듈도 타일로(link 는 새 탭). 맨 아래 추가 모듈 선택창 · 회원(관리자만) — 홈에는 사이드바가 없어서 (docs/회원.md 4장).
 
 import { ThemeToggle } from "./ThemeToggle";
@@ -70,28 +70,7 @@ export function HomeView() {
           <ThemeToggle className="theme-toggle" />
         </div>
         <div className="bento">
-          <Link className="tile t-today" href={withDemo("/schedule", src.demo)}>
-            <Icon name="cal" className="ico" />
-            <span className="lbl">일정</span>
-          </Link>
-          <Link className="tile t-planner" href={withDemo("/planner", src.demo)}>
-            <Icon name="plan" className="ico" />
-            <span className="lbl">플래너</span>
-          </Link>
-          <Link className="tile t-reports" href={withDemo("/drawer", src.demo)}>
-            {unread > 0 && <span className="badge new">{unread}</span>}
-            <Icon name="rep" className="ico" />
-            <span className="lbl">보고서 서랍</span>
-          </Link>
-          <Later className="t-project" icon="proj" label="프로젝트" />
-          <Later className="t-tools" icon="ia" label="IA · 유저플로우" />
-          <Later className="t-kick" icon="kick" label="시작 질문지" />
-          <Link className="tile t-meet" href={withDemo("/meet", src.demo)}>
-            <Icon name="meet" className="ico" />
-            <span className="lbl">모임</span>
-          </Link>
-          <Later className="t-learn" icon="learn" label="학습기" />
-          <Later className="t-note" icon="note" label="학습 노트" />
+          <HomeTiles demo={src.demo} unread={unread} />
           {mods.map((m) => (
             <ModuleLink key={m.key} m={m} href={(p) => withDemo(p, src.demo)} className="tile t-mod">
               <ModuleIcon m={m} className="ico" />
@@ -124,6 +103,40 @@ export function HomeView() {
       </section>
       <ModulePicker me={me} at={pick} sheet={sheet} onToggle={setPicked} onClose={closePick} />
     </div>
+  );
+}
+
+/** 고정 타일들 — 일정 · 플래너 · 작업대 · 보고서 서랍 · 나중 타일 · 모임 */
+export function HomeTiles({ demo, unread }: { demo: boolean; unread: number }) {
+  return (
+    <>
+      <Link className="tile t-today" href={withDemo("/schedule", demo)}>
+        <Icon name="cal" className="ico" />
+        <span className="lbl">일정</span>
+      </Link>
+      <Link className="tile t-planner" href={withDemo("/planner", demo)}>
+        <Icon name="plan" className="ico" />
+        <span className="lbl">플래너</span>
+      </Link>
+      <Link className="tile t-bench" href={withDemo("/planner/bench", demo)}>
+        <Icon name="bench" className="ico" />
+        <span className="lbl">작업대</span>
+      </Link>
+      <Link className="tile t-reports" href={withDemo("/drawer", demo)}>
+        {unread > 0 && <span className="badge new">{unread}</span>}
+        <Icon name="rep" className="ico" />
+        <span className="lbl">보고서 서랍</span>
+      </Link>
+      <Later className="t-project" icon="proj" label="프로젝트" />
+      <Later className="t-tools" icon="ia" label="IA · 유저플로우" />
+      <Later className="t-kick" icon="kick" label="시작 질문지" />
+      <Link className="tile t-meet" href={withDemo("/meet", demo)}>
+        <Icon name="meet" className="ico" />
+        <span className="lbl">모임</span>
+      </Link>
+      <Later className="t-learn" icon="learn" label="학습기" />
+      <Later className="t-note" icon="note" label="학습 노트" />
+    </>
   );
 }
 

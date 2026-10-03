@@ -375,23 +375,35 @@ describe("MemorySchedule — 할 일의 새 칸", () => {
     await expect(m.updateTask(u.id, u.version, { place_id: "없는 지점" })).rejects.toThrow(/ez_tasks_place_fk/);
   });
 
-  it("작업대: 사람당 하나, 끝내거나 지우면 내려오고 끝낸 것은 못 올린다 (0016 과 같게)", async () => {
+  it("작업대: 여럿 올라가고 앉는 것은 하나, 끝내거나 지우면 둘 다 비고 끝낸 것은 못 올린다 (0017 과 같게)", async () => {
     const m = new MemorySchedule();
     const a = await m.createTask({ title: "상법" });
     const b = await m.createTask({ title: "과제" });
-    expect(a.bench_at).toBeNull();
+    expect(a.bench_order).toBeNull();
     const on = await m.bench(a.id, true);
-    expect(on.bench_at).not.toBeNull();
+    expect(on.bench_order).toBe(1);
     expect((await m.bench(a.id, true)).version).toBe(on.version);
-    await m.bench(b.id, true);
-    expect((await m.tasks()).filter((t) => t.bench_at !== null).map((t) => t.title)).toEqual(["과제"]);
-    const cur = (await m.tasks()).find((t) => t.id === b.id)!;
-    const done = await m.setDone(b.id, cur.version, true);
-    expect(done.bench_at).toBeNull();
+    expect((await m.bench(b.id, true)).bench_order).toBe(2);
+    const benched = async () => (await m.tasks()).filter((t) => t.bench_order !== null).sort((x, y) => x.bench_order! - y.bench_order!).map((t) => t.title);
+    const sitting = async () => (await m.tasks()).filter((t) => t.bench_at !== null).map((t) => t.title);
+    expect(await benched()).toEqual(["상법", "과제"]);
+    await m.sit(a.id);
+    await m.sit(b.id);
+    expect(await sitting()).toEqual(["과제"]);
+    expect(await m.reorderBench([b.id, a.id])).toHaveLength(2);
+    expect(await benched()).toEqual(["과제", "상법"]);
+    expect(await m.reorderBench([b.id, a.id])).toHaveLength(0);
+    const off = await m.bench(b.id, false);
+    expect(off).toMatchObject({ bench_order: null, bench_at: null });
+    const s = await m.sit(b.id);
+    expect(s.bench_order).toBe(3);
+    const done = await m.setDone(b.id, s.version, true);
+    expect(done).toMatchObject({ bench_order: null, bench_at: null });
     await expect(m.bench(b.id, true)).rejects.toThrow(/EZ_VALUE/);
-    const x = await m.bench(a.id, true);
+    await expect(m.sit(b.id)).rejects.toThrow(/EZ_VALUE/);
+    const x = (await m.tasks()).find((t) => t.id === a.id)!;
     await m.deleteTask(a.id, x.version);
-    expect((await m.tasks()).some((t) => t.bench_at !== null)).toBe(false);
+    expect((await m.tasks()).some((t) => t.bench_order !== null || t.bench_at !== null)).toBe(false);
     await expect(m.bench(a.id, true)).rejects.toThrow(/EZ_NOT_FOUND/);
   });
 

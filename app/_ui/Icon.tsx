@@ -229,6 +229,13 @@ const PATHS = {
   dots: <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="2.6" />,
   /** 블록 손잡이: 점 여섯 개 */
   grip: <path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" strokeWidth="2.6" />,
+  /** 작업대: 책상 위 종이 한 장 (docs/플래너.md 7-15) */
+  bench: (
+    <>
+      <path d="M2 14h20M5 14v7M19 14v7" />
+      <path d="M8 14V5h8v9M10.5 8h3M10.5 11h3" />
+    </>
+  ),
   user: (
     <>
       <circle cx="12" cy="8" r="4" />

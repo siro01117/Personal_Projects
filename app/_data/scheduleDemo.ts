@@ -117,15 +117,32 @@ export function scheduleSeed(now: Date = new Date()): ScheduleSeed {
           { t: "슬라이드 초안", done: false },
           { t: "발표 대본 다듬기", done: false },
         ],
-        // 작업대에 올라가 있다 (docs/플래너.md 7-13)
+        // 작업대 첫째, 지금 앉아 있다 (docs/플래너.md 7-15)
+        bench_order: 1,
         bench_at: ago(40),
       },
-      { id: ID(202), title: "운영체제 과제 3", due: d(6), est_min: 120, sort: 2, place_id: P.school, role_id: R.univ },
+      {
+        id: ID(202),
+        title: "운영체제 과제 3",
+        due: d(6),
+        est_min: 120,
+        sort: 2,
+        place_id: P.school,
+        role_id: R.univ,
+        note: "스케줄링 문제는 강의 7장 예제부터\n제출은 PDF 하나",
+        checklist: [
+          { t: "문제 1 풀이", done: true },
+          { t: "문제 2 풀이", done: false },
+          { t: "보고서 정리", done: false },
+        ],
+        // 작업대 둘째
+        bench_order: 2,
+      },
       { id: ID(203), title: "자취방 계약서 확인", est_min: 30, sort: 3, role_id: R.me },
       { id: ID(204), title: "APPTIVE 회고 정리", sort: 4, place_id: P.cafe, role_id: R.club },
       { id: ID(205), title: "도서관 책 반납", sort: 5, done_at: ago(60 * 20), role_id: R.univ },
       { id: ID(206), title: "장학금 서류 제출", due: addDays(today, -1), est_min: 20, sort: 0.5, role_id: R.univ },
-      { id: ID(207), title: "엄마 생일 선물 고르기", due: addDays(today, 4), est_min: 45, note: "향수 말고 다른 것. 예산 5만 원 안쪽", sort: 6, role_id: R.me },
+      { id: ID(207), title: "엄마 생일 선물 고르기", due: addDays(today, 4), est_min: 45, note: "향수 말고 다른 것. 예산 5만 원 안쪽", sort: 6, role_id: R.me, bench_order: 3 },
       { id: ID(208), title: "자료구조 퀴즈 복습", sort: 7, done_at: ago(60 * 24 * 3), role_id: R.univ },
       // 역할 없는 것 하나
       { id: ID(209), title: "교수님 메일 답장", est_min: 30, sort: 8 },

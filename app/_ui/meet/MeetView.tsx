@@ -410,6 +410,7 @@ export function MeetView({ id }: { id: string }) {
       rule_id: null,
       rule_date: null,
       role_id: input.role_id ?? null,
+      bench_order: null,
       bench_at: null,
       version: 1,
       created_at: at,

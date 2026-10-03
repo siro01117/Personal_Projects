@@ -31,7 +31,10 @@ import {
   whenLabel,
   estOf,
   addStep,
-  benchOf,
+  benchCandidates,
+  benchList,
+  benchSides,
+  firstLine,
   detachStep,
   filterByRole,
   insertStep,
@@ -63,6 +66,7 @@ const task = (id: string, over: Partial<TaskRow> = {}): TaskRow => ({
   rule_id: null,
   rule_date: null,
   role_id: null,
+  bench_order: null,
   bench_at: null,
   version: 1,
   created_at: "2026-09-01T00:00:00Z",
@@ -667,6 +671,53 @@ describe("역할 필터 (7-14)", () => {
   });
 });
 
+describe("작업대 여럿 (7-15)", () => {
+  const now = new Date("2026-10-04T03:00:00Z");
+  const at = { date: "2026-10-04", min: 720 };
+
+  it("올라간 것만, 올린 순서 (끝낸 것은 뺀다)", () => {
+    const list = benchList([
+      task("a"),
+      task("b", { bench_order: 3 }),
+      task("c", { bench_order: 1, bench_at: "2026-10-04T01:00:00Z" }),
+      task("d", { bench_order: 2, done_at: "2026-10-04T02:00:00Z" }),
+    ]);
+    expect(list.map((t) => t.id)).toEqual(["c", "b"]);
+  });
+
+  it("가져오기 후보: 안 올라간 열린 할 일, 지남 · 할 일 · 시간 정함 순, 끈 역할은 뺀다", () => {
+    const tasks = [
+      task("open2", { sort: 2 }),
+      task("open1", { sort: 1, role_id: "r1" }),
+      task("timed", { sort: 0 }),
+      task("late", { due: "2026-10-01" }),
+      task("on", { bench_order: 1 }),
+      task("done", { done_at: "2026-10-03T00:00:00Z" }),
+      task("hidden", { sort: 3, role_id: "r2" }),
+    ];
+    const links = [link("timed", "2026-10-05", 600)];
+    const roles = [{ id: "r1" }, { id: "r2" }];
+    expect(benchCandidates(tasks, links, now, at, [], roles).map((t) => t.id)).toEqual(["late", "open1", "open2", "hidden", "timed"]);
+    expect(benchCandidates(tasks, links, now, at, ["r2"], roles).map((t) => t.id)).toEqual(["late", "open1", "open2", "timed"]);
+    expect(benchCandidates(tasks, links, now, at, [NO_ROLE], roles).map((t) => t.id)).toEqual(["open1", "hidden"]);
+  });
+
+  it("순서: 끌어서 옮긴 자리 · 앞뒤", () => {
+    const list = [task("a"), task("b"), task("c")];
+    expect(moved(list, "c", 0).map((t) => t.id)).toEqual(["c", "a", "b"]);
+    expect(benchSides(list, "b")).toEqual({ prev: "a", next: "c" });
+    expect(benchSides(list, "a")).toEqual({ prev: null, next: "b" });
+    expect(benchSides(list, "c")).toEqual({ prev: "b", next: null });
+    expect(benchSides(list, "x")).toEqual({ prev: null, next: null });
+  });
+
+  it("메모 첫 줄", () => {
+    expect(firstLine(null)).toBeNull();
+    expect(firstLine("  \n\n")).toBeNull();
+    expect(firstLine("\n  계획부터 \n둘째 줄")).toBe("계획부터");
+  });
+});
+
 describe("작업대 (7-13)", () => {
   const steps = [
     { t: "1장", done: true },
@@ -675,8 +726,6 @@ describe("작업대 (7-13)", () => {
   ];
 
   it("올라간 할 일 · 앉은 지", () => {
-    expect(benchOf([task("a"), task("b", { bench_at: "2026-10-04T01:00:00Z" })])?.id).toBe("b");
-    expect(benchOf([task("b", { bench_at: "2026-10-04T01:00:00Z", done_at: "2026-10-04T02:00:00Z" })])).toBeNull();
     expect(satMinutes("2026-10-04T01:00:00Z", new Date("2026-10-04T01:40:59Z"))).toBe(40);
     expect(satMinutes("2026-10-04T01:00:00Z", new Date("2026-10-04T00:59:00Z"))).toBe(0);
     expect([0, 1, 40, 60, 65].map(satLabel)).toEqual(["방금 앉음", "앉은 지 1분", "앉은 지 40분", "앉은 지 1시간", "앉은 지 1시간 5분"]);

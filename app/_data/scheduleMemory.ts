@@ -153,6 +153,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         rule_id: null,
         rule_date: null,
         role_id: null,
+        bench_order: null,
         bench_at: null,
         version: 1,
         created_at: at,
@@ -716,6 +717,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
       rule_id: input.rule_id ?? null,
       rule_date: input.rule_date ?? null,
       role_id: input.role_id ?? null,
+      bench_order: null,
       bench_at: null,
       version: 1,
       created_at: at,
@@ -749,8 +751,11 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     const t = this.task(id);
     this.taskVersion(t, baseVersion);
     t.done_at = done ? new Date().toISOString() : null;
-    // 끝내면 작업대에서 내려온다 (0016 ez_tasks_bench)
-    if (done) t.bench_at = null;
+    // 끝내면 작업대에서 내려온다 (0017 ez_tasks_bench)
+    if (done) {
+      t.bench_at = null;
+      t.bench_order = null;
+    }
     this.bumpTask(t);
     return this.out(t);
   }
@@ -761,6 +766,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     this.taskVersion(t, baseVersion);
     t.deleted_at = new Date().toISOString();
     t.bench_at = null;
+    t.bench_order = null;
     this.bumpTask(t);
   }
 
@@ -782,16 +788,34 @@ export class MemorySchedule implements ScheduleData, PlannerData {
     return this.out(t);
   }
 
+  /** 올린 것 중 가장 큰 순서 + 1 (0017 ez_task_bench) */
+  private nextBench(): number {
+    let max = 0;
+    for (const o of this.tk.values()) if (o.deleted_at === null && o.bench_order !== null) max = Math.max(max, o.bench_order);
+    return max + 1;
+  }
+
   async bench(id: string, on: boolean): Promise<TaskRow> {
     await this.wait();
     const t = this.task(id);
     if (!on) {
-      if (t.bench_at === null) return this.out(t);
+      if (t.bench_order === null && t.bench_at === null) return this.out(t);
+      t.bench_order = null;
       t.bench_at = null;
       this.bumpTask(t);
       return this.out(t);
     }
     if (t.done_at !== null) throw ez("EZ_VALUE", "끝낸 할 일은 작업대에 올릴 수 없습니다. 끝냄을 풀고 다시 하세요");
+    if (t.bench_order !== null) return this.out(t);
+    t.bench_order = this.nextBench();
+    this.bumpTask(t);
+    return this.out(t);
+  }
+
+  async sit(id: string): Promise<TaskRow> {
+    await this.wait();
+    const t = this.task(id);
+    if (t.done_at !== null) throw ez("EZ_VALUE", "끝낸 할 일에는 앉을 수 없습니다. 끝냄을 풀고 다시 하세요");
     if (t.bench_at !== null) return this.out(t);
     for (const o of this.tk.values()) {
       if (o.id !== id && o.bench_at !== null) {
@@ -799,9 +823,23 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         this.bumpTask(o);
       }
     }
+    if (t.bench_order === null) t.bench_order = this.nextBench();
     t.bench_at = new Date().toISOString();
     this.bumpTask(t);
     return this.out(t);
+  }
+
+  async reorderBench(ids: readonly string[]): Promise<TaskRow[]> {
+    await this.wait();
+    const out: TaskRow[] = [];
+    ids.forEach((id, i) => {
+      const t = this.tk.get(id);
+      if (!t || t.deleted_at !== null || t.bench_order === null || t.bench_order === i + 1) return;
+      t.bench_order = i + 1;
+      this.bumpTask(t);
+      out.push(this.out(t));
+    });
+    return out;
   }
 
   // ------------------------------------------------------------ 반복 규칙 (0007 ez_task_rules · ez_tasks_roll)
@@ -923,6 +961,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
         if (t.rule_id === r.id && t.rule_date !== null && t.rule_date < d && t.done_at === null && t.deleted_at === null) {
           t.deleted_at = new Date().toISOString();
           t.bench_at = null;
+          t.bench_order = null;
           this.bumpTask(t);
         }
       }
@@ -946,6 +985,7 @@ export class MemorySchedule implements ScheduleData, PlannerData {
           rule_id: r.id,
           rule_date: on,
           role_id: r.role_id,
+          bench_order: null,
           bench_at: null,
           version: 1,
           created_at: at,

@@ -97,7 +97,7 @@ export interface ScheduleStore {
   insertTask(t: NewTask): Promise<TaskRow>;
   updateTask(id: string, patch: TaskPatch, baseVersion: number): Promise<TaskRow | null>;
   deleteTask(id: string, baseVersion: number): Promise<boolean>;
-  /** ez_task_bench — 작업대에 올리기(다른 것은 내려놓음) · 내려놓기 (docs/플래너.md 7-13). 없는 할 일이면 null, 끝낸 것을 올리면 [EZ_VALUE] */
+  /** ez_task_bench — 작업대에 올리기(맨 뒤로, 여럿) · 내리기 (docs/플래너.md 7-15). 없는 할 일이면 null, 끝낸 것을 올리면 [EZ_VALUE] */
   benchTask(id: string, on: boolean): Promise<TaskRow | null>;
   /** 살아 있는 내 모임 (할 일이 물려받을 지점 · 역할). 없으면 null */
   meetRef(id: string): Promise<MeetRef | null>;
@@ -129,7 +129,7 @@ export interface ScheduleStore {
 export const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
 export const TASK_COLS =
-  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_at, version, created_at, updated_at";
+  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_order, bench_at, version, created_at, updated_at";
 export const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
 export const ROLE_COLS = "id, name, from_place, sort, version";
 export const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
@@ -180,6 +180,7 @@ export function toTask(r: Row): TaskRow {
     rule_id: (r.rule_id as string | null) ?? null,
     rule_date: day(r.rule_date),
     role_id: (r.role_id as string | null) ?? null,
+    bench_order: (r.bench_order as number | null) ?? null,
     bench_at: iso(r.bench_at),
     version: r.version as number,
     created_at: iso(r.created_at)!,

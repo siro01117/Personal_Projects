@@ -39,7 +39,7 @@ const EVENT_COLS =
   "id, title, date, start_min, end_min, place_id, where_text, travel_min, note, repeat, source, external_id, task_id, origin_kind, origin_id, version, updated_at";
 const PLACE_COLS = "id, name, role, symbol, color, sort, deleted_at";
 const TASK_COLS =
-  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_at, version, created_at, updated_at";
+  "id, title, note, due, est_min, sort, done_at, origin_kind, origin_id, place_id, due_event_id, checklist, rule_id, rule_date, role_id, bench_order, bench_at, version, created_at, updated_at";
 const RULE_COLS = "id, kind, title, note, est_min, place_id, checklist, repeat, start, event_id, due_after, last_made, role_id, version";
 const ROLE_COLS = "id, name, from_place, sort, version";
 const SETTINGS_COLS = "prep_first, prep_again, home_stay, meal_min, lunch, dinner, tz, my_name";
@@ -313,6 +313,28 @@ export class SupabaseSchedule implements ScheduleData, PlannerData {
   async bench(id: string, on: boolean): Promise<TaskRow> {
     const row = await run<Record<string, unknown>>(sb().rpc("ez_task_bench", { id, p_on: on }));
     return pickTask(row);
+  }
+
+  async sit(id: string): Promise<TaskRow> {
+    const row = await run<Record<string, unknown>>(sb().rpc("ez_task_sit", { id }));
+    return pickTask(row);
+  }
+
+  async reorderBench(ids: readonly string[]): Promise<TaskRow[]> {
+    const out: TaskRow[] = [];
+    for (const [i, id] of ids.entries()) {
+      const rows = await run<TaskRow[]>(
+        this.t("ez_tasks")
+          .update({ bench_order: i + 1 })
+          .eq("id", id)
+          .is("deleted_at", null)
+          .not("bench_order", "is", null)
+          .neq("bench_order", i + 1)
+          .select(TASK_COLS),
+      );
+      if (rows[0]) out.push(rows[0]);
+    }
+    return out;
   }
 
   // ------------------------------------------------------------ 반복 규칙

@@ -340,10 +340,14 @@ export interface PlannerData {
   /** 손으로 정한 순서. 사이에 끼우려면 앞뒤 sort 의 가운데 값 */
   reorder(id: string, sort: number): Promise<TaskRow>;
   /**
-   * ez_task_bench — 작업대(docs/플래너.md 7-13). on 이면 다른 할 일을 내려놓고 이것을 올린다(이미 올라가 있으면 그대로),
-   * 아니면 내려놓는다. 끝낸 할 일은 [EZ_VALUE]. 끝내거나 지우면 DB 가 내려놓는다
+   * ez_task_bench — 작업대(docs/플래너.md 7-15). on 이면 맨 뒤 순서로 올린다(이미 올라가 있으면 그대로),
+   * 아니면 내린다(앉아 있었으면 앉음도 빈다). 끝낸 할 일은 [EZ_VALUE]. 끝내거나 지우면 DB 가 내린다
    */
   bench(id: string, on: boolean): Promise<TaskRow>;
+  /** ez_task_sit — 집중 화면을 열 때. 다른 앉음을 비우고 이것에 앉는다(안 올라가 있으면 먼저 올림). 이미 앉아 있으면 그대로 */
+  sit(id: string): Promise<TaskRow>;
+  /** 작업대 순서 — ids 순서대로 bench_order 1, 2, … (바뀐 것만 고친다). 고친 행들 */
+  reorderBench(ids: readonly string[]): Promise<TaskRow[]>;
 
   createRule(input: RuleInput): Promise<TaskRule>;
   updateRule(id: string, patch: Partial<RuleInput>): Promise<TaskRule>;

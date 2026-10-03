@@ -1,13 +1,13 @@
 "use client";
 
-// 작업대 카드 (docs/플래너.md 7-13): 지금 하는 할 일 하나를 쪼개며 한다. 플래너 맨 위, 데스크톱 두 열에 걸친다.
-// 위: 지점 점 · 제목(누르면 보기) · 역할 · 걸릴 시간 · "앉은 지 n분"(1분마다, 탭이 숨으면 멈춘다).
+// 작업대 종이 (docs/플래너.md 7-13 내용 · 7-15 집중 화면): 지금 하는 할 일 하나를 쪼개며 한다. 집중 화면 한 장 가득, 가운데 맞춤.
+// 위: 제목(누르면 플래너의 보기) · 역할 · 걸릴 시간 · "앉은 지 n분"(1분마다, 탭이 숨으면 멈춘다).
 // 단계 = 체크 항목: 체크는 바로, 마우스로 끌어 순서(플래너 직접 정렬과 같은 끌기), 줄마다 떼어내기, 맨 아래 빈 줄에 적고 Enter.
-// 메모(note): 여러 줄, 벗어나면 저장. 맨 아래 '새 할 일' 한 줄. 단추 끝냄 · 내려놓기.
-// 한글 조합 중 Enter 는 무시. 저장 · 검사는 부르는 쪽(PlannerView)이 한다.
+// 메모(note): 여러 줄, 벗어나면 저장. 넓으면 단계 · 메모 두 칸을 가운데 묶음으로. 맨 아래 '새 할 일' 한 줄. 단추 끝냄 · 내리기.
+// 한글 조합 중 Enter 는 무시. 저장 · 검사는 부르는 쪽(BenchFocus)이 한다.
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { CHECK_ITEM_MAX, NOTE_MAX, TASK_TITLE_MAX, type CheckItem, type Place, type TaskRow } from "../../../lib/schedule";
+import { CHECK_ITEM_MAX, NOTE_MAX, TASK_TITLE_MAX, type CheckItem, type TaskRow } from "../../../lib/schedule";
 import { satLabel, satMinutes } from "../../_logic/planner";
 import { duration } from "../../_logic/schedule";
 import { Icon } from "../Icon";
@@ -17,7 +17,7 @@ const enter = (e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && !(e.n
 const MINUTE = 60_000;
 
 /** 1분마다 지금 시각. 탭이 숨으면 멈추고, 다시 보이면 바로 맞춘다 */
-function useMinuteClock(initial?: Date): Date {
+export function useMinuteClock(initial?: Date): Date {
   const [now, setNow] = useState(() => initial ?? new Date());
   useEffect(() => {
     let id: ReturnType<typeof setInterval> | null = null;
@@ -54,7 +54,6 @@ type Drag = { from: number; to: number };
 
 export function BenchCard({
   task,
-  place,
   role,
   now: initialNow,
   onOpen,
@@ -68,7 +67,6 @@ export function BenchCard({
   onPutDown,
 }: {
   task: TaskRow;
-  place: Place | null;
   /** 역할 이름 */
   role: string | null;
   /** 시계의 처음 값 (시험용). 없으면 지금 */
@@ -83,6 +81,7 @@ export function BenchCard({
   /** 넣었으면 true — 칸을 비운다 */
   onAddTask: (title: string) => boolean;
   onDone: () => void;
+  /** 내리기 */
   onPutDown: () => void;
 }) {
   const now = useMinuteClock(initialNow);
@@ -151,82 +150,78 @@ export function BenchCard({
   };
 
   return (
-    <section className="pl-bench" aria-label="작업대" data-flip="bench">
-      <div className="bn-h">
+    <section className="bn-paper" aria-label="작업대">
+      <h1 className="bn-h">
         <button type="button" className="bn-t" onClick={onOpen}>
           {task.title}
         </button>
-      </div>
+      </h1>
       <div className="bn-meta">
         {role && <span>{role}</span>}
         {task.est_min !== null && <span className="num">{duration(task.est_min)}</span>}
         {sat && <span className="num">{sat}</span>}
       </div>
 
-      <ul className="bn-steps" ref={listRef} aria-label="단계">
-        {order.map((i) => {
-          const c = task.checklist[i]!;
-          return (
-            <li
-              key={keys[i]}
-              data-flip={keys[i]}
-              data-i={i}
-              className={drag?.from === i ? "dragging" : undefined}
-              onPointerDown={(e) => grab(e, i)}
-            >
-              <button
-                type="button"
-                className={c.done ? "ck on" : "ck"}
-                role="checkbox"
-                aria-checked={c.done}
-                onClick={() => {
-                  if (!justDragged.current) onCheck(i, !c.done);
-                }}
-              >
-                <Icon name={c.done ? "ring-check" : "ring"} />
-                <span>{c.t}</span>
-              </button>
-              <button
-                type="button"
-                className="iconbtn bn-cut"
-                aria-label={`${c.t} 떼어내기`}
-                title="떼어내기"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => onDetach(i)}
-              >
-                <Icon name="cut" />
-              </button>
-            </li>
-          );
-        })}
-        <li className="bn-new">
-          <Icon name="ring" />
-          <input
-            value={step}
-            maxLength={CHECK_ITEM_MAX}
-            aria-label="단계 추가"
-            enterKeyHint="next"
-            onChange={(e) => setStep(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              if (!enter(e)) return;
-              if (onAddStep(step)) setStep("");
-            }}
-          />
-        </li>
-      </ul>
+      <div className="bn-body">
+        <ul className="bn-steps" ref={listRef} aria-label="단계">
+          {order.map((i) => {
+            const c = task.checklist[i]!;
+            return (
+              <li key={keys[i]} data-flip={keys[i]} data-i={i} className={drag?.from === i ? "dragging" : undefined} onPointerDown={(e) => grab(e, i)}>
+                <button
+                  type="button"
+                  className={c.done ? "ck on" : "ck"}
+                  role="checkbox"
+                  aria-checked={c.done}
+                  onClick={() => {
+                    if (!justDragged.current) onCheck(i, !c.done);
+                  }}
+                >
+                  <Icon name={c.done ? "ring-check" : "ring"} />
+                  <span>{c.t}</span>
+                </button>
+                <button
+                  type="button"
+                  className="iconbtn bn-cut"
+                  aria-label={`${c.t} 떼어내기`}
+                  title="떼어내기"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => onDetach(i)}
+                >
+                  <Icon name="cut" />
+                </button>
+              </li>
+            );
+          })}
+          <li className="bn-new">
+            <Icon name="ring" />
+            <input
+              value={step}
+              maxLength={CHECK_ITEM_MAX}
+              aria-label="단계 추가"
+              enterKeyHint="next"
+              onChange={(e) => setStep(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (!enter(e)) return;
+                if (onAddStep(step)) setStep("");
+              }}
+            />
+          </li>
+        </ul>
 
-      <textarea
-        ref={noteRef}
-        className="bn-note"
-        value={note}
-        maxLength={NOTE_MAX}
-        aria-label="메모"
-        rows={2}
-        onChange={(e) => setNote(e.target.value)}
-        onBlur={saveNote}
-      />
+        <textarea
+          ref={noteRef}
+          className="bn-note"
+          value={note}
+          maxLength={NOTE_MAX}
+          aria-label="메모"
+          rows={2}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={saveNote}
+        />
+      </div>
 
       <label className="bn-add">
         <Icon name="plus" />
@@ -250,7 +245,7 @@ export function BenchCard({
           끝냄
         </button>
         <button type="button" className="ghost" onClick={onPutDown}>
-          내려놓기
+          내리기
         </button>
       </div>
     </section>

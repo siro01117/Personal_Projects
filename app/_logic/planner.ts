@@ -1,7 +1,7 @@
 // 플래너 화면 계산 (docs/플래너.md 3장 · 7장). DOM 없이 시험할 수 있는 것만:
 // 목록 넷으로 나누기(지남 · 할 일 · 시간 정함 · 끝냄) · 지남 판정, 사이 sort 값, 시간 정하기의 기본 시작 시각,
 // "10/5 까지" · "1/2" · "매주 월" 같은 글자, 체크 항목 줄 읽기, 수정 칸의 '이번만 / 앞으로도', 정렬과 구분 묶음(7-12),
-// 작업대의 단계 다루기 · 떼어내기 · "앉은 지 n분"(7-13), 역할 필터(7-14).
+// 작업대의 단계 다루기 · 떼어내기 · "앉은 지 n분"(7-13), 역할 필터(7-14), 작업대 목록 · 가져오기 후보 · 순서(7-15).
 // 빈 시간 계산은 lib/schedule 의 planRange + freeSlots 가 한다.
 
 import type { KoreanError } from "../../lib/errors";
@@ -262,9 +262,41 @@ export function filterByRole<T extends { task: Pick<TaskRow, "role_id"> }>(rows:
 
 // ------------------------------------------------------------ 작업대 (7-13)
 
-/** 작업대에 올라간 할 일 (끝낸 것은 DB 가 내려놓지만 화면이 먼저 바뀌는 사이를 위해 한 번 더 거른다) */
-export function benchOf(tasks: readonly TaskRow[]): TaskRow | null {
-  return tasks.find((t) => t.bench_at !== null && t.done_at === null) ?? null;
+/** 작업대에 올라간 할 일들, 올린 순서 (끝낸 것은 DB 가 내리지만 화면이 먼저 바뀌는 사이를 위해 한 번 더 거른다) */
+export function benchList(tasks: readonly TaskRow[]): TaskRow[] {
+  return tasks
+    .filter((t) => t.bench_order !== null && t.done_at === null)
+    .sort((a, b) => a.bench_order! - b.bench_order! || a.created_at.localeCompare(b.created_at));
+}
+
+/**
+ * 가져오기 후보 (7-15): 아직 안 올라간 열린 할 일 — 지남 · 할 일 · 시간 정함 순(각 묶음 안은 플래너와 같은 순서),
+ * 역할 필터(7-14)에서 끈 역할은 뺀다
+ */
+export function benchCandidates(
+  tasks: readonly TaskRow[],
+  links: readonly TaskLink[],
+  now: Date,
+  at: At,
+  off: readonly string[],
+  roles: readonly Pick<Role, "id">[],
+): TaskRow[] {
+  const l = splitTasks(tasks, links, now, at);
+  const all = [...l.late.map((x) => x.task), ...l.open, ...l.timed.map((x) => x.task)].filter((t) => t.bench_order === null);
+  return filterByRole(all.map((task) => ({ task })), off, roles).map((r) => r.task);
+}
+
+/** 작업대에서 앞 · 뒤 (집중 화면의 ‹ ›). 맨 앞 · 맨 뒤면 null */
+export function benchSides(list: readonly Pick<TaskRow, "id">[], id: string): { prev: string | null; next: string | null } {
+  const i = list.findIndex((t) => t.id === id);
+  if (i < 0) return { prev: null, next: null };
+  return { prev: list[i - 1]?.id ?? null, next: list[i + 1]?.id ?? null };
+}
+
+/** 메모의 첫 줄 (빈 줄은 건너뛴다). 없으면 null */
+export function firstLine(note: string | null): string | null {
+  const line = (note ?? "").split("\n").find((x) => x.trim() !== "");
+  return line ? line.trim() : null;
 }
 
 /** 올린 뒤 지난 분 (0 이상) */

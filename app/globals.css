@@ -90,7 +90,9 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 
 .t-today{grid-column:span 3;grid-row:span 2;gap:16px}
 .t-today .ico{width:clamp(72px,6.4cqw,120px);height:clamp(72px,6.4cqw,120px)}
-.t-planner{grid-column:span 1;grid-row:span 2}
+/* 플래너 · 작업대(7-15)는 오늘 옆 한 칸에 위아래로 */
+.t-planner{grid-column:4;grid-row:1}
+.t-bench{grid-column:4;grid-row:2}
 .t-reports,.t-project,.t-tools{grid-column:span 2}
 .t-kick,.t-meet,.t-learn,.t-note{grid-column:span 1}
 
@@ -494,8 +496,8 @@ sup.r a:hover{background:var(--point-soft)}
   .bento{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:auto}
   .tile{min-height:132px}
   .t-today{grid-column:span 2;grid-row:auto;min-height:220px}
-  .t-planner{grid-column:span 1;grid-row:auto}
-  .t-reports{grid-column:span 1}
+  .t-planner,.t-bench{grid-column:span 1;grid-row:auto}
+  .t-reports{grid-column:span 2}
   .t-project,.t-tools{grid-column:span 2}
   .work{grid-template-columns:minmax(0,1fr)}
   .side{display:none}
@@ -810,13 +812,10 @@ input.pill[type="time"]::-webkit-calendar-picker-indicator{display:none}
 }
 
 /* ====================================================================================
-   플래너 (docs/플래너.md 3장). 맨 위 한 줄 입력 → 목록 셋. 보기 패널 · 시트 · 수정 칸은 일정과 같은 것(.dp · .sheet · .form)
+   플래너 (docs/플래너.md 3장). 위쪽 줄 → 정렬 · 역할 → 카드 넷(할 일 카드 첫 줄이 추가 칸, 7-15). 보기 패널 · 시트 · 수정 칸은 일정과 같은 것(.dp · .sheet · .form)
    ==================================================================================== */
 .planner{height:100vh;height:100dvh;display:flex;flex-direction:column;min-height:0;position:relative}
 .pl-top{flex:0 0 auto;gap:8px}
-.pl-add{flex:1;min-width:0;height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:var(--r-m);background:var(--surface-2);color:var(--text-3);cursor:text}
-.pl-add:focus-within{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
-.pl-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:15px;color:var(--text-1);outline:none}
 .pl-stage{flex:1;min-height:0;display:flex;position:relative}
 .pl-list{flex:1;min-width:0;overflow-y:auto;container:plist/inline-size;padding:12px clamp(16px,3cqw,56px) 96px}
 .pl-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
@@ -863,7 +862,6 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 @container plist (max-width: 250px){ .pl-row .rpt{display:none} }
 /* 줄이 너무 길면 제목과 마감·시간이 멀어진다 — 목록과 입력 칸은 760px 까지 */
 .pl-list > *{max-width:760px}
-.pl-add{max-width:760px}
 .pl-top > :last-child{margin-left:auto}
 .pl-sec{margin-top:28px}
 .pl-list > .pl-sec:first-child{margin-top:4px}
@@ -894,18 +892,19 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 }
 /* 정렬 줄(7-12): 위쪽 줄 바로 아래 한 줄. 조용한 칩(색 없음, 고른 것만 바탕) + 방향 버튼 + 역할 편집. 넘치면 가로로 민다 */
 .pl-top{border-bottom:0}
-.pl-sort{flex:0 0 auto;display:flex;align-items:center;gap:0;height:44px;padding:0 clamp(16px,3cqw,56px) 8px;border-bottom:1px solid var(--border);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.pl-sort{flex:0 0 auto;display:flex;align-items:center;gap:2px;height:44px;padding:0 clamp(16px,3cqw,56px) 8px;border-bottom:1px solid var(--border);overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
 .pl-sort::-webkit-scrollbar{display:none}
 .pl-sort > *{flex:0 0 auto}
-/* 칩: 알약이 아니라 모서리 살짝 둥근 사각형. 눌린 것은 안으로 들어간 느낌(위쪽 안그림자 하나).
-   이웃이 같이 눌리면 사이 모서리를 없애 사각형이 이어진다 — 같이 눌린 느낌 */
-.rf{height:30px;padding:0 12px;border-radius:6px;font-size:13px;color:var(--text-2);white-space:nowrap;transition:background var(--t),box-shadow var(--t),color var(--t)}
-.rf:hover{background:var(--surface-2)}
-.rf[aria-pressed="true"]{background:var(--surface-3);color:var(--text-1);font-weight:600;box-shadow:inset 0 1.5px 2.5px rgb(0 0 0 / .13),inset 0 -1px 0 rgb(255 255 255 / .35)}
-.rf[aria-pressed="true"]:has(+ .rf[aria-pressed="true"]){border-top-right-radius:0;border-bottom-right-radius:0}
-.rf[aria-pressed="true"] + .rf[aria-pressed="true"]{border-top-left-radius:0;border-bottom-left-radius:0}
-:root[data-theme="dark"] .rf[aria-pressed="true"]{box-shadow:inset 0 1.5px 2.5px rgb(0 0 0 / .55),inset 0 -1px 0 rgb(255 255 255 / .06)}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .rf[aria-pressed="true"]{box-shadow:inset 0 1.5px 2.5px rgb(0 0 0 / .55),inset 0 -1px 0 rgb(255 255 255 / .06)} }
+/* 칩(정렬 · 역할 두 단). 굵게 쓰지 않는다 — 고른 것은 색 · 선으로만.
+   정렬 줄(하나만 고름): 글자 단추, 고른 것은 진한 글자 + 아래 짧은 선(탭처럼).
+   역할 줄(여럿 켜고 끔): 테두리 있는 네모 칩, 켠 것은 옅은 키위 바탕 + 키위 글자, 끈 것은 테두리에 흐린 글자 */
+.rf{height:30px;padding:0 10px;border-radius:6px;font-size:13px;font-weight:inherit;color:var(--text-3);white-space:nowrap;position:relative;transition:background var(--t),color var(--t),border-color var(--t)}
+.rf:hover{color:var(--text-1)}
+.rf[aria-pressed="true"]{color:var(--text-1)}
+.pl-sort:not(.pl-roles) .rf[aria-pressed="true"]::after{content:"";position:absolute;left:10px;right:10px;bottom:3px;height:2px;border-radius:1px;background:var(--text-1)}
+.pl-roles .rf{height:30px;padding:0 12px;border:1px solid var(--border);border-radius:8px}
+.pl-roles .rf:hover{border-color:var(--text-3)}
+.pl-roles .rf[aria-pressed="true"]{background:var(--point-soft);border-color:transparent;color:var(--point-ink)}
 .rf-edit,.rf-dir{width:30px;height:30px;margin-left:6px;color:var(--text-3)}
 .rf-edit .i,.rf-dir .i{width:15px;height:15px}
 .rf-dir{color:var(--text-2)}
@@ -971,59 +970,135 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-none{margin:0;padding:0 10px 12px 24px;font-size:13px;line-height:20px;color:var(--text-3)}
 /* 조작 두 단(7-14): 1단 정렬 · 2단 역할 필터(칩 + 역할 편집). 둘 다 왼쪽, 같은 여백. 오른쪽은 비운다. 각 단은 넘치면 가로로 민다.
    모임도 .pl-sort 를 쓰지만 .pl-ctl 이 없어 그대로 */
-.pl-ctl{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:2px 0 8px;border-bottom:1px solid var(--border)}
+.pl-ctl{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:2px 0 8px;border-bottom:1px solid var(--border)}
 .pl-ctl > .pl-sort{height:34px;padding-bottom:0;border-bottom:0}
 /* 역할 칩: 켠 것은 정렬 칩의 선택 모양, 끈 것은 글자만 흐리게 */
-.pl-roles .rf[aria-pressed="false"]{color:var(--text-3)}
+.pl-roles{gap:6px;margin-top:4px}
 .pl-roles .rf-edit{margin-left:4px}
 /* 작업대에 올라간 할 일 — 줄 앞 작은 키위 막대 하나 */
 .pl-row.benched{position:relative}
 .pl-row .bn-mark{position:absolute;left:2px;top:15px;width:3px;height:14px;border-radius:2px;background:var(--point-ink)}
-/* 작업대 카드(7-13): 맨 위, 두 열에 걸친다. 넓으면 안에서 단계 | 메모 두 칸 */
-.pl-bench{max-width:1440px;margin:0 0 16px;display:grid;grid-template-columns:minmax(0,1fr);align-items:start;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:16px 18px 14px}
-.bn-h{display:flex;align-items:flex-start;gap:10px;padding:0 6px}
-.bn-h .sym{flex:0 0 auto;display:grid;place-items:center;height:30px}
-.bn-t{min-width:0;text-align:left;font-size:20px;line-height:30px;font-weight:600;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
-.bn-t:focus-visible{outline:2px solid var(--point-ink);outline-offset:2px;border-radius:var(--r-s)}
-.bn-meta{display:flex;flex-wrap:wrap;gap:2px 12px;min-height:6px;padding:0 6px;margin:2px 0 8px;font-size:12.5px;line-height:18px;color:var(--text-3)}
+/* 할 일 카드 첫 줄 — 추가 칸(7-15). 작업대의 '새 할 일' 줄과 같은 모양: + 와 칸 하나 */
+.pl-new{display:flex;align-items:center;gap:12px;min-height:50px;padding:0 14px 0 12px;color:var(--text-3);cursor:text}
+.pl-new .i{flex:0 0 auto;width:22px;height:22px;transition:color var(--t)}
+.pl-new input{flex:1;min-width:0;height:40px;border:0;border-bottom:1px solid transparent;background:none;font:inherit;font-size:18px;color:var(--text-1);outline:none;transition:border-color var(--t)}
+.pl-new:hover input{border-bottom-color:var(--border)}
+.pl-new input:focus{border-bottom-color:var(--point-ink)}
+.pl-new:focus-within .i{color:var(--point-ink)}
+/* 할 일 카드 머리 오른쪽 "작업대 n" (7-15) */
+.pl-hrow{display:flex;align-items:center;gap:8px}
+.pl-hrow .pl-h{flex:1;min-width:0;width:auto}
+.pl-bnlink{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;height:32px;margin-right:4px;padding:0 10px;border-radius:var(--r-s);font-size:14px;color:var(--text-2);text-decoration:none;transition:background var(--t),color var(--t)}
+.pl-bnlink:hover{background:var(--surface-2);color:var(--text-1)}
+.pl-bnlink .num{color:var(--point-ink);font-weight:600}
+
+/* ====================================================================================
+   작업대 (docs/플래너.md 7-15). 목록 /planner/bench · 집중 화면 /planner/bench/[id]. 플래너의 틀(.planner · .pl-*)을 같이 쓴다
+   ==================================================================================== */
+.bl-crumb{display:flex;align-items:center;gap:2px;min-width:0;font-size:15px;color:var(--text-3)}
+.bl-crumb a{padding:5px 8px;border-radius:var(--r-s);color:var(--text-2);text-decoration:none;transition:background var(--t),color var(--t)}
+.bl-crumb a:hover{background:var(--surface-2);color:var(--text-1)}
+.bl-crumb .i{width:14px;height:14px}
+.bl-crumb [aria-current]{padding:0 8px;color:var(--text-1);font-weight:600}
+.bl-col{max-width:760px;margin:0 auto}
+.bl-acts{display:flex;gap:8px;margin:4px 0 12px}
+.bl-acts .btn .i{width:17px;height:17px}
+.planner:not(.meet) .pl-none.bl-none{background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:16px 20px}
+.bl-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.bl-card{position:relative;display:flex;align-items:flex-start;gap:6px;padding:6px 10px 6px 6px;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);user-select:none;-webkit-user-select:none}
+.bl-card.dragging{z-index:1;box-shadow:0 8px 24px rgb(0 0 0 / .14)}
+.bl-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:var(--r-m);color:var(--text-1);text-decoration:none;transition:background var(--t)}
+.bl-main:hover{background:var(--surface-2)}
+.bl-main:focus-visible{outline:2px solid var(--point-ink);outline-offset:-2px}
+.bl-t{font-size:20px;line-height:28px;font-weight:600;word-break:keep-all;overflow-wrap:anywhere}
+.bl-meta{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:15px;line-height:22px;color:var(--text-3)}
+.bl-meta:empty{display:none}
+.bl-meta .all,.bl-meta .sat{color:var(--point-ink);font-weight:600}
+.bl-note{font-size:15px;line-height:22px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bl-off{flex:0 0 auto;margin-top:10px}
+.bl-picks{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.bl-pick{width:100%;display:flex;align-items:center;gap:12px;min-height:48px;padding:10px;border-radius:var(--r-m);text-align:left;font-size:17px;line-height:24px;color:var(--text-1);transition:background var(--t)}
+.bl-pick:hover{background:var(--surface-2)}
+.bl-pick .i{flex:0 0 auto;width:18px;height:18px;color:var(--text-3)}
+.bl-pick:hover .i{color:var(--point-ink)}
+.bl-pick .t{flex:1;min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.bl-pick .r{flex:0 0 auto;font-size:14px;color:var(--text-3)}
+@container app (max-width: 760px){
+  .bl-col{padding:0 8px}
+  .bl-off{margin-top:8px}
+}
+
+/* 집중 화면: 종이 한 장을 화면 가운데에(최대 폭 960, 위 여백 넉넉히). 제목 · 정보 줄은 가운데 맞춤, 단계 · 메모 두 칸도 종이 안 가운데 묶음.
+   ‹ › 는 종이 양옆 바깥에 작게 — 자리가 모자라면 위 줄 오른쪽으로 */
+.bf-scroll{flex:1;min-height:0;overflow-y:auto;background:var(--canvas);container:bf/inline-size}
+.bf-col{max-width:960px;margin:0 auto;padding:clamp(32px,8vh,96px) 0 120px}
+.bf-top{display:flex;align-items:center;gap:6px;height:40px;margin:0 0 14px}
+.bf-back{display:inline-flex;align-items:center;gap:2px;height:34px;padding:0 12px 0 6px;border-radius:var(--r-s);font-size:15px;color:var(--text-2);text-decoration:none;transition:background var(--t),color var(--t)}
+.bf-back:hover{background:var(--surface-2);color:var(--text-1)}
+.bf-back .i{width:18px;height:18px}
+.bf-nav{display:none;align-items:center;gap:2px;margin-left:auto}
+.bf-go,.bf-side{width:40px;height:40px;color:var(--text-3);text-decoration:none}
+.bf-go .i,.bf-side .i{width:20px;height:20px}
+.bf-go:hover,.bf-side:hover{color:var(--text-1)}
+span.bf-go{visibility:hidden}
+.bf-stage{position:relative}
+.bf-side{position:absolute;top:34px}
+.bf-side.prev{right:calc(100% + 18px)}
+.bf-side.next{left:calc(100% + 18px)}
+@container bf (max-width: 1080px){
+  .bf-side{display:none}
+  .bf-nav{display:flex}
+  .bf-col{padding-inline:clamp(16px,4cqw,40px)}
+}
+.planner:not(.meet) .pl-none.bf-none{background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:16px 20px;text-align:center}
+.bn-paper{container:bnp/inline-size;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:clamp(28px,6cqw,60px) clamp(18px,5cqw,56px) 36px}
+.bn-h{margin:0;display:flex;justify-content:center}
+.bn-t{min-width:0;max-width:720px;text-align:center;font-size:28px;line-height:38px;font-weight:600;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere;border-radius:var(--r-s)}
+.bn-t:hover{color:var(--text-2)}
+.bn-t:focus-visible{outline:2px solid var(--point-ink);outline-offset:2px}
+.bn-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 16px;min-height:6px;margin:8px 0 0;font-size:15px;line-height:22px;color:var(--text-3)}
+.bn-body{display:grid;grid-template-columns:minmax(0,1fr);row-gap:16px;max-width:840px;margin:28px auto 0}
+@container bnp (min-width: 720px){
+  .bn-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:36px;align-items:start}
+  .bn-note{align-self:stretch;min-height:180px}
+}
 .bn-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;min-width:0}
 .bn-steps li{display:flex;align-items:flex-start;border-radius:var(--r-m);user-select:none;-webkit-user-select:none;transition:background var(--t)}
 .bn-steps li:hover{background:var(--surface-2)}
 .bn-steps li.dragging{background:var(--surface);box-shadow:0 6px 18px rgb(0 0 0 / .14);position:relative;z-index:1}
-.bn-steps .ck{flex:1;min-width:0;display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:8px 6px;text-align:left;font-size:15px;line-height:22px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
-.bn-steps .ck .i{width:18px;height:18px;margin-top:2px;color:var(--text-3);transition:color var(--t)}
+.bn-steps .ck{flex:1;min-width:0;display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:start;padding:10px 7px;text-align:left;font-size:18px;line-height:26px;color:var(--text-1);word-break:keep-all;overflow-wrap:anywhere}
+.bn-steps .ck .i{width:20px;height:20px;margin-top:3px;color:var(--text-3);transition:color var(--t)}
 .bn-steps .ck:hover .i,.bn-steps .ck.on .i{color:var(--point-ink)}
 .bn-steps .ck.on span{color:var(--text-3)}
-.bn-cut{flex:0 0 auto;width:34px;height:38px;color:var(--text-3);opacity:0;transition:opacity var(--t),color var(--t)}
+.bn-cut{flex:0 0 auto;width:34px;height:46px;color:var(--text-3);opacity:0;transition:opacity var(--t),color var(--t)}
 .bn-cut .i{width:15px;height:15px}
 .bn-cut:hover{color:var(--text-1)}
 .bn-steps li:hover .bn-cut,.bn-cut:focus-visible{opacity:1}
 @media (hover: none){ .bn-cut{opacity:1} }
-.bn-steps li.bn-new{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:center;padding:3px 6px;background:none}
-.bn-new .i{width:18px;height:18px;color:var(--text-3);opacity:.45}
-.bn-new input{width:100%;height:32px;border:0;border-bottom:1px solid transparent;background:none;font:inherit;font-size:15px;color:var(--text-1);outline:none;transition:border-color var(--t)}
+.bn-steps li.bn-new{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;align-items:center;padding:4px 7px;background:none}
+.bn-new .i{width:20px;height:20px;color:var(--text-3);opacity:.45}
+.bn-new input{width:100%;height:38px;border:0;border-bottom:1px solid transparent;background:none;font:inherit;font-size:18px;color:var(--text-1);outline:none;transition:border-color var(--t)}
 .bn-new input:hover{border-bottom-color:var(--border)}
 .bn-new input:focus{border-bottom-color:var(--point-ink)}
-.bn-note{display:block;width:100%;min-height:72px;margin:12px 0 0;padding:10px 12px;border:0;border-radius:var(--r-m);background:var(--surface-2);font:inherit;font-size:14px;line-height:1.6;color:var(--text-1);resize:none;outline:none;field-sizing:content;max-height:60vh}
+.bn-note{display:block;width:100%;min-height:96px;margin:0;padding:12px 14px;border:0;border-radius:var(--r-m);background:var(--surface-2);font:inherit;font-size:17px;line-height:1.6;color:var(--text-1);resize:none;outline:none;field-sizing:content}
 .bn-note:focus{box-shadow:inset 0 0 0 1.5px var(--point-ink)}
-.bn-add{display:flex;align-items:center;gap:10px;height:44px;margin-top:12px;padding:0 6px;border-top:1px solid var(--border);color:var(--text-3);cursor:text}
-.bn-add .i{flex:0 0 auto;width:18px;height:18px}
-.bn-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:14px;color:var(--text-1);outline:none}
+.bn-add{display:flex;align-items:center;gap:12px;height:52px;max-width:840px;margin:24px auto 0;padding:0 7px;border-top:1px solid var(--border);color:var(--text-3);cursor:text}
+.bn-add .i{flex:0 0 auto;width:20px;height:20px}
+.bn-add input{flex:1;min-width:0;height:100%;border:0;background:none;font:inherit;font-size:17px;color:var(--text-1);outline:none}
 .bn-add:focus-within .i{color:var(--point-ink)}
-.bn-acts{display:flex;flex-wrap:wrap;gap:6px;padding:4px 6px 0}
-@container pstage (min-width: 720px){
-  .pl-bench{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:24px}
-  .bn-h,.bn-meta,.bn-add,.bn-acts{grid-column:1 / -1}
-  .bn-note{grid-column:2;grid-row:3;margin-top:0;align-self:stretch;min-height:120px}
-}
+.bn-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding-top:20px}
+/* 글자가 큰 화면이라 단추도 같이 키운다 (목록 · 집중 화면) */
+.bn-acts :is(.btn,.ghost){height:42px;padding:0 20px;font-size:15px}
+.bl-acts .btn,.bl-off{height:38px;padding:0 14px;font-size:14px}
 @container app (max-width: 760px){
-  .pl-bench{margin-bottom:8px;border-left:0;border-right:0;border-radius:0;padding:12px 10px 12px}
+  .bf-col{padding:4px 0 96px}
+  .bf-top{padding:0 8px;margin-bottom:6px}
+  .bn-paper{border-left:0;border-right:0;border-radius:0;padding:24px 14px}
+  .bn-t{font-size:24px;line-height:34px}
 }
 
 /* 글자 20% (2026-10-04, 7-14): 플래너 줄 · 카드 · 조작 칩 · 작업대 · 할 일 보기만. 모임(.planner.meet)은 같은 틀이라도 그대로.
    줄 칸 폭(마감 · 시간 · 체크 수)은 em 이라 글자를 따라 커진다 */
-.planner:not(.meet) .pl-add{height:44px}
-.planner:not(.meet) .pl-add input{font-size:18px}
 .planner:not(.meet) .rf{height:34px;padding:0 14px;font-size:15px}
 .planner:not(.meet) .rf-edit,.planner:not(.meet) .rf-dir{width:34px;height:34px}
 .planner:not(.meet) .rf-edit .i,.planner:not(.meet) .rf-dir .i{width:17px;height:17px}
@@ -1043,20 +1118,6 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .planner:not(.meet) .pl-row :is(.sym,.rpt){height:26px}
 .planner:not(.meet) .pl-row .rpt .i{width:17px;height:17px}
 .planner:not(.meet) .pl-row .bn-mark{top:17px;height:16px}
-.planner:not(.meet) .pl-bench{padding:19px 22px 17px}
-.planner:not(.meet) .bn-h .sym{height:36px}
-.planner:not(.meet) .bn-t{font-size:24px;line-height:36px}
-.planner:not(.meet) .bn-meta{font-size:15px;line-height:22px;margin:3px 0 10px}
-.planner:not(.meet) .bn-steps .ck{grid-template-columns:22px minmax(0,1fr);gap:12px;padding:10px 7px;font-size:18px;line-height:26px}
-.planner:not(.meet) .bn-steps .ck .i{width:20px;height:20px;margin-top:3px}
-.planner:not(.meet) .bn-cut{height:46px}
-.planner:not(.meet) .bn-steps li.bn-new{grid-template-columns:22px minmax(0,1fr);gap:12px;padding:4px 7px}
-.planner:not(.meet) .bn-new .i{width:20px;height:20px}
-.planner:not(.meet) .bn-new input{height:38px;font-size:18px}
-.planner:not(.meet) .bn-note{padding:12px 14px;font-size:17px}
-.planner:not(.meet) .bn-add{height:52px;gap:12px}
-.planner:not(.meet) .bn-add .i{width:20px;height:20px}
-.planner:not(.meet) .bn-add input{font-size:17px}
 .planner:not(.meet) :is(.dp-in,.sh-in) > .dp-h h2{font-size:24px}
 .planner:not(.meet) :is(.dp-in,.sh-in) > .dp-h .chk{flex-basis:28px;width:28px;height:28px;margin-top:2px}
 .planner:not(.meet) :is(.dp-in,.sh-in) > .dp-h .chk .i{width:26px;height:26px}
@@ -1068,7 +1129,6 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 @container app (max-width: 760px){
   .planner:not(.meet) .pl-sec{padding:2px 6px 6px}
   .planner:not(.meet) .pl-row{padding:12px 10px 12px 8px;gap:10px}
-  .planner:not(.meet) .pl-bench{padding:14px 12px 14px}
 }
 
 /* ====================================================================================

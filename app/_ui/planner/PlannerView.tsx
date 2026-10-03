@@ -1,11 +1,14 @@
 "use client";
 
-// 플래너 화면 (docs/플래너.md 3장 · 7장). 맨 위 한 줄 입력 → 정렬 줄(7-12) + 역할 필터(7-14) → 작업대 카드(7-13) → 카드 넷(지남 · 할 일 · 시간 정함 · 끝냄, 자리 고정).
+// 플래너 화면 (docs/플래너.md 3장 · 7장). 위쪽 줄(홈 · 밝기) → 정렬 줄(7-12) + 역할 필터(7-14) → 카드 넷(지남 · 할 일 · 시간 정함 · 끝냄, 자리 고정).
+// 할 일 추가 칸은 할 일 카드의 첫 줄, 카드 머리 오른쪽에 "작업대 n" 링크(7-15). 작업대는 따로 페이지(/planner/bench).
 // 줄 누르기는 보기만(넓은 데스크톱 오른쪽 패널 · 좁은 데스크톱 떠 있는 패널 · 폰 보기 시트), 고치기는 '수정' 을 한 번 더.
 // 끝냄 체크와 체크 항목만 바로 된다. 할 일 목록은 '직접' 정렬일 때 데스크톱 마우스로 끌어 순서를 바꾼다(sort 는 앞뒤 가운데 값).
 // 전환(docs/모션.md): 줄이 생기고 · 빠지고 · 자리를 바꾸면 FLIP 으로 미끄러진다(useFlip). 데이터는 먼저 바뀐다.
 // 지남은 자동으로 넘기지 않는다 — 다시 정하기 · 시간 없음으로 · 마감 바꾸기 · 마감 지우기를 사람이 고른다.
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Fragment,
   useCallback,
@@ -35,22 +38,17 @@ import {
 } from "../../../lib/schedule";
 import type { EventDeps, RuleInput, TaskInput, TaskLink } from "../../_data/types";
 import {
-  addStep,
-  benchOf,
+  benchList,
   DEFAULT_LEN,
-  detachStep,
   dueOptions,
   filterByRole,
-  insertStep,
   lateOf,
   mergeChecklist,
   moved,
   moveSort,
-  moveStep,
   parseChecks,
   parseDueAfter,
   parseMinutes,
-  parseRoleOff,
   parseSort,
   roleText,
   ruleLabel,
@@ -59,7 +57,6 @@ import {
   sortGroups,
   splitTasks,
   taskDraft,
-  toggleCheck,
   toggleRoleOff,
   type Late,
   type Sort,
@@ -75,40 +72,30 @@ import { Presence } from "../motion/Presence";
 import { useFlip } from "../motion/useFlip";
 import { EventForm } from "../schedule/EventForm";
 import { HomeButton } from "../Shell";
-import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
-import { BenchCard } from "./BenchCard";
 import { DueForm } from "./DueForm";
 import { PlanForm, planDraftFor, type PlanDraft } from "./PlanForm";
-import { PlannerCards, type CardKey } from "./PlannerCards";
+import { PlannerBar, PlannerCards, type CardKey } from "./PlannerCards";
 import { RoleEdit } from "./RoleEdit";
 import { RoleFilter } from "./RoleFilter";
 import { TaskDetail } from "./TaskDetail";
 import { TaskForm } from "./TaskForm";
 import { TaskLine } from "./TaskLine";
 import { usePlannerData, type PlannerState } from "./usePlannerData";
+import { isTemp, mapTask, tempId, useTaskOps } from "./useTaskOps";
+import { ROLE_OFF_KEY, readRoleOff } from "./roleOff";
 
 const PHONE_MAX = 760;
 const PANEL_MIN = 1180;
 const CLOCK_MS = 60_000;
 /** 고른 정렬과 방향을 이 기기에 기억한다 ({key, dir}) */
 const SORT_KEY = "ezwork.planner.sort";
-/** 역할 필터에서 끈 열쇠들을 이 기기에 기억한다 (7-14) */
-const ROLE_OFF_KEY = "ezwork.planner.roles";
 
 function readSort(): Sort {
   try {
     return parseSort(localStorage.getItem(SORT_KEY));
   } catch {
     return parseSort(null);
-  }
-}
-
-function readRoleOff(): string[] {
-  try {
-    return parseRoleOff(localStorage.getItem(ROLE_OFF_KEY));
-  } catch {
-    return [];
   }
 }
 
@@ -138,16 +125,13 @@ function isTyping(t: EventTarget | null): boolean {
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 }
 
-const tempId = () => `tmp-${globalThis.crypto.randomUUID()}`;
-const isTemp = (id: string) => id.startsWith("tmp-");
-
-const mapTask = (s: PlannerState, id: string, f: (t: TaskRow) => TaskRow): PlannerState => ({ ...s, tasks: s.tasks.map((t) => (t.id === id ? f(t) : t)) });
 
 /** 그 할 일이 나온 살아 있는 규칙 */
 const ruleOf = (s: PlannerState | null, t: TaskRow | null): TaskRule | null => (t?.rule_id ? (s?.rules.find((r) => r.id === t.rule_id) ?? null) : null);
 
 export function PlannerView() {
   const { href } = useApp();
+  const router = useRouter();
   const toast = useToast();
   const width = useViewportWidth();
   const phone = (width ?? 1440) <= PHONE_MAX;
@@ -189,7 +173,7 @@ export function PlannerView() {
   dragRef.current = drag;
   const justDragged = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
-  useFlip(listRef, ".pl-row[data-id], .pl-g[data-flip], .pl-bench[data-flip]", {
+  useFlip(listRef, ".pl-row[data-id], .pl-g[data-flip]", {
     // 끝내서 빠지는 줄은 체크가 그려진 채 잠깐 머물렀다 사라진다
     onGhost: (g, id) => {
       if (!state?.tasks.find((t) => t.id === id)?.done_at) return false;
@@ -199,7 +183,7 @@ export function PlannerView() {
   });
 
   const roles = useMemo<Role[]>(() => state?.roles ?? [], [state]);
-  // 카드 넷 — 역할 필터를 거친다(작업대 카드는 필터와 무관)
+  // 카드 넷 — 역할 필터를 거친다
   const lists = useMemo(() => {
     const all = splitTasks(state?.tasks ?? [], state?.links ?? [], new Date(clock), { date: today, min: nowMin });
     const keep = <T,>(xs: T[], task: (x: T) => TaskRow) => filterByRole(xs.map((x) => ({ x, task: task(x) })), roleOff, roles).map((r) => r.x);
@@ -210,7 +194,7 @@ export function PlannerView() {
       done: keep(all.done, (t) => t),
     };
   }, [state, clock, today, nowMin, roleOff, roles]);
-  const bench = useMemo(() => benchOf(state?.tasks ?? []), [state]);
+  const benchCount = useMemo(() => benchList(state?.tasks ?? []).length, [state]);
   // 끌어서 순서 바꾸기는 '직접' 정렬에서만
   const manual = sort.key === "manual";
   const openShown = drag ? moved(lists.open, drag.id, drag.to) : lists.open;
@@ -233,6 +217,15 @@ export function PlannerView() {
       setMenu(null);
     }
   }, [sel, state]);
+
+  // 주소에 ?task=id 가 있으면(집중 화면의 제목) 그 할 일의 보기를 연다 — 처음 한 번
+  const openedFromUrl = useRef(false);
+  useEffect(() => {
+    if (!state || openedFromUrl.current) return;
+    openedFromUrl.current = true;
+    const id = new URLSearchParams(location.search).get("task");
+    if (id && state.tasks.some((t) => t.id === id)) setSel(id);
+  }, [state]);
 
   // 이어진 일정의 끝 시각 · 반복
   const evId = selLink?.event_id ?? null;
@@ -277,188 +270,18 @@ export function PlannerView() {
 
   // ------------------------------------------------------------ 넣기 · 끝냄 · 체크 항목 · 순서
 
-  /** 맨 위에 보통 할 일 하나 (역할 · 지점 없이). 넣었으면 true */
-  function addTask(raw: string): boolean {
-    const title = raw.trim();
-    if (title === "" || !state) return false;
-    const issue = validateTask({ title })[0];
-    if (issue) {
-      toast(issue.reason);
-      return false;
-    }
-    const at = new Date().toISOString();
-    const sort = Math.min(0, ...state.tasks.map((t) => t.sort)) - 1;
-    const temp: TaskRow = {
-      id: tempId(),
-      title,
-      note: null,
-      due: null,
-      est_min: null,
-      sort,
-      done_at: null,
-      origin_kind: null,
-      origin_id: null,
-      place_id: null,
-      due_event_id: null,
-      checklist: [],
-      rule_id: null,
-      rule_date: null,
-      role_id: null,
-      bench_at: null,
-      version: 1,
-      created_at: at,
-      updated_at: at,
-    };
-    void D.run((s) => ({ ...s, tasks: [temp, ...s.tasks] }), () => D.T.createTask({ title }));
-    return true;
-  }
+  const ops = useTaskOps(D);
+  const { addTask, toggle, check } = ops;
 
   function add() {
     if (addTask(text)) setText("");
   }
 
-  /** 끝내면 작업대에서도 내려온다(DB). 되돌리면 작업대에 있던 것은 다시 올린다 */
-  async function toggle(t: TaskRow) {
-    if (isTemp(t.id)) return;
-    const done = t.done_at === null;
-    const benched = t.bench_at !== null;
-    const at = new Date().toISOString();
-    const row = await D.run(
-      (s) => mapTask(s, t.id, (x) => ({ ...x, done_at: done ? at : null, bench_at: done ? null : x.bench_at })),
-      (srv) => D.T.setDone(t.id, D.versionOf(srv, t.id, t.version), done),
-    );
-    if (row && done) {
-      toast("끝냈습니다", {
-        label: "되돌리기",
-        run: () =>
-          void D.run(
-            (s) => (benched ? onBench(s, t.id, at) : mapTask(s, t.id, (x) => ({ ...x, done_at: null }))),
-            async (srv) => {
-              const back = await D.T.setDone(t.id, D.versionOf(srv, t.id, row.version), false);
-              return benched ? D.T.bench(t.id, true) : back;
-            },
-          ),
-      });
-    }
-  }
-
-  // ------------------------------------------------------------ 작업대 (7-13)
-
-  /** 화면 먼저: 그것만 올라가 있게 (끝냄은 푼다) */
-  const onBench = (s: PlannerState, id: string, at: string): PlannerState => ({
-    ...s,
-    tasks: s.tasks.map((x) => (x.id === id ? { ...x, done_at: null, bench_at: x.bench_at ?? at } : x.bench_at !== null ? { ...x, bench_at: null } : x)),
-  });
-
-  function putOnBench(t: TaskRow) {
+  /** '작업대에' — 집중 화면으로 간다. 거기서 앉으면(ez_task_sit) 올라간다 */
+  function toBench(t: TaskRow) {
     if (isTemp(t.id) || t.done_at !== null) return;
     closeAll();
-    void D.run(
-      (s) => onBench(s, t.id, new Date().toISOString()),
-      () => D.T.bench(t.id, true),
-    );
-  }
-
-  function putDown(t: TaskRow) {
-    void D.run(
-      (s) => mapTask(s, t.id, (x) => ({ ...x, bench_at: null })),
-      () => D.T.bench(t.id, false),
-    );
-  }
-
-  /** 단계 목록 바꾸기 — 지금 목록은 부를 때의 서버 값에서 (빠르게 여러 번 해도 안 엇갈리게) */
-  function editSteps(t: TaskRow, f: (list: TaskRow["checklist"]) => TaskRow["checklist"]) {
-    return D.run(
-      (s) => mapTask(s, t.id, (x) => ({ ...x, checklist: f(x.checklist) })),
-      (srv) => {
-        const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
-        return D.T.updateTask(t.id, cur.version, { checklist: f(cur.checklist) });
-      },
-    );
-  }
-
-  function addBenchStep(t: TaskRow, text: string): boolean {
-    if (text.trim() === "") return false;
-    const r = addStep(t.checklist, text);
-    if (r.issue) {
-      toast(r.issue);
-      return false;
-    }
-    void editSteps(t, (list) => addStep(list, text).list);
-    return true;
-  }
-
-  /** 떼어내기: 그 단계가 새 할 일로(역할 · 지점 · 마감 물려받음), 단계에서는 빠진다. 되돌리기는 둘 다 */
-  async function detach(t: TaskRow, i: number) {
-    const d = detachStep(t, i);
-    if (!d || isTemp(t.id)) return;
-    const item = t.checklist[i]!;
-    const at = new Date().toISOString();
-    const sort = Math.min(0, ...(state?.tasks ?? []).map((x) => x.sort)) - 1;
-    const temp: TaskRow = {
-      id: tempId(),
-      note: null,
-      est_min: null,
-      sort,
-      done_at: null,
-      origin_kind: null,
-      origin_id: null,
-      checklist: [],
-      rule_id: null,
-      rule_date: null,
-      bench_at: null,
-      version: 1,
-      created_at: at,
-      updated_at: at,
-      ...d.input,
-    };
-    const made = await D.run(
-      (s) => ({ ...s, tasks: [temp, ...s.tasks.map((x) => (x.id === t.id ? { ...x, checklist: d.rest } : x))] }),
-      async (srv) => {
-        const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
-        const k = cur.checklist.findIndex((c) => c.t === item.t);
-        const row = await D.T.createTask(d.input);
-        try {
-          if (k >= 0) await D.T.updateTask(t.id, cur.version, { checklist: cur.checklist.filter((_, j) => j !== k) });
-        } catch (e) {
-          // 단계를 못 뺐으면 방금 만든 할 일을 남기지 않는다
-          await D.T.deleteTask(row.id, row.version).catch(() => {});
-          throw e;
-        }
-        return row;
-      },
-    );
-    if (!made) return;
-    toast("새 할 일로 떼어냈습니다", {
-      label: "되돌리기",
-      run: () =>
-        void D.run(
-          (s) => ({ ...s, tasks: s.tasks.filter((x) => x.id !== made.id).map((x) => (x.id === t.id ? { ...x, checklist: insertStep(x.checklist, i, item) } : x)) }),
-          async (srv) => {
-            await D.T.deleteTask(made.id, D.versionOf(srv, made.id, made.version));
-            const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
-            return D.T.updateTask(t.id, cur.version, { checklist: insertStep(cur.checklist, i, item) });
-          },
-        ),
-    });
-  }
-
-  function saveNote(t: TaskRow, note: string | null) {
-    void D.run(
-      (s) => mapTask(s, t.id, (x) => ({ ...x, note })),
-      (srv) => D.T.updateTask(t.id, D.versionOf(srv, t.id, t.version), { note }),
-    );
-  }
-
-  /** 체크 항목 체크는 바로. 버전과 지금 목록은 부를 때의 서버 값에서 읽는다(빠르게 여러 개 눌러도 안 엇갈리게) */
-  function check(t: TaskRow, i: number, done: boolean) {
-    void D.run(
-      (s) => mapTask(s, t.id, (x) => ({ ...x, checklist: toggleCheck(x.checklist, i, done) })),
-      (srv) => {
-        const cur = srv.tasks.find((x) => x.id === t.id) ?? t;
-        return D.T.updateTask(t.id, cur.version, { checklist: toggleCheck(cur.checklist, i, done) });
-      },
-    );
+    router.push(href(`/planner/bench/${t.id}`));
   }
 
   function grab(e: ReactPointerEvent<HTMLLIElement>, t: TaskRow) {
@@ -938,7 +761,7 @@ export function PlannerView() {
       place={t.place_id ? placeOf.get(t.place_id) : undefined}
       role={sort.key === "role" ? null : roleText(t, roles)}
       repeats={t.rule_id !== null && liveRules.has(t.rule_id)}
-      benched={t.bench_at !== null && t.done_at === null}
+      benched={t.bench_order !== null && t.done_at === null}
       today={today}
       selected={sel === t.id}
       dragging={drag?.id === t.id}
@@ -1070,7 +893,7 @@ export function PlannerView() {
         onDue={startDue}
         onClearDue={() => void clearDue()}
         onEdit={startEdit}
-        onBench={selTask.done_at === null && selTask.bench_at === null ? () => putOnBench(selTask) : null}
+        onBench={selTask.done_at === null && selTask.bench_order === null ? () => toBench(selTask) : null}
         onDelete={() => void remove()}
         onMore={
           canSend
@@ -1094,22 +917,7 @@ export function PlannerView() {
 
   return (
     <div className="planner">
-      <div className="bar-top pl-top">
-        <HomeButton />
-        <label className="pl-add">
-          <Icon name="plus" />
-          <input
-            ref={inputRef}
-            value={text}
-            maxLength={TASK_TITLE_MAX}
-            aria-label="할 일 추가"
-            enterKeyHint="done"
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onInputKey}
-          />
-        </label>
-        <ThemeToggle />
-      </div>
+      <PlannerBar home={<HomeButton />} />
       <div className="pl-ctl">
         <div className="pl-sort" role="group" aria-label="정렬">
           {SORT_KEYS.map((k) => (
@@ -1145,23 +953,25 @@ export function PlannerView() {
             body={body}
             showDone={showDone}
             onFold={() => setShowDone((v) => !v)}
-            bench={
-              bench && (
-                <BenchCard
-                  key={bench.id}
-                  task={bench}
-                  place={bench.place_id ? (placeOf.get(bench.place_id) ?? null) : null}
-                  role={roleText(bench, roles)}
-                  onOpen={() => pick(bench)}
-                  onCheck={(i, done) => check(bench, i, done)}
-                  onAddStep={(text) => addBenchStep(bench, text)}
-                  onMoveStep={(from, to) => void editSteps(bench, (list) => moveStep(list, from, to))}
-                  onDetach={(i) => void detach(bench, i)}
-                  onNote={(note) => saveNote(bench, note)}
-                  onAddTask={addTask}
-                  onDone={() => void toggle(bench)}
-                  onPutDown={() => putDown(bench)}
+            addRow={
+              <label className="pl-new">
+                <Icon name="plus" />
+                <input
+                  ref={inputRef}
+                  value={text}
+                  maxLength={TASK_TITLE_MAX}
+                  aria-label="할 일 추가"
+                  enterKeyHint="done"
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={onInputKey}
                 />
+              </label>
+            }
+            benchLink={
+              benchCount > 0 && (
+                <Link className="pl-bnlink" href={href("/planner/bench")}>
+                  작업대 <span className="num">{benchCount}</span>
+                </Link>
               )
             }
           />

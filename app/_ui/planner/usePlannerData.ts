@@ -6,8 +6,10 @@
 // 저장은 화면 먼저 바꾸고(낙관적) 줄 세워 하나씩 부른다. 실패하면 되돌리고 알린다. 끝나면 새로 읽어 버전을 맞춘다.
 //   저장하는 동안에는 뒤에서 온 읽기(30초 · 창 복귀)가 화면을 덮지 않는다.
 // 버전 충돌이면 "방금 다른 곳에서 이 할 일을 고쳤습니다" + 새로 불러오기.
+// 플래너 · 작업대 목록 · 집중 화면(/planner 아래)은 하나를 같이 쓴다 — app/(work)/planner/layout.tsx 의 PlannerDataProvider (7-15).
+//   그래서 화면을 옮겨도 낙관적 모습 · 저장 줄이 이어진다(집중 화면에서 내리고 바로 목록으로 가도 목록이 이미 맞다).
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS, type Place, type Role, type TaskRow, type TaskRule } from "../../../lib/schedule";
 import { KEY, peekAll, type DataCache } from "../../_data/cache";
 import { keepTitles, openPlanner, readPlannerLists, titleIds, type PlannerLists } from "../../_data/loaders";
@@ -28,7 +30,7 @@ function cached(cache: DataCache): PlannerState | null {
   return lists ? { ...lists, titles: cache.peek<Record<string, string>>(KEY.titles) ?? {} } : null;
 }
 
-export function usePlannerData() {
+function useOwnPlannerData() {
   const { src, fail, tick } = useApp();
   const toast = useToast();
   const T = src.planner;
@@ -164,4 +166,17 @@ export function usePlannerData() {
   return { T, S, state, places, ready: state !== null, run, versionOf, reload };
 }
 
-export type PlannerDataHook = ReturnType<typeof usePlannerData>;
+export type PlannerDataHook = ReturnType<typeof useOwnPlannerData>;
+
+const Shared = createContext<PlannerDataHook | null>(null);
+
+/** /planner 아래 화면들이 같이 쓰는 플래너 데이터 */
+export function PlannerDataProvider({ children }: { children: ReactNode }) {
+  return createElement(Shared.Provider, { value: useOwnPlannerData() }, children);
+}
+
+export function usePlannerData(): PlannerDataHook {
+  const d = useContext(Shared);
+  if (!d) throw new Error("PlannerDataProvider 안에서만 씁니다");
+  return d;
+}

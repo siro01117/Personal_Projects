@@ -1076,38 +1076,41 @@ describe("플래너 — 역할", () => {
   });
 });
 
-describe("플래너 — 작업대 (7-13)", () => {
-  it("bench: true 로 올리면 todo_list 맨 위에 bench: true, 다른 것을 올리면 앞의 것은 내려온다", async () => {
+describe("플래너 — 작업대 (7-13 · 7-15)", () => {
+  it("bench: true 로 여럿 올리면 todo_list 맨 위에 올린 순서로 bench: {order, sitting}", async () => {
     const { s } = setup();
     const a = good(await s.todo_save({ title: "상법 정리", checklist: ["1장 읽기"] })).task;
     const b = good(await s.todo_save({ title: "장보기" })).task;
+    good(await s.todo_save({ title: "청소" }));
     const on = await s.todo_save({ id: a.id, base_version: a.version, bench: true });
     expect(on.summary).toBe("작업대에 올렸습니다: 상법 정리");
+    good(await s.todo_save({ id: b.id, base_version: b.version, bench: true }));
     const list = await s.todo_list({});
     expect((good(list).items as Row[]).map((t) => [t.title, t.bench])).toEqual([
-      ["상법 정리", true],
-      ["장보기", undefined],
+      ["상법 정리", { order: 1, sitting: false }],
+      ["장보기", { order: 2, sitting: false }],
+      ["청소", undefined],
     ]);
-    expect(list.summary).toBe('할 일 2개 (안 끝남) · 작업대 "상법 정리"');
-    const cur = (good(list).items as Row[])[1]!;
-    good(await s.todo_save({ id: b.id, base_version: cur.version, bench: true }));
-    expect((good(await s.todo_list({})).items as Row[]).map((t) => [t.title, t.bench])).toEqual([
-      ["장보기", true],
-      ["상법 정리", undefined],
-    ]);
+    expect(list.summary).toBe("할 일 3개 (안 끝남) · 작업대 2개");
+    // 앉는 것은 화면(집중 화면)이 한다
+    await db.query("update ez_tasks set bench_at = now() where id = $1", [b.id]);
+    const after = await s.todo_list({});
+    expect((good(after).items as Row[])[1]!.bench).toEqual({ order: 2, sitting: true });
+    expect(after.summary).toBe('할 일 3개 (안 끝남) · 작업대 2개 (앉은 것 "장보기")');
     expect((await rawTask(a.id)).checklist).toEqual([{ t: "1장 읽기", done: false }]);
   });
 
-  it("넣으면서 올리기 · 내려놓기 · 끝내면 내려옴 · 끝낸 것은 못 올림", async () => {
+  it("넣으면서 올리기 · 내리기 · 끝내면 내려옴 · 끝낸 것은 못 올림", async () => {
     const { s } = setup();
     const t = good(await s.todo_save({ title: "보고서", bench: true })).task;
-    expect(t.bench).toBe(true);
+    expect(t.bench).toEqual({ order: 1, sitting: false });
     const off = await s.todo_save({ id: t.id, base_version: t.version, bench: false });
-    expect(off.summary).toBe("작업대에서 내려놓았습니다: 보고서");
+    expect(off.summary).toBe("작업대에서 내렸습니다: 보고서");
+    expect(good(off).task.bench).toBeUndefined();
     const back = good(await s.todo_save({ id: t.id, base_version: good(off).task.version, bench: true })).task;
     const done = good(await s.todo_save({ id: t.id, base_version: back.version, done: true })).task;
     expect(done.bench).toBeUndefined();
-    expect((await rawTask(t.id)).bench_at).toBeNull();
+    expect(await rawTask(t.id)).toMatchObject({ bench_at: null, bench_order: null });
     bad(await s.todo_save({ id: t.id, base_version: done.version, bench: true }), "BAD_INPUT");
     bad(await s.todo_save({ title: "x", done: true, bench: true }), "BAD_INPUT");
     bad(await s.todo_save({ title: "x", bench: "yes" as unknown as boolean }), "BAD_INPUT");

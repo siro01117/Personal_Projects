@@ -454,8 +454,8 @@ function taskOut(t: TaskRow, ev: EventRow | undefined, c: TaskCtx): Obj {
   if (role) o.role = role;
   if (t.checklist.length > 0) o.checklist = t.checklist;
   if (t.done_at) o.done_at = t.done_at;
-  // 작업대에 올라간 할 일 (docs/플래너.md 7-13)
-  if (t.bench_at) o.bench = true;
+  // 작업대에 올라간 할 일 — 순서(작은 것이 앞) · 지금 앉은 것인지 (docs/플래너.md 7-15)
+  if (t.bench_order !== null) o.bench = { order: t.bench_order, sitting: t.bench_at !== null };
   // 모임에서 나온 할 일 (docs/모임.md 4장)
   if (t.origin_kind === "meet" && t.origin_id) o.meet = t.origin_id;
   o.version = t.version;
@@ -608,7 +608,7 @@ type TodoArgs = {
   rule_id?: string;
   stop?: boolean;
   meet?: string;
-  /** 작업대에 올리기(true) · 내려놓기(false) (docs/플래너.md 7-13) */
+  /** 작업대에 올리기(true) · 내리기(false) (docs/플래너.md 7-15) */
   bench?: boolean;
 };
 
@@ -1218,13 +1218,14 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         const linked = new Map<string, EventRow>();
         for (const e of await store.eventsForTasks(picked.map((t) => t.id))) if (e.task_id) linked.set(e.task_id, e);
         const ctx = await taskCtx(picked, rules, roles);
-        // 작업대에 올라간 할 일이 맨 위 (docs/플래너.md 7-13)
-        const onBench = open.find((t) => t.bench_at !== null);
-        const ordered = onBench ? [onBench, ...open.filter((t) => t !== onBench), ...done] : [...open, ...done];
+        // 작업대에 올라간 할 일이 맨 위, 올린 순서대로 (docs/플래너.md 7-15)
+        const onBench = open.filter((t) => t.bench_order !== null).sort((x, y) => x.bench_order! - y.bench_order!);
+        const ordered = [...onBench, ...open.filter((t) => t.bench_order === null), ...done];
+        const sitting = onBench.find((t) => t.bench_at !== null);
         const items = ordered.map((t) => taskOut(t, linked.get(t.id), ctx));
         const late = items.filter((t) => t.late).length;
         const what = { open: "안 끝남", done: "끝냄", all: "전체" }[status];
-        const benchNote = onBench ? ` · 작업대 "${onBench.title}"` : "";
+        const benchNote = onBench.length > 0 ? ` · 작업대 ${onBench.length}개${sitting ? ` (앉은 것 "${sitting.title}")` : ""}` : "";
         return ok(`할 일 ${items.length}개 (${what})${late > 0 ? ` · 지남 ${late}개` : ""}${benchNote}${tail}`, {
           status,
           items,
@@ -1244,7 +1245,7 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         const isNew = a.id === undefined || a.id === null || a.id === "";
         if (isNew && a.delete) return fail("지울 할 일의 id 를 주세요", "BAD_INPUT");
         if (a.scope !== undefined && a.scope !== "once" && a.scope !== "rule") return fail("scope 는 once(이 할 일만) · rule(규칙도 같이) 중 하나입니다", "BAD_INPUT");
-        if (a.bench !== undefined && typeof a.bench !== "boolean") return fail("bench 는 true(작업대에 올리기) · false(내려놓기) 입니다", "BAD_INPUT");
+        if (a.bench !== undefined && typeof a.bench !== "boolean") return fail("bench 는 true(작업대에 올리기) · false(내리기) 입니다", "BAD_INPUT");
         if (a.bench === true && a.done === true) return fail("끝낸 할 일은 작업대에 올릴 수 없습니다 — done 과 bench 를 같이 쓰지 마세요", "BAD_INPUT");
 
         // ---- 새 칸 읽기
@@ -1479,12 +1480,12 @@ export function createSchedule({ store, now = () => new Date() }: ScheduleOption
         }
 
         const ruleChanged = Object.keys(rulePatch).length > 0;
-        // 작업대: 지금과 다를 때만. 끝내면 DB 가 내려놓는다
-        const benchTo = a.bench !== undefined && a.bench !== (cur.bench_at !== null) ? a.bench : undefined;
+        // 작업대: 지금과 다를 때만. 끝내면 DB 가 내린다
+        const benchTo = a.bench !== undefined && a.bench !== (cur.bench_order !== null) ? a.bench : undefined;
         if (benchTo === true && (cur.done_at !== null || patch.done_at)) {
           return fail("끝낸 할 일은 작업대에 올릴 수 없습니다 — done: false 로 다시 연 뒤 올리세요", "BAD_INPUT");
         }
-        const benchWord = benchTo === undefined ? "" : benchTo ? "작업대에 올렸습니다" : "작업대에서 내려놓았습니다";
+        const benchWord = benchTo === undefined ? "" : benchTo ? "작업대에 올렸습니다" : "작업대에서 내렸습니다";
         if (Object.keys(patch).length === 0 && !ruleChanged) {
           if (benchTo === undefined) return ok(`바뀐 것이 없습니다: ${cur.title}`, { changed: false, task: await show(cur, linked) });
           const b = await store.benchTask(id, benchTo);
