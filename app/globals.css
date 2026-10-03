@@ -378,6 +378,11 @@ tr:last-child td{border-bottom:0}
 }
 /* 첫 열은 폭에 맞춰 접지 않되, 사람이 넣은 줄바꿈은 지킨다 */
 td:first-child{font-weight:600;color:var(--text-1);white-space:pre}
+/* 위 행과 합쳐진 첫 칸(Blocks .dup): 넓을 때는 rowSpan 칸이 대신하므로 숨기고, 카드가 되는 좁은 폭에서는 카드 제목으로 */
+td.dup{display:none}
+@container (max-width: 559.98px){
+  .page:not(.editing) .tbl-wrap td.dup{display:block}
+}
 
 .b-claims .c{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;padding:18px 0;border-top:1px solid var(--border)}
 .b-claims .c:first-of-type{border-top:0;padding-top:0}

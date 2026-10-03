@@ -218,6 +218,15 @@ function Grip({ k, a }: { k: string; a: ArrangeCtx }) {
 }
 
 /** 블록 하나를 검사해 본다. 틀리면 null (자리표시) */
+/** 표 r 행의 첫 칸이 아래로 몇 행과 같은지(자기 포함). 빈 칸은 합치지 않는다 */
+export function spanOf(rows: readonly (readonly string[])[], r: number): number {
+  const v = rows[r]?.[0];
+  if (!v) return 1;
+  let n = 1;
+  while (rows[r + n]?.[0] === v) n++;
+  return n;
+}
+
 export function parseBlock(raw: unknown): Block | null {
   const r = blockSchema.safeParse(raw);
   return r.success ? r.data : null;
@@ -527,13 +536,33 @@ function BlockView({
               </thead>
               <tbody>
                 {/* td 의 data-col: 좁은 화면에서 행이 카드가 될 때 칸 앞에 붙는 열 이름 (globals.css .tbl-wrap 컨테이너 쿼리) */}
+                {/* 첫 열이 바로 위 행과 같으면(읽을 때만) 한 칸으로 합친다(rowSpan). 이어지는 행의 첫 칸은 .dup — 넓을 때 숨기고, 행이 카드가 되는 좁은 폭에서는 카드 제목 */}
                 {b.rows.map((row, r) => (
                   <tr key={r}>
-                    {row.map((c, j) => (
-                      <td key={j} data-col={b.cols[j] ?? ""}>
-                        {F({ as: "span", path: [i, "rows", r, j], value: c })}
-                      </td>
-                    ))}
+                    {row.map((c, j) => {
+                      if (j === 0 && !editing && c !== "") {
+                        if (r > 0 && b.rows[r - 1]?.[0] === c) {
+                          return (
+                            <td key={j} className="dup" data-col={b.cols[j] ?? ""}>
+                              {F({ as: "span", path: [i, "rows", r, j], value: c })}
+                            </td>
+                          );
+                        }
+                        const span = spanOf(b.rows, r);
+                        if (span > 1) {
+                          return (
+                            <td key={j} rowSpan={span} data-col={b.cols[j] ?? ""}>
+                              {F({ as: "span", path: [i, "rows", r, j], value: c })}
+                            </td>
+                          );
+                        }
+                      }
+                      return (
+                        <td key={j} data-col={b.cols[j] ?? ""}>
+                          {F({ as: "span", path: [i, "rows", r, j], value: c })}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

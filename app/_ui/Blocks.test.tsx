@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { arrangeBlocks } from "../../lib/blocks";
 import { sampleBlocks, sampleImage } from "../../lib/fixtures";
-import { Blocks, enterAction, tocOf, type ArrangeCtx, type EditCtx } from "./Blocks";
+import { Blocks, enterAction, spanOf, tocOf, type ArrangeCtx, type EditCtx } from "./Blocks";
 
 const css = readFileSync(new URL("../globals.css", import.meta.url), "utf8");
 
@@ -144,6 +144,36 @@ describe("빈 칸", () => {
     const noCap = sampleImage({ ref: undefined, credit: "직접 캡처", caption: undefined });
     const edit2 = renderToStaticMarkup(<Blocks blocks={[noCap]} ctx={{ raw: [noCap], editing: true, commit: async () => {} }} />);
     expect(edit2).not.toContain('class="cap"');
+  });
+});
+
+describe("표 첫 열 합치기", () => {
+  const rows = [["가", "1"], ["가", "2"], ["나", "3"], ["", "4"], ["", "5"], ["나", "6"]];
+  const raw = [{ type: "table", h: "표", cols: ["대", "중"], rows }];
+
+  it("읽을 때: 바로 위 행과 같은 첫 칸은 rowSpan 으로 합치고 이어지는 행은 .dup (빈 칸은 안 합침)", () => {
+    const html = renderToStaticMarkup(<Blocks blocks={raw} />);
+    expect(html).toContain('<td rowSpan="2" data-col="대"><span>가</span></td><td data-col="중"><span>1</span></td>');
+    expect(html).toContain('<td class="dup" data-col="대"><span>가</span></td><td data-col="중"><span>2</span></td>');
+    expect(html).toContain('<td data-col="대"><span>나</span></td><td data-col="중"><span>3</span></td>');
+    expect(html).toContain('<td data-col="대"><span></span></td><td data-col="중"><span>4</span></td>');
+    expect(html).toContain('<td data-col="대"><span></span></td><td data-col="중"><span>5</span></td>');
+    expect(html).toContain('<td data-col="대"><span>나</span></td><td data-col="중"><span>6</span></td>');
+    expect(count(html, /rowSpan/g)).toBe(1);
+    expect(spanOf(rows, 0)).toBe(2);
+    expect(spanOf(rows, 1)).toBe(1);
+    expect(spanOf(rows, 3)).toBe(1);
+    // 넓을 때 .dup 은 숨기고, 카드가 되는 좁은 폭에서는 보인다
+    expect(css).toContain("td.dup{display:none}");
+    expect(css).toContain(".page:not(.editing) .tbl-wrap td.dup{display:block}");
+  });
+
+  it("고치기 모드: 합치지 않는다 (칸마다 고칠 수 있게)", () => {
+    const ctx = { raw, editing: true, commit: async () => {} };
+    const html = renderToStaticMarkup(<Blocks blocks={raw} ctx={ctx} />);
+    expect(html).not.toContain("rowSpan");
+    expect(html).not.toContain('class="dup"');
+    expect(count(html, /data-col="대"/g)).toBe(6);
   });
 });
 
