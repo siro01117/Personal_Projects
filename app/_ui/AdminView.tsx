@@ -323,7 +323,7 @@ export function MemberTable({
           <th>아이디</th>
           <th>이름</th>
           <th>마지막 로그인</th>
-          <th>상태</th>
+          <th>활성화</th>
           <th>허용 모듈</th>
         </tr>
       </thead>

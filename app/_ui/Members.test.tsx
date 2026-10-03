@@ -34,7 +34,7 @@ describe("관리 표", () => {
     { user_id: "u2", login_id: "jiwoo", name: "박지우", active: false, allowed: [], created_at: "2026-10-02T00:00:00Z", last_sign_in_at: null },
   ];
 
-  it("회원: 아이디 · 이름 · 마지막 로그인(서울) · 상태 글자 하나 · 허용 모듈 칩", () => {
+  it("회원: 아이디 · 이름 · 마지막 로그인(서울) · 활성화 글자 하나 · 허용 모듈 칩", () => {
     const html = renderToStaticMarkup(<MemberTable members={members} mods={MODS} selected="u2" onOpen={noop} onActive={noop} onAllowed={noop} />);
     const t = text(html);
     expect(t).toContain("minseo 김민서 10.04 13:20 켬 학습 페이지 팀 위키");
