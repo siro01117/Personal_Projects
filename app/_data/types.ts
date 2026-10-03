@@ -3,6 +3,7 @@
 
 import type { ReportKind } from "../../lib/blocks";
 import type { Attend, Cells, Circle, Meet, MeetPerson, Poll, PublicMeet } from "../../lib/meet";
+import type { Me, MemberPatch, MemberRow, ModuleRow, NewMember, NewModule } from "../../lib/members";
 import type {
   CheckItem,
   DateStr,
@@ -52,7 +53,7 @@ export type ReportDoc = Entry & {
   share_token: string | null;
 };
 
-/** ez_shared 가 주는 것. version 은 글마다 붙은 버전과 비교하려고 (7-5장) */
+/** ez_shared_doc 가 주는 것. version 은 글마다 붙은 버전과 비교하려고 (7-5장) */
 export type SharedDoc = { name: string; report_kind: string | null; blocks: unknown[]; version: number; updated_at: string };
 
 /** ez_views 한 줄 — 보고서 × 기기 (설계서 7-4장). 주인만 읽는다 */
@@ -161,7 +162,7 @@ export interface DrawerData {
   /** ez_share — 새 열쇠(이전 열쇠는 무효) */
   share(id: string): Promise<string>;
   unshare(id: string): Promise<void>;
-  /** ez_shared — 로그인 없이. 없거나 꺼졌으면 null. 사진의 local_path 는 빠져 온다 */
+  /** ez_shared_doc — 로그인 없이. 없거나 꺼졌으면 null. 사진의 local_path 는 빠져 온다 */
   shared(token: string): Promise<SharedDoc | null>;
   /** 읽은 사람 기록 (주인만, RLS). 최근 것부터 */
   views(itemId: string): Promise<ViewRow[]>;
@@ -456,6 +457,33 @@ export interface LiveData {
   watch(token: string, onChange: (people: Presence[] | null) => void): () => void;
 }
 
+// ---------------------------------------------------------------------------
+// 회원 · 추가 모듈 (docs/회원.md, db/migrations/0015). 행 모양은 lib/members.ts
+// ---------------------------------------------------------------------------
+
+/** 로그인한 사람 자신 */
+export interface MeData {
+  /** ez_me — 역할 · 이름 · 켬 · 허용 · 켠 것 · 보이는 모듈을 한 번에 (캐시를 낀다) */
+  me(): Promise<Me>;
+  /** ez_set_picked — 켠 추가 모듈을 통째로. 저장된 값을 돌려준다 */
+  setPicked(keys: string[]): Promise<string[]>;
+}
+
+/** 관리 화면 (관리자만). 회원은 서버 라우트(/api/admin/members), 모듈은 RLS 로 직접 */
+export interface AdminData {
+  members(): Promise<MemberRow[]>;
+  /** 아이디가 겹치면 [EZ_TAKEN] */
+  createMember(input: NewMember): Promise<MemberRow>;
+  updateMember(id: string, patch: MemberPatch): Promise<MemberRow>;
+  /** Auth 사용자째 지운다. 그 회원의 데이터(ez_items 등)는 남는다 */
+  deleteMember(id: string): Promise<void>;
+  /** sort 순 */
+  modules(): Promise<ModuleRow[]>;
+  /** 키는 이름에서 자동, 맨 뒤에 */
+  createModule(input: NewModule): Promise<ModuleRow>;
+  deleteModule(key: string): Promise<void>;
+}
+
 /** cache = 마지막으로 읽은 것 (먼저 그리기용). data 는 이미 캐시를 낀 서랍 */
 export type Source = {
   data: DrawerData;
@@ -465,6 +493,8 @@ export type Source = {
   meetPublic: MeetPublicData;
   live: LiveData;
   auth: Auth;
+  me: MeData;
+  admin: AdminData;
   demo: boolean;
   cache: DataCache;
 };

@@ -31,6 +31,19 @@ describe("blocksToMarkdown", () => {
     expect(md).toContain("| 줄<br>바꿈 | 역\\\\슬래시 \\|끝 |");
   });
 
+  it("합친 표(merges): GFM 엔 병합이 없으므로 덮인 자리는 빈 칸 — 시작 칸 글을 반복하지 않는다", () => {
+    const md = blocksToMarkdown("t", [
+      {
+        type: "table",
+        h: "표",
+        cols: ["구분", "항목", "값"],
+        rows: [["A", "가", "1"], ["", "나", "2"], ["합계", "", "3"]],
+        merges: [{ r: 0, c: 0, rows: 2, cols: 1 }, { r: 2, c: 0, rows: 1, cols: 2 }],
+      },
+    ]);
+    expect(md).toBe(["# t", "## 표", "| 구분 | 항목 | 값 |\n| --- | --- | --- |\n| A | 가 | 1 |\n|  | 나 | 2 |\n| 합계 |  | 3 |"].join("\n\n") + "\n");
+  });
+
   it("모르는 블록·깨진 블록은 건너뛰고 한 줄 주석", () => {
     const md = blocksToMarkdown("t", [
       { type: "timeline", items: [] },

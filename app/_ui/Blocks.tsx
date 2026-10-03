@@ -12,12 +12,13 @@
 // 가장자리가 화면 바탕과 같은 밝기(라이트+light · 다크+dark)인 사진만 포인트색 테두리 — globals.css --img-edge-*.
 // 고치기 모드에서 arrange 를 받으면 블록마다 손잡이(점 여섯 개)와 고름 표시가 붙는다 — 고르기 · 지우기 · 옮기기는 useArrange 가 한다.
 // 블록의 React 열쇠는 keys(순서가 바뀌어도 유지) — id="b{번호}" 는 늘 지금 순서의 번호다.
-// 댓글(설계서 7-5장): notes 를 받으면(고치기 모드가 아닐 때) 블록마다 오른쪽 여백에 댓글 수(없으면 올렸을 때만 +), 블록을 누르면 그 아래에 댓글 줄(thread).
+// 댓글(설계서 7-5 · 7-6장): notes 를 받으면(고치기 모드가 아닐 때) 블록마다 오른쪽 여백에 댓글 수(없으면 올렸을 때만 +), 블록을 누르면 댓글 줄(thread).
+//  종이가 넓으면(notes.side) 댓글 줄은 화면이 블록 옆 패널에 그리고, 좁으면 여기서 블록 아래에 그린다.
 // 링크 · 단추 · 글자 고르기 · 댓글 줄 안을 누른 것은 블록 누르기로 치지 않는다.
 
 import { Component, Fragment, useEffect, useLayoutEffect, useRef, useState, type ElementType, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { blockSchema, editRule, type Block, type ImageBlock, type SourcesBlock } from "../../lib/blocks";
+import { blockSchema, editRule, tableSpans, type Block, type ImageBlock, type SourcesBlock } from "../../lib/blocks";
 import { splitMarks, stripMarks } from "../../lib/marks";
 import { domainOf, httpUrl, imageCredit, type ImageCredit } from "../_logic/drawer";
 import { rowBlocks, toRows, type Row } from "../_logic/rows";
@@ -46,7 +47,7 @@ export type EditCtx = {
   arrange?: ArrangeCtx;
 };
 
-/** 댓글 (설계서 7-5장). 블록 번호 기준 */
+/** 댓글 (설계서 7-5 · 7-6장). 블록 번호 기준 */
 export type NotesCtx = {
   counts: ReadonlyMap<number, number>;
   /** 펼친 블록 */
@@ -54,6 +55,8 @@ export type NotesCtx = {
   onToggle: (i: number) => void;
   /** 펼친 블록 아래에 그릴 댓글 줄 */
   thread: (i: number) => ReactNode;
+  /** 종이가 넓어 댓글 줄을 블록 옆 패널(Notes 의 SidePanel)에 그린다 — 블록 아래에는 안 그린다 */
+  side?: boolean;
 };
 
 /** 블록 어디를 눌렀을 때 댓글을 펼치거나 접을지 — 링크 · 단추 · 칸 · 댓글 줄 · 사진 크게 보기는 아니고, 글자를 골랐으면 아니다 */
@@ -218,12 +221,12 @@ function Grip({ k, a }: { k: string; a: ArrangeCtx }) {
 }
 
 /** 블록 하나를 검사해 본다. 틀리면 null (자리표시) */
-/** 표 r 행의 첫 칸이 아래로 몇 행과 같은지(자기 포함). 빈 칸은 합치지 않는다 */
-export function spanOf(rows: readonly (readonly string[])[], r: number): number {
+/** 표 r 행의 첫 칸이 아래로 몇 행과 같은지(자기 포함). 빈 칸은 합치지 않는다. free(r) 가 거짓인 행(첫 칸이 merges 에 든 행)에서 멈춘다 */
+export function spanOf(rows: readonly (readonly string[])[], r: number, free: (r: number) => boolean = () => true): number {
   const v = rows[r]?.[0];
   if (!v) return 1;
   let n = 1;
-  while (rows[r + n]?.[0] === v) n++;
+  while (rows[r + n]?.[0] === v && free(r + n)) n++;
   return n;
 }
 
@@ -315,12 +318,15 @@ function Cite({ n, src }: { n: number; src: Source | undefined }) {
       >
         {n}
       </a>
-      {open && (
-        <span className="cite-pop" role="tooltip" ref={popRef}>
-          <span className="t">{stripMarks(src.title)}</span>
-          {domain && <span className="d">{domain}</span>}
-        </span>
-      )}
+      {/* body 로 — 댓글 패널이 열려 종이가 밀린(transform) 동안에도 화면 기준(fixed)으로 선다 */}
+      {open &&
+        createPortal(
+          <span className="cite-pop" role="tooltip" ref={popRef}>
+            <span className="t">{stripMarks(src.title)}</span>
+            {domain && <span className="d">{domain}</span>}
+          </span>,
+          document.body,
+        )}
     </sup>
   );
 }
@@ -521,7 +527,10 @@ function BlockView({
           {grip}
         </div>
       );
-    case "table":
+    case "table": {
+      const spans = tableSpans(b);
+      /** 첫 칸이 merges 에 들지 않은 행 — 첫 열 자동 합치기는 이런 행끼리만 */
+      const free = (r: number) => (spans[r]?.[0] ?? null) === null;
       return (
         <div className="blk b-table" {...root}>
           {show(b.h) && F({ as: "h3", path: [i, "h"], value: b.h })}
@@ -536,19 +545,44 @@ function BlockView({
               </thead>
               <tbody>
                 {/* td 의 data-col: 좁은 화면에서 행이 카드가 될 때 칸 앞에 붙는 열 이름 (globals.css .tbl-wrap 컨테이너 쿼리) */}
+                {/* merges(설계서 7-6): 시작 칸에 rowSpan · colSpan, 덮인 칸은 안 그린다. 가로로 합친 칸의 열 이름은 "a · b".
+                    첫 열이 세로로 덮인 행은 .dup 에 시작 칸 글 — 넓을 때 숨기고, 행이 카드가 되는 좁은 폭에서는 카드 제목 */}
                 {/* 첫 열이 바로 위 행과 같으면(읽을 때만) 한 칸으로 합친다(rowSpan). 이어지는 행의 첫 칸은 .dup — 넓을 때 숨기고, 행이 카드가 되는 좁은 폭에서는 카드 제목 */}
                 {b.rows.map((row, r) => (
                   <tr key={r}>
                     {row.map((c, j) => {
+                      const s = spans[r]?.[j] ?? null;
+                      if (s === "covered") {
+                        if (j !== 0) return null;
+                        let top = r;
+                        while (top > 0 && spans[top]?.[0] === "covered") top--;
+                        return (
+                          <td key={j} className="dup" data-col={b.cols[0] ?? ""}>
+                            <Field as="span" path={[i, "rows", top, 0]} value={b.rows[top]?.[0] ?? ""} />
+                          </td>
+                        );
+                      }
+                      if (s) {
+                        return (
+                          <td
+                            key={j}
+                            rowSpan={s.rows > 1 ? s.rows : undefined}
+                            colSpan={s.cols > 1 ? s.cols : undefined}
+                            data-col={b.cols.slice(j, j + s.cols).join(" · ")}
+                          >
+                            {F({ as: "span", path: [i, "rows", r, j], value: c })}
+                          </td>
+                        );
+                      }
                       if (j === 0 && !editing && c !== "") {
-                        if (r > 0 && b.rows[r - 1]?.[0] === c) {
+                        if (r > 0 && b.rows[r - 1]?.[0] === c && free(r - 1)) {
                           return (
                             <td key={j} className="dup" data-col={b.cols[j] ?? ""}>
                               {F({ as: "span", path: [i, "rows", r, j], value: c })}
                             </td>
                           );
                         }
-                        const span = spanOf(b.rows, r);
+                        const span = spanOf(b.rows, r, free);
                         if (span > 1) {
                           return (
                             <td key={j} rowSpan={span} data-col={b.cols[j] ?? ""}>
@@ -571,6 +605,7 @@ function BlockView({
           {grip}
         </div>
       );
+    }
     case "claims":
       return (
         <div className="blk b-claims" {...root}>
@@ -707,7 +742,7 @@ export function Blocks({
           >
             {count === 0 ? "+" : count}
           </button>
-          {open && nc.thread(i)}
+          {open && !nc.side && nc.thread(i)}
         </>
       );
     }

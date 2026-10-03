@@ -5,11 +5,12 @@
 -- 남(anon)이 부르는 함수: ez_view_open (들어옴 → 게스트 번호 · 이름) · ez_view_ping (살아 있음 + 읽은 초) · ez_view_name (이름 적기 · 바꾸기)
 -- 도우미:            ez_view_target (열쇠 → 공유가 켜진 살아 있는 보고서. 주인 본인이면 null) — 아무에게도 안 연다
 --
--- 주인은 RLS 아래 자기 보고서의 줄만 select 한다. insert · update · delete 는 함수로만 (테이블에는 권한이 없다).
+-- 주인은 RLS 아래 자기 보고서의 줄만 select 한다. 쓰기(insert · update)는 함수로만 (테이블에는 쓰기 권한이 없다).
 -- 열쇠 → 보고서 찾기는 ez_shared 와 같다 (22자 모양 · share_token · kind = report · deleted_at is null).
 -- 없는 열쇠 · 꺼진 링크 · 지운 보고서 · 주인 본인(auth.uid() = owner)은 아무것도 안 하고 빈 결과 — 있었는지 드러내지 않는다.
 -- 게스트 번호는 보고서마다 1부터, 그 보고서에 처음 온 기기 순서. 번호는 ez_view_seq 가 센다 — 줄이 지워져도 번호를 다시 쓰지 않는다.
--- 보고서당 500줄까지. 넘으면 가장 오래된 last_at 줄을 지운다. ez_items 가 cascade 라 영구 삭제하면 같이 지워진다.
+-- 보고서당 500줄까지. 넘으면 더 적지 않는다 — 다 찬 뒤 처음 온 기기는 줄을 만들지 않고 빈 결과 (이미 적힌 기기는 그대로 갱신).
+-- 보고서를 영구히 지우면 같이 없어진다 (ez_items 를 따라가는 cascade).
 -- security definer 함수는 search_path 를 고정한다 (public, pg_temp).
 
 -- ---------------------------------------------------------------------------
@@ -85,7 +86,8 @@ $$;
 -- ---------------------------------------------------------------------------
 
 -- 들어옴. 줄이 없으면 만들고(게스트 번호 매김 · hits = 1), 있으면 ua · last_at 갱신 + hits + 1. 돌려주는 것: guest_no · name (한 줄).
--- 기기 열쇠가 규칙 밖이면 [EZ_VALUE]. ua 는 80자로 잘라 넣는다(비면 null). 보고서를 못 찾으면(주인 본인 포함) 빈 결과
+-- 기기 열쇠가 규칙 밖이면 [EZ_VALUE]. ua 는 80자로 잘라 넣는다(비면 null). 보고서를 못 찾으면(주인 본인 포함) 빈 결과.
+-- 그 보고서의 줄이 이미 500개면 새 기기는 줄을 만들지 않고(번호도 안 매김) 빈 결과
 create function public.ez_view_open(p_token text, p_device text, p_ua text default null)
 returns table (guest_no int, name text)
 language plpgsql
@@ -108,20 +110,15 @@ begin
      set ua = v_ua, last_at = now(), hits = v.hits + 1
    where v.item_id = v_item and v.device = p_device;
   if not found then
+    -- 보고서당 500줄: 다 찼으면 새 기기는 적지 않는다
+    if (select count(*) from public.ez_views x where x.item_id = v_item) >= 500 then
+      return;
+    end if;
     -- 번호는 한 줄 upsert 로 매긴다 — 동시에 처음 오는 두 기기도 줄 잠금으로 다른 번호를 받는다
     insert into public.ez_view_seq (item_id, last) values (v_item, 1)
     on conflict (item_id) do update set last = public.ez_view_seq.last + 1
     returning last into v_no;
     insert into public.ez_views (item_id, device, guest_no, ua) values (v_item, p_device, v_no, v_ua);
-
-    -- 보고서당 500줄: 넘치면 가장 오래 전에 살아 있던 줄부터 지운다 (방금 넣은 줄은 last_at 이 now() 라 안 지워진다)
-    delete from public.ez_views v
-     where v.id in (
-       select x.id from public.ez_views x
-        where x.item_id = v_item
-        order by x.last_at desc, x.id
-        offset 500
-     );
   end if;
 
   return query select v.guest_no, v.name from public.ez_views v where v.item_id = v_item and v.device = p_device;

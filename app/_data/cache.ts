@@ -293,6 +293,8 @@ export const KEY = {
   // 모임
   meets: "m:meets",
   circles: "m:circles",
+  // 나 (ez_me — 역할 · 추가 모듈)
+  me: "u:me",
 } as const;
 
 /** 열쇠들이 전부 담겨 있을 때만 값들을, 하나라도 없으면 null (반쪽 화면을 그리지 않는다) */

@@ -194,7 +194,7 @@ describe("방문 (ez_visits)", () => {
     expect(await viewRow(id, d)).toMatchObject({ hits: 3, seconds: 105 });
   });
 
-  it("기기당 200줄. 넘으면 오래된 것부터 지운다. 기기 줄이 지워지면 방문도 같이 (cascade)", async () => {
+  it("기기당 200줄. 다 차면 새 방문을 만들지 않는다(요약 seconds 는 더한다). 기기 줄이 지워지면 방문도 같이 (cascade)", async () => {
     const { id, token } = await shared();
     const d = device();
     await open(token, d);
@@ -208,10 +208,14 @@ describe("방문 (ez_visits)", () => {
     const count = async () => (await one("admin", "select count(*)::int as n from ez_visits where view_id = $1", [v.id])).n as number;
     expect(await count()).toBe(200);
     await backdateVisits(id, d, 31); // 지금 것도 지나게
-    await ping(token, d, 1); // 새 방문 → 201 → 가장 오래된 것이 빠진다
+    const before = await sql("admin", "select id, seconds, last_at from ez_visits where view_id = $1 order by id", [v.id]);
+    await ping(token, d, 7); // 새 방문이 필요하지만 200줄이라 만들지 않는다 — 있던 방문도 그대로
+    await open(token, d);
     expect(await count()).toBe(200);
+    expect(await sql("admin", "select id, seconds, last_at from ez_visits where view_id = $1 order by id", [v.id])).toEqual(before);
     const oldest = (await one("admin", "select min(started_at) as t from ez_visits where view_id = $1", [v.id])).t as Date;
-    expect(Date.now() - new Date(oldest).getTime()).toBeLessThan(999 * 3600_000);
+    expect(Date.now() - new Date(oldest).getTime()).toBeGreaterThan(999 * 3600_000);
+    expect(await viewRow(id, d)).toMatchObject({ hits: 2, seconds: 7 });
     await sql("admin", "delete from ez_views where id = $1", [v.id]);
     expect(await count()).toBe(0);
   });

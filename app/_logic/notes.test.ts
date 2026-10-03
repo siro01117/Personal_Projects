@@ -16,6 +16,9 @@ import {
   noteWaitMs,
   placeNotes,
   seenAt,
+  SIDE,
+  SIDE_CARD,
+  sidePlace,
   sortNotes,
   versionLabel,
 } from "./notes";
@@ -191,5 +194,45 @@ describe("방문 · 10초", () => {
     expect(noteWaitMs(1000, 4000)).toBe(7000);
     expect(noteWaitMs(1000, 11000)).toBe(0);
     expect(noteWaitMs(1000, 20000)).toBe(0);
+  });
+});
+
+describe("블록 옆 패널 자리 (설계서 7-6장)", () => {
+  it("종이가 760 보다 좁으면 옆 패널 없음 (블록 아래)", () => {
+    expect(sidePlace({ body: 900, left: 70, page: 759, top: 100 })).toBeNull();
+    // 760 이어도 옆에 패널 자리(340 + 가장자리)가 안 나오면 블록 아래
+    expect(sidePlace({ body: 900, left: 70, page: 760, top: 100 })).toBeNull();
+    expect(sidePlace({ body: 1200, left: 20, page: 760, top: 100 })).not.toBeNull();
+  });
+
+  it("자리가 넉넉하면 종이를 170(패널 칸의 절반) 밀고 패널은 종이 오른쪽 16 옆 — 종이 + 패널이 가운데", () => {
+    // 공개 페이지 1440: doc-body 1440, 종이 1032 가 왼쪽 204 에
+    const p = sidePlace({ body: 1440, left: 204, page: 1032, top: 412.4 })!;
+    expect(p).toEqual({ shift: -170, x: 1048, y: 412 });
+    expect(SIDE.slot / 2).toBe(170);
+    const pageLeft = 204 + p.shift;
+    const panelRight = pageLeft + p.x + SIDE_CARD;
+    expect(pageLeft).toBe(1440 - panelRight); // 양쪽 여백이 같다
+  });
+
+  it("왼쪽 자리가 모자라면 덜 민다(가장자리 16 까지). 오른쪽도 모자라면 종이를 좁혀 나란히 — 패널이 종이를 덮지 않는다", () => {
+    // 주인 화면 1440(사이드바 220): doc-body 1219, 종이 1032 가 왼쪽 93.6 에
+    const p = sidePlace({ body: 1219, left: 93.6, page: 1032, top: 0 })!;
+    expect(p.shift).toBe(-77); // 종이가 가장자리 16 에 붙는다
+    expect(p.width).toBe(Math.floor(1219 - 16 - 340 - (93.6 - 77))); // 846 — 가장자리 · 종이 · 틈 · 패널 · 가장자리
+    expect(p.x).toBe(p.width! + SIDE.gap);
+    expect(93.6 + p.shift + p.x + SIDE_CARD).toBeLessThanOrEqual(1219 - SIDE.edge);
+    // 좁혀도 760 이 안 되면 블록 아래 방식
+    expect(sidePlace({ body: 1100, left: 20, page: 1060, top: 0 })).toBeNull();
+    // 이미 가장자리에 붙어 있으면 밀지 않는다 (-0 이 아니라 0)
+    expect(sidePlace({ body: 1300, left: 10, page: 900, top: 0 })!.shift).toBe(0);
+  });
+
+  it("딱 맞는 폭: 종이 + 패널 칸 + 양쪽 16", () => {
+    expect(sidePlace({ body: 1032 + 340 + 32, left: 186, page: 1032, top: 0 })).toEqual({ shift: -170, x: 1048, y: 0 });
+  });
+
+  it("블록이 종이 위로 올라가 있어도(음수) 패널은 종이 안에서 시작", () => {
+    expect(sidePlace({ body: 1440, left: 204, page: 1032, top: -30 })!.y).toBe(0);
   });
 });

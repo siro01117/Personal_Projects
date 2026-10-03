@@ -6,6 +6,7 @@ import { uniqueName } from "../../lib/names";
 import { DbError } from "../../lib/errors";
 import { browserStore, cachedDrawer, DataCache } from "./cache";
 import { SupabaseLive } from "./liveSupabase";
+import { SupabaseAdmin, SupabaseMe } from "./membersSupabase";
 import { SupabaseMeet, SupabaseMeetPublic } from "./meetSupabase";
 import { SupabaseSchedule } from "./scheduleSupabase";
 import type { Auth, Copied, DrawerData, Entry, Folder, NoteRow, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow, Viewer, ViewRow, VisitRow } from "./types";
@@ -214,7 +215,7 @@ class SupabaseDrawer implements DrawerData {
   }
 
   async shared(token: string): Promise<SharedDoc | null> {
-    const rows = await run<SharedDoc[]>(anon().rpc("ez_shared", { p_token: token }));
+    const rows = await run<SharedDoc[]>(anon().rpc("ez_shared_doc", { p_token: token }));
     return rows[0] ?? null;
   }
 
@@ -378,6 +379,8 @@ export function supabaseSource(): Source {
       meetPublic: new SupabaseMeetPublic(),
       live: new SupabaseLive(),
       auth,
+      me: new SupabaseMe(cache),
+      admin: new SupabaseAdmin(cache),
       demo: false,
       cache,
     };

@@ -182,3 +182,39 @@ export function noteWaitMs(lastWroteAt: number | null, now: number): number {
   if (lastWroteAt === null) return 0;
   return Math.max(0, lastWroteAt + NOTE_GAP_MS - now);
 }
+
+// ------------------------------------------------------------ 블록 옆 댓글 패널 (설계서 7-6장)
+
+/**
+ * 패널 자리. slot 340 = 종이와의 틈 16 + 패널 324 — 종이는 slot 의 절반(170)만큼 왼쪽으로 밀려 "종이 + 패널" 이 가운데.
+ * edge: 종이 · 패널이 doc-body 가장자리에서 떨어지는 최소 거리. minPage: 이보다 좁은 종이는 블록 아래(7-5 방식)
+ */
+export const SIDE = { slot: 340, gap: 16, edge: 16, minPage: 760 } as const;
+export const SIDE_CARD = SIDE.slot - SIDE.gap;
+
+/**
+ * shift: 종이를 옮길 거리(≤ 0). x · y: 패널의 왼쪽 위, 밀리기 전 종이 기준(패널은 종이 안에 있어 같이 밀린다).
+ * width: 자리가 모자라 종이를 좁혀야 할 때의 종이 폭(없으면 그대로)
+ */
+export type SidePlace = { shift: number; x: number; y: number; width?: number };
+
+/**
+ * 블록 옆 패널을 어디에 둘지. 넓으면 종이를 170 밀고 패널을 종이 오른쪽 16 옆에.
+ * 왼쪽 자리가 모자라면 덜 밀고(종이가 가장자리 16 안으로), 그래도 오른쪽이 모자라면 **종이를 좁혀서** 나란히 세운다
+ * (가장자리 16 · 종이 · 틈 16 · 패널 324 · 가장자리 16). 패널이 종이를 덮지 않는다.
+ * body: doc-body 폭, left: 밀리기 전 종이 왼쪽(doc-body 기준), page: 종이의 원래 폭(좁히기 전), top: 블록 위(종이 기준).
+ * 종이가 좁으면(좁힌 뒤에도 minPage 미만이면) null → 블록 아래 방식
+ */
+export function sidePlace(g: { body: number; left: number; page: number; top: number }): SidePlace | null {
+  if (g.page < SIDE.minPage) return null;
+  const y = Math.max(0, Math.round(g.top));
+  // 글자가 흐려지지 않게 정수 px — 가장자리 16 을 넘지 않는 쪽으로 자른다. -0 은 0 으로
+  const shift = Math.ceil(Math.min(0, Math.max(-SIDE.slot / 2, SIDE.edge - g.left))) || 0;
+  const room = g.body - SIDE.edge - SIDE_CARD - (g.left + shift); // 밀린 종이 왼쪽에서 패널 왼쪽까지 쓸 수 있는 거리
+  if (room >= g.page + SIDE.gap) return { shift, x: g.page + SIDE.gap, y };
+  // 오른쪽이 모자란다: 종이를 가장자리에 붙이고(shift) 남는 폭만큼 좁힌다
+  const tight = Math.ceil(Math.min(0, SIDE.edge - g.left)) || 0;
+  const width = Math.floor(g.body - SIDE.edge - SIDE.slot - (g.left + tight));
+  if (width < SIDE.minPage) return null;
+  return { shift: tight, x: width + SIDE.gap, y, width };
+}

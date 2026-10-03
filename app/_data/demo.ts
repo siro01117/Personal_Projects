@@ -5,6 +5,7 @@ import { sampleBlocks } from "../../lib/fixtures";
 import { cachedDrawer, DataCache } from "./cache";
 import { MemoryLive } from "./liveMemory";
 import { MemoryDrawer, type NoteSeed, type Seed, type ViewSeed, type VisitSeed } from "./memory";
+import { membersSeed, MemoryMembers } from "./membersMemory";
 import { meetSeed } from "./meetDemo";
 import { MemoryMeet } from "./meetMemory";
 import { scheduleSeed } from "./scheduleDemo";
@@ -133,6 +134,25 @@ function seed(now: Date): Seed[] {
           type: "list",
           h: "요약",
           items: ["노션은 메일·폼·회의록·에이전트까지 붙였다.", "ClickUp 은 다 하려다 전부 그저 괜찮은 수준이 됐다는 평.", "Coda 는 독립 올인원으로 살아남지 못했다."],
+        },
+        // 셀 병합(설계서 7-6): 첫 열 세로 · 마지막 열 세로 · 마지막 행 가로
+        {
+          type: "table",
+          h: "갈래별 대표 서비스",
+          cols: ["갈래", "서비스", "강점", "값"],
+          rows: [
+            ["문서 중심", "노션", "문서·DB·캘린더가 한 화면", "무료 시작"],
+            ["", "Coda", "문서 안 표·버튼 자동화", ""],
+            ["프로젝트 중심", "ClickUp", "기능 범위가 가장 넓다", "무료 시작"],
+            ["", "Monday", "보드·대시보드가 쉽다", "유료"],
+            ["정리", "개인용 올인원은 아직 비어 있다", "", ""],
+          ],
+          merges: [
+            { r: 0, c: 0, rows: 2, cols: 1 },
+            { r: 0, c: 3, rows: 2, cols: 1 },
+            { r: 2, c: 0, rows: 2, cols: 1 },
+            { r: 4, c: 1, rows: 1, cols: 3 },
+          ],
         },
         {
           type: "sources",
@@ -313,5 +333,19 @@ export function demoSource(): Source {
       bumpEvent: (id: string) => schedule.bump(id),
     };
   }
-  return { data: cachedDrawer(data, demoCache), schedule, planner: schedule, meet, meetPublic: meet, live: demoLive(), auth: demoAuth, demo: true, cache: demoCache };
+  // 회원 · 추가 모듈: 나는 관리자, 회원 2명 · 모듈 2개 (관리 화면 · 선택창 확인용)
+  const members = new MemoryMembers(membersSeed(new Date()), { latency: 150 });
+  return {
+    data: cachedDrawer(data, demoCache),
+    schedule,
+    planner: schedule,
+    meet,
+    meetPublic: meet,
+    live: demoLive(),
+    auth: demoAuth,
+    me: members,
+    admin: members,
+    demo: true,
+    cache: demoCache,
+  };
 }

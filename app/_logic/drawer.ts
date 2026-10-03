@@ -299,7 +299,7 @@ export type ImageCredit =
 
 /**
  * 사진 아래 출처 한 줄: ref(출처 블록 번호) → credit(짧은 글) → local_path(내 PC 원본) 순으로 하나.
- * 공유 페이지는 local_path 가 이미 빠져 온다(ez_shared). 가리킬 출처가 없는 ref 는 건너뛴다
+ * 공유 페이지는 local_path 가 이미 빠져 온다(ez_shared_doc). 가리킬 출처가 없는 ref 는 건너뛴다
  */
 export function imageCredit(
   b: { ref?: number; credit?: string; local_path?: string },

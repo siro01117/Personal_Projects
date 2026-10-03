@@ -120,22 +120,28 @@ describe("사람이 고칠 수 있는 칸 (사진)", () => {
 });
 
 describe("공유 페이지에는 local_path 를 싣지 않는다", () => {
-  it("ez_shared 가 image 블록의 local_path 만 빼고, 나머지·순서는 그대로", async () => {
+  it("ez_shared_doc · ez_shared 가 image 블록의 local_path 만 빼고, 나머지·순서는 그대로", async () => {
     const a = user();
     const blocks = [{ type: "text", body: "local_path 라는 글자" }, image(src(a)), { type: "unknown", local_path: "그대로" }];
     const id = await report(a, "공유 사진", blocks);
     const t = await share(a, id);
-    const [got] = await sql("anon", "select * from ez_shared($1)", [t]);
-    expect(Object.keys(got!).sort()).toEqual(["blocks", "name", "report_kind", "schema_version", "updated_at", "version"]);
     const { local_path: _, ...noPath } = image(src(a));
-    expect(got!.blocks).toEqual([blocks[0], noPath, blocks[2]]);
-    expect(JSON.stringify(got!.blocks)).not.toContain("비밀 폴더");
+    // 앱이 부르는 것은 ez_shared_doc (version 포함, 0014). 옛 ez_shared 는 0004 모양 그대로
+    const [doc] = await sql("anon", "select * from ez_shared_doc($1)", [t]);
+    expect(Object.keys(doc!).sort()).toEqual(["blocks", "name", "report_kind", "schema_version", "updated_at", "version"]);
+    expect(doc!.version).toBe(1);
+    const [old] = await sql("anon", "select * from ez_shared($1)", [t]);
+    expect(Object.keys(old!).sort()).toEqual(["blocks", "name", "report_kind", "schema_version", "updated_at"]);
+    for (const got of [doc, old]) {
+      expect(got!.blocks).toEqual([blocks[0], noPath, blocks[2]]);
+      expect(JSON.stringify(got!.blocks)).not.toContain("비밀 폴더");
+    }
     // 원본 행은 그대로
     const [row] = await sql("admin", "select blocks from ez_items where id = $1", [id]);
     expect(row!.blocks[1].local_path).toBe("C:/Users/PC/Pictures/비밀 폴더/a.png");
   });
 
-  it("anon 은 여전히 ez_shared 만 부를 수 있다", async () => {
+  it("anon 은 여전히 공유 읽기(ez_shared · ez_shared_doc)만 부를 수 있다", async () => {
     await fails(sql("anon", "select ez_image_srcs(null)"), "42501");
     await fails(sql("anon", "select ez_purge_trash(0)"), "42501");
   });

@@ -16,7 +16,8 @@ export const LIMITS = {
   verdict: { v: 300, w: 2000 },
   text: { body: 4000 },
   list: { items: { min: 1, max: 30 }, item: 600 },
-  table: { cols: { min: 2, max: 8 }, rows: { min: 1, max: 60 }, cell: 300 },
+  /** merges: 합칠 때마다 두 칸 이상이 묶이므로 60×8 표에 겹치지 않게 넣을 수 있는 최대가 240개 */
+  table: { cols: { min: 2, max: 8 }, rows: { min: 1, max: 60 }, cell: 300, merges: { max: 240 } },
   claims: { items: { min: 1, max: 50 }, text: 600, refs: { max: 20 } },
   sources: { items: { min: 1, max: 100 }, title: 300, url: 2000 },
   /** 사진: 긴 변 상한(px)은 MCP 가 줄이는 크기와 같다 */
@@ -114,7 +115,15 @@ const side = z
   .number({ error: typeError("숫자여야 합니다") })
   .refine((n) => Number.isInteger(n) && n >= 1 && n <= LIMITS.image.side, { message: `1~${LIMITS.image.side} 사이 정수여야 합니다` });
 
-export const BLOCK_TYPES = ["verdict", "text", "list", "table", "claims", "sources", "image"] as const;
+const intAtLeast = (min: number) =>
+  z
+    .number({ error: typeError("숫자여야 합니다") })
+    .refine((n) => Number.isInteger(n) && n >= min, { message: `${min} 이상의 정수여야 합니다` });
+
+/** 표 칸 합치기: rows[r][c] 부터 아래로 rows 행, 옆으로 cols 열. r·c 는 0부터(머리 행 cols 는 못 합친다) */
+const merge = obj({ r: intAtLeast(0), c: intAtLeast(0), rows: intAtLeast(1), cols: intAtLeast(1) });
+
+export const BLOCK_TYPES =["verdict", "text", "list", "table", "claims", "sources", "image"] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
 /**
@@ -141,11 +150,13 @@ function build(blank: boolean) {
     h: E(H),
     items: arr(E(LIMITS.list.item), LIMITS.list.items.min, LIMITS.list.items.max),
   });
+  // 표 칸은 언제나 '' 를 받는다 — 합쳐져 덮인 칸은 비어 있어야 하므로. 덮이지 않은 빈 칸은 엄격 검사에서 crossCheck 가 거절한다
   const tableBlock = obj({
     type: z.literal("table"),
     h: E(H),
     cols: arr(E(LIMITS.table.cell), LIMITS.table.cols.min, LIMITS.table.cols.max),
-    rows: arr(z.array(E(LIMITS.table.cell), { error: typeError("행은 배열이어야 합니다") }), LIMITS.table.rows.min, LIMITS.table.rows.max),
+    rows: arr(z.array(str(LIMITS.table.cell, false, true), { error: typeError("행은 배열이어야 합니다") }), LIMITS.table.rows.min, LIMITS.table.rows.max),
+    merges: arr(merge, 0, LIMITS.table.merges.max).optional(),
   });
   const claimsBlock = obj({
     type: z.literal("claims"),
@@ -233,8 +244,51 @@ export function formatBlockPath(path: readonly PropertyKey[]): string {
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
 
+export type Merge = { r: number; c: number; rows: number; cols: number };
+
+const isMerge = (m: unknown): m is Merge =>
+  isObj(m) &&
+  [m.r, m.c].every((n) => Number.isInteger(n) && (n as number) >= 0) &&
+  [m.rows, m.cols].every((n) => Number.isInteger(n) && (n as number) >= 1);
+
+/**
+ * 표 칸 합치기를 앞에서부터 놓아 본다. owner[r][c] = 그 칸을 차지한 merges 번호(-1 = 안 합침).
+ * 한 칸짜리 · 표 밖 · 앞의 것과 겹치는 것은 놓지 않고 이유를 남긴다 — 검사는 이유를 오류로, 그리기는 그 합치기를 건너뛴다.
+ * 모양이 틀린 것(숫자 아님 등)은 zod 가 알리므로 조용히 건너뛴다.
+ */
+export function placeMerges(rowCount: number, colCount: number, merges: readonly unknown[]) {
+  const owner = Array.from({ length: rowCount }, () => new Array<number>(colCount).fill(-1));
+  const problems: { k: number; message: string }[] = [];
+  merges.forEach((m, k) => {
+    if (!isMerge(m)) return;
+    if (m.rows === 1 && m.cols === 1) return void problems.push({ k, message: "한 칸은 합칠 수 없습니다 — rows 나 cols 를 2 이상으로" });
+    if (m.r + m.rows > rowCount || m.c + m.cols > colCount) {
+      return void problems.push({ k, message: `표 밖입니다 (행은 0~${rowCount - 1}번, 열은 0~${colCount - 1}번)` });
+    }
+    let hit = -1;
+    for (let r = m.r; r < m.r + m.rows && hit < 0; r++) for (let c = m.c; c < m.c + m.cols && hit < 0; c++) hit = owner[r]![c]!;
+    if (hit >= 0) return void problems.push({ k, message: `칸이 겹칩니다 (먼저 놓인 merges[${hit}])` });
+    for (let r = m.r; r < m.r + m.rows; r++) for (let c = m.c; c < m.c + m.cols; c++) owner[r]![c] = k;
+  });
+  return { owner, problems };
+}
+
+/** 그리기용 칸 지도: [r][c] = 시작 칸이면 { rows, cols }, 덮인 칸이면 "covered", 아니면 null. 잘못된 합치기는 건너뛴다 */
+export type CellSpan = { rows: number; cols: number } | "covered" | null;
+export function tableSpans(b: Pick<TableBlock, "rows" | "cols" | "merges">): CellSpan[][] {
+  const merges = b.merges ?? [];
+  const { owner } = placeMerges(b.rows.length, b.cols.length, merges);
+  return owner.map((line, r) =>
+    line.map((k, c) => {
+      if (k < 0) return null;
+      const m = merges[k]!;
+      return m.r === r && m.c === c ? { rows: m.rows, cols: m.cols } : "covered";
+    }),
+  );
+}
+
 /** 블록끼리 걸린 규칙. 원본 입력을 조심스럽게 훑으므로 모양 오류와 함께 한 번에 알려줄 수 있다 */
-function crossCheck(input: unknown[]): BlockError[] {
+function crossCheck(input: unknown[], allowEmpty: boolean): BlockError[] {
   const errors: BlockError[] = [];
   const at = (path: PropertyKey[], message: string) => errors.push({ path: formatBlockPath(path), message });
 
@@ -255,6 +309,23 @@ function crossCheck(input: unknown[]): BlockError[] {
       const cols = b.cols.length;
       b.rows.forEach((row, r) => {
         if (Array.isArray(row) && row.length !== cols) at([i, "rows", r], `칸이 ${row.length}개인데 열은 ${cols}개입니다`);
+      });
+      const merges = Array.isArray(b.merges) ? b.merges : [];
+      // 크기 상한을 넘은 표는 zod 가 이미 알린다 — 칸 지도는 상한 안에서만 만든다
+      const T = LIMITS.table;
+      const fits = b.rows.length <= T.rows.max && cols <= T.cols.max && merges.length <= T.merges.max;
+      const { owner, problems } = fits ? placeMerges(b.rows.length, cols, merges) : { owner: [], problems: [] };
+      for (const p of problems) at([i, "merges", p.k], p.message);
+      b.rows.forEach((row, r) => {
+        if (!Array.isArray(row)) return;
+        row.forEach((cell, c) => {
+          if (typeof cell !== "string") return;
+          const k = owner[r]?.[c] ?? -1;
+          const m = k >= 0 ? (merges[k] as Merge) : null;
+          const covered = m !== null && (m.r !== r || m.c !== c);
+          if (covered && cell.trim() !== "") at([i, "merges", k], `합쳐진 자리에 글이 있습니다: rows[${r}][${c}] — 덮이는 칸은 "" 로 비워 두세요`);
+          if (!covered && !allowEmpty && cell.trim() === "") at([i, "rows", r, c], "비어 있습니다");
+        });
       });
     }
     if (b.type === "image") {
@@ -292,7 +363,7 @@ export function validateBlocks(input: unknown, opts: { allowEmpty?: boolean } = 
   const errors: BlockError[] = parsed.success
     ? []
     : parsed.error.issues.map((iss) => ({ path: formatBlockPath(iss.path), message: iss.message }));
-  if (Array.isArray(input)) errors.push(...crossCheck(input));
+  if (Array.isArray(input)) errors.push(...crossCheck(input, !!opts.allowEmpty));
 
   if (errors.length === 0 && parsed.success) {
     const bytes = new TextEncoder().encode(JSON.stringify(parsed.data)).length;
@@ -405,7 +476,7 @@ export function tidyText(s: string, oneLine = false): string {
   return t.replace(LINE_END_SPACE, "\n").replace(/\n{3,}/g, "\n\n");
 }
 
-/** 공유 페이지로 내보낼 블록: 사진의 local_path(내 PC 경로)를 뺀다. DB ez_shared 와 같은 규칙 */
+/** 공유 페이지로 내보낼 블록: 사진의 local_path(내 PC 경로)를 뺀다. DB ez_shared · ez_shared_doc 와 같은 규칙 */
 export function withoutLocalPaths(blocks: readonly unknown[]): unknown[] {
   return blocks.map((b) => {
     if (!isObj(b) || b.type !== "image" || !Object.hasOwn(b, "local_path")) return b;

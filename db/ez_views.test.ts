@@ -207,7 +207,7 @@ describe("ez_view_open — 들어옴", () => {
     expect((await rows(id)).map((r) => r.ua).sort()).toEqual([null, null, "x".repeat(80)]);
   });
 
-  it("보고서당 500줄. 넘으면 가장 오래 전에 살아 있던 줄부터 지운다", async () => {
+  it("보고서당 500줄. 다 차면 새 기기는 적지 않고(번호도 안 매김) 빈 결과. 이미 적힌 기기는 그대로 갱신", async () => {
     const { id, token } = await shared();
     // 499줄을 last_at 이 다 다르게 (오래된 것이 앞)
     await sql(
@@ -222,18 +222,24 @@ describe("ez_view_open — 들어옴", () => {
     expect(await open(token, live)).toEqual([{ guest_no: 500, name: null }]);
     const count = async () => (await one("admin", "select count(*)::int as n from ez_views where item_id = $1", [id])).n as number;
     expect(await count()).toBe(500);
-    // 501번째가 들어오면 가장 오래된 1번이 빠진다
-    expect(await open(token, device())).toEqual([{ guest_no: 501, name: null }]);
+    // 501번째 기기는 적지 않는다 — 빈 결과, 줄 · 번호 그대로, 오래된 줄도 그대로
+    const late = device();
+    expect(await open(token, late)).toEqual([]);
     expect(await count()).toBe(500);
+    expect((await one("admin", "select last from ez_view_seq where item_id = $1", [id])).last).toBe(500);
     expect(await sql("admin", "select guest_no from ez_views where item_id = $1 and guest_no in (1, 2, 500, 501) order by guest_no", [id])).toEqual([
+      { guest_no: 1 },
       { guest_no: 2 },
       { guest_no: 500 },
-      { guest_no: 501 },
     ]);
-    // 이미 있던 기기가 다시 들어오는 것은 줄을 늘리지 않으니 아무도 안 빠진다
-    expect(await open(token, live)).toEqual([{ guest_no: 500, name: null }]);
+    // 적히지 않은 기기의 핑 · 이름은 아무것도 안 한다
+    await sql("anon", "select ez_view_ping($1, $2, 30)", [token, late]);
+    await sql("anon", "select ez_view_name($1, $2, '늦은 사람')", [token, late]);
     expect(await count()).toBe(500);
-    expect(await sql("admin", "select 1 from ez_views where item_id = $1 and guest_no = 2", [id])).toHaveLength(1);
+    // 이미 있던 기기는 다시 들어와도 그대로 갱신된다
+    expect(await open(token, live)).toEqual([{ guest_no: 500, name: null }]);
+    expect((await one("admin", "select hits from ez_views where item_id = $1 and device = $2", [id, live])).hits).toBe(2);
+    expect(await count()).toBe(500);
   });
 });
 

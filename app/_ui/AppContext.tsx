@@ -6,9 +6,12 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { toKorean } from "../../lib/errors";
+import { usable, type Me } from "../../lib/members";
 import { useSource, withDemo } from "../_data/source";
 import type { Source } from "../_data/types";
+import { Blocked } from "./Blocked";
 import { useToast } from "./Toast";
+import { useMe } from "./useMe";
 
 /** 에이전트가 그 사이 넣은 것을 보려고 다시 불러오는 간격 (보이는 동안만) */
 export const REFRESH_MS = 30_000;
@@ -23,6 +26,11 @@ export type AppCtx = {
   fail: (err: unknown) => void;
   /** 창에 다시 들어오거나 30초마다 오른다 — 화면이 다시 불러온다 */
   tick: number;
+  /** 나 (ez_me). 아직 모르면 null — 추가 모듈 없이 그린다 */
+  me: Me | null;
+  /** 추가 모듈 켜기 · 끄기 (낙관적) */
+  setPicked: (key: string, on: boolean) => void;
+  reloadMe: () => void;
 };
 
 const Ctx = createContext<AppCtx | null>(null);
@@ -130,9 +138,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const demo = src?.demo ?? false;
   const href = useCallback((path: string) => withDemo(path, demo), [demo]);
+  const { me, setPicked, reloadMe } = useMe(src, ready, fail, tick);
 
-  const value = useMemo<AppCtx | null>(() => (ready && src ? { src, demo, href, fail, tick } : null), [ready, src, demo, href, fail, tick]);
+  const value = useMemo<AppCtx | null>(
+    () => (ready && src ? { src, demo, href, fail, tick, me, setPicked, reloadMe } : null),
+    [ready, src, demo, href, fail, tick, me, setPicked, reloadMe],
+  );
 
   if (!value) return null;
+  // 관리자도 회원도 아니거나 꺼진 회원 (docs/회원.md 1장)
+  if (me && !usable(me)) return <Blocked src={value.src} />;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

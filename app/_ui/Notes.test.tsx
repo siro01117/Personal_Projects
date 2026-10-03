@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 import { sampleBlocks } from "../../lib/fixtures";
 import type { NoteRow } from "../_data/types";
 import { Blocks } from "./Blocks";
-import { NoteInput, NoteList, Thread } from "./Notes";
+import { NoteInput, NoteList, SidePanel, Thread } from "./Notes";
 import { ViewersButton, ViewsPop } from "./Viewers";
 
 const css = readFileSync(new URL("../globals.css", import.meta.url), "utf8");
+const reportView = readFileSync(new URL("./ReportView.tsx", import.meta.url), "utf8");
 const NOW = new Date("2026-10-03T12:00:00+09:00");
 const ago = (sec: number) => new Date(NOW.getTime() - sec * 1000).toISOString();
 const text = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -136,9 +137,49 @@ describe("블록 옆 댓글 수", () => {
     expect(/\.ndot\{([^}]*)\}/.exec(css)![1]).toContain("background:var(--point)");
     expect(/\.note \.nb\{([^}]*)\}/.exec(css)![1]).toContain("white-space:pre-wrap");
   });
+
+  it("종이가 넓으면(side) 펼친 블록 아래에 댓글 줄을 그리지 않는다 — 화면이 옆 패널에 그린다. 수는 그대로", () => {
+    const html = renderToStaticMarkup(<Blocks blocks={blocks} notes={{ ...ctx(1), side: true }} />);
+    expect(html).not.toContain("댓글 줄");
+    expect(html).toMatch(/aria-label="댓글 2개" aria-expanded="true"/);
+  });
+});
+
+describe("블록 옆 패널 (설계서 7-6장)", () => {
+  it("자리는 transform 하나(종이 기준 x · y). 안은 댓글 줄. 닫히면 아무것도 안 그린다", () => {
+    const html = renderToStaticMarkup(
+      <SidePanel place={{ shift: -170, x: 1048, y: 320 }} at={1}>
+        <Thread notes={[note("a")]} current={3} ownerLabel="주인" now={NOW} onWrite={async () => {}} />
+      </SidePanel>,
+    );
+    expect(html).toMatch(/^<aside class="cmt-side" aria-label="댓글" style="transform:translate3d\(1048px,320px,0\)"><div class="cmt-card"><div class="cmt">/);
+    expect(html).toContain('placeholder="댓글"');
+    expect(renderToStaticMarkup(<SidePanel place={null} at={null}>{null}</SidePanel>)).toBe("");
+  });
+
+  it("모양: 종이 · 패널은 transform 만 움직인다(폭 애니메이션 없음). 패널은 오른쪽 16px 에서 들어오고, 펼친 동안 레일은 숨긴다", () => {
+    expect(/\.doc-body > \.page\{([^}]*)\}/.exec(css)![1]).toBe("transition:transform var(--m-slow) var(--ease-out)");
+    const side = /\.page > \.cmt-side\{([^}]*)\}/.exec(css)![1]!;
+    expect(side).toContain("position:absolute");
+    expect(side).toContain("width:324px");
+    expect(side).toContain("transition:transform var(--m-slow) var(--ease-out)");
+    expect(/\.cmt-card\{([^}]*)\}/.exec(css)![1]).toContain("animation:float-in var(--m-slow) var(--ease-out)");
+    expect(css).toContain("@keyframes float-in{from{opacity:.001;transform:translateX(16px)}}");
+    expect(css).toContain(".cmt-side[data-leaving] .cmt-card{animation:float-out");
+    expect(css).toContain(".doc-body[data-side] > .rail{opacity:0;visibility:hidden}");
+    expect(css).not.toMatch(/transition:[^;}]*width/);
+  });
 });
 
 describe("주인의 세 칸 창", () => {
+  it("방명록 칸은 목록 · 지우기만 — 적는 칸(답글)이 없다. 비어 있으면 한 줄", () => {
+    const gb = reportView.slice(reportView.indexOf("guestbook={"), reportView.indexOf("comments={"));
+    expect(gb).toContain("<NoteList");
+    expect(gb).toContain("onDelete={removeNote}");
+    expect(gb).not.toContain("NoteInput");
+    expect(gb).toContain("아직 방명록이 없습니다");
+  });
+
   it("단추에 새 것이 있으면 키위 점", () => {
     expect(renderToStaticMarkup(<ViewersButton live={[]} open={false} onClick={() => {}} dot />)).toContain('class="ndot"');
     expect(renderToStaticMarkup(<ViewersButton live={[]} open={false} onClick={() => {}} />)).not.toContain("ndot");

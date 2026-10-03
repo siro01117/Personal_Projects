@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeBlocks, arrangeError, blockSchema, editRule, isEditablePath, isSameOrder, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, tidyText, validateBlocks, withoutLocalPaths } from "./blocks";
+import { arrangeBlocks, arrangeError, blockSchema, editRule, isEditablePath, isSameOrder, LIMITS, REPORT_KINDS, reportKindSchema, SCHEMA_VERSION, tableSpans, tidyText, validateBlocks, withoutLocalPaths } from "./blocks";
 import { sampleBlocks, sampleImage, sampleSrc } from "./fixtures";
 
 type Any = any; // 시험용으로 일부러 틀린 모양을 만든다
@@ -147,6 +147,127 @@ describe("table", () => {
   });
   it("행이 배열이 아니면", () => {
     expect(errorsOf(table(["a", "b"], ["x" as Any]))).toEqual([{ path: "blocks[0].rows[0]", message: "행은 배열이어야 합니다" }]);
+  });
+});
+
+describe("table.merges (설계서 7-6)", () => {
+  const cols = ["a", "b", "c"];
+  const rows = () => [
+    ["가", "1", "x"],
+    ["", "2", ""],
+    ["나", "3", "y"],
+    ["다", "4", "z"],
+  ];
+  /** 0행 0열을 세로 2칸, 1행 1~2열 자리는 그대로, … */
+  const t = (merges: unknown, r: string[][] = rows()) => [{ type: "text", body: "앞" }, { type: "text", body: "앞" }, { type: "table", h: "표", cols, rows: r, merges }];
+
+  it("세로 · 가로 · 둘 다 합치기가 통과하고 merges 를 그대로 돌려준다", () => {
+    const r0 = rows();
+    r0[1]![2] = "w";
+    r0[3]![1] = "";
+    r0[3]![2] = "";
+    const merges = [{ r: 0, c: 0, rows: 2, cols: 1 }, { r: 3, c: 0, rows: 1, cols: 3 }];
+    const r = validateBlocks(t(merges, r0));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.blocks[2] as Any).merges).toEqual(merges);
+    // 2×2
+    const sq = [["가", "", "x"], ["", "", "y"]];
+    expect(validateBlocks(t([{ r: 0, c: 0, rows: 2, cols: 2 }], sq)).ok).toBe(true);
+    // 빈 목록 · 없음도 된다
+    expect(validateBlocks(t([], [["1", "2", "3"]])).ok).toBe(true);
+    expect(validateBlocks([{ type: "table", h: "표", cols, rows: [["1", "2", "3"]] }]).ok).toBe(true);
+  });
+
+  it("덮인 칸 '' 은 엄격 검사에서도 통과, 덮이지 않은 빈 칸은 그대로 거절", () => {
+    const r0 = rows();
+    r0[1]![2] = "w";
+    expect(validateBlocks(t([{ r: 0, c: 0, rows: 2, cols: 1 }], r0)).ok).toBe(true);
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 2, cols: 1 }]))).toEqual([{ path: "blocks[2].rows[1][2]", message: "비어 있습니다" }]);
+    // 시작 칸은 덮이지 않으므로 비면 거절
+    const r1 = rows();
+    r1[0]![0] = "";
+    r1[1]![2] = "w";
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 2, cols: 1 }], r1))).toEqual([{ path: "blocks[2].rows[0][0]", message: "비어 있습니다" }]);
+  });
+
+  it("한 칸짜리는 거절", () => {
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 1, cols: 1 }], [["1", "2", "3"]]))).toEqual([
+      { path: "blocks[2].merges[0]", message: "한 칸은 합칠 수 없습니다 — rows 나 cols 를 2 이상으로" },
+    ]);
+  });
+
+  it("표 밖은 거절 (머리 행은 rows 에 없으므로 r 는 rows 기준)", () => {
+    const one = [["1", "2", "3"]];
+    expect(errorsOf(t([{ r: 0, c: 1, rows: 2, cols: 1 }], one))).toEqual([{ path: "blocks[2].merges[0]", message: "표 밖입니다 (행은 0~0번, 열은 0~2번)" }]);
+    expect(errorsOf(t([{ r: 0, c: 2, rows: 1, cols: 2 }], [["1", "2", "3"]]))[0]!.message).toBe("표 밖입니다 (행은 0~0번, 열은 0~2번)");
+    expect(errorsOf(t([{ r: 5, c: 0, rows: 1, cols: 2 }], [["1", "2", "3"]]))[0]!.path).toBe("blocks[2].merges[0]");
+  });
+
+  it("겹치면 거절 — 위치와 이유", () => {
+    const r0 = [["가", "x", "x"], ["", "y", "y"]];
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 2, cols: 1 }, { r: 0, c: 0, rows: 1, cols: 2 }], r0))).toEqual([
+      { path: "blocks[2].merges[1]", message: "칸이 겹칩니다 (먼저 놓인 merges[0])" },
+    ]);
+  });
+
+  it("덮이는 칸에 글이 있으면 거절", () => {
+    const r0 = rows();
+    r0[1]![2] = "w";
+    r0[1]![0] = "남은 글";
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 2, cols: 1 }], r0))).toEqual([
+      { path: "blocks[2].merges[0]", message: '합쳐진 자리에 글이 있습니다: rows[1][0] — 덮이는 칸은 "" 로 비워 두세요' },
+    ]);
+  });
+
+  it("모양: 0 이상 · 1 이상 정수, 모르는 칸, 배열", () => {
+    const one = [["1", "2", "3"]];
+    expect(errorsOf(t([{ r: -1, c: 0.5, rows: 0, cols: "2" }], one))).toEqual([
+      { path: "blocks[2].merges[0].r", message: "0 이상의 정수여야 합니다" },
+      { path: "blocks[2].merges[0].c", message: "0 이상의 정수여야 합니다" },
+      { path: "blocks[2].merges[0].rows", message: "1 이상의 정수여야 합니다" },
+      { path: "blocks[2].merges[0].cols", message: "숫자여야 합니다" },
+    ]);
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 2 }], one))[0]).toEqual({ path: "blocks[2].merges[0].cols", message: "필요한 칸이 빠졌습니다" });
+    expect(errorsOf(t([{ r: 0, c: 0, rows: 1, cols: 2, x: 1 }], one))[0]!.message).toBe("모르는 칸이 있습니다: x");
+    expect(errorsOf(t({ r: 0 }, one))[0]).toEqual({ path: "blocks[2].merges", message: "목록(배열)이어야 합니다" });
+  });
+
+  it("allowEmpty 경로에서도 같은 규칙", () => {
+    const loose = (blocks: unknown) => {
+      const r = validateBlocks(blocks, { allowEmpty: true });
+      return r.ok ? [] : r.errors;
+    };
+    // 사람이 비워 둔 칸은 봐주지만
+    expect(loose(t([{ r: 0, c: 0, rows: 2, cols: 1 }]))).toEqual([]);
+    // 겹침 · 표 밖 · 한 칸 · 덮인 칸의 글은 그대로 거절
+    const r0 = [["가", "", "x"], ["", "", "y"]];
+    expect(loose(t([{ r: 0, c: 0, rows: 2, cols: 1 }, { r: 1, c: 0, rows: 1, cols: 2 }], r0))).toEqual([
+      { path: "blocks[2].merges[1]", message: "칸이 겹칩니다 (먼저 놓인 merges[0])" },
+    ]);
+    expect(loose(t([{ r: 1, c: 0, rows: 2, cols: 1 }], r0))[0]!.message).toBe("표 밖입니다 (행은 0~1번, 열은 0~2번)");
+    expect(loose(t([{ r: 0, c: 1, rows: 1, cols: 1 }], r0))[0]!.message).toContain("한 칸은 합칠 수 없습니다");
+    expect(loose(t([{ r: 0, c: 1, rows: 1, cols: 2 }], r0))).toEqual([
+      { path: "blocks[2].merges[0]", message: '합쳐진 자리에 글이 있습니다: rows[0][2] — 덮이는 칸은 "" 로 비워 두세요' },
+    ]);
+  });
+
+  it("tableSpans: 시작 칸은 { rows, cols }, 덮인 칸은 covered, 잘못된 합치기는 건너뛴다", () => {
+    const spans = tableSpans({
+      cols,
+      rows: [["가", "", "x"], ["", "", "y"], ["a", "b", "c"]],
+      merges: [{ r: 0, c: 0, rows: 2, cols: 2 }, { r: 1, c: 1, rows: 1, cols: 2 }, { r: 2, c: 2, rows: 2, cols: 1 }],
+    });
+    expect(spans).toEqual([
+      [{ rows: 2, cols: 2 }, "covered", null],
+      ["covered", "covered", null],
+      [null, null, null],
+    ]);
+  });
+
+  it("사람이 고칠 수 있는 칸: merges 는 아니다 (덮인 칸은 화면에 안 그려서 고칠 자리가 없다)", () => {
+    const b = t([{ r: 0, c: 0, rows: 2, cols: 1 }]);
+    expect(editRule(b, [2, "merges", 0, "r"])).toBeNull();
+    expect(editRule(b, [2, "rows", 0, 0])).toEqual({ maxLength: LIMITS.table.cell, oneLine: false });
   });
 });
 

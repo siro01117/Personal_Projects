@@ -31,7 +31,8 @@ const BLOCKS_HELP = `블록 어휘 v1 — 정해진 칸만 쓴다. 글자는 앞
 - {type:"verdict", v, w?} 판정. v 한 줄 ≤300자, w 풀이 ≤2000자. 보고서당 1개까지
 - {type:"text", h?, body} 문단. body ≤4000자
 - {type:"list", h, items:[글]} 1~30개, 각 ≤600자
-- {type:"table", h, cols:[글], rows:[[글]]} 열 2~8, 행 1~60, 모든 행의 칸 수 = 열 수, 칸 ≤300자
+- {type:"table", h, cols:[글], rows:[[글]], merges?} 열 2~8, 행 1~60, 모든 행의 칸 수 = 열 수, 칸 ≤300자
+  merges:[{r,c,rows,cols}] 칸 합치기 — rows[r][c](0부터, 머리 cols 는 못 합침)부터 아래로 rows 행 · 옆으로 cols 열. 한 칸짜리 · 표 밖 · 겹침 금지, 덮이는 칸은 "" 로 비워 둔다
 - {type:"claims", h, items:[{tag, text, refs}]} 1~50개. tag: fact(사실)|guess(추정). text ≤600자. refs: sources 의 출처 번호 배열(1부터, 없으면 [])
 - {type:"sources", h, items:[{title, url}]} 1~100개, url 은 http/https 만. 보고서당 1개까지
 - {type:"image", file, crop?, alt, place, size?, caption?, ref?, credit?} 사진. file = PC 사진 절대 경로(줄여 올리고 src·w·h·local_path 를 채움). crop:{x,y,w,h}(원본 픽셀)으로 보여줄 부분만 잘라 올릴 것 — 화면 캡처는 통째로 넣지 말 것. alt 설명 ≤300자. place: left|right(바로 다음 text·list·claims 와 한 행 2칸, 아니면 사진 혼자 한쪽)|full(행 전체), size: 사진 칸 비율 "1/3"|"1/2"|"2/3". 출처 ref(출처 번호)·credit(예: 직접 캡처) 중 하나 — 없으면 local_path 가 출처
@@ -121,7 +122,8 @@ ${BLOCKS_HELP}`,
     {
       title: "보고서 고치기",
       description: `보고서 블록을 넣기·바꾸기·빼기. ops 는 앞에서부터 차례로 적용되고(앞 op 가 번호를 바꾼다), 결과 전체가 블록 어휘 v1 검사를 통과해야 저장된다. base_version 은 report_get 의 version — 그 사이 누가 고쳤으면 충돌과 현재 version 을 돌려준다.
-op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"replace", at, block} · {op:"remove", at}. 사진 블록은 report_create 처럼 file 로 준다`,
+op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"replace", at, block} · {op:"remove", at}. 사진 블록은 report_create 처럼 file 로 준다
+표 칸 합치기는 table.merges:[{r,c,rows,cols}] (report_create 설명) — 덮이는 칸은 "" 로 비워 둔다`,
       inputSchema: {
         id: z.string().describe("보고서 id (uuid)"),
         base_version: z.number().int().describe("report_get 으로 받은 version"),

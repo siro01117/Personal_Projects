@@ -1,6 +1,6 @@
 "use client";
 
-// 공유 페이지 — 로그인 없이 ez_shared 로 읽기만(사진의 내 PC 경로는 DB 가 빼고 준다). 없거나 꺼졌거나 지웠으면 한 줄 (있었는지 드러내지 않는다).
+// 공유 페이지 — 로그인 없이 ez_shared_doc 로 읽기만(사진의 내 PC 경로는 DB 가 빼고 준다). 없거나 꺼졌거나 지웠으면 한 줄 (있었는지 드러내지 않는다).
 // 읽은 사람 (설계서 7-4장): 처음 열면 바로 보고서. 조용히 ez_view_open(기기 열쇠 · 기기 힌트) → 라이브 채널 들어가기 → 핑.
 //  - 핑은 보이는 동안 30초마다 (그 사이 보인 초를 함께, 60초까지). 숨겨지면 한 번 보내고 멈추고 채널에서 나간다. 돌아오면 바로 한 번 + 다시 들어간다.
 //    페이지를 떠날 때(pagehide)는 keepalive 로 마지막 한 번
@@ -8,7 +8,8 @@
 //  - 맨 아래 작은 글자 "이름 적기"(이미 적었으면 "이름 · 바꾸기"). 한글 조합 중 Enter 는 무시. 비우면 다시 게스트 n
 //  - 주인 본인(로그인 세션)은 DB 가 건너뛴다(open 이 빈 결과) — 그때는 핑 · 라이브 · 이름 칸 · 적는 칸 모두 없다
 // 방명록 · 댓글 (설계서 7-5장): 글은 ez_notes_list 로 읽고(열어 둔 동안 30초마다 다시), 쓰기 · 고치기 · 지우기는 기기 열쇠로.
-//  - 맨 아래 방명록(글 목록 + 적는 칸). 블록 옆 댓글 수, 블록을 누르면 그 아래 댓글 줄 + 적는 칸. 자기 것(같은 게스트 번호)만 고치고 지운다
+//  - 맨 아래 방명록(글 목록 + 적는 칸). 블록 옆 댓글 수, 블록을 누르면 댓글 줄 + 적는 칸 — 종이가 넓으면 블록 옆 패널(7-6장), 좁으면 블록 아래.
+//    자기 것(같은 게스트 번호)만 고치고 지운다
 //  - 글마다 썼을 때 버전 — 지금 버전과 다르면 옅은 v12. 버전이 바뀌어 옮겨진 블록은 anchor 로 다시 찾는다 (_logic/notes)
 //  - 라벨이 "게스트 n" 이면 적는 칸 옆에 "이름 적기" 가 한 번 더 보인다
 
@@ -23,7 +24,7 @@ import { formatDay } from "../_logic/drawer";
 import { anchorsOf, noteCounts, NOTES_REFRESH_MS, placeNotes } from "../_logic/notes";
 import { centerBlock, deviceOf, PING_MS, SEEN_MAX_SEC, uaHint, VIEWER_NAME_MAX, viewerLabel } from "../_logic/views";
 import { Blocks, type ImageUrls, type NotesCtx } from "./Blocks";
-import { NoteInput, NoteList, Thread } from "./Notes";
+import { NoteInput, NoteList, SidePanel, Thread, useSideNotes } from "./Notes";
 import { Rail, RAIL_MIN } from "./ReportView";
 
 /** 스크롤이 멈춘 뒤 이만큼 지나면 가운데 블록을 다시 본다 */
@@ -48,6 +49,7 @@ export function SharedView({ token }: { token: string }) {
   const state = useRef<Presence | null>(null);
   const session = useRef<LiveSession | null>(null);
   const nameRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLElement>(null);
   // 사진은 로그인 없이(anon) — 공유 켜진 보고서가 쓰는 것만 정책이 허용한다
   const images = useCallback<ImageUrls>((paths) => (src ? src.data.imageUrls(paths, true) : Promise.resolve({})), [src]);
 
@@ -281,11 +283,13 @@ export function SharedView({ token }: { token: string }) {
       </button>
     ) : null;
 
+  const side = useSideNotes(pageRef, openBlock, ready, () => setOpenBlock(null));
   const notesCtx: NotesCtx | undefined = ready
     ? {
         counts,
         open: openBlock,
         onToggle: (i) => setOpenBlock((cur) => (cur === i ? null : i)),
+        side: side.wide,
         thread: (i) => (
           <Thread
             notes={placed.byBlock.get(i) ?? []}
@@ -316,8 +320,8 @@ export function SharedView({ token }: { token: string }) {
   return (
     <div className="app shared">
       <div className="corner-tools"><ThemeToggle /></div>
-      <div className={rail ? "doc-body view" : "doc-body no-rail view"}>
-        <article className="page">
+      <div className={rail ? "doc-body view" : "doc-body no-rail view"} data-side={side.place ? "" : undefined}>
+        <article className="page" ref={pageRef} style={side.place ? { transform: `translateX(${side.place.shift}px)`, maxWidth: side.place.width } : undefined}>
           <div className="blk b-head">
             <h1>{doc.name}</h1>
             <div className="by">{formatDay(doc.updated_at)}</div>
@@ -367,6 +371,9 @@ export function SharedView({ token }: { token: string }) {
               )}
             </div>
           )}
+          <SidePanel place={side.place} at={openBlock}>
+            {openBlock !== null && notesCtx?.thread(openBlock)}
+          </SidePanel>
         </article>
         {rail && <Rail blocks={blocks} />}
       </div>

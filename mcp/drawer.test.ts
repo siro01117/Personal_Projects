@@ -696,6 +696,31 @@ describe("report_edit", () => {
   });
 });
 
+describe("표 셀 병합 (merges)", () => {
+  const merged = {
+    type: "table",
+    h: "합친 표",
+    cols: ["구분", "항목", "값"],
+    rows: [["A", "가", "1"], ["", "나", "2"], ["합계", "", "3"]],
+    merges: [{ r: 0, c: 0, rows: 2, cols: 1 }, { r: 2, c: 0, rows: 1, cols: 2 }],
+  };
+
+  it("report_create: 병합 든 표를 넣으면 덮인 칸 '' 과 merges 가 그대로 저장된다", async () => {
+    const { drawer } = setup();
+    const rep = await newReport(drawer, "/", "병합", [...sampleBlocks(), merged]);
+    expect((await raw(rep.id)).blocks[7]).toEqual(merged);
+  });
+
+  it("report_edit: 겹치는 합치기는 위치와 이유로 거절, 저장 안 함", async () => {
+    const { drawer } = setup();
+    const rep = await newReport(drawer, "/", "병합 겹침");
+    const block = { ...merged, merges: [...merged.merges, { r: 1, c: 0, rows: 1, cols: 2 }] };
+    const d = bad(await drawer.report_edit({ id: rep.id, base_version: 1, ops: [{ op: "insert", at: 2, block }] }), "INVALID_BLOCKS");
+    expect(d.errors).toEqual([{ path: "blocks[2].merges[2]", message: "칸이 겹칩니다 (먼저 놓인 merges[0])" }]);
+    expect((await raw(rep.id)).version).toBe(1);
+  });
+});
+
 describe("웹 링크", () => {
   const WEB = "https://ez.work";
   const withWeb = () => {

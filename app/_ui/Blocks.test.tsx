@@ -177,6 +177,62 @@ describe("표 첫 열 합치기", () => {
   });
 });
 
+describe("표 셀 병합 (merges, 설계서 7-6)", () => {
+  const raw = [
+    {
+      type: "table",
+      h: "표",
+      cols: ["구분", "항목", "값", "비고"],
+      rows: [
+        ["A", "가", "1", "공통"],
+        ["", "나", "2", ""],
+        ["합계", "", "3", "-"],
+      ],
+      merges: [
+        { r: 0, c: 0, rows: 2, cols: 1 },
+        { r: 0, c: 3, rows: 2, cols: 1 },
+        { r: 2, c: 0, rows: 1, cols: 2 },
+      ],
+    },
+  ];
+  const rowsOf = (html: string) => [...html.matchAll(/<tr>(.*?)<\/tr>/g)].map((m) => m[1]!).slice(1); // 머리 행 빼고
+
+  it("시작 칸에 rowSpan · colSpan, 덮인 칸은 안 그린다. 가로로 합친 칸의 열 이름은 a · b", () => {
+    const rows = rowsOf(renderToStaticMarkup(<Blocks blocks={raw} />));
+    expect(rows).toEqual([
+      '<td rowSpan="2" data-col="구분"><span>A</span></td><td data-col="항목"><span>가</span></td><td data-col="값"><span>1</span></td><td rowSpan="2" data-col="비고"><span>공통</span></td>',
+      // 첫 열이 위에서 덮인 행: .dup 에 시작 칸 글 (넓을 때 숨김 · 좁은 폭 카드 제목). 덮인 비고 칸은 없음 — 세로 병합은 첫 행 카드에만
+      '<td class="dup" data-col="구분"><span>A</span></td><td data-col="항목"><span>나</span></td><td data-col="값"><span>2</span></td>',
+      '<td colSpan="2" data-col="구분 · 항목"><span>합계</span></td><td data-col="값"><span>3</span></td><td data-col="비고"><span>-</span></td>',
+    ]);
+  });
+
+  it("고치기 모드: 합친 모양 그대로, 시작 칸만 고칠 수 있고 덮인 칸(.dup 포함)은 고칠 자리가 없다", () => {
+    const ctx = { raw, editing: true, commit: async () => {} };
+    const html = renderToStaticMarkup(<Blocks blocks={raw} ctx={ctx} />);
+    expect(count(html, /rowSpan="2"/g)).toBe(2);
+    expect(count(html, /colSpan="2"/g)).toBe(1);
+    // 제목 1 + 머리 4 + 칸 4 · 2 · 3
+    expect(count(html, /data-edit=""/g)).toBe(14);
+    expect(rowsOf(html)[1]).toMatch(/^<td class="dup" data-col="구분"><span>A<\/span><\/td>/);
+  });
+
+  it("첫 열 자동 합치기는 merges 에 든 행과 섞이지 않는다", () => {
+    const t = [{ type: "table", h: "표", cols: ["대", "중"], rows: [["A", "1"], ["A", "2"], ["", "3"]], merges: [{ r: 1, c: 0, rows: 2, cols: 1 }] }];
+    expect(rowsOf(renderToStaticMarkup(<Blocks blocks={t} />))).toEqual([
+      '<td data-col="대"><span>A</span></td><td data-col="중"><span>1</span></td>',
+      '<td rowSpan="2" data-col="대"><span>A</span></td><td data-col="중"><span>2</span></td>',
+      '<td class="dup" data-col="대"><span>A</span></td><td data-col="중"><span>3</span></td>',
+    ]);
+  });
+
+  it("잘못 저장된 합치기(겹침 · 표 밖)는 건너뛰고 그린다", () => {
+    const t = [{ type: "table", h: "표", cols: ["a", "b"], rows: [["1", "2"]], merges: [{ r: 0, c: 0, rows: 3, cols: 1 }] }];
+    const html = renderToStaticMarkup(<Blocks blocks={t} />);
+    expect(rowsOf(html)).toEqual(['<td data-col="a"><span>1</span></td><td data-col="b"><span>2</span></td>']);
+  });
+});
+
 describe("줄바꿈", () => {
   it("줄바꿈이 든 글이 그대로 들어가고, 줄바꿈이 되는 칸은 pre-line 으로 보인다", () => {
     const html = renderToStaticMarkup(

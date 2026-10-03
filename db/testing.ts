@@ -8,6 +8,8 @@ export const SUPABASE_STUB = `
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;
+  -- 회원(0015)이 외래키로 건다. 칸은 서버 라우트가 읽는 것만
+  create table auth.users (id uuid primary key, email text unique, last_sign_in_at timestamptz);
   create role anon nologin;
   create role authenticated nologin;
   create role service_role nologin bypassrls;

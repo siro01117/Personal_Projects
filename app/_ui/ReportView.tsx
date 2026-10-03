@@ -13,7 +13,8 @@
 //  - 도구 줄의 아바타 줄(없으면 눈) → 작은 창. 보는 블록 왼쪽에 작은 아바타(PeerMarks), 차례 레일에 점
 // 방명록 · 댓글 · 방문 (설계서 7-5장): 글(ez_notes)도 기록과 같이 30초마다 읽는다. 작은 창은 세 칸(보는 사람 · 방명록 · 댓글).
 //  - 마지막으로 창을 연 때를 기기에 기억해, 그 뒤에 온 것이 있으면 단추와 칸에 키위 점. 본 사람을 누르면 방문 목록(날짜 · 읽은 시간 · 그때 버전)
-//  - 댓글은 블록 옆에 공개 페이지와 같은 모양으로(고치기 모드가 아닐 때만). 주인은 답글(by_owner)을 달고 아무 글이나 지운다
+//  - 댓글은 블록 옆에 공개 페이지와 같은 모양으로(고치기 모드가 아닐 때만 — 넓으면 옆 패널, 7-6장). 주인은 답글(by_owner)을 달고 아무 글이나 지운다
+//  - 방명록은 보는 사람이 남기는 것 — 창의 방명록 칸은 목록 · 지우기만(7-6장)
 //  - 버전이 바뀌어 블록을 다시 찾은 댓글은 그 블록 옆에, 못 찾은 것은 창의 댓글 칸에 "원래 n번째 블록"
 
 import { ThemeToggle } from "./ThemeToggle";
@@ -53,7 +54,7 @@ import { useFlip } from "./motion/useFlip";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
 import { useArrange } from "./useArrange";
-import { NoteInput, NoteList, Thread } from "./Notes";
+import { NoteList, SidePanel, Thread, useSideNotes } from "./Notes";
 import { PeerMarks, ViewersButton, ViewsPop, type ReadersTab } from "./Viewers";
 
 const CONFLICT = "방금 다른 곳에서 이 보고서를 고쳤습니다";
@@ -273,8 +274,8 @@ export function ReportView({ id }: { id: string }) {
   const popDots = newSince(views, notes, popSeen);
 
   const reply = useCallback(
-    async (body: string, block?: number) => {
-      const row = await data.noteReply(id, body, block ?? null, block === undefined ? null : (anchors[block] ?? null));
+    async (body: string, block: number) => {
+      const row = await data.noteReply(id, body, block, anchors[block] ?? null);
       setNotes((list) => [...list, row]);
     },
     [data, id, anchors],
@@ -304,11 +305,13 @@ export function ReportView({ id }: { id: string }) {
     requestAnimationFrame(() => document.getElementById(`b${i}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }, []);
 
+  const side = useSideNotes(pageRef, openBlock, docReady && !editing, () => setOpenBlock(null));
   const notesCtx: NotesCtx | undefined = docReady
     ? {
         counts,
         open: openBlock,
         onToggle: (i) => setOpenBlock((cur) => (cur === i ? null : i)),
+        side: side.wide,
         thread: (i) => (
           <Thread
             notes={placed.byBlock.get(i) ?? []}
@@ -738,8 +741,11 @@ export function ReportView({ id }: { id: string }) {
             version={doc.version}
             guestbook={
               <div className="vp-notes">
-                <NoteList notes={placed.guestbook} current={doc.version} ownerLabel={ME} now={now} canDelete={ALL} onDelete={removeNote} small />
-                <NoteInput placeholder="답글" ariaLabel="방명록 답글" onSave={(body) => reply(body)} />
+                {placed.guestbook.length === 0 ? (
+                  <p className="none">아직 방명록이 없습니다</p>
+                ) : (
+                  <NoteList notes={placed.guestbook} current={doc.version} ownerLabel={ME} now={now} canDelete={ALL} onDelete={removeNote} small />
+                )}
               </div>
             }
             comments={
@@ -783,10 +789,11 @@ export function ReportView({ id }: { id: string }) {
         <div
           className={doc.blocks.length >= RAIL_MIN ? "doc-body" : "doc-body no-rail"}
           ref={bodyRef}
+          data-side={side.place ? "" : undefined}
           onPointerDown={editing ? arr.onBodyDown : undefined}
           onClick={editing ? arr.onBodyClick : undefined}
         >
-          <article className={editing ? "page editing" : "page"} ref={pageRef}>
+          <article className={editing ? "page editing" : "page"} ref={pageRef} style={side.place ? { transform: `translateX(${side.place.shift}px)`, maxWidth: side.place.width } : undefined}>
             <div className="blk b-head">
               <Field as="h1" path={["title"]} value={doc.name} ctx={ctx} />
               {/* 작성자 · n일 전 (에이전트가 마지막으로 쓴 때, 없으면 만든 때). 작성자는 고칠 수 있고 날짜는 자동. 작성자가 없으면 날짜만 */}
@@ -802,6 +809,9 @@ export function ReportView({ id }: { id: string }) {
             </div>
             <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} notes={notesCtx} />
             {!editing && <PeerMarks live={liveNowList} page={pageRef} blockCount={doc.blocks.length} />}
+            <SidePanel place={side.place} at={openBlock}>
+              {openBlock !== null && notesCtx?.thread(openBlock)}
+            </SidePanel>
           </article>
           {editing && <div className="drop-line" ref={lineRef} aria-hidden="true" />}
           {editing && <EditBar canUp={arr.canUp} canDown={arr.canDown} hasSelection={arr.selected.size > 0} onAct={act} />}
