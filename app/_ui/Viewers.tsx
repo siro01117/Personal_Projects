@@ -12,6 +12,7 @@ import { useLayoutEffect, useState, type CSSProperties, type ReactNode, type Ref
 import type { ViewRow, VisitRow } from "../_data/types";
 import { formatWhen } from "../_logic/drawer";
 import { versionLabel, type NewCounts } from "../_logic/notes";
+import { toCss } from "../_logic/zoom";
 import { avatarRow, avatarText, avatarTone, byBlock, HISTORY_FIRST, readTime, sectionTitle, seenAgo, viewerLabel, type LivePerson } from "../_logic/views";
 import { Icon } from "./Icon";
 
@@ -180,7 +181,7 @@ export function PeerMarks({ live, page, blockCount }: { live: readonly LivePerso
       const next: Record<number, number> = {};
       for (const i of wanted.split(",").map(Number)) {
         const b = document.getElementById(`b${i}`);
-        if (b) next[i] = Math.round(b.getBoundingClientRect().top - base);
+        if (b) next[i] = Math.round(toCss(b.getBoundingClientRect().top - base));
       }
       setTops((cur) => (Object.keys(next).every((k) => cur[Number(k)] === next[Number(k)]) && Object.keys(cur).length === Object.keys(next).length ? cur : next));
     };

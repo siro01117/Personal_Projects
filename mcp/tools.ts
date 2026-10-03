@@ -15,6 +15,19 @@ export const SCHEDULE_TOOLS = ["schedule_get", "schedule_save", "schedule_delete
 export const MEET_TOOLS = ["meet_get", "meet_save"] as const;
 export const TOOL_NAMES = [...DRAWER_TOOLS, ...SCHEDULE_TOOLS, ...MEET_TOOLS] as const;
 
+/** 쓰는 도구 — 이름 끝으로 가른다 (docs/에이전트-연결.md 2장). 읽기만 되는 토큰에는 등록하지 않는다 */
+export const isWriteTool = (name: string): boolean => /_(save|delete|update|mkdir|create|edit|sync)$/.test(name);
+export const READ_TOOLS: readonly string[] = TOOL_NAMES.filter((n) => !isWriteTool(n));
+
+export type ToolOptions = {
+  /** 읽기만 되는 토큰(scope ro): 쓰는 도구를 등록하지 않는다 */
+  readOnly?: boolean;
+  /** 원격 연결(/api/mcp): 서버가 그 PC 의 파일을 읽을 수 없어 사진 블록을 받지 않는다 — 설명에서도 뺀다 */
+  remote?: boolean;
+};
+
+type Register = McpServer["registerTool"];
+
 export function toCallResult(r: ToolResult): CallToolResult {
   return {
     content: [
@@ -40,10 +53,18 @@ const BLOCKS_HELP = `블록 어휘 v1 — 정해진 칸만 쓴다. 글자는 앞
 h(소제목) ≤200자. 블록 1~200개, 전체 약 580KB 까지(넘으면 두 보고서로 나눈다). 틀리면 "blocks[2].rows[3]: 이유" 목록이 돌아온다.
 예: [{"type":"verdict","v":"A 를 쓴다","w":"무료이고 문서가 좋다"},{"type":"claims","h":"근거","items":[{"tag":"fact","text":"A 는 무료다","refs":[1]},{"tag":"guess","text":"B 보다 빠를 것이다","refs":[]}]},{"type":"sources","h":"출처","items":[{"title":"A 문서","url":"https://a.dev/docs"}]}]`;
 
-export function registerTools(server: McpServer, drawer: Drawer, schedule: Schedule, meet: MeetTools): void {
-  const call = async (p: Promise<ToolResult>) => toCallResult(await p);
+/** 원격 연결용 블록 설명: 사진 줄만 바꾼다 */
+const BLOCKS_HELP_REMOTE = BLOCKS_HELP.split("\n")
+  .map((line) => (line.startsWith('- {type:"image"') ? "- 사진(image) 블록은 이 연결(원격)에서 넣을 수 없다 — 이미 있는 사진 블록은 그대로 둔다" : line))
+  .join("\n");
 
-  server.registerTool(
+export function registerTools(server: McpServer, drawer: Drawer, schedule: Schedule, meet: MeetTools, opts: ToolOptions = {}): void {
+  const call = async (p: Promise<ToolResult>) => toCallResult(await p);
+  // 읽기만 되는 토큰이면 쓰는 도구는 등록하지 않는다 (목록에도 안 나온다)
+  const reg: Register = (name, config, cb) => (opts.readOnly && isWriteTool(name) ? (undefined as never) : server.registerTool(name, config, cb));
+  const blocksHelp = opts.remote ? BLOCKS_HELP_REMOTE : BLOCKS_HELP;
+
+  reg(
     "drawer_list",
     {
       title: "서랍 목록",
@@ -57,7 +78,7 @@ export function registerTools(server: McpServer, drawer: Drawer, schedule: Sched
     (a) => call(drawer.drawer_list(a)),
   );
 
-  server.registerTool(
+  reg(
     "drawer_mkdir",
     {
       title: "폴더 만들기",
@@ -68,7 +89,7 @@ export function registerTools(server: McpServer, drawer: Drawer, schedule: Sched
     (a) => call(drawer.drawer_mkdir(a)),
   );
 
-  server.registerTool(
+  reg(
     "drawer_update",
     {
       title: "옮기기·이름 바꾸기·지우기",
@@ -84,13 +105,13 @@ export function registerTools(server: McpServer, drawer: Drawer, schedule: Sched
     (a) => call(drawer.drawer_update(a)),
   );
 
-  server.registerTool(
+  reg(
     "report_create",
     {
       title: "보고서 넣기",
       description: `서칭 보고서 한 편을 블록 배열로 넣는다. folder 는 이미 있어야 한다(없으면 drawer_mkdir 먼저). 같은 제목이 있으면 "제목 (2)" 로 넣고 알려준다.
 kind: method(작업 방식 조사) · data(데이터 조사) · reference(레퍼런스 조사)
-${BLOCKS_HELP}`,
+${blocksHelp}`,
       inputSchema: {
         title: z.string().describe("보고서 제목 (1~100자, / 금지)"),
         kind: reportKindSchema.describe("method · data · reference"),
@@ -101,7 +122,7 @@ ${BLOCKS_HELP}`,
     (a) => call(drawer.report_create(a)),
   );
 
-  server.registerTool(
+  reg(
     "report_get",
     {
       title: "보고서 읽기",
@@ -117,12 +138,12 @@ ${BLOCKS_HELP}`,
     (a) => call(drawer.report_get(a)),
   );
 
-  server.registerTool(
+  reg(
     "report_edit",
     {
       title: "보고서 고치기",
       description: `보고서 블록을 넣기·바꾸기·빼기. ops 는 앞에서부터 차례로 적용되고(앞 op 가 번호를 바꾼다), 결과 전체가 블록 어휘 v1 검사를 통과해야 저장된다. base_version 은 report_get 의 version — 그 사이 누가 고쳤으면 충돌과 현재 version 을 돌려준다.
-op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"replace", at, block} · {op:"remove", at}. 사진 블록은 report_create 처럼 file 로 준다
+op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"replace", at, block} · {op:"remove", at}. ${opts.remote ? "사진 블록은 이 연결(원격)에서 넣거나 바꿀 수 없다" : "사진 블록은 report_create 처럼 file 로 준다"}
 표 칸 합치기는 table.merges:[{r,c,rows,cols}] (report_create 설명) — 덮이는 칸은 "" 로 비워 둔다`,
       inputSchema: {
         id: z.string().describe("보고서 id (uuid)"),
@@ -141,8 +162,8 @@ op: {op:"insert", at, block} (at = 0~블록 수, 블록 수면 맨 끝) · {op:"
     (a) => call(drawer.report_edit(a)),
   );
 
-  registerScheduleTools(server, schedule, call);
-  registerMeetTools(server, meet, call);
+  registerScheduleTools(reg, schedule, call);
+  registerMeetTools(reg, meet, call);
 }
 
 // ---------------------------------------------------------------------------
@@ -159,11 +180,11 @@ const repeatSchema = z
   .nullable();
 
 function registerScheduleTools(
-  server: McpServer,
+  reg: Register,
   schedule: Schedule,
   call: (p: Promise<ToolResult>) => Promise<CallToolResult>,
 ): void {
-  server.registerTool(
+  reg(
     "schedule_get",
     {
       title: "일정 보기",
@@ -179,7 +200,7 @@ function registerScheduleTools(
     (a) => call(schedule.schedule_get(a)),
   );
 
-  server.registerTool(
+  reg(
     "schedule_save",
     {
       title: "일정 넣기·고치기",
@@ -206,7 +227,7 @@ function registerScheduleTools(
     (a) => call(schedule.schedule_save(a)),
   );
 
-  server.registerTool(
+  reg(
     "schedule_delete",
     {
       title: "일정 지우기",
@@ -221,7 +242,7 @@ function registerScheduleTools(
     (a) => call(schedule.schedule_delete(a)),
   );
 
-  server.registerTool(
+  reg(
     "schedule_sync",
     {
       title: "바깥 일정 맞추기",
@@ -255,7 +276,7 @@ function registerScheduleTools(
     (a) => call(schedule.schedule_sync(a)),
   );
 
-  server.registerTool(
+  reg(
     "todo_list",
     {
       title: "할 일 목록",
@@ -272,7 +293,7 @@ function registerScheduleTools(
     (a) => call(schedule.todo_list(a)),
   );
 
-  server.registerTool(
+  reg(
     "todo_save",
     {
       title: "할 일 넣기·고치기",
@@ -328,7 +349,7 @@ function registerScheduleTools(
     (a) => call(schedule.todo_save(a)),
   );
 
-  server.registerTool(
+  reg(
     "work_log",
     {
       title: "시간 기록",
@@ -346,8 +367,8 @@ function registerScheduleTools(
 // ---------------------------------------------------------------------------
 // 모임
 
-function registerMeetTools(server: McpServer, meet: MeetTools, call: (p: Promise<ToolResult>) => Promise<CallToolResult>): void {
-  server.registerTool(
+function registerMeetTools(reg: Register, meet: MeetTools, call: (p: Promise<ToolResult>) => Promise<CallToolResult>): void {
+  reg(
     "meet_get",
     {
       title: "모임 보기",
@@ -362,7 +383,7 @@ function registerMeetTools(server: McpServer, meet: MeetTools, call: (p: Promise
     (a) => call(meet.meet_get(a)),
   );
 
-  server.registerTool(
+  reg(
     "meet_save",
     {
       title: "모임 넣기·고치기",

@@ -1,11 +1,12 @@
 // 실제 MeetStore: supabase-js + service_role 키. RLS 를 우회하므로 모든 쿼리에 owner = EZ_OWNER_ID 를 직접 걸고,
 // 넣을 때 owner 를 명시하고, DB 함수에는 p_as 를 준다. 사람 줄은 부모 모임이 내 것인지 먼저 확인한다. ez_ 모임 표 밖은 건드리지 않는다.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import { sortPeople, type Attend, type Cells, type Circle, type Meet, type MeetRow } from "../lib/meet";
 import type { DateStr } from "../lib/schedule";
 import { DbError } from "./errors";
+import { serviceClient, type StoreClient } from "./supabase-client";
 import { CIRCLE_COLS, MEET_COLS, PERSON_COLS, toCircle, toMeetRow, toPerson, type CirclePatch, type MeetPatch, type MeetStore, type NewCircle, type NewMeet } from "./meet-store";
 
 const PAGE = 1000; // PostgREST 기본 최대 행 수
@@ -26,15 +27,16 @@ const defined = (patch: Record<string, unknown>) => Object.fromEntries(Object.en
 
 export class SupabaseMeetStore implements MeetStore {
   private readonly sb: SupabaseClient;
+  private readonly asUser: boolean;
 
   constructor(
     url: string,
     serviceRoleKey: string,
     readonly owner: string,
+    opts: StoreClient = {},
   ) {
-    this.sb = createClient(url, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    });
+    this.sb = opts.client ?? serviceClient(url, serviceRoleKey);
+    this.asUser = opts.asUser === true;
   }
 
   private meetTable() {
@@ -156,6 +158,14 @@ export class SupabaseMeetStore implements MeetStore {
 
   async setLink(id: string, on: boolean, baseVersion: number): Promise<MeetRow | null> {
     const base = () => this.meetTable();
+    if (this.asUser) {
+      // 주인의 권한으로는 열쇠 칸을 직접 못 쓴다 (0011 권한) — 화면과 같은 함수(0012 ez_meet_link)로. version 은 먼저 맞춰 본다
+      const cur = await run<Row[]>(base().select("id").eq("owner", this.owner).eq("id", id).eq("version", baseVersion).is("deleted_at", null));
+      if (!cur[0]) return null;
+      await run(this.sb.rpc("ez_meet_link", { p_id: id, p_on: on }));
+      const rows = await run<Row[]>(base().select(MEET_COLS).eq("owner", this.owner).eq("id", id).is("deleted_at", null));
+      return rows[0] ? toMeetRow(rows[0]) : null;
+    }
     if (on) {
       // 이미 켜져 있으면 그 열쇠를 그대로 둔다
       const cur = await run<Row[]>(base().select(MEET_COLS).eq("owner", this.owner).eq("id", id).eq("version", baseVersion).is("deleted_at", null));

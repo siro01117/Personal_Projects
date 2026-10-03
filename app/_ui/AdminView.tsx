@@ -18,8 +18,10 @@ import {
   type ModuleRow,
 } from "../../lib/members";
 import { memberMenu } from "../_logic/menus";
+import { viewCss } from "../_logic/zoom";
 import { useApp } from "./AppContext";
 import { Icon } from "./Icon";
+import { MemberTokens } from "./MemberTokens";
 import { Presence } from "./motion/Presence";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
@@ -31,7 +33,7 @@ const enter = (e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && !(e.n
 function useViewportWidth(): number | null {
   const [w, setW] = useState<number | null>(null);
   useEffect(() => {
-    const f = () => setW(document.documentElement.clientWidth);
+    const f = () => setW(viewCss().w);
     f();
     addEventListener("resize", f);
     return () => removeEventListener("resize", f);
@@ -671,6 +673,7 @@ function MemberSheet({
           바꾸기
         </button>
       </form>
+      <MemberTokens userId={m.user_id} />
       <div className="form-acts">
         {confirmDel ? (
           <button type="button" className="del" autoFocus onBlur={() => setConfirmDel(false)} onClick={onDelete}>

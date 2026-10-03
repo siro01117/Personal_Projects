@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense, type ReactNode } from "react";
+import { ZOOM_SCRIPT } from "./_logic/zoom";
 import { Ripple } from "./_ui/Ripple";
 import { ToastProvider } from "./_ui/Toast";
 import "./globals.css";
@@ -25,6 +26,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               "try{var t=localStorage.getItem('ezwork.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}",
           }}
         />
+        {/* 넓은 화면(창 폭 1,920 초과)은 그리기 전에 전체를 키운다 — html 의 zoom · --zoom (docs/공통.md 3장). resize 때도 이 스크립트가 고친다 */}
+        <script dangerouslySetInnerHTML={{ __html: ZOOM_SCRIPT }} />
         {/* 목업과 같은 글꼴 (Pretendard 는 깔려 있으면 먼저 쓴다) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />

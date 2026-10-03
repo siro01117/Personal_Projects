@@ -4,6 +4,7 @@
 import type { ReportKind } from "../../lib/blocks";
 import type { Attend, Cells, Circle, Meet, MeetPerson, Poll, PublicMeet } from "../../lib/meet";
 import type { Me, MemberPatch, MemberRow, ModuleRow, NewMember, NewModule } from "../../lib/members";
+import type { MadeToken, TokenRow, TokenScope } from "../../lib/tokens";
 import type {
   CheckItem,
   DateStr,
@@ -512,6 +513,23 @@ export interface AdminData {
   deleteModule(key: string): Promise<void>;
 }
 
+// ---------------------------------------------------------------------------
+// 에이전트 연결 — 개인 토큰 (docs/에이전트-연결.md, db/migrations/0019). 행 모양은 lib/tokens.ts
+// ---------------------------------------------------------------------------
+
+export interface TokenData {
+  /** 살아 있는 내 토큰, 만든 순 */
+  list(): Promise<TokenRow[]>;
+  /** ez_token_new — 원문(token)은 이 답에만 있다. 10개를 넘으면 [EZ_LIMIT] */
+  create(name: string, scope: TokenScope): Promise<MadeToken>;
+  /** 폐기 (되살릴 수 없다) */
+  revoke(id: string): Promise<void>;
+  /** 관리자: 그 회원의 살아 있는 토큰 수 */
+  countOf(userId: string): Promise<number>;
+  /** 관리자: 그 회원의 토큰을 전부 폐기. 폐기한 수 */
+  revokeAllOf(userId: string): Promise<number>;
+}
+
 /** cache = 마지막으로 읽은 것 (먼저 그리기용). data 는 이미 캐시를 낀 서랍 */
 export type Source = {
   data: DrawerData;
@@ -523,6 +541,7 @@ export type Source = {
   auth: Auth;
   me: MeData;
   admin: AdminData;
+  tokens: TokenData;
   demo: boolean;
   cache: DataCache;
 };

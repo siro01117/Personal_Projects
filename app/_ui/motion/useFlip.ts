@@ -5,9 +5,11 @@
 //  - 새로 생긴 줄은 살짝 내려오며 나타나고
 //  - 사라진 줄은 복제가 제자리에서 흐려진다(데이터는 이미 지워졌다).
 // Web Animations 로 transform · opacity 만 — 줄은 움직이는 중에도 눌린다. 진행 중이던 것은 지금 자리에서 이어 간다.
+// 자리는 모두 CSS px 로 잰다(rectCss) — transform · left/top · scrollTop 과 같은 단위라 넓은 화면 확대(zoom) 아래에서도 거리가 맞는다.
 // 줄은 data-flip 또는 data-id 로 구분한다. [data-flip-skip] 안의 줄은 등장 · 퇴장을 하지 않는다(접기/펴기가 대신 한다).
 
 import { useLayoutEffect, useRef, type RefObject } from "react";
+import { rectCss, type Rect } from "../../_logic/zoom";
 import { EASE, EASE_IN, MS, reducedMotion } from "./motion";
 
 type Rec = { el: HTMLElement; x: number; y: number; w: number; h: number; parent: HTMLElement | null; skip: boolean };
@@ -37,16 +39,16 @@ export function useFlip(container: RefObject<HTMLElement | null>, selector: stri
     }
     const els = [...root.querySelectorAll<HTMLElement>(selector)];
     const still = reducedMotion() || typeof root.animate !== "function";
-    const rr = root.getBoundingClientRect();
+    const rr = rectCss(root);
     const ox = rr.left - root.scrollLeft;
     const oy = rr.top - root.scrollTop;
 
     // 움직이던 줄: 지금 보이는 자리와 놓인 자리의 차이를 읽고 끊는다
     const flying = new Map<HTMLElement, { dx: number; dy: number }>();
-    const cut: { el: HTMLElement; a: Animation; r: DOMRect }[] = [];
+    const cut: { el: HTMLElement; a: Animation; r: Rect }[] = [];
     for (const el of els) {
       const a = running.current.get(el);
-      if (a && a.playState === "running") cut.push({ el, a, r: el.getBoundingClientRect() });
+      if (a && a.playState === "running") cut.push({ el, a, r: rectCss(el) });
     }
     for (const c of cut) c.a.cancel();
 
@@ -54,11 +56,11 @@ export function useFlip(container: RefObject<HTMLElement | null>, selector: stri
     for (const el of els) {
       const id = el.dataset.flip ?? el.dataset.id;
       if (!id) continue;
-      const r = el.getBoundingClientRect();
+      const r = rectCss(el);
       next.set(id, { el, x: r.left - ox, y: r.top - oy, w: r.width, h: r.height, parent: el.parentElement, skip: el.closest("[data-flip-skip]") !== null });
     }
     for (const c of cut) {
-      const r = c.el.getBoundingClientRect();
+      const r = rectCss(c.el);
       flying.set(c.el, { dx: c.r.left - r.left, dy: c.r.top - r.top });
     }
 
@@ -113,7 +115,7 @@ export function useFlip(container: RefObject<HTMLElement | null>, selector: stri
       if (rec.skip) continue;
       const host = rec.parent?.isConnected ? rec.parent : root;
       if (getComputedStyle(host).position === "static") continue;
-      const hr = host.getBoundingClientRect();
+      const hr = rectCss(host);
       const g = rec.el.cloneNode(true) as HTMLElement;
       g.removeAttribute("data-id");
       g.removeAttribute("data-flip");

@@ -4,6 +4,7 @@ import type { PGlite } from "@electric-sql/pglite";
 import { sortPeople, type Attend, type Cells, type Circle, type Meet, type MeetRow } from "../lib/meet";
 import type { DateStr } from "../lib/schedule";
 import { DbError } from "./errors";
+import { enterRole, TEST_ROLE, type StoreRole } from "./store-pglite";
 import { toCircle, toMeetRow, toPerson, type CirclePatch, type MeetPatch, type MeetStore, type NewCircle, type NewMeet } from "./meet-store";
 
 type Row = Record<string, unknown>;
@@ -18,13 +19,15 @@ export class PgliteMeetStore implements MeetStore {
   constructor(
     readonly db: PGlite,
     readonly owner: string,
+    /** user = 주인의 세션처럼 (authenticated + auth.uid() = owner, RLS 가 막는다). 기본은 service_role */
+    readonly as: StoreRole = TEST_ROLE,
   ) {}
 
-  /** service_role 로 한 문장 */
+  /** 한 문장 — service_role 로, 또는 주인으로 */
   private async q(text: string, params: unknown[] = []): Promise<Row[]> {
     try {
       return await this.db.transaction(async (tx) => {
-        await tx.exec("set local role service_role");
+        await enterRole(tx, this.as, this.owner);
         return (await tx.query<Row>(text, params)).rows;
       });
     } catch (e) {
@@ -176,6 +179,14 @@ export class PgliteMeetStore implements MeetStore {
   }
 
   async setLink(id: string, on: boolean, baseVersion: number): Promise<MeetRow | null> {
+    if (this.as === "user") {
+      // 주인의 권한으로는 열쇠 칸을 직접 못 쓴다 — 화면과 같은 함수(0012 ez_meet_link)로 (meet-store-supabase 의 asUser 와 같은 길)
+      const cur = await this.q("select id from ez_meets where owner = $1 and id = $2 and version = $3 and deleted_at is null", [this.owner, id, baseVersion]);
+      if (!cur[0]) return null;
+      await this.q("select ez_meet_link($1::uuid, $2::boolean)", [id, on]);
+      const rows = await this.q(`select ${MEET} from ez_meets where owner = $1 and id = $2 and deleted_at is null`, [this.owner, id]);
+      return rows[0] ? toMeetRow(rows[0]) : null;
+    }
     // 열쇠는 0012 ez_meet_link 와 같은 모양(22자 base64url). 이미 켜져 있으면 그대로 둔다
     const rows = await this.q(
       `update ez_meets set token = case when $4::boolean then coalesce(token, translate(encode(uuid_send(gen_random_uuid()), 'base64'), '+/=', '-_')) end

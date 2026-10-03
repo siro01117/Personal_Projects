@@ -1,8 +1,9 @@
 // 실제 Store: supabase-js + service_role 키. service_role 은 RLS 를 우회하므로
 // 모든 쿼리에 owner = EZ_OWNER_ID 를 직접 걸고, insert 때 owner 를 명시한다. 다른 테이블은 건드리지 않는다.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { DbError } from "./errors";
+import { serviceClient, type StoreClient } from "./supabase-client";
 import {
   IMAGE_BUCKET,
   ITEM_COLS,
@@ -39,10 +40,9 @@ export class SupabaseStore implements Store {
     url: string,
     serviceRoleKey: string,
     readonly owner: string,
+    opts: StoreClient = {},
   ) {
-    this.sb = createClient(url, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    });
+    this.sb = opts.client ?? serviceClient(url, serviceRoleKey);
   }
 
   private items() {

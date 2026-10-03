@@ -31,6 +31,7 @@ import {
 } from "../../../lib/schedule";
 import { stepMenu } from "../../_logic/menus";
 import { DONE_FOLD, focusMeta, splitLinks } from "../../_logic/planner";
+import { toCss } from "../../_logic/zoom";
 import { Icon } from "../Icon";
 import { useFlip } from "../motion/useFlip";
 import { toEntries, useContextMenu } from "../useContextMenu";
@@ -306,9 +307,12 @@ export function BenchCard({
       const ul = listRef.current;
       const group = r.j === null ? 'li[data-depth="0"]' : `li[data-depth="1"][data-i="${r.i}"]`;
       const others = [...(ul?.querySelectorAll<HTMLElement>(group) ?? [])].filter((el) => el.dataset.flip !== key);
-      const top = ul?.getBoundingClientRect().top ?? 0;
+      // 포인터가 목록 위에서 얼마나 내려왔나 — offsetTop 과 같은 단위(CSS px)로.
+      // 줄의 offsetTop 은 offsetParent 기준이라, 목록이 그 기준이 아니면(목록 위에 제목 · 메모가 있다) 목록의 offsetTop 을 뺀다
+      const y = toCss(ev.clientY - (ul?.getBoundingClientRect().top ?? 0));
+      const base = ul && others[0] && others[0].offsetParent !== ul ? ul.offsetTop : 0;
       let to = 0;
-      for (const el of others) if (ev.clientY > top + el.offsetTop + el.offsetHeight / 2) to++;
+      for (const el of others) if (y > el.offsetTop - base + el.offsetHeight / 2) to++;
       setDrag((d) => (d && d.to !== to ? { ...d, to } : d));
     };
     const up = () => {

@@ -13,6 +13,7 @@ import { charCount } from "../../lib/names";
 import type { NoteRow } from "../_data/types";
 import { NOTE_MAX, noteLabel, SIDE, sidePlace, versionLabel, type SidePlace } from "../_logic/notes";
 import { seenAgo } from "../_logic/views";
+import { toCss } from "../_logic/zoom";
 import { enterAction } from "./Blocks";
 import { Presence } from "./motion/Presence";
 
@@ -265,7 +266,7 @@ export function useSideNotes(pageRef: RefObject<HTMLElement | null>, open: numbe
       if (!blk) return setPlace(null);
       // offsetLeft 는 transform(밀린 거리)을 빼고 잰 값이다
       const left = page.offsetParent === body ? page.offsetLeft : page.offsetLeft - body.offsetLeft;
-      const top = blk.getBoundingClientRect().top - page.getBoundingClientRect().top;
+      const top = toCss(blk.getBoundingClientRect().top - page.getBoundingClientRect().top);
       const at = sidePlace({ body: body.clientWidth, left, page: w, top });
       // 패널(absolute)의 기준은 종이의 테두리 안쪽이다
       const next = at && { ...at, x: at.x - page.clientLeft, y: Math.max(0, at.y - page.clientTop) };

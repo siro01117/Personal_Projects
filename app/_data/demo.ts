@@ -10,6 +10,7 @@ import { meetSeed } from "./meetDemo";
 import { MemoryMeet } from "./meetMemory";
 import { scheduleSeed } from "./scheduleDemo";
 import { MemorySchedule } from "./scheduleMemory";
+import { MemoryTokens, tokensSeed } from "./tokensMemory";
 import type { Auth, Presence, Source } from "./types";
 
 /** 공유 페이지 확인용 고정 열쇠: /s/demo-shared-link-0001?demo=1 */
@@ -345,6 +346,8 @@ export function demoSource(): Source {
     auth: demoAuth,
     me: members,
     admin: members,
+    // 에이전트 연결: 내 토큰 2개 + 회원 하나의 것 2개 (설정 화면 · 도움말 · 회원 시트 확인용)
+    tokens: new MemoryTokens(tokensSeed(new Date()), { latency: 150 }),
     demo: true,
     cache: demoCache,
   };

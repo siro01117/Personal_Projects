@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { clipCells, nameKey, PERSON_NAME_MAX, PIN_RE, pollSlots, type Attend, type Cells, type PublicMeet } from "../../../lib/meet";
 import { useSource } from "../../_data/source";
 import { cellHeight, decidedText, publicKorean } from "../../_logic/meet";
+import { viewCss } from "../../_logic/zoom";
 import { Icon } from "../Icon";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
@@ -42,7 +43,7 @@ function remember(token: string, me: Me | null): void {
 function useViewport(): { w: number; h: number } | null {
   const [v, setV] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    const f = () => setV({ w: document.documentElement.clientWidth, h: window.innerHeight });
+    const f = () => setV(viewCss());
     f();
     addEventListener("resize", f);
     return () => removeEventListener("resize", f);

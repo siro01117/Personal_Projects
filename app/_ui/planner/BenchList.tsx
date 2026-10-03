@@ -14,6 +14,7 @@ import { DEFAULT_SETTINGS, type Role, type TaskRow } from "../../../lib/schedule
 import { benchCandidates, benchLine, benchList, moved, NONE_LABEL, progressOf, roleText, todayLabel } from "../../_logic/planner";
 import { benchMenu, pickMenu } from "../../_logic/menus";
 import { duration, nowIn } from "../../_logic/schedule";
+import { toCss } from "../../_logic/zoom";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { useFlip } from "../motion/useFlip";
@@ -159,9 +160,10 @@ export function BenchList() {
       }
       const ul = listRef.current;
       const rows = [...(ul?.querySelectorAll<HTMLElement>("li[data-id]") ?? [])].filter((el) => el.dataset.id !== t.id);
-      const top = ul?.getBoundingClientRect().top ?? 0;
+      // 포인터가 목록 위에서 얼마나 내려왔나 — offsetTop 과 같은 단위(CSS px)로
+      const y = toCss(ev.clientY - (ul?.getBoundingClientRect().top ?? 0));
       let to = 0;
-      for (const el of rows) if (ev.clientY > top + el.offsetTop + el.offsetHeight / 2) to++;
+      for (const el of rows) if (y > el.offsetTop + el.offsetHeight / 2) to++;
       setDrag((d) => (d && d.to !== to ? { ...d, to } : d));
     };
     const up = () => {

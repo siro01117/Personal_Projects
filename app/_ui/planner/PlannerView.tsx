@@ -69,6 +69,7 @@ import {
 } from "../../_logic/planner";
 import { ruleMenu, taskMenu } from "../../_logic/menus";
 import { draftInput, newDraft, nowIn, type Draft } from "../../_logic/schedule";
+import { toCss, toScreen, viewCss } from "../../_logic/zoom";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { Menu } from "../Menu";
@@ -111,7 +112,7 @@ type Drag = { id: string; to: number };
 function useViewportWidth(): number | null {
   const [w, setW] = useState<number | null>(null);
   useEffect(() => {
-    const f = () => setW(document.documentElement.clientWidth);
+    const f = () => setW(viewCss().w);
     f();
     addEventListener("resize", f);
     return () => removeEventListener("resize", f);
@@ -325,11 +326,11 @@ export function PlannerView() {
       }
       const ul = openRef.current;
       const rows = [...(ul?.querySelectorAll<HTMLElement>("li[data-id]") ?? [])].filter((el) => el.dataset.id !== t.id);
-      // 놓인 자리(offsetTop)로 잰다 — 미끄러지는 중인 줄의 transform 에 흔들리지 않게
-      const top = ul?.getBoundingClientRect().top ?? 0;
+      // 놓인 자리(offsetTop)로 잰다 — 미끄러지는 중인 줄의 transform 에 흔들리지 않게. 포인터 쪽을 같은 단위(CSS px)로 맞춘다
+      const y = toCss(ev.clientY - (ul?.getBoundingClientRect().top ?? 0));
       let to = 0;
       for (const el of rows) {
-        if (ev.clientY > top + el.offsetTop + el.offsetHeight / 2) to++;
+        if (y > el.offsetTop + el.offsetHeight / 2) to++;
       }
       setDrag((d) => (d && d.to !== to ? { ...d, to } : d));
     };
@@ -1096,8 +1097,9 @@ export function PlannerView() {
             ? (e: ReactMouseEvent<HTMLButtonElement>) => {
                 const r = e.currentTarget.getBoundingClientRect();
                 // 아래에 자리가 없으면(폰 시트 맨 아래) 버튼 위로 연다 — 버튼을 가리지 않게
-                const h = canSend && canRepeat ? 92 : 52;
-                setMenu({ x: r.left, y: r.bottom + h + 4 > innerHeight ? r.top - h : r.bottom + 4 });
+                const h = toScreen(canSend && canRepeat ? 92 : 52);
+                const gap = toScreen(4);
+                setMenu({ x: r.left, y: r.bottom + h + gap > innerHeight ? r.top - h : r.bottom + gap });
               }
             : null
         }

@@ -29,6 +29,7 @@ import { DEFAULT_SETTINGS } from "../../../lib/schedule";
 import { meetMenu } from "../../_logic/menus";
 import { addNames, draftInput, draftPeople, lineWhen, newMeetDraft, nextMeet, parseNames, type MeetDraft } from "../../_logic/meet";
 import { nowIn } from "../../_logic/schedule";
+import { viewCss } from "../../_logic/zoom";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { Presence } from "../motion/Presence";
@@ -61,7 +62,7 @@ function readSort(): MeetSort {
 function useViewportWidth(): number | null {
   const [w, setW] = useState<number | null>(null);
   useEffect(() => {
-    const f = () => setW(document.documentElement.clientWidth);
+    const f = () => setW(viewCss().w);
     f();
     addEventListener("resize", f);
     return () => removeEventListener("resize", f);

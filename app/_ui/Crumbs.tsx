@@ -4,6 +4,7 @@
 
 import { useCallback, useState, type DragEvent } from "react";
 import { collapseTrail } from "../_logic/drawer";
+import { toScreen } from "../_logic/zoom";
 import { Icon } from "./Icon";
 import { Menu, type MenuEntry } from "./Menu";
 
@@ -62,7 +63,7 @@ export function Crumbs({ trail, onGo, dnd }: { trail: Crumb[]; onGo: (id: string
                 aria-label="가운데 경로"
                 onClick={(e) => {
                   const r = e.currentTarget.getBoundingClientRect();
-                  setMore({ x: r.left, y: r.bottom + 4, hidden: p.hidden });
+                  setMore({ x: r.left, y: r.bottom + toScreen(4), hidden: p.hidden });
                 }}
               >
                 …

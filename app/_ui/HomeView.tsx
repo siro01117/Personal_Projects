@@ -9,8 +9,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toKorean } from "../../lib/errors";
 import { ADMIN_PATH, shownModules, usable } from "../../lib/members";
+import { AGENT_PATH } from "../../lib/tokens";
 import { withDemo } from "../_data/source";
 import { formatToday } from "../_logic/drawer";
+import { viewCss } from "../_logic/zoom";
 import { AUTH_MESSAGE, useSignedIn } from "./AppContext";
 import { Blocked } from "./Blocked";
 import { Icon, type IconName } from "./Icon";
@@ -86,7 +88,7 @@ export function HomeView() {
             aria-expanded={pick !== null}
             onClick={(e) => {
               if (pick) return setPick(null);
-              setSheet(document.documentElement.clientWidth <= PHONE_MAX);
+              setSheet(viewCss().w <= PHONE_MAX);
               setPick(anchorOf(e.currentTarget, "above"));
             }}
           >
@@ -99,6 +101,11 @@ export function HomeView() {
               회원
             </Link>
           )}
+          {/* 설정 — 에이전트 연결 (docs/에이전트-연결.md 3장) */}
+          <Link className="ghost" href={withDemo(AGENT_PATH, src.demo)}>
+            <Icon name="gear" />
+            설정
+          </Link>
         </div>
       </section>
       <ModulePicker me={me} at={pick} sheet={sheet} onToggle={setPicked} onClose={closePick} />

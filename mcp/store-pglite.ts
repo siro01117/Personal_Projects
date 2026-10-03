@@ -16,6 +16,22 @@ export async function createTestDb(): Promise<PGlite> {
 
 type Row = Record<string, unknown>;
 
+/** 시험 스토어가 어느 역할로 SQL 을 돌리는지 (docs/에이전트-연결.md 2장의 (가) 사용자 권한 · (나) service_role) */
+export type StoreRole = "service" | "user";
+/** 기본 역할. EZ_TEST_ROLE=user 로 MCP 시험 전체를 사용자 권한(RLS)으로 돌려 볼 수 있다 */
+export const TEST_ROLE: StoreRole = process.env.EZ_TEST_ROLE === "user" ? "user" : "service";
+
+/** 트랜잭션 안에서 역할을 정한다. user 면 auth.uid() 가 owner 가 된다 */
+export async function enterRole(tx: { exec(sql: string): Promise<unknown>; query(sql: string, params?: unknown[]): Promise<unknown> }, as: StoreRole, owner: string): Promise<void> {
+  if (as === "user") {
+    await tx.query("select set_config('request.jwt.claim.sub', $1, true)", [owner]);
+    await tx.exec("set local role authenticated");
+  } else {
+    await tx.query("select set_config('request.jwt.claim.sub', '', true)");
+    await tx.exec("set local role service_role");
+  }
+}
+
 const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
 
 function toItem(r: Row): Item {
@@ -49,13 +65,15 @@ export class PgliteStore implements Store {
     readonly db: PGlite,
     readonly owner: string,
     readonly now: () => Date = () => new Date(),
+    /** user = 주인의 세션처럼 (authenticated + auth.uid() = owner, RLS 가 막는다). 기본은 service_role */
+    readonly as: StoreRole = TEST_ROLE,
   ) {}
 
-  /** service_role 로 한 문장 */
+  /** 한 문장 — service_role 로, 또는 주인으로 */
   private async q(text: string, params: unknown[] = []): Promise<Row[]> {
     try {
       return await this.db.transaction(async (tx) => {
-        await tx.exec("set local role service_role");
+        await enterRole(tx, this.as, this.owner);
         return (await tx.query<Row>(text, params)).rows;
       });
     } catch (e) {
@@ -203,8 +221,9 @@ export class PgliteStore implements Store {
     for (const p of paths) if (this.mine(p)) this.images.delete(p);
   }
 
+  /** 주인 없는 사진 치우기(로컬 MCP 가 시작할 때)용 — ez_image_srcs 는 service_role 에만 열려 있어 언제나 service_role 로 부른다 */
   async imageSrcs(): Promise<Set<string>> {
-    const rows = await this.q("select s from ez_image_srcs($1) as s", [this.owner]);
+    const rows = await new PgliteStore(this.db, this.owner, this.now, "service").q("select s from ez_image_srcs($1) as s", [this.owner]);
     return new Set(rows.map((r) => r.s as string));
   }
 }

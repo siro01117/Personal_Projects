@@ -9,6 +9,7 @@ import { SupabaseLive } from "./liveSupabase";
 import { SupabaseAdmin, SupabaseMe } from "./membersSupabase";
 import { SupabaseMeet, SupabaseMeetPublic } from "./meetSupabase";
 import { SupabaseSchedule } from "./scheduleSupabase";
+import { SupabaseTokens } from "./tokensSupabase";
 import type { Auth, Copied, DrawerData, Entry, Folder, NoteRow, Path, ReportDoc, Restored, SearchHit, SharedDoc, Source, TrashRow, Viewer, ViewRow, VisitRow } from "./types";
 
 const TABLE = "ez_items";
@@ -381,6 +382,7 @@ export function supabaseSource(): Source {
       auth,
       me: new SupabaseMe(cache),
       admin: new SupabaseAdmin(cache),
+      tokens: new SupabaseTokens(),
       demo: false,
       cache,
     };

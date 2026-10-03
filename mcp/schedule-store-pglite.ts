@@ -17,6 +17,7 @@ import {
   type WorkSpan,
 } from "../lib/schedule";
 import { DbError } from "./errors";
+import { enterRole, TEST_ROLE, type StoreRole } from "./store-pglite";
 import {
   type EventPatch,
   type MeetRef,
@@ -59,13 +60,15 @@ export class PgliteScheduleStore implements ScheduleStore {
   constructor(
     readonly db: PGlite,
     readonly owner: string,
+    /** user = 주인의 세션처럼 (authenticated + auth.uid() = owner, RLS 가 막는다). 기본은 service_role */
+    readonly as: StoreRole = TEST_ROLE,
   ) {}
 
-  /** service_role 로 한 문장 */
+  /** 한 문장 — service_role 로, 또는 주인으로 */
   private async q(text: string, params: unknown[] = []): Promise<Row[]> {
     try {
       return await this.db.transaction(async (tx) => {
-        await tx.exec("set local role service_role");
+        await enterRole(tx, this.as, this.owner);
         return (await tx.query<Row>(text, params)).rows;
       });
     } catch (e) {

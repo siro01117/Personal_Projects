@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { pickable, type Me, type ModuleRow } from "../../lib/members";
+import { toCss, toScreen } from "../_logic/zoom";
 import { Icon } from "./Icon";
 import { Presence } from "./motion/Presence";
 
@@ -41,12 +42,13 @@ export function ModuleList({ me, onToggle }: { me: Me | null; onToggle: (key: st
 
 export type PickerAt = { x: number; y: number; place: "right" | "above" };
 
-/** 단추 자리에서 작은 창 자리 (right: 단추 오른쪽 · 아래 맞춤, above: 단추 위 · 왼쪽 맞춤) */
+/** 단추 자리에서 작은 창 자리 — 화면 좌표 (right: 단추 오른쪽 · 아래 맞춤, above: 단추 위 · 왼쪽 맞춤) */
 export function anchorOf(el: Element, place: PickerAt["place"]): PickerAt {
   const r = el.getBoundingClientRect();
   // 사이드바 안의 단추면 사이드바 오른쪽 선 밖에
   const right = el.closest(".side")?.getBoundingClientRect().right ?? r.right;
-  return place === "right" ? { x: right + 8, y: r.bottom, place } : { x: r.left, y: r.top - 8, place };
+  const gap = toScreen(8);
+  return place === "right" ? { x: right + gap, y: r.bottom, place } : { x: r.left, y: r.top - gap, place };
 }
 
 export function ModulePicker({
@@ -92,8 +94,8 @@ function PickerPop({ me, at, onToggle, onClose, ...rest }: { me: Me | null; at: 
     if (!el) return;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    el.style.left = `${Math.max(8, Math.min(at.x, innerWidth - w - 8))}px`;
-    el.style.top = `${Math.max(8, Math.min(at.y - h, innerHeight - h - 8))}px`;
+    el.style.left = `${Math.max(8, Math.min(toCss(at.x), toCss(innerWidth) - w - 8))}px`;
+    el.style.top = `${Math.max(8, Math.min(toCss(at.y) - h, toCss(innerHeight) - h - 8))}px`;
   }, [at, me]);
 
   useEffect(() => {

@@ -50,6 +50,7 @@ import {
 } from "../../_logic/meet";
 import { personMenu } from "../../_logic/menus";
 import { nowIn } from "../../_logic/schedule";
+import { viewCss } from "../../_logic/zoom";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
 import { PlaceDot } from "../schedule/PlaceSymbol";
@@ -90,7 +91,7 @@ export async function copyMeetLink(token: string, demo: boolean, toast: (text: s
 function useViewport(): { w: number; h: number } | null {
   const [v, setV] = useState<{ w: number; h: number } | null>(null);
   useEffect(() => {
-    const f = () => setV({ w: document.documentElement.clientWidth, h: window.innerHeight });
+    const f = () => setV(viewCss());
     f();
     addEventListener("resize", f);
     return () => removeEventListener("resize", f);

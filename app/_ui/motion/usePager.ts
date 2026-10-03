@@ -6,6 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { decide, intent, slideMs, velocity, type Axis, type Sample } from "../../_logic/swipe";
+import { toCss } from "../../_logic/zoom";
 import { EASE, reducedMotion } from "./motion";
 
 export type Pager = {
@@ -16,6 +17,9 @@ export type Pager = {
   /** 내용이 dir 쪽으로 바뀐 직후(useLayoutEffect)에 부른다: 새 내용이 한 폭 옆에서 들어온다 */
   shift: (dir: 1 | -1) => void;
 };
+
+/** 손가락 자리를 CSS px 로 — 트랙의 transform · 폭(clientWidth)과 같은 단위 (넓은 화면 확대 아래에서도 손가락을 그대로 따라간다) */
+const at = (p: Touch) => ({ x: toCss(p.clientX), y: toCss(p.clientY) });
 
 function offsetOf(t: HTMLElement): number {
   const m = getComputedStyle(t).transform;
@@ -67,27 +71,29 @@ export function usePager(onStep: (n: 1 | -1) => void, onGrab?: () => void): Page
         g = null;
         return;
       }
-      g = { x0: p.clientX, y0: p.clientY, axis: null, base: 0, samples: [], still: reducedMotion() };
+      const c = at(p);
+      g = { x0: c.x, y0: c.y, axis: null, base: 0, samples: [], still: reducedMotion() };
     };
 
     const move = (e: TouchEvent) => {
       const p = e.touches[0];
       if (!g || !p) return;
+      const c = at(p);
       if (g.axis === null) {
         // 브라우저가 이미 스크롤을 시작했으면 세로
-        g.axis = e.cancelable ? intent(p.clientX - g.x0, p.clientY - g.y0) : "y";
+        g.axis = e.cancelable ? intent(c.x - g.x0, c.y - g.y0) : "y";
         if (g.axis !== "x") return;
         const t = track.current;
         g.base = t && !g.still ? offsetOf(t) : 0;
-        g.x0 = p.clientX;
+        g.x0 = c.x;
         cb.current.onGrab?.();
       }
       if (g.axis !== "x") return;
       if (e.cancelable) e.preventDefault(); // 가로로 정해지면 세로 스크롤을 잠근다
-      g.samples.push({ t: e.timeStamp, x: p.clientX });
+      g.samples.push({ t: e.timeStamp, x: c.x });
       if (g.samples.length > 12) g.samples.shift();
       const t = track.current;
-      if (t && !g.still) place(t, g.base + (p.clientX - g.x0));
+      if (t && !g.still) place(t, g.base + (c.x - g.x0));
     };
 
     const end = (e: TouchEvent) => {
@@ -96,8 +102,9 @@ export function usePager(onStep: (n: 1 | -1) => void, onGrab?: () => void): Page
       if (!cur || cur.axis !== "x") return;
       const p = e.changedTouches[0];
       const t = track.current;
-      const dx = p ? p.clientX - cur.x0 : 0;
-      if (p) cur.samples.push({ t: e.timeStamp, x: p.clientX });
+      const x = p ? at(p).x : cur.x0;
+      const dx = x - cur.x0;
+      if (p) cur.samples.push({ t: e.timeStamp, x });
       const n = e.type === "touchcancel" ? 0 : decide(dx, velocity(cur.samples), t?.clientWidth ?? area.clientWidth);
       // 일단 제자리로 향한다. 넘김이면 상태가 바뀐 뒤 shift 가 한 폭 옆에서 다시 잡는다
       if (t && !cur.still) glide(t, cur.base + dx);

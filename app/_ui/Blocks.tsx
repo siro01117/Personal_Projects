@@ -22,6 +22,7 @@ import { blockSchema, editRule, tableSpans, type Block, type ImageBlock, type So
 import { splitMarks, stripMarks } from "../../lib/marks";
 import { domainOf, httpUrl, imageCredit, type ImageCredit } from "../_logic/drawer";
 import { rowBlocks, toRows, type Row } from "../_logic/rows";
+import { rectCss, toCss } from "../_logic/zoom";
 import { Icon } from "./Icon";
 import type { MenuBind } from "./useContextMenu";
 
@@ -279,11 +280,11 @@ function Cite({ n, src }: { n: number; src: Source | undefined }) {
     const a = aRef.current;
     const p = popRef.current;
     if (!open || !a || !p) return;
-    const r = a.getBoundingClientRect();
+    const r = rectCss(a);
     const w = p.offsetWidth;
     const h = p.offsetHeight;
-    p.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8))}px`;
-    p.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6}px`;
+    p.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - w / 2, toCss(innerWidth) - w - 8))}px`;
+    p.style.top = `${r.bottom + 6 + h > toCss(innerHeight) - 8 ? r.top - h - 6 : r.bottom + 6}px`;
   }, [open]);
 
   useEffect(() => {

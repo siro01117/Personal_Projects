@@ -30,6 +30,7 @@ import {
 import type { EventDeps, EventRows } from "../../_data/types";
 import { eventMenu } from "../../_logic/menus";
 import { parseDueAfter } from "../../_logic/planner";
+import { rectCss, toCss, viewCss } from "../../_logic/zoom";
 import {
   buildColumns,
   dayLabel,
@@ -83,13 +84,14 @@ type Sel = { event_id: string; on_date: DateStr };
 /** after = 끝나면 할 일 (반복 일정에 딸린 규칙), afterBase = 고치기 전 */
 /** once = 우클릭 메뉴의 '이번만 바꾸기' 로 열었다 — 저장 범위는 이번만 (반복 규칙을 바꾸면 이후 모두) */
 type Edit = { target: Sel | null; draft: Draft; base: Draft; taskId: string | null; after: AfterDraft; afterBase: AfterDraft; once?: boolean };
+/** 고른 블록의 자리 — CSS px (넓은 화면 확대를 나눈 값, 작은 창의 left · top 에 그대로 쓴다) */
 type Anchor = { left: number; right: number; top: number };
 type Grab = { mode: "move" | "resize"; x: number; y: number; orig: Draft; offset: number; moved: boolean };
 
 function useViewportWidth(): number | null {
   const [w, setW] = useState<number | null>(null);
   useEffect(() => {
-    const f = () => setW(document.documentElement.clientWidth);
+    const f = () => setW(viewCss().w);
     f();
     addEventListener("resize", f);
     return () => removeEventListener("resize", f);
@@ -327,7 +329,7 @@ export function ScheduleView() {
       setScopeAsk(null);
       setDeleting(false);
       setSel({ event_id: o.event_id, on_date: o.on_date });
-      const r = el.getBoundingClientRect();
+      const r = rectCss(el);
       setAnchor({ left: r.left, right: r.right, top: r.top });
     },
     [edit, editOcc],
@@ -569,7 +571,7 @@ export function ScheduleView() {
   // ------------------------------------------------------------ 끌기 (데스크톱 마우스, 고치는 블록만) · 할 일 놓기
 
 
-  /** 격자 위 좌표 → 몇째 날 · 몇 분 (밖이면 null, clamp 면 가장자리로) */
+  /** 격자 위 좌표(화면 px) → 몇째 날 · 몇 분 (밖이면 null, clamp 면 가장자리로). 세로 거리는 CSS px 로 바꿔 분으로 — 넓은 화면 확대 아래에서도 포인터 자리의 시각 */
   const hit = useCallback((x: number, y: number, clamp = false): { dayIndex: number; min: number } | null => {
     const el = colsRef.current;
     if (!el) return null;
@@ -579,7 +581,7 @@ export function ScheduleView() {
     const cx = Math.min(r.right - 1, Math.max(r.left, x));
     const cy = Math.min(r.bottom, Math.max(r.top, y));
     const { range: rg } = live.current;
-    return { dayIndex: Math.min(6, Math.max(0, Math.floor(((cx - r.left) / r.width) * 7))), min: rg.from + (cy - r.top) / PX_PER_MIN };
+    return { dayIndex: Math.min(6, Math.max(0, Math.floor(((cx - r.left) / r.width) * 7))), min: rg.from + toCss(cy - r.top) / PX_PER_MIN };
   }, []);
 
   const onGrab = useCallback(
@@ -750,7 +752,7 @@ export function ScheduleView() {
     if (phone || wide || anchor) return;
     const el = document.querySelector<HTMLElement>(".ev.sel");
     if (!el) return;
-    const r = el.getBoundingClientRect();
+    const r = rectCss(el);
     setAnchor({ left: r.left, right: r.right, top: r.top });
   });
 
@@ -970,8 +972,8 @@ export function ScheduleView() {
   let popStyle: { left: number; top: number } | null = null;
   if (!wide && selOcc && anchor && !edit) {
     const w = 268;
-    const left = anchor.right + 8 + w <= innerWidth ? anchor.right + 8 : Math.max(8, anchor.left - w - 8);
-    popStyle = { left, top: Math.max(8, Math.min(anchor.top, innerHeight - 360)) };
+    const left = anchor.right + 8 + w <= toCss(innerWidth) ? anchor.right + 8 : Math.max(8, anchor.left - w - 8);
+    popStyle = { left, top: Math.max(8, Math.min(anchor.top, toCss(innerHeight) - 360)) };
   }
 
   return (
@@ -1072,7 +1074,7 @@ export function ScheduleView() {
         )}
       </Presence>
       {scopeAsk && (
-        <div className="pop scope-pop" style={{ left: Math.min(scopeAsk.x + 12, innerWidth - 220), top: Math.min(scopeAsk.y + 12, innerHeight - 64) }} role="dialog" aria-label="바꿀 범위">
+        <div className="pop scope-pop" style={{ left: Math.min(toCss(scopeAsk.x) + 12, toCss(innerWidth) - 220), top: Math.min(toCss(scopeAsk.y) + 12, toCss(innerHeight) - 64) }} role="dialog" aria-label="바꿀 범위">
           <div className="scope">
             <button type="button" onClick={() => dropScope("once")}>
               이번만
@@ -1084,7 +1086,7 @@ export function ScheduleView() {
         </div>
       )}
       {ghost && (
-        <div className="drag-ghost" style={{ left: ghost.x, top: ghost.y }}>
+        <div className="drag-ghost" style={{ left: toCss(ghost.x), top: toCss(ghost.y) }}>
           {ghost.task.title}
         </div>
       )}

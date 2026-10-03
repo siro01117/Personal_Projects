@@ -9,7 +9,9 @@ import { usePathname } from "next/navigation";
 import { useCallback, useState, type ReactNode } from "react";
 import { TRASH_PATH } from "../../lib/links";
 import { ADMIN_PATH, shownModules } from "../../lib/members";
+import { AGENT_PATH } from "../../lib/tokens";
 import { useApp } from "./AppContext";
+import { HelpButton } from "./Help";
 import { Icon, type IconName } from "./Icon";
 import { anchorOf, ModuleIcon, ModuleLink, ModulePicker, type PickerAt } from "./ModulePicker";
 
@@ -48,6 +50,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const inTrash = under(pathname, TRASH_PATH);
   const inAdmin = under(pathname, ADMIN_PATH);
+  const inSettings = under(pathname, "/settings");
   const activeIndex = inTrash ? -1 : activeMenu(pathname);
   const mods = shownModules(me);
   const [pick, setPick] = useState<PickerAt | null>(null);
@@ -104,6 +107,11 @@ export function Shell({ children }: { children: ReactNode }) {
               <Icon name="trash" />
               <span className="txt">휴지통</span>
             </Link>
+            {/* 설정 — 에이전트 연결 (docs/에이전트-연결.md 3장) */}
+            <Link className={inSettings ? "on" : undefined} href={href(AGENT_PATH)} aria-current={inSettings ? "page" : undefined} title="설정">
+              <Icon name="gear" />
+              <span className="txt">설정</span>
+            </Link>
           </nav>
         </aside>
         {/* 모듈이 바뀔 때만 다시 붙어 짧게 나타난다 (모듈 안에서 폴더·주를 오갈 때는 그대로) */}
@@ -112,6 +120,8 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </section>
       <ModulePicker me={me} at={pick} sheet={false} onToggle={setPicked} onClose={closePick} />
+      {/* 모듈마다 오른쪽 아래 도움말 — 주소로 모듈을 정한다 (docs/에이전트-연결.md 4장) */}
+      <HelpButton />
     </div>
   );
 }

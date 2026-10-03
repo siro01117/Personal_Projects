@@ -1,7 +1,7 @@
 // 실제 ScheduleStore: supabase-js + service_role 키. RLS 를 우회하므로 모든 쿼리에 owner = EZ_OWNER_ID 를 직접 걸고,
 // 넣을 때 owner 를 명시하고, DB 함수에는 p_as 를 준다. ez_ 일정·플래너 표 밖은 건드리지 않는다.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   DEFAULT_SETTINGS,
   type DateStr,
@@ -17,6 +17,7 @@ import {
   type WorkSpan,
 } from "../lib/schedule";
 import { DbError } from "./errors";
+import { serviceClient, type StoreClient } from "./supabase-client";
 import {
   EVENT_COLS,
   PLACE_COLS,
@@ -71,10 +72,9 @@ export class SupabaseScheduleStore implements ScheduleStore {
     url: string,
     serviceRoleKey: string,
     readonly owner: string,
+    opts: StoreClient = {},
   ) {
-    this.sb = createClient(url, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    });
+    this.sb = opts.client ?? serviceClient(url, serviceRoleKey);
   }
 
   /** 페이지를 넘겨 가며 전부 */

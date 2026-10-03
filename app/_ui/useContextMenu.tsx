@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import type { MenuItem } from "../_logic/menus";
+import { toScreen } from "../_logic/zoom";
 import { Menu, type MenuEntry } from "./Menu";
 
 export const LONG_PRESS_MS = 500;
@@ -131,7 +132,7 @@ export function useContextMenu() {
         if (touch) return; // 터치는 길게 누르기 타이머가 연다
         const kb = e.clientX === 0 && e.clientY === 0;
         const r = el.getBoundingClientRect();
-        open(key, kb ? r.left + 8 : e.clientX, kb ? r.top + Math.min(r.height, 40) : e.clientY, build(el));
+        open(key, kb ? r.left + toScreen(8) : e.clientX, kb ? r.top + Math.min(r.height, toScreen(40)) : e.clientY, build(el));
       },
       onKeyDown(e) {
         if (e.key !== "ContextMenu" && !(e.key === "F10" && e.shiftKey)) return;
@@ -143,7 +144,7 @@ export function useContextMenu() {
         e.preventDefault();
         e.stopPropagation();
         const r = el.getBoundingClientRect();
-        open(key, r.left + 8, r.top + Math.min(r.height, 40), entries, focused instanceof HTMLElement ? focused : el);
+        open(key, r.left + toScreen(8), r.top + Math.min(r.height, toScreen(40)), entries, focused instanceof HTMLElement ? focused : el);
       },
     };
   };

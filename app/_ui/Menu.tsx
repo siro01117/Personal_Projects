@@ -3,6 +3,7 @@
 // 우클릭·길게 누르기 메뉴 (목업 .menu). 화면 밖으로 넘치지 않게 자리를 잡고, 바깥을 누르거나 스크롤·Esc 면 닫힌다.
 
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { toCss } from "../_logic/zoom";
 import { Icon, type IconName } from "./Icon";
 
 export type MenuEntry =
@@ -10,6 +11,7 @@ export type MenuEntry =
   | { kind: "sep" }
   | { kind: "head"; label: string };
 
+/** x · y 는 화면 좌표(포인터의 clientX/Y · getBoundingClientRect) — 넓은 화면 확대(zoom)는 여기서 길이로 바꾼다 */
 export function Menu({ x, y, entries, onClose }: { x: number; y: number; entries: MenuEntry[]; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -18,8 +20,8 @@ export function Menu({ x, y, entries, onClose }: { x: number; y: number; entries
     if (!el) return;
     const w = el.offsetWidth;
     const h = el.offsetHeight;
-    el.style.left = `${Math.max(8, Math.min(x, innerWidth - w - 8))}px`;
-    el.style.top = `${Math.max(8, Math.min(y, innerHeight - h - 8))}px`;
+    el.style.left = `${Math.max(8, Math.min(toCss(x), toCss(innerWidth) - w - 8))}px`;
+    el.style.top = `${Math.max(8, Math.min(toCss(y), toCss(innerHeight) - h - 8))}px`;
     el.querySelector<HTMLButtonElement>("button")?.focus();
   }, [x, y, entries]);
 
@@ -82,7 +84,7 @@ export function Menu({ x, y, entries, onClose }: { x: number; y: number; entries
   });
 
   return (
-    <div className="menu" role="menu" ref={ref} style={{ left: x, top: y }} onKeyDown={onKey} onContextMenu={(e) => e.preventDefault()}>
+    <div className="menu" role="menu" ref={ref} style={{ left: toCss(x), top: toCss(y) }} onKeyDown={onKey} onContextMenu={(e) => e.preventDefault()}>
       {body}
     </div>
   );

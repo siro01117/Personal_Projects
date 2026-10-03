@@ -7,7 +7,7 @@ import { DEFAULT_WEB_URL, drawerPath, looksLikeUrl, parseDrawerLink, TRASH_PATH,
 import { normalizeName, sameName, uniqueName, validateName } from "../lib/names";
 import { formatPath, parsePath, PathError } from "../lib/paths";
 import { toKorean } from "./errors";
-import { resolveImages, uploadPending } from "./images";
+import type { ResolvedBlocks } from "./images";
 import type { FolderNode, Item, Kind, Store } from "./store";
 
 export type ToolResult = { ok: boolean; summary: string; data: Record<string, unknown> };
@@ -18,7 +18,14 @@ export type DrawerOptions = {
   now?: () => Date;
   /** 결과에 싣는 웹 링크 앞부분 (.env.local EZ_WEB_URL) */
   webUrl?: string;
+  /** false = 원격 연결(/api/mcp): 사진 블록을 받지 않는다 — 서버는 그 PC 의 파일을 읽을 수 없고, 읽어서도 안 된다 (docs/에이전트-연결.md 2장) */
+  images?: boolean;
 };
+
+export const NO_IMAGES = "원격 연결에서는 사진을 넣을 수 없습니다";
+
+/** 사진 줄이기(sharp)는 쓸 때만 불러온다 — 원격 연결은 아예 부르지 않는다 */
+const imageTools = () => import("./images");
 
 export const SEARCH_LIMIT = 20;
 
@@ -37,6 +44,13 @@ const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object
 function addNote(r: ToolResult, note: string): ToolResult {
   const error = { ...(r.data.error as object), message: r.summary + note };
   return { ...r, summary: r.summary + note, data: { ...r.data, error } };
+}
+
+/** 원격 연결: 넣으려는 블록에 사진이 있으면 거절 (파일을 열어 보지도 않는다) */
+function refuseImages(blocks: readonly unknown[], where: (i: number) => string): ToolResult | null {
+  const errors = blocks.flatMap((b, i) => (isObj(b) && b.type === "image" ? [{ path: where(i), message: NO_IMAGES }] : []));
+  if (errors.length === 0) return null;
+  return fail(`${NO_IMAGES} — 사진 블록을 빼고 다시 하세요 (아무것도 바꾸지 않았습니다)`, "NO_IMAGES", { errors });
 }
 
 function fromError(e: unknown, extra: Record<string, unknown> = {}): ToolResult {
@@ -185,7 +199,7 @@ async function notFound(
 
 // ---------------------------------------------------------------------------
 
-export function createDrawer({ store, agent, now = () => new Date(), webUrl = DEFAULT_WEB_URL }: DrawerOptions) {
+export function createDrawer({ store, agent, now = () => new Date(), webUrl = DEFAULT_WEB_URL, images = true }: DrawerOptions) {
   const base = webBase(webUrl);
   const link: Linker = (kind, id) => base + drawerPath(kind, id);
   /** 요약 한 줄 끝에 링크 */
@@ -419,7 +433,11 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
         if (r.node.kind !== "folder") return fail(`${r.path} 는 보고서입니다 — folder 에는 폴더 경로를 주세요`, "NOT_FOLDER");
 
         // 사진 file → 줄인 사진(아직 안 올림). 검사를 통과해야 올린다
-        const img = Array.isArray(args.blocks) ? await resolveImages(args.blocks, store) : null;
+        if (!images && Array.isArray(args.blocks)) {
+          const no = refuseImages(args.blocks, (i) => `blocks[${i}]`);
+          if (no) return no;
+        }
+        const img = images && Array.isArray(args.blocks) ? await (await imageTools()).resolveImages(args.blocks, store) : null;
         const v = validateBlocks(img ? img.blocks : args.blocks);
         const errors: BlockError[] = [...(img?.errors ?? []), ...(v.ok ? [] : v.errors)];
         if (!v.ok || errors.length > 0) {
@@ -429,7 +447,7 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
             { errors },
           );
         }
-        const uploaded = img ? await uploadPending(store, img.uploads) : 0;
+        const uploaded = img && img.uploads.size > 0 ? await (await imageTools()).uploadPending(store, img.uploads) : 0;
 
         const title = normalizeName(args.title);
         for (let attempt = 0; ; attempt++) {
@@ -560,11 +578,13 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
 
         // 넣거나 바꾸는 블록의 사진 file → 줄인 사진 (검사를 통과해야 올린다)
         const withBlock = args.ops.flatMap((op, k) => (isObj(op) && op.block !== undefined ? [k] : []));
-        const img = await resolveImages(
-          withBlock.map((k) => (args.ops[k] as { block: unknown }).block),
-          store,
-          (j) => `ops[${withBlock[j]}].block`,
-        );
+        const given = withBlock.map((k) => (args.ops[k] as { block: unknown }).block);
+        const where = (j: number) => `ops[${withBlock[j]}].block`;
+        if (!images) {
+          const no = refuseImages(given, where);
+          if (no) return no;
+        }
+        const img: ResolvedBlocks = images ? await (await imageTools()).resolveImages(given, store, where) : { blocks: given, uploads: new Map(), errors: [] };
         if (img.errors.length > 0) {
           return fail(`사진 ${img.errors.length}곳이 틀렸습니다 — 아무것도 바꾸지 않았습니다`, "INVALID_BLOCKS", { errors: img.errors });
         }
@@ -624,7 +644,7 @@ export function createDrawer({ store, agent, now = () => new Date(), webUrl = DE
           );
         }
 
-        const uploaded = await uploadPending(store, img.uploads);
+        const uploaded = img.uploads.size > 0 ? await (await imageTools()).uploadPending(store, img.uploads) : 0;
         const updated = await store.update(
           id,
           { blocks: v.blocks, agent, agent_updated_at: now().toISOString() },

@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type RefObject } from "react";
 import { isSameOrder } from "../../lib/blocks";
 import { dropLine, dropSlot, orderMoved, orderStepped, selectRange, toggleId, type Box } from "../_logic/drawer";
+import { toCss, toScreen } from "../_logic/zoom";
 import type { ArrangeCtx } from "./Blocks";
 
 /** 터치: 손잡이를 이만큼 누르고 있으면 끌기 시작 */
@@ -155,10 +156,13 @@ export function useArrange(options: ArrangeOptions): Arrange {
     const step = () => {
       const y = point();
       const h = window.innerHeight;
-      const v = y < EDGE_PX ? -Math.ceil(((EDGE_PX - y) / EDGE_PX) * SCROLL_MAX) : y > h - EDGE_PX ? Math.ceil(((y - (h - EDGE_PX)) / EDGE_PX) * SCROLL_MAX) : 0;
+      // 포인터 · 창 높이 · 문서 스크롤은 모두 화면 px — 가장자리 폭과 빠르기를 같은 단위로 (넓은 화면 확대)
+      const edge = toScreen(EDGE_PX);
+      const max = toScreen(SCROLL_MAX);
+      const v = y < edge ? -Math.ceil(((edge - y) / edge) * max) : y > h - edge ? Math.ceil(((y - (h - edge)) / edge) * max) : 0;
       if (v !== 0) {
         const before = window.scrollY;
-        window.scrollBy(0, Math.max(-SCROLL_MAX, Math.min(SCROLL_MAX, v)));
+        window.scrollBy(0, Math.max(-max, Math.min(max, v)));
         if (window.scrollY !== before) tick();
       }
       raf = requestAnimationFrame(step);
@@ -283,12 +287,13 @@ export function useArrange(options: ArrangeOptions): Arrange {
       const els = [...root.querySelectorAll<HTMLElement>("[data-bk]")];
       const boxes: Box[] = els.map((el) => el.getBoundingClientRect());
       slot = dropSlot(boxes, x, y);
-      const at = dropLine(boxes, slot);
+      const at = dropLine(boxes, slot, toScreen(14));
       const bar = opts.current.line.current;
       if (!bar) return;
       if (!at) return void bar.removeAttribute("data-on");
-      bar.style.width = `${at.w}px`;
-      bar.style.transform = `translate3d(${at.x}px,${at.y}px,0)`;
+      // 잰 자리는 화면 px, 선(fixed)의 길이 · 자리는 CSS px
+      bar.style.width = `${toCss(at.w)}px`;
+      bar.style.transform = `translate3d(${toCss(at.x)}px,${toCss(at.y)}px,0)`;
       bar.setAttribute("data-on", "");
     };
     const start = () => {
