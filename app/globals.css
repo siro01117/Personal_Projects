@@ -67,6 +67,8 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 
 /* ---------- 홈 ---------- */
 .home{padding:clamp(16px,2cqw,40px) clamp(16px,3cqw,64px) 40px;display:flex;flex-direction:column;gap:clamp(20px,2.2cqw,40px)}
+/* 내용 기둥(docs/공통.md 1장): 1,100 까지, 화면 가운데. 여백으로 가운데를 잡아 폰(작업면 760 미만)은 그대로 */
+.home{padding-inline:max(clamp(16px,3cqw,64px),calc((100% - 1100px) / 2))}
 .topline{display:flex;align-items:baseline;gap:12px}
 .logo{font-family:var(--font-num);font-weight:600;font-size:18px;letter-spacing:.01em;color:var(--text-1);text-decoration:none}
 .logo b{color:var(--point-ink);font-weight:600}
@@ -124,6 +126,8 @@ svg.i{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-
 
 /* 탐색기 — 윈도우 큰 아이콘 보기. 누르면 선택, 두 번 누르면 열기(터치는 한 번) */
 .explorer{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));align-content:start;gap:8px;padding:clamp(20px,2cqw,40px) clamp(16px,3cqw,56px) 72px;outline:none}
+/* 내용 기둥(공통 1장): 격자는 1,200 안에서 auto-fill, 가운데. 빈 곳 누르기 · 우클릭이 작업면 전체에 남도록 여백으로 잡는다 */
+.explorer{padding-inline:max(clamp(16px,3cqw,56px),calc((100% - 1200px) / 2))}
 .ex{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 8px 12px;border-radius:var(--r-l);text-align:center;color:var(--text-1);transition:background var(--t);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;cursor:default}
 .ex:hover{background:var(--surface-2)}
 .ex.sel{background:var(--point-soft)}
@@ -778,8 +782,8 @@ input.pill[type="time"]::-webkit-calendar-picker-indicator{display:none}
 .sheet .form-acts .ghost{height:40px}
 
 /* ---------- 설정 ---------- */
-.sset{flex:1;overflow-y:auto;padding:clamp(16px,2cqw,32px) clamp(16px,3cqw,56px) 72px;display:flex;flex-direction:column;gap:36px}
-.sset section{max-width:720px;display:flex;flex-direction:column;gap:10px}
+.sset{flex:1;overflow-y:auto;scrollbar-gutter:stable both-edges;padding:clamp(16px,2cqw,32px) clamp(16px,3cqw,56px) 72px;display:flex;flex-direction:column;gap:36px}
+.sset section{width:100%;max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
 .sset h2{margin:0;font-size:15px;font-weight:600;color:var(--text-1)}
 .prow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
 .prow .sym{width:36px;height:36px;border-radius:var(--r-m);display:grid;place-items:center;background:var(--pc,var(--surface-2))}
@@ -806,7 +810,8 @@ input.pill[type="time"]::-webkit-calendar-picker-indicator{display:none}
 .nums input:focus-visible{outline:2px solid var(--point-ink)}
 .nums .u{font-size:12px;color:var(--text-3)}
 @container app (max-width: 760px){
-  .sset{padding:16px 16px 72px}
+  .sset{padding:16px 16px 72px;scrollbar-gutter:auto}
+  .sset section{margin:0}
   .wk-row{grid-template-columns:40px repeat(7,minmax(0,1fr))}
   .wk-grid{grid-template-columns:40px minmax(0,1fr)}
 }
@@ -871,10 +876,11 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-fold .i{width:16px;height:16px}
 /* 보기 패널: 넓은 데스크톱은 오른쪽, 좁은 데스크톱은 떠 있는 패널(.float) */
 /* 플래너 배치: 회색 바탕 위 흰 종이 묶음(보고서 화면과 같은 결). 넓으면 두 열, 좁으면 한 열 */
-.pl-list{container:pstage/inline-size;background:var(--canvas);padding:20px clamp(16px,2.4cqw,40px) 96px}
+.pl-list{container:pstage/inline-size;background:var(--canvas);padding:20px clamp(16px,2.4cqw,40px) 96px;scrollbar-gutter:stable both-edges}
 .pl-list > *{max-width:none}
-.pl-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:1440px;align-items:start}
-@container pstage (min-width: 720px){ .pl-cols.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+.pl-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;max-width:1200px;margin:0 auto;align-items:start}
+/* 기준 700: 목록 양쪽에 스크롤바 자리(공통 1장 가운데 맞춤)를 두며 줄어든 폭만큼 내려, 넓은 화면에서 보기 패널을 열어도 두 열 그대로 */
+@container pstage (min-width: 700px){ .pl-cols.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
 .pl-cols:not(.two){max-width:760px}
 .pl-col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .pl-sec,.pl-list > .pl-sec:first-child{container:plist/inline-size;margin:0;background:var(--paper);border:1px solid var(--border);border-radius:var(--r-l);padding:4px 8px 8px}
@@ -886,7 +892,7 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 .pl-fold .i{margin-left:auto;color:var(--text-3)}
 .pl-row.sel{background:var(--point-soft)}
 @container app (max-width: 760px){
-  .pl-list{padding:8px 0 96px}
+  .pl-list{padding:8px 0 96px;scrollbar-gutter:auto}
   .pl-cols,.pl-col{gap:8px}
   .pl-sec,.pl-list > .pl-sec:first-child{border-left:0;border-right:0;border-radius:0;padding:2px 6px 6px}
 }
@@ -969,9 +975,20 @@ body.pl-grabbing,body.pl-grabbing *{cursor:grabbing!important}
 /* 카드 자리 고정(7-14): 비어도 제목 + "없음" 한 줄 */
 .pl-none{margin:0;padding:0 10px 12px 24px;font-size:13px;line-height:20px;color:var(--text-3)}
 /* 조작 두 단(7-14): 1단 정렬 · 2단 역할 필터(칩 + 역할 편집). 둘 다 왼쪽, 같은 여백. 오른쪽은 비운다. 각 단은 넘치면 가로로 민다.
-   모임도 .pl-sort 를 쓰지만 .pl-ctl 이 없어 그대로 */
-.pl-ctl{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:2px 0 8px;border-bottom:1px solid var(--border)}
-.pl-ctl > .pl-sort{height:34px;padding-bottom:0;border-bottom:0}
+   모임 목록도 정렬 한 단을 .pl-ctl 에 담는다.
+   기둥 맞춤(공통 1장): 조작 줄은 아래 목록(.pl-cols)과 같은 폭 · 같은 왼쪽 선. 목록과 같은 여백 + 같은 스크롤바 자리(양쪽)를 두고
+   단마다 기둥 폭 + 가운데. 넓은 화면의 보기 패널이 열리면 그 폭만큼 오른쪽을 비워 목록과 같은 가운데를 쓴다 */
+.pl-ctl{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:2px clamp(16px,2.4cqw,40px) 8px;border-bottom:1px solid var(--border);overflow:hidden;scrollbar-gutter:stable both-edges}
+.pl-ctl > .pl-sort{width:100%;max-width:1200px;height:34px;margin:0 auto;padding:0;border-bottom:0}
+.meet .pl-cols.two,.meet .pl-ctl > .pl-sort{max-width:1040px}
+.meet .pl-ctl{padding-top:0}
+.meet .pl-ctl > .pl-sort{height:35px}
+.planner:has(.pl-cols:not(.two)) .pl-ctl > .pl-sort{max-width:760px}
+.planner:has(> .pl-stage > .pl-dp:not(.float)) > .pl-ctl{padding-right:calc(clamp(16px,2.4cqw,40px) + clamp(340px,28cqw,440px))}
+@container app (max-width: 760px){
+  .pl-ctl{padding-inline:0;overflow:visible;scrollbar-gutter:auto}
+  .pl-ctl > .pl-sort{padding:0 8px}
+}
 /* 역할 칩: 켠 것은 정렬 칩의 선택 모양, 끈 것은 글자만 흐리게 */
 .pl-roles{gap:6px;margin-top:4px}
 .pl-roles .rf-edit{margin-left:4px}
@@ -1422,8 +1439,8 @@ select.pill{font-size:13px;padding:0 6px;cursor:pointer}
 
 /* 관리 /admin */
 .admin{flex:1;display:flex;position:relative;min-height:0}
-.ad-body{flex:1;min-width:0;overflow-y:auto;padding:clamp(16px,2cqw,32px) clamp(16px,3cqw,56px) 72px;display:flex;flex-direction:column;gap:40px}
-.ad-body section{max-width:960px;display:flex;flex-direction:column;gap:12px}
+.ad-body{flex:1;min-width:0;overflow-y:auto;scrollbar-gutter:stable both-edges;padding:clamp(16px,2cqw,32px) clamp(16px,3cqw,56px) 72px;display:flex;flex-direction:column;gap:40px}
+.ad-body section{width:100%;max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 .ad-h{display:flex;align-items:center;gap:8px;min-height:34px}
 .ad-h h2{margin:0;font-size:15px;font-weight:600;color:var(--text-1)}
 .ad-h .num{font-size:13px;color:var(--text-3)}
@@ -1469,7 +1486,7 @@ select.pill{font-size:13px;padding:0 6px;cursor:pointer}
 .ad-made dt{font-size:13px;color:var(--text-3)}
 .ad-made dd{margin:0;font-size:17px;font-weight:600;color:var(--text-1);user-select:all;overflow-wrap:anywhere}
 @container app (max-width: 760px){
-  .ad-body{padding:16px 16px 72px;gap:32px}
+  .ad-body{padding:16px 16px 72px;gap:32px;scrollbar-gutter:auto}
   .ad-table thead{display:none}
   .ad-table,.ad-table tbody{display:block}
   .ad-table td{display:block;padding:0;border:0;white-space:normal}
@@ -1491,3 +1508,9 @@ select.pill{font-size:13px;padding:0 6px;cursor:pointer}
   .ad-add{grid-template-columns:minmax(0,1fr) auto}
   .ad-add input:first-child{grid-column:1 / -1}
 }
+
+/* 우클릭(길게 누르기) 메뉴 (docs/공통.md 2장, useContextMenu): 메뉴가 떠 있는 동안 그 항목 표시 — 탐색기의 고름(.ex.sel)과 같은 색. 색이 있는 일정 블록은 테두리로 */
+[data-menu-on]{background:var(--point-soft)}
+.ev[data-menu-on],.allday[data-menu-on]{background:var(--pc,var(--point-soft));box-shadow:inset 0 0 0 1.5px var(--point-ink)}
+.ad-members tbody tr[data-menu-on] td{background:var(--point-soft)}
+.pl-row,.pl-row a,.bl-card,.bl-card a,.bn-steps li,.mt-people li,.ev,.allday,.ad-members tr{-webkit-touch-callout:none}

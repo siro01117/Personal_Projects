@@ -11,6 +11,7 @@ import type { TaskLink } from "../../_data/types";
 import { checkLabel, dueLabel, lateLabel, overdue, whenLabel, type Late } from "../../_logic/planner";
 import { duration } from "../../_logic/schedule";
 import { Icon } from "../Icon";
+import type { MenuBind } from "../useContextMenu";
 
 export function TaskLine({
   task,
@@ -26,6 +27,7 @@ export function TaskLine({
   onToggle,
   onPick,
   onGrab,
+  menu,
 }: {
   task: TaskRow;
   link?: TaskLink;
@@ -45,6 +47,8 @@ export function TaskLine({
   onPick: (t: TaskRow) => void;
   /** 끌어 순서 바꾸기 (할 일 목록 · '직접' 정렬 · 데스크톱 마우스만) */
   onGrab?: (e: ReactPointerEvent<HTMLLIElement>, t: TaskRow) => void;
+  /** 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장) */
+  menu?: MenuBind;
 }) {
   const done = task.done_at !== null;
   const checks = checkLabel(task.checklist);
@@ -54,7 +58,16 @@ export function TaskLine({
     .filter(Boolean)
     .join(" ");
   return (
-    <li className={cls} data-id={task.id} onPointerDown={onGrab ? (e) => onGrab(e, task) : undefined} onClick={() => onPick(task)}>
+    <li
+      className={cls}
+      data-id={task.id}
+      {...menu}
+      onPointerDown={(e) => {
+        menu?.onPointerDown(e);
+        onGrab?.(e, task);
+      }}
+      onClick={() => onPick(task)}
+    >
       {benched && <span className="bn-mark" title="작업대" />}
       <button
         type="button"

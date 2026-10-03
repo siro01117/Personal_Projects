@@ -23,6 +23,7 @@ import { splitMarks, stripMarks } from "../../lib/marks";
 import { domainOf, httpUrl, imageCredit, type ImageCredit } from "../_logic/drawer";
 import { rowBlocks, toRows, type Row } from "../_logic/rows";
 import { Icon } from "./Icon";
+import type { MenuBind } from "./useContextMenu";
 
 export const UNKNOWN_BLOCK = "이 블록은 아직 볼 수 없습니다";
 
@@ -201,7 +202,7 @@ type RootAttrs = {
   "data-moving"?: "";
   "data-cmt"?: "";
   onClick?: (e: MouseEvent<HTMLElement>) => void;
-};
+} & Partial<MenuBind>;
 
 /** 손잡이: 누르면 고르고, 끌면 옮긴다. 블록 왼쪽 바깥에 선다 (globals.css .grip) */
 function Grip({ k, a }: { k: string; a: ArrangeCtx }) {
@@ -214,6 +215,7 @@ function Grip({ k, a }: { k: string; a: ArrangeCtx }) {
       onPointerDown={(e) => a.onGripDown(e, k)}
       onClick={(e) => a.onGripClick(e, k)}
       onContextMenu={(e) => e.preventDefault()}
+      data-menu-skip=""
     >
       <Icon name="grip" />
     </button>
@@ -674,6 +676,7 @@ export function Blocks({
   images,
   keys,
   notes,
+  menu,
 }: {
   blocks: unknown[];
   ctx?: EditCtx;
@@ -682,6 +685,8 @@ export function Blocks({
   keys?: readonly string[];
   /** 댓글 — 고치기 모드에서는 쓰지 않는다 (손잡이 · 도구 줄과 겹치지 않게) */
   notes?: NotesCtx;
+  /** 블록의 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장). i = 지금 번호, key = 열쇠 */
+  menu?: (i: number, key: string) => MenuBind | undefined;
 }) {
   const parsed = blocks.map(parseBlock);
   // 인용 번호는 첫 출처 블록을 가리킨다 (lib/blocks 검사와 같다)
@@ -719,6 +724,8 @@ export function Blocks({
       if (arrange.selected.has(k)) root["data-sel"] = "";
       if (arrange.moving.has(k)) root["data-moving"] = "";
     }
+    const mb = menu?.(i, k);
+    if (mb) Object.assign(root, mb);
     let grip: ReactNode = arrange ? <Grip k={k} a={arrange} /> : null;
     if (nc) {
       const count = nc.counts.get(i) ?? 0;

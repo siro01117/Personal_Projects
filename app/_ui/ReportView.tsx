@@ -22,7 +22,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { arrangeBlocks, editRule, isSameOrder, tidyText } from "../../lib/blocks";
 import { toKorean } from "../../lib/errors";
-import { blocksToMarkdown } from "../../lib/markdown";
+import { blocksToMarkdown, blockToMarkdown } from "../../lib/markdown";
 import { validateName } from "../../lib/names";
 import { browserStore } from "../_data/cache";
 import { withDemo } from "../_data/source";
@@ -33,6 +33,7 @@ import {
   freshAt,
   isUnread,
   orderBack,
+  orderStepped,
   orderWithout,
   pushUndo,
   relativeDay,
@@ -42,6 +43,7 @@ import {
   withTextAt,
   type UndoEntry,
 } from "../_logic/drawer";
+import { blockEditMenu, blockReadMenu } from "../_logic/menus";
 import { anchorsOf, hasNew, lostLabel, markSeen, newSince, noteCounts, placeNotes, seenAt } from "../_logic/notes";
 import { liveNow } from "../_logic/views";
 import { useApp } from "./AppContext";
@@ -54,6 +56,7 @@ import { useFlip } from "./motion/useFlip";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
 import { useArrange } from "./useArrange";
+import { toEntries, useContextMenu, type MenuBind } from "./useContextMenu";
 import { NoteList, SidePanel, Thread, useSideNotes } from "./Notes";
 import { PeerMarks, ViewersButton, ViewsPop, type ReadersTab } from "./Viewers";
 
@@ -86,6 +89,7 @@ export function ReportView({ id }: { id: string }) {
   const toast = useToast();
   const router = useRouter();
   const sp = useSearchParams();
+  const cm = useContextMenu();
 
   const [doc, setDoc] = useState<Doc | null | "missing">(null);
   const [editing, setEditing] = useState(false);
@@ -591,6 +595,40 @@ export function ReportView({ id }: { id: string }) {
     setTimeout(() => acts.current[name](), 0);
   }, []);
 
+  // 블록의 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장). 고치기 모드 = 도구 줄의 동작(메뉴를 연 블록이 고른 것에 없으면 그것만 고른다),
+  // 읽기 모드 = 댓글 · 그 블록만 Markdown 으로 복사
+  const blockMenu = (i: number, k: string): MenuBind | undefined => {
+    if (!ready) return undefined;
+    const blocks = doc.blocks;
+    return cm.bind(`blk:${k}`, () => {
+      if (!editing) {
+        return toEntries(blockReadMenu(), (a) => {
+          if (a === "comment") setOpenBlock(i);
+          else void copyBlock(blocks, i);
+        });
+      }
+      const all = doc.keys;
+      const picked = arr.selected.has(k) ? all.flatMap((x, j) => (arr.selected.has(x) ? [j] : [])) : [i];
+      const can = (dir: -1 | 1) => !isSameOrder(all.length, orderStepped(all.length, picked, dir));
+      arr.pick(k);
+      return toEntries(blockEditMenu({ canUp: can(-1), canDown: can(1) }), (a) => {
+        if (a === "comment") {
+          done();
+          goBlock(i);
+        } else act(a === "up" ? "up" : a === "down" ? "down" : "trash");
+      });
+    });
+  };
+
+  async function copyBlock(blocks: unknown[], i: number) {
+    try {
+      await navigator.clipboard.writeText(blockToMarkdown(blocks, i));
+      toast("Markdown 으로 복사했습니다");
+    } catch {
+      toast("복사하지 못했습니다. 다시 눌러 보세요");
+    }
+  }
+
   // 순서가 바뀐 커밋에서만 나머지 블록이 자리를 비켜 준다 (docs/모션.md 목록 재배치). 글자를 고쳐 높이가 바뀐 것은 움직이지 않는다
   useFlip(editing ? pageRef : NO_ROOT, ".blk[data-flip]", { when: () => flipArmed.current });
   useLayoutEffect(() => {
@@ -807,7 +845,7 @@ export function ReportView({ id }: { id: string }) {
                 <span>{relativeDay(freshAt(doc))}</span>
               </div>
             </div>
-            <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} notes={notesCtx} />
+            <Blocks blocks={doc.blocks} ctx={ctx} images={images} keys={doc.keys} notes={notesCtx} menu={blockMenu} />
             {!editing && <PeerMarks live={liveNowList} page={pageRef} blockCount={doc.blocks.length} />}
             <SidePanel place={side.place} at={openBlock}>
               {openBlock !== null && notesCtx?.thread(openBlock)}
@@ -818,6 +856,7 @@ export function ReportView({ id }: { id: string }) {
           {doc.blocks.length >= RAIL_MIN && <Rail blocks={doc.blocks} marks={liveBlocks} />}
         </div>
       ) : null}
+      {cm.node}
     </>
   );
 }

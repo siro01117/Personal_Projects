@@ -8,10 +8,12 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CHECK_ITEM_MAX, NOTE_MAX, TASK_TITLE_MAX, type CheckItem, type TaskRow } from "../../../lib/schedule";
+import { stepMenu } from "../../_logic/menus";
 import { satLabel, satMinutes } from "../../_logic/planner";
 import { duration } from "../../_logic/schedule";
 import { Icon } from "../Icon";
 import { useFlip } from "../motion/useFlip";
+import { toEntries, useContextMenu } from "../useContextMenu";
 
 const enter = (e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && !(e.nativeEvent.isComposing || e.keyCode === 229);
 const MINUTE = 60_000;
@@ -61,6 +63,7 @@ export function BenchCard({
   onAddStep,
   onMoveStep,
   onDetach,
+  onDeleteStep,
   onNote,
   onAddTask,
   onDone,
@@ -77,6 +80,8 @@ export function BenchCard({
   onAddStep: (text: string) => boolean;
   onMoveStep: (from: number, to: number) => void;
   onDetach: (index: number) => void;
+  /** 단계 지우기 (우클릭 · 길게 누르기 메뉴) */
+  onDeleteStep?: (index: number) => void;
   onNote: (note: string | null) => void;
   /** 넣었으면 true — 칸을 비운다 */
   onAddTask: (title: string) => boolean;
@@ -96,6 +101,7 @@ export function BenchCard({
     if (document.activeElement !== noteRef.current) setNote(task.note ?? "");
   }, [task.id, task.note]);
 
+  const cm = useContextMenu();
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
   dragRef.current = drag;
@@ -166,8 +172,26 @@ export function BenchCard({
         <ul className="bn-steps" ref={listRef} aria-label="단계">
           {order.map((i) => {
             const c = task.checklist[i]!;
+            const menu = cm.bind(`step:${keys[i]}`, () => {
+              const items = stepMenu({ done: c.done });
+              return toEntries(onDeleteStep ? items : items.filter((m) => m !== "sep" && m.act !== "delete"), (act) => {
+                if (act === "check") onCheck(i, !c.done);
+                else if (act === "detach") onDetach(i);
+                else onDeleteStep?.(i);
+              });
+            });
             return (
-              <li key={keys[i]} data-flip={keys[i]} data-i={i} className={drag?.from === i ? "dragging" : undefined} onPointerDown={(e) => grab(e, i)}>
+              <li
+                key={keys[i]}
+                data-flip={keys[i]}
+                data-i={i}
+                className={drag?.from === i ? "dragging" : undefined}
+                {...menu}
+                onPointerDown={(e) => {
+                  menu.onPointerDown(e);
+                  grab(e, i);
+                }}
+              >
                 <button
                   type="button"
                   className={c.done ? "ck on" : "ck"}
@@ -248,6 +272,7 @@ export function BenchCard({
           내리기
         </button>
       </div>
+      {cm.node}
     </section>
   );
 }

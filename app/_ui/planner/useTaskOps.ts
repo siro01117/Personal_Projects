@@ -4,7 +4,7 @@
 // 모두 usePlannerData().run 으로 — 화면 먼저 바꾸고 줄 세워 부른다. 버전 · 지금 목록은 부를 때의 서버 값에서 읽는다(빠르게 여러 번 해도 안 엇갈리게).
 
 import { validateTask, type TaskRow } from "../../../lib/schedule";
-import { addStep, detachStep, insertStep, toggleCheck } from "../../_logic/planner";
+import { addStep, detachStep, insertStep, toggleCheck, withoutStep } from "../../_logic/planner";
 import { useToast } from "../Toast";
 import type { PlannerDataHook, PlannerState } from "./usePlannerData";
 
@@ -177,6 +177,20 @@ export function useTaskOps(D: PlannerDataHook) {
     });
   }
 
+  /** 단계 지우기 (집중 화면의 우클릭 메뉴). 되돌리기는 그 자리에 다시 */
+  async function removeStep(t: TaskRow, i: number) {
+    const item = t.checklist[i];
+    if (!item || isTemp(t.id)) return;
+    // 서버 값에서는 같은 글자의 단계를 찾는다 (그사이 순서가 바뀌었을 수 있다)
+    const at = (list: TaskRow["checklist"]) => (list[i]?.t === item.t ? i : list.findIndex((c) => c.t === item.t));
+    const row = await editSteps(t, (list) => {
+      const k = at(list);
+      return k < 0 ? list : withoutStep(list, k);
+    });
+    if (!row) return;
+    toast("단계를 지웠습니다", { label: "되돌리기", run: () => void editSteps(t, (list) => insertStep(list, i, item)) });
+  }
+
   function saveNote(t: TaskRow, note: string | null) {
     void D.run(
       (s) => mapTask(s, t.id, (x) => ({ ...x, note })),
@@ -211,5 +225,5 @@ export function useTaskOps(D: PlannerDataHook) {
     );
   }
 
-  return { addTask, toggle, check, editSteps, addBenchStep, detach, saveNote, bench, sit, reorderBench };
+  return { addTask, toggle, check, editSteps, addBenchStep, detach, removeStep, saveNote, bench, sit, reorderBench };
 }

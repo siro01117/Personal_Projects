@@ -6,6 +6,7 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import type { Occurrence, Place } from "../../../lib/schedule";
 import { blockFit, DRAFT_ID, duration, hm, PX_PER_MIN, timeRange, type GridItem, type Laid } from "../../_logic/schedule";
+import type { MenuBind } from "../useContextMenu";
 
 export type GridCtx = {
   places: Map<string, Place>;
@@ -21,6 +22,8 @@ export type GridCtx = {
   onPick: (o: Occurrence, el: HTMLElement) => void;
   /** 고치는 중인 블록을 잡음 (데스크톱 마우스만) */
   onGrab?: (e: ReactPointerEvent<HTMLElement>, o: Occurrence, mode: "move" | "resize") => void;
+  /** 블록의 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장) */
+  menu?: (o: Occurrence) => MenuBind;
 };
 
 function laneStyle(l: { lanes: number; left: number; width: number }): CSSProperties {
@@ -113,6 +116,7 @@ function EventBlock({
   const fit = blockFit(height);
   const done = ctx.taskDone(o.task_id);
   const editing = ctx.editKey === o.key;
+  const menu = ctx.menu?.(o);
   const cls = [
     "ev",
     place ? `pc-${place.color}` : "",
@@ -137,18 +141,23 @@ function EventBlock({
       role="button"
       tabIndex={0}
       data-key={o.key}
+      {...menu}
       onClick={(e) => {
         e.stopPropagation();
         if (!ctx.dragging) ctx.onPick(o, e.currentTarget);
       }}
       onKeyDown={(e) => {
+        menu?.onKeyDown(e);
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           ctx.onPick(o, e.currentTarget);
         }
       }}
       onDoubleClick={(e) => e.stopPropagation()}
-      onPointerDown={editing && ctx.onGrab ? (e) => ctx.onGrab!(e, o, "move") : undefined}
+      onPointerDown={(e) => {
+        menu?.onPointerDown(e);
+        if (editing && ctx.onGrab) ctx.onGrab(e, o, "move");
+      }}
     >
       <div className="r">
         {done !== null && <i className={done ? "tk done" : "tk"} aria-hidden="true" />}
@@ -219,6 +228,7 @@ export function AllDayCell({
           <button
             type="button"
             key={o.key}
+            {...ctx.menu?.(o)}
             className={`allday${place ? ` pc-${place.color}` : ""}${ctx.selKey === o.key || ctx.editKey === o.key ? " sel" : ""}${ctx.fresh?.(o.event_id) ? " new" : ""}`}
             title={occTitle(o, ctx)}
             onClick={(e) => ctx.onPick(o, e.currentTarget)}

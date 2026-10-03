@@ -52,6 +52,8 @@ export type Arrange = {
   allSelected: boolean;
   /** 고른 덩어리를 한 칸 위(-1) · 아래(1)로 */
   step: (dir: -1 | 1) => void;
+  /** 우클릭 메뉴를 연 블록: 고른 것에 없으면 그것만 고른다(있으면 고른 것 그대로) */
+  pick: (key: string) => void;
   canUp: boolean;
   canDown: boolean;
   /** .doc-body 의 onPointerDown · onClick */
@@ -126,6 +128,13 @@ export function useArrange(options: ArrangeOptions): Arrange {
       const el = [...(opts.current.body.current?.querySelectorAll<HTMLElement>("[data-bk]") ?? [])].find((n) => n.dataset.bk === lead);
       el?.scrollIntoView({ block: "nearest" });
     });
+  }, []);
+
+  const pick = useCallback((key: string) => {
+    if (selectedRef.current.has(key)) return;
+    getSelection()?.removeAllRanges();
+    setSel([key]);
+    anchor.current = key;
   }, []);
 
   // 고치기 모드를 끄면 고르기가 풀리고, 하던 끌기도 그만둔다
@@ -414,6 +423,7 @@ export function useArrange(options: ArrangeOptions): Arrange {
     toggleAll,
     allSelected: count > 0 && selected.size === count,
     step,
+    pick,
     canUp: canStep(-1),
     canDown: canStep(1),
     onBodyDown,

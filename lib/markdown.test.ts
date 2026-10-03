@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sampleBlocks, sampleImage } from "./fixtures";
-import { blocksToMarkdown } from "./markdown";
+import { blocksToMarkdown, blockToMarkdown } from "./markdown";
 
 describe("blocksToMarkdown", () => {
   it("블록 종류 전부 — 판정 인용구 · 표 · 근거 각주 · 출처 각주 정의", () => {
@@ -156,5 +156,27 @@ describe("blocksToMarkdown", () => {
     expect(md).toContain("- [사실] **사실**이다[^1]");
     expect(md).toContain("[^1]: [**문서**](<https://a.dev/>)");
     expect(md.split("==").length).toBe(2); // 짝 없는 것 하나만 남는다
+  });
+});
+
+describe("blockToMarkdown (블록 하나 — 보고서 블록의 우클릭 메뉴)", () => {
+  const blocks = [
+    { type: "verdict", v: "한 줄", w: "" },
+    { type: "claims", h: "근거", items: [{ tag: "fact", text: "사실", refs: [1] }] },
+    { type: "text", h: "", body: "" },
+    { type: "sources", h: "출처", items: [{ title: "문서", url: "https://a.dev" }] },
+    { type: "nope" },
+  ];
+  it("그 블록만, 보고서 전체로 옮길 때와 같은 글 (인용 번호 그대로)", () => {
+    expect(blockToMarkdown(blocks, 1)).toBe("## 근거\n\n- [사실] 사실[^1]\n");
+    expect(blockToMarkdown(blocks, 0)).toBe("> **한 줄**\n");
+    const whole = blocksToMarkdown("t", blocks);
+    for (const i of [0, 1, 3]) expect(whole).toContain(blockToMarkdown(blocks, i).trimEnd());
+  });
+  it("보일 것이 없으면 빈 글자, 없는 번호도 빈 글자, 모르는 블록은 주석 한 줄", () => {
+    expect(blockToMarkdown(blocks, 2)).toBe("");
+    expect(blockToMarkdown(blocks, 9)).toBe("");
+    expect(blockToMarkdown(blocks, -1)).toBe("");
+    expect(blockToMarkdown(blocks, 4)).toBe("<!-- 이 블록은 옮기지 못했습니다: nope -->\n");
   });
 });

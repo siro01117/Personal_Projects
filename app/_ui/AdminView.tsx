@@ -4,7 +4,7 @@
 // 회원 추가(만든 뒤 아이디 · 비밀번호를 한 번 보여 준다 + 복사) · 추가 모듈 표 · 추가(이름 · https 주소, 키는 자동).
 // 관리자가 아니면 "권한이 없습니다". 그릇은 플래너와 같다 — 데스크톱은 떠 있는 패널, 폰은 아래 시트.
 
-import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
   linkError,
   LOGIN_ID,
@@ -17,11 +17,13 @@ import {
   type MemberRow,
   type ModuleRow,
 } from "../../lib/members";
+import { memberMenu } from "../_logic/menus";
 import { useApp } from "./AppContext";
 import { Icon } from "./Icon";
 import { Presence } from "./motion/Presence";
 import { HomeButton } from "./Shell";
 import { useToast } from "./Toast";
+import { toEntries, useContextMenu, type MenuBind } from "./useContextMenu";
 
 const PHONE_MAX = 760;
 const enter = (e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && !(e.nativeEvent.isComposing || e.keyCode === 229);
@@ -46,7 +48,9 @@ export function lastSeen(at: string | null): string {
   return `${p.month}.${p.day} ${p.hour === "24" ? "00" : p.hour}:${p.minute}`;
 }
 
-type Panel = { kind: "add" } | { kind: "made"; login_id: string; password: string } | { kind: "member"; id: string };
+/** focus = 표 줄의 우클릭 메뉴로 열었을 때 바로 갈 칸 (지우기는 확인 단추) */
+type SheetFocus = "name" | "password" | "delete";
+type Panel = { kind: "add" } | { kind: "made"; login_id: string; password: string } | { kind: "member"; id: string; focus?: SheetFocus };
 
 export function AdminView() {
   const { src, me, fail, reloadMe, tick } = useApp();
@@ -58,6 +62,7 @@ export function AdminView() {
   const [members, setMembers] = useState<MemberRow[] | null>(null);
   const [mods, setMods] = useState<ModuleRow[] | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
+  const cm = useContextMenu();
 
   const load = useCallback(() => {
     Promise.all([src.admin.members(), src.admin.modules()]).then(([m, d]) => {
@@ -124,8 +129,9 @@ export function AdminView() {
     label = sel.login_id;
     content = (
       <MemberSheet
-        key={sel.user_id}
+        key={`${sel.user_id}:${panel?.kind === "member" ? (panel.focus ?? "") : ""}`}
         m={sel}
+        focus={panel?.kind === "member" ? panel.focus : undefined}
         onName={(name) => void patch(sel, { name })}
         onPassword={(password) => patch(sel, { password }, "비밀번호를 바꿨습니다")}
         onDelete={() => {
@@ -170,6 +176,14 @@ export function AdminView() {
               onOpen={(m) => setPanel({ kind: "member", id: m.user_id })}
               onActive={(m) => void patch(m, { active: !m.active })}
               onAllowed={(m, key) => void patch(m, { allowed: m.allowed.includes(key) ? m.allowed.filter((k) => k !== key) : [...m.allowed, key] })}
+              menu={(m) =>
+                cm.bind(`member:${m.user_id}`, () =>
+                  toEntries(memberMenu({ active: m.active }), (act) => {
+                    if (act === "toggle") void patch(m, { active: !m.active });
+                    else setPanel({ kind: "member", id: m.user_id, focus: act === "name" ? "name" : act === "password" ? "password" : "delete" });
+                  }),
+                )
+              }
             />
           )}
         </section>
@@ -229,6 +243,7 @@ export function AdminView() {
           </div>
         )}
       </Presence>
+      {cm.node}
     </div>
   );
 }
@@ -244,6 +259,7 @@ export function MemberTable({
   onOpen,
   onActive,
   onAllowed,
+  menu,
 }: {
   members: MemberRow[];
   mods: ModuleRow[];
@@ -251,6 +267,8 @@ export function MemberTable({
   onOpen: (m: MemberRow) => void;
   onActive: (m: MemberRow) => void;
   onAllowed: (m: MemberRow, key: string) => void;
+  /** 줄의 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장) */
+  menu?: (m: MemberRow) => MenuBind;
 }) {
   if (members.length === 0) return null;
   return (
@@ -266,7 +284,7 @@ export function MemberTable({
       </thead>
       <tbody>
         {members.map((m) => (
-          <tr key={m.user_id} aria-selected={selected === m.user_id} onClick={() => onOpen(m)}>
+          <tr key={m.user_id} aria-selected={selected === m.user_id} {...menu?.(m)} onClick={() => onOpen(m)}>
             <td className="id">
               <button
                 type="button"
@@ -538,11 +556,14 @@ export function Made({ login_id, password, onDone }: { login_id: string; passwor
 
 function MemberSheet({
   m,
+  focus,
   onName,
   onPassword,
   onDelete,
 }: {
   m: MemberRow;
+  /** 열자마자 갈 칸 (표 줄의 메뉴) */
+  focus?: SheetFocus;
   onName: (name: string) => void;
   /** 바꿨으면 true — 칸을 비운다 */
   onPassword: (password: string) => Promise<boolean>;
@@ -551,7 +572,15 @@ function MemberSheet({
   const toast = useToast();
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(focus === "delete");
+  const nameRef = useRef<HTMLInputElement>(null);
+  const pwRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focus === "name") {
+      nameRef.current?.focus();
+      nameRef.current?.select();
+    } else if (focus === "password") pwRef.current?.focus();
+  }, [focus]);
 
   async function savePw(e: FormEvent) {
     e.preventDefault();
@@ -571,6 +600,7 @@ function MemberSheet({
       <label className="ad-f">
         <span>이름</span>
         <input
+          ref={nameRef}
           className="txt-in"
           defaultValue={m.name}
           key={m.name}
@@ -591,7 +621,7 @@ function MemberSheet({
       </label>
       <form className="ad-f ad-pw" onSubmit={savePw}>
         <span>비밀번호</span>
-        <input className="txt-in" value={pw} autoComplete="new-password" spellCheck={false} placeholder="새 비밀번호" aria-label="새 비밀번호" onChange={(e) => setPw(e.target.value)} />
+        <input ref={pwRef} className="txt-in" value={pw} autoComplete="new-password" spellCheck={false} placeholder="새 비밀번호" aria-label="새 비밀번호" onChange={(e) => setPw(e.target.value)} />
         <button type="submit" className="ghost" disabled={busy || pw.length === 0}>
           바꾸기
         </button>

@@ -65,7 +65,9 @@ function comment(raw: unknown): string {
   return `<!-- 이 블록은 옮기지 못했습니다: ${name} -->`;
 }
 
-export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta: MarkdownMeta = {}): string {
+type Parsed = { blocks: readonly unknown[]; parsed: (Block | null)[]; firstSources: number; sourceCount: number };
+
+function parseAll(blocks: readonly unknown[]): Parsed {
   const parsed: (Block | null)[] = blocks.map((b) => {
     const r = blockSchema.safeParse(b);
     return r.success ? r.data : null;
@@ -73,18 +75,39 @@ export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta
   // 인용 번호는 첫 출처 블록을 가리킨다 (lib/blocks crossCheck 와 같다)
   const firstSources = parsed.findIndex((b) => b?.type === "sources");
   const sourceCount = firstSources < 0 ? 0 : (parsed[firstSources] as Extract<Block, { type: "sources" }>).items.length;
+  return { blocks, parsed, firstSources, sourceCount };
+}
 
+export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta: MarkdownMeta = {}): string {
+  const all = parseAll(blocks);
   const out: string[] = [`# ${lines(title).join(" ")}`];
   const by = [meta.agent, meta.date].filter((x): x is string => typeof x === "string" && x.trim() !== "").join(" · ");
   if (by) out.push(by);
   if (meta.url) out.push(`<${meta.url}>`);
+  all.parsed.forEach((_, i) => blockParts(all, i, out));
+  return out.join("\n\n") + "\n";
+}
 
+/**
+ * 블록 하나만 (보고서 블록의 우클릭 메뉴 'Markdown 으로 복사'). 보고서 전체를 옮길 때와 같은 글 — 인용 번호 · 각주 번호는 보고서 전체의 것 그대로.
+ * 보일 것이 없는 블록이면 빈 글자
+ */
+export function blockToMarkdown(blocks: readonly unknown[], i: number): string {
+  if (!Number.isInteger(i) || i < 0 || i >= blocks.length) return "";
+  const out: string[] = [];
+  blockParts(parseAll(blocks), i, out);
+  return out.length === 0 ? "" : out.join("\n\n") + "\n";
+}
+
+/** i 번째 블록의 Markdown 덩어리들을 out 에 넣는다 */
+function blockParts({ blocks, parsed, firstSources, sourceCount }: Parsed, i: number, out: string[]): void {
   /** 소제목 줄 — 비었으면 없음 */
   const heading = (h: string | undefined) => {
     if (h) out.push(`## ${lines(md(h)).join(" ")}`);
   };
 
-  parsed.forEach((b, i) => {
+  {
+    const b = parsed[i];
     if (!b) return void out.push(comment(blocks[i]));
     switch (b.type) {
       case "verdict": {
@@ -149,6 +172,5 @@ export function blocksToMarkdown(title: string, blocks: readonly unknown[], meta
         break;
       }
     }
-  });
-  return out.join("\n\n") + "\n";
+  }
 }

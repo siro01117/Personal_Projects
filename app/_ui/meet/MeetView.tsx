@@ -48,6 +48,7 @@ import {
   windowAt,
   type MeetDraft,
 } from "../../_logic/meet";
+import { personMenu } from "../../_logic/menus";
 import { nowIn } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
@@ -55,6 +56,7 @@ import { PlaceDot } from "../schedule/PlaceSymbol";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
+import { toEntries, useContextMenu } from "../useContextMenu";
 import { MeetForm } from "./MeetForm";
 import { MeetGrid, type GridPick } from "./MeetGrid";
 import { refreshMeets, useMeetData, type MeetState } from "./useMeetData";
@@ -72,6 +74,17 @@ const mapPerson = (s: MeetState, meetId: string, personId: string, patch: Partia
 const samePick = (a: GridPick | null, b: GridPick) => a !== null && a.date === b.date && a.start === b.start && a.end === b.end;
 
 type Edit = { base: number; draft: MeetDraft };
+
+/** 공개 링크를 복사한다 (모임 화면 · 모임 목록의 메뉴). 못 하면 주소를 알림으로 */
+export async function copyMeetLink(token: string, demo: boolean, toast: (text: string) => void): Promise<void> {
+  const url = `${location.origin}${publicPath(token, demo)}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("링크를 복사했습니다");
+  } catch {
+    toast(url);
+  }
+}
 
 /** 화면 크기 (격자의 칸 높이를 정한다). 처음에는 모른다 */
 function useViewport(): { w: number; h: number } | null {
@@ -112,6 +125,17 @@ export function MeetView({ id }: { id: string }) {
   const [painting, setPainting] = useState(false);
   /** 지우는 중 — 목록으로 넘어가는 사이 '없는 모임' 을 그리지 않는다 */
   const [leaving, setLeaving] = useState(false);
+  const cm = useContextMenu();
+
+  // 목록의 우클릭 메뉴 '수정' 으로 왔으면(?edit=1) 수정 칸을 연다 — 처음 한 번
+  const editFromUrl = useRef(false);
+  useEffect(() => {
+    if (!state || !meet || editFromUrl.current) return;
+    editFromUrl.current = true;
+    if (new URLSearchParams(location.search).get("edit") !== "1") return;
+    const at = nowIn(DEFAULT_SETTINGS.tz);
+    setEdit({ base: meet.version, draft: meetDraftOf(meet, state.circles, at.date, at.min) });
+  }, [state, meet]);
 
   const tasks = useMemo(() => meetTasks(state?.tasks ?? [], id), [state, id]);
   const mine = meet?.people.find((p) => p.is_owner) ?? null;
@@ -288,15 +312,7 @@ export function MeetView({ id }: { id: string }) {
     );
   }
 
-  async function copyLink(token: string) {
-    const url = `${location.origin}${publicPath(token, src.demo)}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast("링크를 복사했습니다");
-    } catch {
-      toast(url);
-    }
-  }
+  const copyLink = (token: string) => copyMeetLink(token, src.demo, toast);
 
   async function linkOn() {
     const token = await D.run(null, () => D.M.link(m.id, true));
@@ -611,7 +627,21 @@ export function MeetView({ id }: { id: string }) {
               </h2>
               <ul className="mt-people">
                 {m.people.map((p) => (
-                  <li key={p.id}>
+                  <li
+                    key={p.id}
+                    {...cm.bind(`person:${p.id}`, () =>
+                      toEntries(
+                        personMenu({ temp: isTemp(p.id), decided, attend: p.attend, owner: p.is_owner, hasPin: p.has_pin, labels }),
+                        (act) => {
+                          if (act === "yes" || act === "no") attend(p, act);
+                          else if (act === "clear") {
+                            if (p.attend) attend(p, p.attend);
+                          } else if (act === "pin") void clearPin(p);
+                          else void removePerson(p);
+                        },
+                      ),
+                    )}
+                  >
                     {polling && !edit && !painting ? (
                       <button type="button" className="nm" aria-pressed={focus === p.name} onClick={() => setFocus(focus === p.name ? null : p.name)}>
                         {p.name}
@@ -732,6 +762,7 @@ export function MeetView({ id }: { id: string }) {
           </div>
         </div>
       </div>
+      {cm.node}
     </div>
   );
 }

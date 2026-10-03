@@ -28,6 +28,7 @@ import {
   type TaskRow,
 } from "../../../lib/schedule";
 import type { EventDeps, EventRows } from "../../_data/types";
+import { eventMenu } from "../../_logic/menus";
 import { parseDueAfter } from "../../_logic/planner";
 import {
   buildColumns,
@@ -65,6 +66,7 @@ import { usePager } from "../motion/usePager";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
+import { toEntries, useContextMenu } from "../useContextMenu";
 import { Detail } from "./Detail";
 import { EventForm, NO_AFTER, type AfterDraft } from "./EventForm";
 import { AllDayCell, Axis, ColumnItems, NowLine, type GridCtx } from "./Grid";
@@ -79,7 +81,8 @@ const CLOCK_MS = 30_000;
 
 type Sel = { event_id: string; on_date: DateStr };
 /** after = 끝나면 할 일 (반복 일정에 딸린 규칙), afterBase = 고치기 전 */
-type Edit = { target: Sel | null; draft: Draft; base: Draft; taskId: string | null; after: AfterDraft; afterBase: AfterDraft };
+/** once = 우클릭 메뉴의 '이번만 바꾸기' 로 열었다 — 저장 범위는 이번만 (반복 규칙을 바꾸면 이후 모두) */
+type Edit = { target: Sel | null; draft: Draft; base: Draft; taskId: string | null; after: AfterDraft; afterBase: AfterDraft; once?: boolean };
 type Anchor = { left: number; right: number; top: number };
 type Grab = { mode: "move" | "resize"; x: number; y: number; orig: Draft; offset: number; moved: boolean };
 
@@ -95,6 +98,9 @@ function useViewportWidth(): number | null {
 }
 
 /** 선택 → 지금 그리는 회차. 반복이 아닌 일정은 id 만으로 (날짜를 옮겨도 따라간다) */
+/** 메뉴의 '이번만 바꾸기': 이번만을 고를 수 있으면 그것만 */
+const onceOnly = (scopes: Scope[], once: boolean | undefined): Scope[] => (once && scopes.includes("once") ? ["once"] : scopes);
+
 function findOcc(occs: readonly Occurrence[], rows: EventRows, sel: Sel | null): Occurrence | null {
   if (!sel) return null;
   const ev = rows.events.find((e) => e.id === sel.event_id);
@@ -112,6 +118,7 @@ const tempId = () => `tmp-${globalThis.crypto.randomUUID()}`;
 export function ScheduleView() {
   const { href } = useApp();
   const toast = useToast();
+  const cm = useContextMenu();
   const width = useViewportWidth();
   const phone = (width ?? 1440) <= PHONE_MAX;
   const wide = (width ?? 1440) >= PANEL_MIN;
@@ -340,15 +347,15 @@ export function ScheduleView() {
     openNew(date, start, start + 60);
   }
 
-  function startEdit() {
-    if (!selOcc) return;
-    const ev = evOf(selOcc.event_id);
+  function startEdit(o: Occurrence | null = selOcc, once = false) {
+    if (!o) return;
+    const ev = evOf(o.event_id);
     if (!ev || ev.source) return;
-    const d = draftOf(selOcc, ev);
+    const d = draftOf(o, ev);
     setDeleting(false);
     const rule = afterRule(ev.id);
     const after: AfterDraft = rule ? { title: rule.title, dueAfter: rule.due_after === null ? "" : String(rule.due_after) } : NO_AFTER;
-    setEdit({ target: { event_id: selOcc.event_id, on_date: selOcc.on_date }, draft: d, base: d, taskId: ev.task_id, after, afterBase: after });
+    setEdit({ target: { event_id: o.event_id, on_date: o.on_date }, draft: d, base: d, taskId: ev.task_id, after, afterBase: after, once: once && ev.repeat !== null });
   }
 
   function cancelEdit() {
@@ -486,7 +493,8 @@ export function ScheduleView() {
 
   // ------------------------------------------------------------ 없애기
 
-  async function remove(scope: Scope | null) {
+  async function remove(scope: Scope | null, occ: Occurrence | null = selOcc) {
+    const selOcc = occ;
     if (!selOcc) return;
     const ev = evOf(selOcc.event_id);
     if (!ev || ev.source) return;
@@ -764,7 +772,20 @@ export function ScheduleView() {
     fresh: isFresh,
     onPick: pick,
     onGrab: phone ? undefined : onGrab,
+    menu: (o) => cm.bind(`ev:${o.key}`, (el) => blockMenu(o, el)),
   };
+  /** 블록의 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장) — 보기 패널의 동작. 고치는 중인 블록은 끌기 · 손잡이 몫 */
+  function blockMenu(o: Occurrence, el: HTMLElement) {
+    if (editOcc?.key === o.key) return [];
+    const ev = evOf(o.event_id);
+    return toEntries(eventMenu({ draft: o.event_id === DRAFT_ID, external: !ev || !!ev.source, repeating: !!ev?.repeat }), (act) => {
+      pick(o, el);
+      if (act === "edit" || act === "once") startEdit(o, act === "once");
+      else if (act === "delete") void remove(null, o);
+      else if (act === "deleteOnce") void remove("once", o);
+      else if (act === "deleteFollowing") void remove("following", o);
+    });
+  }
   const height = (range.to - range.from) * PX_PER_MIN;
   const ev = selOcc ? evOf(selOcc.event_id) : null;
   const detail = selOcc && (
@@ -778,7 +799,7 @@ export function ScheduleView() {
       after={ev?.repeat ? (afterRule(ev.id)?.title ?? null) : null}
       tz={tz}
       deleting={deleting}
-      onEdit={startEdit}
+      onEdit={() => startEdit()}
       onDelete={(s) => void remove(s)}
       onCancelDelete={() => setDeleting(false)}
       onToggleTask={(t) => void toggleTask(t)}
@@ -791,7 +812,7 @@ export function ScheduleView() {
       draft={edit.draft}
       onChange={(d) => setEdit((x) => (x ? { ...x, draft: d } : x))}
       places={placeList}
-      scopes={scopesFor(edit.draft, edit.base, editEv)}
+      scopes={onceOnly(scopesFor(edit.draft, edit.base, editEv), edit.once)}
       isNew={edit.target === null}
       after={edit.after}
       onAfter={(a) => setEdit((x) => (x ? { ...x, after: a } : x))}
@@ -916,6 +937,7 @@ export function ScheduleView() {
             </div>
           )}
         </Presence>
+        {cm.node}
       </div>
     );
   }
@@ -1066,6 +1088,7 @@ export function ScheduleView() {
           {ghost.task.title}
         </div>
       )}
+      {cm.node}
     </div>
   );
 }

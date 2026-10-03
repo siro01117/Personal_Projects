@@ -64,6 +64,7 @@ import {
   type TaskDraft,
   type TaskScope,
 } from "../../_logic/planner";
+import { taskMenu } from "../../_logic/menus";
 import { draftInput, newDraft, nowIn, type Draft } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
@@ -73,6 +74,7 @@ import { useFlip } from "../motion/useFlip";
 import { EventForm } from "../schedule/EventForm";
 import { HomeButton } from "../Shell";
 import { useToast } from "../Toast";
+import { toEntries, useContextMenu } from "../useContextMenu";
 import { DueForm } from "./DueForm";
 import { PlanForm, planDraftFor, type PlanDraft } from "./PlanForm";
 import { PlannerBar, PlannerCards, type CardKey } from "./PlannerCards";
@@ -272,6 +274,7 @@ export function PlannerView() {
 
   const ops = useTaskOps(D);
   const { addTask, toggle, check } = ops;
+  const cm = useContextMenu();
 
   function add() {
     if (addTask(text)) setText("");
@@ -335,11 +338,11 @@ export function PlannerView() {
     setSel((s) => (s === t.id && !phone ? null : t.id));
   }
 
-  function startEdit() {
-    if (!selTask || !state) return;
+  function startEdit(t: TaskRow | null = selTask) {
+    if (!t || !state) return;
     closeForms();
-    const d = taskDraft(selTask, ruleOf(state, selTask), state.titles, autoRole(selTask));
-    setEdit({ id: selTask.id, base: selTask.version, draft: d, baseDraft: d, stale: false });
+    const d = taskDraft(t, ruleOf(state, t), state.titles, autoRole(t));
+    setEdit({ id: t.id, base: t.version, draft: d, baseDraft: d, stale: false });
   }
 
   async function saveEdit(scope: TaskScope | null) {
@@ -439,15 +442,16 @@ export function PlannerView() {
 
   // ------------------------------------------------------------ 시간 정하기 · 다시 정하기 · 시간 없음으로
 
-  function startPlan() {
-    if (!selTask) return;
+  function startPlan(t: TaskRow | null = selTask) {
+    if (!t) return;
+    const link = linkOf.get(t.id) ?? null;
     closeForms();
-    const draft = planDraftFor(selTask, today);
+    const draft = planDraftFor(t, today);
     // 아직 안 지난 일정을 다시 정할 때는 지금 정해 둔 날짜·시각에서 시작한다
-    const keep = selLink && selLink.date >= today && selLink.start_min !== null && selLink.end_min !== null;
+    const keep = link && link.date >= today && link.start_min !== null && link.end_min !== null;
     setPlan({
-      id: selTask.id,
-      draft: keep ? { ...draft, date: selLink.date, start: selLink.start_min, len: String(selLink.end_min! - selLink.start_min!) } : draft,
+      id: t.id,
+      draft: keep ? { ...draft, date: link.date, start: link.start_min, len: String(link.end_min! - link.start_min!) } : draft,
     });
   }
 
@@ -500,10 +504,9 @@ export function PlannerView() {
   }
 
   /** 시간 없음으로: 이어진 일정을 지우고 할 일 목록으로 */
-  async function unplan() {
-    if (!selTask || !selLink || isTemp(selLink.event_id)) return;
-    const t = selTask;
-    const link = selLink;
+  async function unplan(t: TaskRow | null = selTask) {
+    const link = t ? (linkOf.get(t.id) ?? null) : null;
+    if (!t || !link || isTemp(link.event_id)) return;
     const deps = await D.run<EventDeps>(
       (s) => ({ ...s, links: s.links.filter((l) => l.task_id !== t.id) }),
       async () => {
@@ -559,9 +562,8 @@ export function PlannerView() {
 
   // ------------------------------------------------------------ 일정으로 보내기 · 없애기
 
-  function startSend() {
-    if (!selTask) return;
-    const t = selTask;
+  function startSend(t: TaskRow | null = selTask) {
+    if (!t) return;
     closeForms();
     const start = Math.min(1410, Math.ceil((nowMin + 1) / 30) * 30);
     const d = newDraft(today, start, start + (t.est_min ?? DEFAULT_LEN));
@@ -613,9 +615,8 @@ export function PlannerView() {
     });
   }
 
-  async function remove() {
-    if (!selTask) return;
-    const t = selTask;
+  async function remove(t: TaskRow | null = selTask) {
+    if (!t) return;
     closeAll();
     const ok = await D.run(
       (s) => ({ ...s, tasks: s.tasks.filter((x) => x.id !== t.id) }),
@@ -752,6 +753,32 @@ export function PlannerView() {
     add();
   };
 
+  /** 줄의 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장) — 보기 패널의 단추와 같은 동작 */
+  const rowMenu = (t: TaskRow) => {
+    const link = linkOf.get(t.id) ?? null;
+    const show = () => {
+      closeForms();
+      setSel(t.id);
+    };
+    return toEntries(
+      taskMenu({ temp: isTemp(t.id), done: t.done_at !== null, benched: t.bench_order !== null, link, late: lateOf(t, link, now) }),
+      (act) => {
+        if (act === "view") show();
+        else if (act === "done" || act === "undone") void toggle(t);
+        else if (act === "bench") toBench(t);
+        else if (act === "unbench") void ops.bench(t, false);
+        else if (act === "unplan") void unplan(t);
+        else if (act === "delete") void remove(t);
+        else {
+          setSel(t.id);
+          if (act === "edit") startEdit(t);
+          else if (act === "plan" || act === "replan") startPlan(t);
+          else startSend(t);
+        }
+      },
+    );
+  };
+
   const line = ({ task: t, link, late }: Row, movable = false) => (
     <TaskLine
       key={t.id}
@@ -768,6 +795,7 @@ export function PlannerView() {
       onToggle={(x) => void toggle(x)}
       onPick={pick}
       onGrab={movable && manual && !phone ? grab : undefined}
+      menu={cm.bind(`task:${t.id}`, () => rowMenu(t))}
     />
   );
 
@@ -888,11 +916,11 @@ export function PlannerView() {
         scheduleHref={selLink && !isTemp(selLink.event_id) ? href(`/schedule?date=${selLink.date}&event=${selLink.event_id}`) : null}
         onToggle={(x) => void toggle(x)}
         onCheck={(i, done) => check(selTask, i, done)}
-        onPlan={startPlan}
+        onPlan={() => startPlan()}
         onUnplan={() => void unplan()}
         onDue={startDue}
         onClearDue={() => void clearDue()}
-        onEdit={startEdit}
+        onEdit={() => startEdit()}
         onBench={selTask.done_at === null && selTask.bench_order === null ? () => toBench(selTask) : null}
         onDelete={() => void remove()}
         onMore={
@@ -1017,8 +1045,9 @@ export function PlannerView() {
         )}
       </Presence>
       {menu && viewing && (
-        <Menu x={menu.x} y={menu.y} entries={[{ kind: "item", icon: "cal", label: "일정으로", run: startSend }]} onClose={() => setMenu(null)} />
+        <Menu x={menu.x} y={menu.y} entries={[{ kind: "item", icon: "cal", label: "일정으로", run: () => startSend() }]} onClose={() => setMenu(null)} />
       )}
+      {cm.node}
     </div>
   );
 }

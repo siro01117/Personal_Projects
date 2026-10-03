@@ -5,9 +5,11 @@
 // 데이터 · 저장은 플래너와 같은 것(usePlannerData · useTaskOps).
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { DEFAULT_SETTINGS, type TaskRow } from "../../../lib/schedule";
 import { benchCandidates, benchList, checkLabel, firstLine, moved, NONE_LABEL, roleText, satLabel, satMinutes } from "../../_logic/planner";
+import { benchMenu } from "../../_logic/menus";
 import { duration, nowIn } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
@@ -15,6 +17,7 @@ import { Presence } from "../motion/Presence";
 import { useFlip } from "../motion/useFlip";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
+import { toEntries, useContextMenu, type MenuBind } from "../useContextMenu";
 import { useMinuteClock } from "./BenchCard";
 import { readRoleOff } from "./roleOff";
 import { isTemp, useTaskOps } from "./useTaskOps";
@@ -46,6 +49,7 @@ export function BenchItem({
   onGrab,
   onOpen,
   onOff,
+  menu,
 }: {
   task: TaskRow;
   role: string | null;
@@ -55,11 +59,21 @@ export function BenchItem({
   onGrab?: (e: ReactPointerEvent<HTMLLIElement>) => void;
   onOpen?: (e: ReactMouseEvent<HTMLAnchorElement>) => void;
   onOff: () => void;
+  /** 우클릭 · 길게 누르기 메뉴 (docs/공통.md 2장) */
+  menu?: MenuBind;
 }) {
   const steps = checkLabel(t.checklist);
   const note = firstLine(t.note);
   return (
-    <li data-id={t.id} className={dragging ? "bl-card dragging" : "bl-card"} onPointerDown={onGrab}>
+    <li
+      data-id={t.id}
+      className={dragging ? "bl-card dragging" : "bl-card"}
+      {...menu}
+      onPointerDown={(e) => {
+        menu?.onPointerDown(e);
+        onGrab?.(e);
+      }}
+    >
       <Link className="bl-main" href={href} draggable={false} onClick={onOpen}>
         <span className="bl-t">{t.title}</span>
         <span className="bl-meta">
@@ -79,6 +93,8 @@ export function BenchItem({
 
 export function BenchList() {
   const { href } = useApp();
+  const router = useRouter();
+  const cm = useContextMenu();
   const phone = usePhone();
   const D = usePlannerData();
   const ops = useTaskOps(D);
@@ -210,6 +226,13 @@ export function BenchList() {
                       if (justDragged.current) e.preventDefault();
                     }}
                     onOff={() => void ops.bench(t, false)}
+                    menu={cm.bind(`bench:${t.id}`, () =>
+                      toEntries(benchMenu({ temp: isTemp(t.id) }), (act) => {
+                        if (act === "focus") router.push(href(`/planner/bench/${t.id}`));
+                        else if (act === "done") void ops.toggle(t);
+                        else void ops.bench(t, false);
+                      }),
+                    )}
                   />
                 ))}
               </ul>
@@ -236,6 +259,7 @@ export function BenchList() {
           </div>
         )}
       </Presence>
+      {cm.node}
     </div>
   );
 }

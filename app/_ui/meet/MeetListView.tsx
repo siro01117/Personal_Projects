@@ -26,7 +26,8 @@ import {
   type MeetSortKey,
 } from "../../../lib/meet";
 import { DEFAULT_SETTINGS } from "../../../lib/schedule";
-import { addNames, draftInput, draftPeople, lineWhen, newMeetDraft, parseNames, type MeetDraft } from "../../_logic/meet";
+import { meetMenu } from "../../_logic/menus";
+import { addNames, draftInput, draftPeople, lineWhen, newMeetDraft, nextMeet, parseNames, type MeetDraft } from "../../_logic/meet";
 import { nowIn } from "../../_logic/schedule";
 import { useApp } from "../AppContext";
 import { Icon } from "../Icon";
@@ -36,9 +37,11 @@ import { PlaceDot } from "../schedule/PlaceSymbol";
 import { HomeButton } from "../Shell";
 import { ThemeToggle } from "../ThemeToggle";
 import { useToast } from "../Toast";
+import { toEntries, useContextMenu } from "../useContextMenu";
 import { CircleEdit } from "./CircleEdit";
 import { MeetForm } from "./MeetForm";
-import { useMeetData, type MeetState } from "./useMeetData";
+import { copyMeetLink } from "./MeetView";
+import { refreshMeets, useMeetData, type MeetState } from "./useMeetData";
 
 const PHONE_MAX = 760;
 const PANEL_MIN = 1180;
@@ -69,7 +72,8 @@ function useViewportWidth(): number | null {
 const mapCircle = (id: string, patch: Partial<Circle>) => (s: MeetState): MeetState => ({ ...s, circles: s.circles.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
 
 export function MeetListView() {
-  const { href } = useApp();
+  const { href, src, fail } = useApp();
+  const cm = useContextMenu();
   const toast = useToast();
   const router = useRouter();
   const width = useViewportWidth();
@@ -246,6 +250,37 @@ export function MeetListView() {
     if (ok) toast("묶음을 지웠습니다", { label: "되돌리기", run: () => void D.run(null, () => D.M.restoreCircle(c.id)) });
   }
 
+  // ------------------------------------------------------------ 줄의 우클릭 메뉴 (docs/공통.md 2장) — 모임 화면에 있는 동작
+
+  /** 다음 모임: 같은 묶음 · 사람 · 지점 · 제목으로 새로 열고 그리로 간다 */
+  async function makeNext(m: Meet) {
+    if (!state) return;
+    const n = nextMeet(m, state.circles);
+    const made = await D.run(null, () => D.M.createMeet(n.input, n.people));
+    if (made) router.push(href(`/meet/${made.id}`));
+  }
+
+  /** 딸린 일정 · 할 일은 남는다. 알림에서 되돌린다 */
+  async function removeMeet(m: Meet) {
+    const ok = await D.run(
+      (s) => ({ ...s, meets: s.meets.filter((x) => x.id !== m.id) }),
+      async (srv) => {
+        await D.M.deleteMeet(m.id, D.versionOf(srv, m.id, m.version));
+        return true;
+      },
+    );
+    if (ok) toast("모임을 지웠습니다", { label: "되돌리기", run: () => void src.meet.restoreMeet(m.id).then(refreshMeets, fail) });
+  }
+
+  const lineMenu = (m: Meet) =>
+    toEntries(meetMenu({ temp: m.id.startsWith("tmp-"), linked: m.token !== null }), (act) => {
+      if (act === "open") router.push(href(`/meet/${m.id}`));
+      else if (act === "edit") router.push(href(`/meet/${m.id}?edit=1`));
+      else if (act === "next") void makeNext(m);
+      else if (act === "copy") void copyMeetLink(m.token!, src.demo, toast);
+      else void removeMeet(m);
+    });
+
   // ------------------------------------------------------------ 그리기
 
   if (width === null || !state) return <div className="planner meet" />;
@@ -258,7 +293,7 @@ export function MeetListView() {
     const temp = m.id.startsWith("tmp-");
     const to = href(`/meet/${m.id}`);
     return (
-      <li key={m.id} className="pl-row mt-row" data-id={m.id} onClick={() => !temp && router.push(to)}>
+      <li key={m.id} className="pl-row mt-row" data-id={m.id} {...cm.bind(`meet:${m.id}`, () => lineMenu(m))} onClick={() => !temp && router.push(to)}>
         {/* 지점이 없어도 점 자리는 둔다 — 제목이 줄끼리 가지런하게 */}
         <span className={place ? `sym pc-${place.color}` : "sym"} title={place?.name}>
           {place && <PlaceDot />}
@@ -334,24 +369,26 @@ export function MeetListView() {
         </button>
         <ThemeToggle />
       </div>
-      <div className="pl-sort" role="group" aria-label="정렬">
-        {MEET_SORT_KEYS.map((k) => (
-          <button type="button" key={k} className="rf" aria-pressed={sort.key === k} onClick={() => pickSort({ ...sort, key: k })}>
-            {SORT_LABEL[k]}
+      <div className="pl-ctl">
+        <div className="pl-sort" role="group" aria-label="정렬">
+          {MEET_SORT_KEYS.map((k) => (
+            <button type="button" key={k} className="rf" aria-pressed={sort.key === k} onClick={() => pickSort({ ...sort, key: k })}>
+              {SORT_LABEL[k]}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="iconbtn rf-dir"
+            aria-label={sort.dir === "asc" ? "오름차순" : "내림차순"}
+            title={sort.dir === "asc" ? "오름차순" : "내림차순"}
+            onClick={() => pickSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
+          >
+            <Icon name={sort.dir === "asc" ? "asc" : "desc"} />
           </button>
-        ))}
-        <button
-          type="button"
-          className="iconbtn rf-dir"
-          aria-label={sort.dir === "asc" ? "오름차순" : "내림차순"}
-          title={sort.dir === "asc" ? "오름차순" : "내림차순"}
-          onClick={() => pickSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
-        >
-          <Icon name={sort.dir === "asc" ? "asc" : "desc"} />
-        </button>
-        <button type="button" className="iconbtn rf-edit" aria-label="묶음" title="묶음" aria-expanded={circleEdit} onClick={openCircles}>
-          <Icon name="pen" />
-        </button>
+          <button type="button" className="iconbtn rf-edit" aria-label="묶음" title="묶음" aria-expanded={circleEdit} onClick={openCircles}>
+            <Icon name="pen" />
+          </button>
+        </div>
       </div>
       <div className="pl-stage">
         <div className="pl-list" ref={listRef}>
@@ -427,6 +464,7 @@ export function MeetListView() {
           </div>
         )}
       </Presence>
+      {cm.node}
     </div>
   );
 }

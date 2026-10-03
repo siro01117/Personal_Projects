@@ -93,6 +93,7 @@ export function BenchFocus({ id }: { id: string }) {
                 onAddStep={(text) => ops.addBenchStep(task, text)}
                 onMoveStep={(from, to) => void ops.editSteps(task, (l) => moveStep(l, from, to))}
                 onDetach={(i) => void ops.detach(task, i)}
+                onDeleteStep={(i) => void ops.removeStep(task, i)}
                 onNote={(note) => ops.saveNote(task, note)}
                 onAddTask={ops.addTask}
                 onDone={() => {
